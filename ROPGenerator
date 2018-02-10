@@ -1,0 +1,4 @@
+#!/usr/bin/env python
+import ropgenerator.ROPGenerator as ROP
+ROP.main()
+
