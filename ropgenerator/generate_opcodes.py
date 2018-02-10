@@ -34,7 +34,7 @@ def generate(filename):
 		print("\n(Maybe check/update your config with the 'config' command)")
 		return False
 		  
-	f = open("Generated_opcodes.py","w")
+	f = open("generated_opcodes.py","w")
 
 	# Write binary name 
 	f.write("\n")
