@@ -9,7 +9,7 @@ class CleanCommand(Command):
     def finalize_options(self):
         pass
     def run(self):
-        os.system('rm -vr ./build ./*.pyc ./*.tgz ./*.egg-info')
+        os.system('rm -vr ./build ./*.pyc ./*.tgz ./*.egg-info ./Generated_opcodes.py ')
 
 def readme():
     with open('README.rst') as f:
