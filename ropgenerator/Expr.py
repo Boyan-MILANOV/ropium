@@ -635,8 +635,8 @@ class ITE(Expr):
 	def __str__(self):
 		return "ITE(%s,%s,%s)" % ( self.cond, self.args[0], self.args[1])
 		
-	def replace( self, reg, expr ):
-		return ITE( self.cond.replace(reg,expr), self.iftrue.replace(reg,expr), self.iffalse.replace(reg,expr))
+	def replaceReg( self, reg, expr ):
+		return ITE( self.cond.replaceReg(reg,expr), self.args[0].replaceReg(reg,expr), self.args[1].replaceReg(reg,expr))
 		
 	def replaceMemAcc( self, addr, expr ):
 		return ITE( self.cond.replaceMemAcc(addr,expr), self.iftrue.replaceMemAcc(addr,expr), self.iffalse.replaceMemAcc(addr,expr)) 

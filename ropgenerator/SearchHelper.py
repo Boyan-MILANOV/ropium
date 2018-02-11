@@ -89,7 +89,7 @@ def build_REGtoREG_reg_transitivity(iterations):
 		for reg2 in range(0,Analysis.ssaRegCount):
 			record_REGtoREG_reg_transitivity[reg1][reg2] = []
 			for gadget_num in db[reg1][reg2]:
-				if( Database.gadgetDB[gadget_num].isValidSpInc() ):
+				if( Database.gadgetDB[gadget_num].isValidSpInc() and Database.gadgetDB[gadget_num].hasNormalRet()  ):
 					padding_units = (Database.gadgetDB[gadget_num].spInc - Analysis.ArchInfo.bits/8)/8
 					if( padding_units <= MAX_PADDING ):
 						padding_chain = [padding_uid for i in range(0,padding_units)] 
@@ -159,10 +159,6 @@ def add_REGtoREG_reg_transitivity(reg1, reg2, chain , regs_chain, nbInstr):
 		record_REGtoREG_reg_transitivity[reg1][reg2] = []
 	
 	# Adding the chain in sorted 
-	if( reg1 == Analysis.regNamesTable['rsi'] and reg2 == Analysis.regNamesTable['rbx']):
-		#print("DEBUG ADDING A NEW ONE FOR RSI <-- RBX")
-		pass
-	# Adding in sorted 
 	for i in range(0, len(record_REGtoREG_reg_transitivity[reg1][reg2])):
 		if( i >= MAX_CHAINS ):
 			return False

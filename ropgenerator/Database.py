@@ -144,10 +144,11 @@ def generated_gadgets_to_DB():
 		addr = int(addr,16)
 		instr = instr.decode("hex")
 		asmGadgets.append((addr, instr))
-	
+	f.close()
 	# Analyze them 
 	i = 0
 	success = 0
+	warnings = 0
 	startTime = datetime.now()
 	chargingBarSize = 30
 	chargingBarStr = " "*chargingBarSize
@@ -156,7 +157,8 @@ def generated_gadgets_to_DB():
 	sys.stdout.write("\tProgression [")
 	sys.stdout.write(chargingBarStr)
 	sys.stdout.write("]\r\tProgression [")
-	sys.stdout.flush()                       
+	sys.stdout.flush()    
+	f = open(".warnings.log", "w")                 
 	for g in asmGadgets:
 		asm = g[1]
 		addr = g[0]
@@ -164,17 +166,22 @@ def generated_gadgets_to_DB():
 			if( i % (len(asmGadgets)/30) == 0 and i > 0 or i == len(asmGadgets)):
 				sys.stdout.write("|")
 				sys.stdout.flush()
-			#print("Try " + "\\x" + "\\x".join("%02x" % ord(c)	 for c in asm) )
+			f.write("Gadget : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\n")
 			gadget = Gadget(i, addr, asm)
 			success += 1
 			gadgetDB.append( gadget )
-		except GadgetException as e:
+		except Exception as e:
 			#print e
-			pass
+			if( not isinstance(e, GadgetException)):
+				warnings = warnings + 1
+				f.write("Error in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException message: " + str(e) + '\n\n')
+				
 		i += 1
+	f.close()
 		
 	# This variable should be written before calculating spInc or simplifying conditions !!!
 	Expr.nb_regs = Analysis.ssaRegCount-1
+	
 	
 	# Second pass analysis once all gadgets are collected 
 	for gadget in gadgetDB:
@@ -187,6 +194,8 @@ def generated_gadgets_to_DB():
 	print "\tGadgets analyzed : " + str(len(asmGadgets))
 	print "\tSuccessfully translated : " + str(success)
 	print "\tComputation time : " + str(cTime)
+	if( warnings > 0 ):
+		print("\tUnexpected exceptions : " + str(warnings) + " (logs in '.warnings.log')")
 	
 def simplifyGadgets():
 	"""

@@ -21,7 +21,7 @@ setup(name='ropgenerator',
       url='https://github.com/Boyan-MILANOV/ropgenerator',
       author='Boyan MILANOV',
       author_email='boyan.milanov@hotmail.fr',
-      license='MIT',
+      license='GPLv3',
       classifiers=[
       'Development Status :: 4 - Beta',
       'Environment :: Console',

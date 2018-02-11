@@ -202,7 +202,8 @@ def find_gadgets(args):
 		right = parsed_args[3]
 		# Search with basic strategy
 		gadgets = search.basic_strategy(gtype, left, right, n=10)
-		if( not gadgets ):
+		gadgetsValidRet = [g for g in gadgets if Database.gadgetDB[g].hasNormalRet()]
+		if( not gadgetsValidRet ):
 			# Search with chaining strategies
 			chains = search.chaining_strategy(gtype, left, right, n=10)
 			show_chains(chains)

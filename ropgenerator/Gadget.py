@@ -76,7 +76,7 @@ class Gadget:
 		self.regCount = {} # Keys are integers, values are integers. regCount[2] = 0 <=> R2_0 have appeared but R2_1 not yet 
 		self.spInc = None # How much have Stack Pointer been incremented by 
 		self.num = num # Identifier or the gadget
-		self.hasNormalRet = None # True iff the gadgets ends up by a normal ret; instruction 
+		self.normalRet = None # True iff the gadgets ends up by a normal ret; instruction 
 		self.nbInstr = 0 # Number of REIL instructions of this gadget 
 		self.dep = None
 		self.valuesTable = {} # Used dinamically when building graph 
@@ -213,6 +213,8 @@ class Gadget:
 				if( isinstance(expr, ConstExpr)):
 					node = ConstNode(expr.value, expr.size)
 					self.graph.nodes["MEM"].outgoingArcs.append( Arc( node, memAccCount, addr, expr.size ))
+				elif( not expr.getRegisters()):
+					raise GadgetException("Expression is neither ConstExpr nor has registers and should be written in memory ? - not yet supported!") 
 				else:
 					self.graph.nodes["MEM"].outgoingArcs.append( Arc( self.graph.nodes[str(expr.getRegisters()[0])], memAccCount,addr, expr.size ))
 				self.graph.nodes["MEM"].storedValues[memAccCount] = expr
@@ -509,7 +511,12 @@ class Gadget:
 		"""
 		Compute how much the stack pointer has advanced after this gadget is executed 
 		"""
-		sp = SSAReg(Analysis.regNamesTable[Analysis.ArchInfo.sp], self.graph.lastMod[Analysis.regNamesTable[Analysis.ArchInfo.sp]])
+		sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
+		if( not sp_num in self.graph.lastMod ):
+			self.spInc = 0
+			return 
+		
+		sp = SSAReg(sp_num, self.graph.lastMod[sp_num])
 		if( not sp in self.dep.regDep ): 
 			self.spInc = None
 			return 
@@ -529,28 +536,34 @@ class Gadget:
 	def calculateRet(self):
 		"""
 		Computes the return address, checks if it is valid or not... 
+		/!\ MUST be called after calculateSpInc()
+		
 		"""
 	
 		ip = SSAReg(Analysis.regNamesTable[Analysis.ArchInfo.ip], self.graph.lastMod[Analysis.regNamesTable[Analysis.ArchInfo.ip]])
-		sp = SSAReg(Analysis.regNamesTable[Analysis.ArchInfo.sp], self.graph.lastMod[Analysis.regNamesTable[Analysis.ArchInfo.sp]])
+		sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
+		if( not self.spInc ):
+			self.normalRet = False
+			return 
 		
 		if( not ip in self.dep.regDep ):
-			self.hasNormalRet = False
+			self.normalRet = False
 			return 
 			
 		for dep in self.dep.regDep[ip]:
 			if( dep[1].isTrue()):
 				if( isinstance(dep[0], MEMExpr)):
 					addr = dep[0].addr
-					(isInc, inc) = addr.isRegIncrement(sp.num)
-					if( isInc ):
-						self.hasNormalRet = True
+					(isInc, inc) = addr.isRegIncrement(sp_num)	
+					# Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )		
+					if( isInc and inc == (self.spInc - (Analysis.ArchInfo.bits/8)) ):
+						self.normalRet = True
 					else:
-						self.hasNormalRet = False
+						self.normalRet = False
 		
 		
 	def hasNormalRet(self):
-		return self.hasNormalRet
+		return self.normalRet
 		
 	def getDependencies(self):
 		"""
