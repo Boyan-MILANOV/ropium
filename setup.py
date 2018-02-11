@@ -16,7 +16,7 @@ def readme():
         return f.read()
 
 setup(name='ropgenerator',
-      version='0.2',
+      version='0.3',
       description='ROPGenerator makes ROP exploits easy by finding and chaining gadgets',
       url='https://github.com/Boyan-MILANOV/ropgenerator',
       author='Boyan MILANOV',
