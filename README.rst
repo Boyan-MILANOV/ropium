@@ -1,10 +1,7 @@
 ROPGenerator
-############
+=============
 
 **ROPGenerator** is a tool that makes ROP exploits easy. It enables you to automatically find gadgets or build ROP chains.
-
-ROPGenerator Tool
-=================
 
 Overview
 --------
