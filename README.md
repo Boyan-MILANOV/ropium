@@ -34,9 +34,9 @@ Or even run the tool without installing
     
 Install Dependencies
 --------------------
-**ROPGenerator** depends on **ROPgadget**, **z3**, and **barf**:
+**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **z3**, and **barf**:
 
-- **ROPgadget** should be added automaticaly during installation.
+- **ROPgadget** and **prompt_toolkit** should be added automaticaly during installation.
 
 - **z3** and **barf** don't support pip installation, so you should install them manually: 
 	- The z3 solver (https://github.com/Z3Prover/z3)
