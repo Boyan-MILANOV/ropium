@@ -70,7 +70,7 @@ Get help
 			config: 	configure ROPGenerator
 			exit: 		exit ROPGenerator
 			
-If you you ROPGenerator for the first time, quickly configure the tool
+If you are using ROPGenerator for the first time, quickly configure the tool
 
 	>>> config arch=X86_64 ropgadget=/home/ropgenerator/ROPgadget
 	Now working under architecture: X86_64
