@@ -1,52 +1,48 @@
 ROPGenerator
-=============
+============
 
-**ROPGenerator** is a tool that makes ROP exploits easy. It enables you to automatically find gadgets or build ROP chains.
+ROPGenerator is a tool that makes ROP exploits easy. It enables you to automatically find gadgets or build ROP chains.
 
 Overview
 --------
-**ROPGenerator** uses the tool ROPgadget (https://github.com/JonathanSalwan/ROPgadget) to extract gadgets from binaries and the barf-project (https://github.com/programa-stic/barf-project) to disassembly them. After gadgets are extracted, it performs semantic analysis in order to compute their semantic and stores them according to their utility. Once the analysis is done, you can request **ROPGenerator** to automatically find gadgets or ROP chains by supplying semantic queries. 
+ROPGenerator uses the tool ROPgadget (https://github.com/JonathanSalwan/ROPgadget) to extract gadgets from binaries and the barf-project (https://github.com/programa-stic/barf-project) to disassembly them. After gadgets are extracted, it performs semantic analysis in order to compute their semantic and stores them according to their utility. Once the analysis is done, you can request ROPGenerator to automatically find gadgets or ROP chains by supplying semantic queries. 
 
-**ROPGenerator** is written in python. The current version is still a beta and the tool is still under active development. The tool has python2-only dependencies so it runs under python2 so far.  
+ROPGenerator is written in python. The current version is still a beta and the tool is still under active development. The tool has python2-only dependencies so it runs under python2 so far.  
 
-Features
---------
-Why using **ROPGenerator** ? 
-- *Command Line Interface* : Enjoy a nice and smooth CLI with easy-to-use commands 
-- *Semantic gadget search* : Find your gadgets quickly by only specifying the desired semantics
-- *Gadget chaining engine* : No suitable single gadget ? **ROPGenerator** will build ROP chains for you 
+Why using ROPGenerator ? 
+----------------------------
+- **Nice Command Line Interface** : Enjoy a nice and smooth CLI with easy-to-use commands 
+- **Semantic gadget search** : Find your gadgets quickly by only specifying the desired semantics
+- **Gadget chaining engine** : No suitable single gadget ? ROPGenerator will build ROP chains for you 
 
 Installation
 ============
-
 ROPGenerator
 ------------
 You can install **ROPGenerator** with pip 
-.. code-block::
+
 	$ pip install ropgenerator
 
 Or you can download the source and run 
-.. code-block::
+
 	$ python setup.py install
 
 Or even run the tool without installing 
-.. code-block:: 
+
     	$ python ROPGenerator.py 
     
 Dependencies
 ------------
-*ROPgadget* should be added automaticaly during installation.
+**ROPgadget** should be added automaticaly during installation.
 
-*z3* and *barf* don't support pip installation, so you should install them manually: 
-    - The z3 solver (https://github.com/Z3Prover/z3)
-    - The barf-project (https://github.com/programa-stic/barf-project)
- 
+**z3** and **barf** don't support pip installation, so you should install them manually: 
+- The z3 solver (https://github.com/Z3Prover/z3)
+- The barf-project (https://github.com/programa-stic/barf-project) 
 
 Getting started
 ===============
-
 Launch **ROPGenerator** 
-::
+
 	$ ROPGenerator 
 
 	   ___  ____  ___  _____                     __          
@@ -55,10 +51,8 @@ Launch **ROPGenerator**
 	/_/|_|\____/_/   \___/\__/_//_\__/_/  \_,_/\__/\___/_/ v0.2 
         
         >>>
-        
-
 Get help
-::
+
 	>>> help
 
 		-----------------------------------------------------------
@@ -73,14 +67,14 @@ Get help
 			config: 	configure ROPGenerator
 			exit: 		exit ROPGenerator
 			
-Quickly configure the tool
-::
+If you you ROPGenerator for the first time, quickly configure the tool
+
 	>>> config arch=X86_64 ropgadget=/home/ropgenerator/ROPgadget
 	Now working under architecture: X86_64
 	New ropgadget location : /home/ropgenerator/ROPgadget/ROPgadget.py
  			
 Load gadgets from a binary
-::
+
 	>>> load /bin/ls
 	Extracting gadgets from file '/bin/ls'
 	Executing ROPgadget as: /home/ropgenerator/ROPgadget/ROPgadget.py
@@ -92,7 +86,7 @@ Load gadgets from a binary
 		Computation time : 0:00:29.704368
 
 Look for gadgets 
-::
+
 	>>> find rax=rbx
 
 		Found matching gadget(s):
