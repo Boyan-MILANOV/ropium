@@ -22,15 +22,15 @@ Installation
 ROPGenerator
 ------------
 You can install **ROPGenerator** with pip 
-.. code-block:: bash
+.. code-block::
 	$ pip install ropgenerator
 
 Or you can download the source and run 
-.. code-block:: bash
+.. code-block::
 	$ python setup.py install
 
 Or even run the tool without installing 
-.. code-block:: bash 
+.. code-block:: 
     	$ python ROPGenerator.py 
     
 Dependencies
@@ -38,24 +38,27 @@ Dependencies
 *ROPgadget* should be added automaticaly during installation.
 
 *z3* and *barf* don't support pip installation, so you should install them manually: 
-- The z3 solver (https://github.com/Z3Prover/z3)
-- The barf-project (https://github.com/programa-stic/barf-project)
+    - The z3 solver (https://github.com/Z3Prover/z3)
+    - The barf-project (https://github.com/programa-stic/barf-project)
  
 
 Getting started
 ===============
 
 Launch **ROPGenerator** 
-.. code-block:: bash
-	$ROPGenerator 
+::
+	$ ROPGenerator 
 
 	   ___  ____  ___  _____                     __          
 	  / _ \/ __ \/ _ \/ ______ ___ ___ _______ _/ /____  ________
 	 / , _/ /_/ / ___/ (_ / -_/ _ / -_/ __/ _ `/ __/ _ \/ ______/
 	/_/|_|\____/_/   \___/\__/_//_\__/_/  \_,_/\__/\___/_/ v0.2 
-	
-	 
+        
+        >>>
+        
 
+Get help
+::
 	>>> help
 
 		-----------------------------------------------------------
@@ -71,13 +74,13 @@ Launch **ROPGenerator**
 			exit: 		exit ROPGenerator
 			
 Quickly configure the tool
-.. code-block:: bash
+::
 	>>> config arch=X86_64 ropgadget=/home/ropgenerator/ROPgadget
 	Now working under architecture: X86_64
 	New ropgadget location : /home/ropgenerator/ROPgadget/ROPgadget.py
  			
 Load gadgets from a binary
-.. code-block:: bash
+::
 	>>> load /bin/ls
 	Extracting gadgets from file '/bin/ls'
 	Executing ROPgadget as: /home/ropgenerator/ROPgadget/ROPgadget.py
@@ -89,7 +92,7 @@ Load gadgets from a binary
 		Computation time : 0:00:29.704368
 
 Look for gadgets 
-.. code-block:: bash
+::
 	>>> find rax=rbx
 
 		Found matching gadget(s):
