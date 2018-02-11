@@ -2,6 +2,7 @@ ROPGenerator
 ============
 
 ROPGenerator is a tool that makes ROP exploits easy. It enables you to automatically find gadgets or build ROP chains.
+The current version supports *x86* and *x64* binaries. 
 
 Overview
 --------
@@ -17,27 +18,29 @@ Why using ROPGenerator ?
 
 Installation
 ============
-ROPGenerator
-------------
+Install ROPGenerator
+--------------------
 You can install **ROPGenerator** with pip 
 
 	$ pip install ropgenerator
-
-Or you can download the source and run 
+	
+Or download the source (prefer this method if you want the last version of the tool) and run 
 
 	$ python setup.py install
 
 Or even run the tool without installing 
 
-    	$ python ROPGenerator.py 
+	$ python ROPGenerator.py 
     
-Dependencies
-------------
-**ROPgadget** should be added automaticaly during installation.
+Install Dependencies
+--------------------
+**ROPGenerator** depends on **ROPgadget**, **z3**, and **barf**:
 
-**z3** and **barf** don't support pip installation, so you should install them manually: 
-- The z3 solver (https://github.com/Z3Prover/z3)
-- The barf-project (https://github.com/programa-stic/barf-project) 
+- **ROPgadget** should be added automaticaly during installation.
+
+- **z3** and **barf** don't support pip installation, so you should install them manually: 
+	- The z3 solver (https://github.com/Z3Prover/z3)
+	- The barf-project (https://github.com/programa-stic/barf-project) 
 
 Getting started
 ===============
