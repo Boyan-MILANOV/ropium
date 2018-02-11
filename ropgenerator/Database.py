@@ -7,6 +7,7 @@ from Gadget import *
 from datetime import datetime
 from Cond import *
 import Expr
+import signal 
 
 # List of the available gadgets 
 gadgetDB = [] 
@@ -126,7 +127,7 @@ gadgetLookUp = {GadgetType.REGtoREG:dict(), GadgetType.REGtoMEM:memLookUp(), Gad
 # THEM IN THE DATABASE & SEARCH STRUCTURES  #
 #############################################
 
-
+sigint = False
 
 def generated_gadgets_to_DB():
 	"""
@@ -135,6 +136,13 @@ def generated_gadgets_to_DB():
 	Result : 
 		No value returned. But the gadgets are stored in the gadgets[] array in Database module.  
 	"""
+	global sigint 
+	
+	def sigint_handler(signal, frame):
+		global sigint
+		sigint = True
+		
+		
 	
 	 # Read all gadgets that have been generated ! 
 	f = open('.generated_opcodes', "r")
@@ -158,8 +166,12 @@ def generated_gadgets_to_DB():
 	sys.stdout.write(chargingBarStr)
 	sys.stdout.write("]\r\tProgression [")
 	sys.stdout.flush()    
-	f = open(".warnings.log", "w")                 
+	f = open(".warnings.log", "w") 
+	original_sigint_handler = signal.getsignal(signal.SIGINT)   
+	signal.signal(signal.SIGINT, sigint_handler)             
 	for g in asmGadgets:
+		if( sigint ):
+			break
 		asm = g[1]
 		addr = g[0]
 		try:
@@ -178,6 +190,8 @@ def generated_gadgets_to_DB():
 				
 		i += 1
 	f.close()
+	signal.signal(signal.SIGINT, original_sigint_handler)
+	sigint = False
 		
 	# This variable should be written before calculating spInc or simplifying conditions !!!
 	Expr.nb_regs = Analysis.ssaRegCount-1
@@ -208,6 +222,20 @@ def fillGadgetLookUp():
 	"""
 	Fill the gadgetLookUp dictionnary with gadgets from the gadgetDB list 
 	"""
+	
+	def add_gadget( gadget_list, gadget_num ):
+		"""
+		Adds a gadget in a list of gadgets in increasing order ( order is gadget.nbInstr value )
+		"""
+		for i in range(0,len(gadget_list)):
+			if( gadget_num == gadget_list[i] ):
+				return 
+			elif( gadgetDB[gadget_list[i]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
+				gadget_list.insert(i, gadget_num )
+				return 
+		gadget_list.append(gadget_num)
+				
+	
 	# Initialize the gadgetLookUp dictionnaries 
 	# Only done for REGtoREG so far 
 	for reg_num in revertRegNamesTable.keys():
@@ -231,13 +259,13 @@ def fillGadgetLookUp():
 			for dep in deps:
 				# For REGtoREG
 				if( isinstance(dep[0], SSAExpr) and dep[1].isTrue(hard=hard_simplify)):
-					gadgetLookUp[GadgetType.REGtoREG][reg.num][dep[0].reg.num].append(i)
+					add_gadget(gadgetLookUp[GadgetType.REGtoREG][reg.num][dep[0].reg.num], i)
 				# For CSTtoREG
 				elif( isinstance(dep[0], ConstExpr) and dep[1].isTrue(hard=hard_simplify)):
 					if( not dep[0].value in gadgetLookUp[GadgetType.CSTtoREG][reg.num] ):
 						gadgetLookUp[GadgetType.CSTtoREG][reg.num][dep[0].value] = [i]
 					else:	
-						gadgetLookUp[GadgetType.CSTtoREG][reg.num][dep[0].value].append(i)
+						add_gadget(gadgetLookUp[GadgetType.CSTtoREG][reg.num][dep[0].value], i)
 				# For XXXtoREG
 				elif( isinstance(dep[0], MEMExpr) and dep[1].isTrue(hard=hard_simplify) ):
 					# For MEMtoREG
@@ -246,7 +274,7 @@ def fillGadgetLookUp():
 						if( not addrKey in gadgetLookUp[GadgetType.MEMtoREG][reg.num]):
 							gadgetLookUp[GadgetType.MEMtoREG][reg.num][addrKey] = [i]
 						else:
-							gadgetLookUp[GadgetType.MEMtoREG][reg.num][addrKey].append(i)
+							add_gadget(gadgetLookUp[GadgetType.MEMtoREG][reg.num][addrKey], i)
 					# For MEMEXPRtoREG
 					else:
 						pass
@@ -276,17 +304,19 @@ def fillGadgetLookUp():
 				# For REGtoMEM
 				if( isinstance( dep[0], SSAExpr ) and dep[1].isTrue(hard=hard_simplify)):
 					if( dep[0].reg.num in memLookUpREGtoMEM.written_values[-1]):
-						memLookUpREGtoMEM.written_values[-1][dep[0].reg.num].append(i)	
+						add_gadget(memLookUpREGtoMEM.written_values[-1][dep[0].reg.num], i)	
 					else:
 						memLookUpREGtoMEM.written_values[len(memLookUpREGtoMEM.addr_list)-1][dep[0].reg.num] = [i]
 				elif( isinstance(dep[0], ConstExpr) and dep[1].isTrue(hard=hard_simplify)):
 					if( dep[0].value in memLookUpCSTtoMEM.written_values[-1]):
-						memLookUpCSTtoMEM.written_values[-1][dep[0].value].append(i)
+						add_gadget(memLookUpCSTtoMEM.written_values[-1][dep[0].value], i)
 					else:
 						memLookUpCSTtoMEM.written_values[-1][dep[0].value] = [i]
 				# FOR THE REST --> IMPLEMENT LATER !! 
 				else:
 					pass
+
+
 
 				
 def pretty_print_registers():
