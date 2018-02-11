@@ -136,10 +136,16 @@ def generated_gadgets_to_DB():
 		No value returned. But the gadgets are stored in the gadgets[] array in Database module.  
 	"""
 	
-	 # List of all gadgets in assembly
-	import Generated_opcodes
-	asmGadgets = Generated_opcodes.opcodes_gadget
+	 # Read all gadgets that have been generated ! 
+	f = open('.generated_opcodes', "r")
+	asmGadgets = []
+	for line in f:
+		(addr,instr) = line[:-1].split('#')
+		addr = int(addr,16)
+		instr = instr.decode("hex")
+		asmGadgets.append((addr, instr))
 	
+	# Analyze them 
 	i = 0
 	success = 0
 	startTime = datetime.now()

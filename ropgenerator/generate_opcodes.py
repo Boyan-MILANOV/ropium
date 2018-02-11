@@ -34,14 +34,9 @@ def generate(filename):
 		print("\n(Maybe check/update your config with the 'config' command)")
 		return False
 		  
-	f = open("Generated_opcodes.py","w")
-
-	# Write binary name 
-	f.write("\n")
+	f = open(".generated_opcodes","w")
 
 	# Write gadgets 
-	f.write("opcodes_gadget = [")
-
 	first = True
 	count = 0
 	for l in p.stdout.readlines():
@@ -50,15 +45,10 @@ def generate(filename):
 		addr = arr[0]
 		gadget = arr[-1]
 		it = iter(gadget)
-		gadget = "\\x"+"\\x".join(a+b for a,b in zip(it,it))
-		if(first):
-		    buf = "("+addr+",\""+gadget+"\")"
-		    first = False
-		else:
-		    buf = ",("+addr+",\""+gadget+"\")"
-		f.write(buf)
+		gadget = ''.join(a+b for a,b in zip(it,it))
+		f.write(addr+'#')
+		f.write(gadget+'\n')
 		count += 1 
-	f.write("]")
 	f.close()
 		
 	print "Finished : %d gadgets generated" % (count)

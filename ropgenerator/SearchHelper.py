@@ -163,7 +163,6 @@ def add_REGtoREG_reg_transitivity(reg1, reg2, chain , regs_chain, nbInstr):
 		#print("DEBUG ADDING A NEW ONE FOR RSI <-- RBX")
 		pass
 	# Adding in sorted 
-	print("Adding in list of " + str(len(record_REGtoREG_reg_transitivity[reg1][reg2])))
 	for i in range(0, len(record_REGtoREG_reg_transitivity[reg1][reg2])):
 		if( i >= MAX_CHAINS ):
 			return False
