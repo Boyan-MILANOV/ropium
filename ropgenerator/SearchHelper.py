@@ -57,7 +57,7 @@ def get_padding_unit(uid=-1):
 #############################################
 
 record_REGtoREG_reg_transitivity = dict()
-built_REGtoREG_reg_transitivity = False 
+built_REGtoREG_reg_transitivity = False
 
 
 def build_REGtoREG_reg_transitivity(iterations):
@@ -90,7 +90,7 @@ def build_REGtoREG_reg_transitivity(iterations):
 			record_REGtoREG_reg_transitivity[reg1][reg2] = []
 			for gadget_num in db[reg1][reg2]:
 				if( Database.gadgetDB[gadget_num].isValidSpInc() and Database.gadgetDB[gadget_num].hasNormalRet()  ):
-					padding_units = (Database.gadgetDB[gadget_num].spInc - Analysis.ArchInfo.bits/8)/8
+					padding_units = (Database.gadgetDB[gadget_num].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8)
 					if( padding_units <= MAX_PADDING ):
 						padding_chain = [padding_uid for i in range(0,padding_units)] 
 						nbInstr = Database.gadgetDB[gadget_num].nbInstr
@@ -196,3 +196,94 @@ def found_REGtoREG_reg_transitivity(reg1, reg2, n=1):
 		return record_REGtoREG_reg_transitivity[reg1][reg2][:n]
 	else:
 		return []	
+		
+		
+##########################################
+# Chains for REG pop from stack strategy #
+##########################################
+
+record_REG_pop_from_stack = dict()
+built_REG_pop_from_stack = False
+
+def build_REG_pop_from_stack():
+	global built_REG_pop_from_stack
+	global record_REG_pop_from_stack
+	global PADDING_BYTE
+	global PADDING_UNIT
+	global PADDING_GADGET  
+	global MAX_PADDING 
+	
+	# First reg <- mem(esp)
+	db = Database.gadgetLookUp[GadgetType.MEMtoREG]
+	sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
+	for reg in range(0,Analysis.ssaRegCount):
+		record_REG_pop_from_stack[reg] = dict()
+		if( sp_num in db[reg] and db[reg][sp_num] != [] ):
+			add_REG_pop_from_stack( reg, 0, db[reg][sp_num])
+			
+	# Then reg <- mem(esp+ X )
+	db = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG]
+	for reg in range(0,Analysis.ssaRegCount):
+		for i  in range(0, len(Database.gadgetLookUp[GadgetType.MEMEXPRtoREG].expr_list)):
+			# For each expr so that reg <- mem(expr)
+			expr = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG].expr_list[i]
+			(isInc, inc) = expr.isRegIncrement(sp_num)
+			if( isInc ):
+				# If expr is esp + X 
+				add_REG_pop_from_stack(reg, inc, Database.gadgetLookUp[GadgetType.MEMEXPRtoREG].gadget_list[i])
+	
+	built_REG_pop_from_stack = True
+				
+	
+def add_REG_pop_from_stack(reg, offset, gadgets_list, gadgets_sorted=False ):
+	"""
+	Adds gadgets that put mem(esp+offset) into reg
+	Addition to the record_REG_pop_from_stack[reg] list is made in increasing order according to gadgets length (number of REIL instructions. This is to get the best gadgets (shorter) first 
+	
+	Parameters:
+		reg - int
+		offset - int 
+		gadgets_list - list of int 
+		gadgets_sorted - Bool (True iff the gadgets_list parameter supplied has been sorted already ) 
+	"""
+	global MAX_CHAINS
+	global record_REG_pop_from_stack	
+	
+	if( not record_REG_pop_from_stack[reg][offset] ):
+		if( not gadgets_sorted ):
+			record_REG_pop_from_stack[reg][offset] = sorted(gadgets_list, key= lambda gadget:Databse.gadgetDB[gadget].nbInstr)
+		else:
+			record_REG_pop_from_stack[reg][offset] = list(gadgets_list)
+		return 
+		
+	# Preparing merge with fusion sort 
+	if( not gadgets_sorted ):
+		gadgets_list = sorted(gadgets_list, key=lambda gadget:Databse.gadgetDB[gadget].nbInstr)
+		
+	# Merging  
+	for i in range(0, len(record_REG_pop_from_stack[reg][offset])):
+		if( i >= MAX_CHAINS or not gadgets_list ):
+			return 
+		if( record_REG_pop_from_stack[reg][offset][i] == gadgets_list[0] ):
+			gadgets_list = gadgets_list[1:]
+		elif( Database.gadgetDB[record_REG_pop_from_stack[reg][offset][i]].nbInstr >= Database.gadgetDB[gadgets_list[0]].nbInstr ):
+			record_REG_pop_from_stack[reg][offset].insert(i, gadgets_list[0])
+			gadgets_list = gadgets_list[1:]
+		else:
+			i = i + 1
+			
+	# If some are left in gadgets_list at the end 
+	remaining_len = MAX_CHAINS - len(record_REG_pop_from_stack[reg][offset])
+	if( remaining_len > 0 ):
+		record_REG_pop_from_stack[reg][offset] += gadgets_list[:remaining_len]
+		
+def found_REG_pop_from_stack(reg, offset, n=1):
+	"""
+	Returns the n first gadgets that do reg <- mem(sp+offset)
+	"""
+	global record_REG_pop_from_stack
+	if( not offset in record_REG_pop_from_stack[reg] ):
+		return []
+	return record_REG_pop_from_stack[reg][offset][:n]
+	
+

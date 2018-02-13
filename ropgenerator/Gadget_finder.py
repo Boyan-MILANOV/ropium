@@ -50,6 +50,7 @@ class search_engine:
 			gtype = GadgetType.REGtoMEM, arg1 is Expr, arg2 is reg UID
 			gtype = GadgetType.CSTtoMEM, arg1 is Expr, arg2 is (int)
 			gtype = GadgetType.EXPRtoREG, arg1 is reg UID, arg2 is Expr
+			gtype = GadgetType.MEMEXPRtoREG, arg1 is reg UID, arg2 is a MEMEXPR
 		"""
 		if( gtype == GadgetType.REGtoREG ):
 			return self._REGtoREG_basic_strategy(arg1, arg2, n=n)
@@ -63,6 +64,8 @@ class search_engine:
 			return self._CSTtoMEM_basic_strategy(arg1, arg2, n=n)
 		elif( gtype == GadgetType.EXPRtoREG ):
 			return self._EXPRtoREG_basic_strategy(arg1, arg2, n=n)
+		elif( gtype == GadgetType.MEMEXPRtoREG ):
+			return self._MEMEXPRtoREG_basic_strategy(arg1, arg2.addr, n=n)
 		else:
 			return []
 			
@@ -143,7 +146,7 @@ class search_engine:
 			res.append( gadget_num )
 		return res
 	
-	def _EXPRtoREG_basic_strategy(self, expr, reg, n=1):
+	def _EXPRtoREG_basic_strategy(self, reg, expr, n=1):
 		"""
 		Searches for gadgets that put the expression 'expr' into register reg 
 		expr - Expr
@@ -153,6 +156,19 @@ class search_engine:
 		if( not reg in db ):
 			return []
 		return db[reg].lookUpEXPRtoREG(expr, n)
+		
+	def _MEMEXPRtoREG_basic_strategy(self, reg, addr, n=1):
+		"""
+		Searches for gadgets that put the expression mem(addr) into register reg
+		addr - Expr
+		reg - int
+		
+		"""
+		db = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG]
+		if( not reg in db ):
+			return []
+		# Search for addr directly, because we store only reg<-addr instead of reg<-mem(addr)
+		return db[reg].lookUpEXPRtoREG(addr, n)
 		
 		
 	def _CSTtoMEM_basic_strategy(self, addr_expr, cst, n=1):
@@ -323,7 +339,8 @@ def parse_user_request(req):
 			if( isinstance(addr, Expr.SSAExpr)):
 				return (True, GadgetType.MEMtoREG, Analysis.regNamesTable[left], addr.reg.num)
 			else:
-				return (False, "Error. Memory addresses other than registers are not supported yet") 
+				return (True, GadgetType.MEMEXPRtoREG, Analysis.regNamesTable[left], right_expr)
+			
 		# Test if CSTtoREG
 		elif( isinstance(right_expr, Expr.ConstExpr)):
 			return ( True, GadgetType.CSTtoREG, Analysis.regNamesTable[left], right_expr.value )

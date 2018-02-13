@@ -118,7 +118,9 @@ class memLookUp:
 # REGtoMEM dictionnary : gadgetLookUp[REGtoMEM] = memLookUp() for gadgets  that writes reg in the memory 
 # CSTtoMEM dictionnary : gadgetLookUp[CSTtoMEM] = memLookUp() for gadgets that writes cst in the memory 
 # EXPRtoREG dictionnary : gadgetLookUp[EXPRtoREG][REG] = exprLookUp() 
-gadgetLookUp = {GadgetType.REGtoREG:dict(), GadgetType.REGtoMEM:memLookUp(), GadgetType.MEMtoREG:dict(),GadgetType.CSTtoREG:dict(),GadgetType.CSTtoMEM:memLookUp(), GadgetType.EXPRtoREG:dict()}
+# MEMEXPRtoREG dictionnary : gadgetLookUp[MEMEXPRtoREG][REG] = exprLookUp (stored expressions are not MEMEXPR but only the address)
+ 
+gadgetLookUp = {GadgetType.REGtoREG:dict(), GadgetType.REGtoMEM:memLookUp(), GadgetType.MEMtoREG:dict(),GadgetType.CSTtoREG:dict(),GadgetType.CSTtoMEM:memLookUp(), GadgetType.EXPRtoREG:dict(), GadgetType.MEMEXPRtoREG:dict()}
 
 
 
@@ -247,6 +249,10 @@ def fillGadgetLookUp():
 		gadgetLookUp[GadgetType.CSTtoREG][reg_num] = dict()
 		# For MEMtoREG
 		gadgetLookUp[GadgetType.MEMtoREG][reg_num] = dict()
+		# For EXPRtoREG
+		gadgetLookUp[GadgetType.EXPRtoREG][reg_num] = exprLookUp() 
+		# For MEMEXPRtoREG 
+		gadgetLookUp[GadgetType.MEMEXPRtoREG][reg_num] = exprLookUp()
 		# For REGtoMEM
 		# No initialisation needed 
 			
@@ -277,14 +283,11 @@ def fillGadgetLookUp():
 							add_gadget(gadgetLookUp[GadgetType.MEMtoREG][reg.num][addrKey], i)
 					# For MEMEXPRtoREG
 					else:
-						pass
+						gadgetLookUp[GadgetType.MEMEXPRtoREG][reg.num].expr_list.append(dep[0].addr)
+						gadgetLookUp[GadgetType.MEMEXPRtoREG][reg.num].gadget_list.append([i])
 				# FOR EXPRtoREG
 				elif( dep[1].isTrue() ):
-					if( reg.num in gadgetLookUp[GadgetType.EXPRtoREG] ):
-						exprLookUpEXPRtoREG = gadgetLookUp[GadgetType.EXPRtoREG][reg.num]
-					else:
-						gadgetLookUp[GadgetType.EXPRtoREG][reg.num] = exprLookUp()
-						exprLookUpEXPRtoREG = gadgetLookUp[GadgetType.EXPRtoREG][reg.num]
+					exprLookUpEXPRtoREG = gadgetLookUp[GadgetType.EXPRtoREG][reg.num]
 					exprLookUpEXPRtoREG.expr_list.append(dep[0])
 					exprLookUpEXPRtoREG.gadget_list.append([i])
 					
