@@ -28,7 +28,7 @@ Or download the source (prefer this method if you want the last version of the t
 
 	$ python setup.py install
 
-Or even run the tool without installing 
+Or even run the tool without installing (in that case you should first install dependencies manually)
 
 	$ python ROPGenerator.py 
     
@@ -36,11 +36,10 @@ Install Dependencies
 --------------------
 **ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **z3**, and **barf**:
 
-- **ROPgadget** and **prompt_toolkit** should be added automaticaly during installation.
+- **ROPgadget**, **prompt_toolkit**, and **z3-soler** packages will be added automaticaly during installation
 
-- **z3** and **barf** don't support pip installation, so you should install them manually: 
-	- The z3 solver (https://github.com/Z3Prover/z3)
-	- The barf-project (https://github.com/programa-stic/barf-project) 
+- **barf v0.4.0** will also be installed automatically. In case you already have barf on your computer, note that ROPGenerator is not compatible with later versions than 0.4.0
+
 
 Getting started
 ===============
@@ -51,7 +50,7 @@ Launch **ROPGenerator**
 	   ___  ____  ___  _____                     __          
 	  / _ \/ __ \/ _ \/ ______ ___ ___ _______ _/ /____  ________
 	 / , _/ /_/ / ___/ (_ / -_/ _ / -_/ __/ _ `/ __/ _ \/ ______/
-	/_/|_|\____/_/   \___/\__/_//_\__/_/  \_,_/\__/\___/_/ v0.2 
+	/_/|_|\____/_/   \___/\__/_//_\__/_/  \_,_/\__/\___/_/ v0.3 
         
         >>>
 Get help
