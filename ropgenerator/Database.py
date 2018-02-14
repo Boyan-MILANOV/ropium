@@ -5,6 +5,7 @@ import sys
 import ropgenerator.Analysis as Analysis
 from ropgenerator.Gadget import Gadget, GadgetException, GadgetType
 from datetime import datetime
+from ropgenerator.Cond import Cond, CT
 
 import ropgenerator.Expr as Expr
 import signal
