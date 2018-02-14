@@ -23,17 +23,19 @@ Install ROPGenerator
 You can install **ROPGenerator** with pip 
 
 	$ pip install ropgenerator
+	$ ROPGenerator
 	
 Or download the source (prefer this method if you want the last version of the tool) and run 
 
 	$ python setup.py install
+	$ ROPGenerator
 
     
 Install Dependencies
 --------------------
-**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **z3**, **enum**, and **barf**:
+**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **z3-solver**, **enum**, and **barf**:
 
-- **enum**, **ROPgadget**, **prompt_toolkit**, and **z3-soler** packages will be added automaticaly during installation
+- **enum**, **ROPgadget**, **prompt_toolkit**, and **z3-solver** packages will be added automaticaly during installation
 
 - **barf v0.4.0** will also be installed automatically. In case you already have barf on your computer, note that ROPGenerator is not compatible with later versions than 0.4.0
 
@@ -123,5 +125,25 @@ Look for gadgets
 		0x000000000040b857 (push rax; mov eax, ebp; pop rbx; pop rbp; pop r12; ret)  
 		0x000000000040b873 (push rax; xor ebp, ebp; pop rbx; mov eax, ebp; pop rbp; pop r12; ret)  
 
+	>>> find rbx=0x4041424344454748
 
+		Built matching ROP Chain(s):
 
+		-------------------
+		0x0000000000404dc0 (pop rbx; ret)
+		0x4041424344454748
+		-------------------
+		0x0000000000404dbb (nop dword ptr [rax+rax*1]; pop rbx; ret)
+		0x4041424344454748
+		-------------------
+		0x0000000000409cb4 (mov eax, 0x1; pop rbx; ret)
+		0x4041424344454748
+		-------------------
+		0x0000000000404f90 (pop rbx; pop rbp; ret)
+		0x4041424344454748
+		0xffffffffffffffff (Padding)
+		-------------------
+		0x000000000040a2f7 (mov rax, rdx; pop rbx; pop rbp; ret)
+		0x4041424344454748
+		0xffffffffffffffff (Padding)
+		
