@@ -16,7 +16,7 @@ def readme():
         return f.read()
 
 setup(name='ropgenerator',
-      version='0.3.1',
+      version='0.3.2',
       description='ROPGenerator makes ROP exploits easy by finding and chaining gadgets',
       url='https://github.com/Boyan-MILANOV/ropgenerator',
       author='Boyan MILANOV',
@@ -32,7 +32,7 @@ setup(name='ropgenerator',
       ],
       packages=['ropgenerator'],
       scripts=['ROPGenerator'],
-      install_requires=['ROPGadget', 'prompt_toolkit', 'z3-solver', 'barf==0.4.0', 'enum'],   
+      install_requires=['ROPGadget', 'prompt_toolkit', 'z3-solver', 'barf==0.4.0', 'enum', 'capstone==3.0.5rc2'],   
       dependency_links=['https://github.com/Z3Prover/z3/tree/master/src/api/python'],
       keywords='ROP chain gadget semantic automatic exploit',  
       zip_safe=False, 
