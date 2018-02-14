@@ -1,7 +1,7 @@
 # ROPGenerator - Logs.py module
 # Used to store some logs on ropgenerator activity 
 
-log_file = "tests-logs.log"
+log_file = ".ROPGenerator-logs"
 log_file_d = open(log_file, "w")
 
 if(log_file_d == None ):
