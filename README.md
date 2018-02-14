@@ -28,9 +28,6 @@ Or download the source (prefer this method if you want the last version of the t
 
 	$ python setup.py install
 
-Or even run the tool without installing (in that case you should first install dependencies manually)
-
-	$ python ROPGenerator.py 
     
 Install Dependencies
 --------------------
