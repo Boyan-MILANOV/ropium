@@ -3,9 +3,9 @@
 # This module supports the Gadget_finder module 
 # It merely stores chains of gadgets obtained by different search strategies 
 
-import Database
-import Analysis
-from Gadget import GadgetType
+import ropgenerator.Database as Database
+import ropgenerator.Analysis as Analysis
+from ropgenerator.Gadget import GadgetType
 
 #####################################
 #    ROP Chains format

@@ -2,11 +2,11 @@
 # Implements the data structure to represent gadgets
 # And building functions for creating them from BARF IR 
 
-from Expr import *
-from Cond import *
-from Graph import *
-import Analysis 
-from Logs import log
+from ropgenerator.Expr import *
+from ropgenerator.Cond import *
+from ropgenerator.Graph import *
+import ropgenerator.Analysis as Analysis 
+from ropgenerator.Logs import log
 from enum import Enum
 
 from barf.core.reil import *

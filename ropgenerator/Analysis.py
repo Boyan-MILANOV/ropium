@@ -1,7 +1,7 @@
 ## ANALYSIS MODULE : Some shared informations about the analysis being runned 
 
-from Expr import *
-from Logs import log
+from ropgenerator.Expr import *
+from ropgenerator.Logs import log
 
 from barf.arch import ARCH_X86_MODE_32
 from barf.arch.x86.x86translator import FULL_TRANSLATION

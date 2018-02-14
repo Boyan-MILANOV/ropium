@@ -2,8 +2,8 @@
 # Implements the data structure to represent arithmetical and logical expressions using abstract values for registers and memory.
 
 from z3 import *
-from Cond import * 
-from Logs import log
+from ropgenerator.Cond import * 
+from ropgenerator.Logs import log
 INTEGRITY_CHECK = False 
 
 # Variables used to make the Z3 SMT modelisation 

@@ -2,10 +2,10 @@
 # Implements the data structure useful for the representation of a gadget using graph theory 
 # Provides primitives to extract dependencies from a given graph 
 
-from Expr import *
-from Cond import *
+from ropgenerator.Expr import *
+from ropgenerator.Cond import *
 from ropgenerator.Analysis import revertRegNamesTable
-from Logs import log
+from ropgenerator.Logs import log
 
 class GraphException( Exception ):
     def __init__(self, msg):

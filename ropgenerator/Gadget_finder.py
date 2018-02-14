@@ -1,12 +1,12 @@
 # ROPGenerator - Gadget_finder module 
 # Searching for gadgets and chaining them :) !! 
 
-import Expr
-import Database
-import Analysis
+import ropgenerator.Expr as Expr    
+import ropgenerator.Database as Database
+import ropgenerator.Analysis as Analysis
 import re
-from Gadget import GadgetType
-import SearchHelper
+from ropgenerator.Gadget import GadgetType
+import ropgenerator.SearchHelper as SearchHelper
 
 # Help for the search command
 CMD_FIND_HELP =    "\n\t-----------------------------------------------"
