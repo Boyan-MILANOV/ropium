@@ -23,24 +23,30 @@ DEFAULT_PADDING_BYTE = 0xFF # The default byte used for padding
 PADDING_UNITS = []  # List of the different padding units ( as integers )
 MAX_PADDING = 40 # The maximum padding accepted for a gadget in an ROP chain 
 MAX_CHAINS = 10 # The maximum number of chains we store for one operation 
+DEFAULT_PADDING_UNIT_INDEX = -1
 
 
 
 def is_padding(gadget_num):
-	return gadget_num < 0 
+	return (int(gadget_num) < 0)
 
-def set_padding_unit():
+def set_padding_unit(value=None):
 	global DEFAULT_PADDING_BYTE
 	global PADDING_UNITS
 	
-	if( PADDING_UNITS == [] ):
+	
+	if( PADDING_UNITS == []):
 		# Set the default padding unit  
+		# This should be the first element of the list as DEFAULT_PADDING_UNIT_INDEX is -1 ( element at index 0 ;) ) 
 		bytes_in_unit = Analysis.ArchInfo.bits/8
 		res = 0
 		for i in range(0, bytes_in_unit):
 			res = res*0x100 + DEFAULT_PADDING_BYTE
 		PADDING_UNITS = [res]
-		return -1
+		
+	if( value != None ):
+		PADDING_UNITS.append(value)
+		return -1*len(PADDING_UNITS)
 	else:
 		## So far we return the default padding unit
 		## Later we'll implement adding new padding_units (for other strategies)
@@ -49,7 +55,6 @@ def set_padding_unit():
 def get_padding_unit(uid=-1):
 	global PADDING_UNITS
 	return PADDING_UNITS[-1-uid]
-	
 
 
 #############################################
@@ -172,7 +177,7 @@ def add_REGtoREG_reg_transitivity(reg1, reg2, chain , regs_chain, nbInstr):
 			if( len(record_REGtoREG_reg_transitivity[reg1][reg2]) >= MAX_CHAINS ):
 				del record_REGtoREG_reg_transitivity[reg1][reg2][-1]
 			return True
-		elif( len(chain) <= len(record_REGtoREG_reg_transitivity[reg1][reg2][i][0]) and nbInstr <= nbInstr_recorded_chain):
+		elif( len(chain) <= len(record_REGtoREG_reg_transitivity[reg1][reg2][i][0]) and nbInstr < nbInstr_recorded_chain):
 			record_REGtoREG_reg_transitivity[reg1][reg2].insert(i, (chain, regs_chain, nbInstr))
 			#print("DEBUG Inserted " + str(chain) + " into " + str(record_REGtoREG_reg_transitivity[reg1][reg2]))	
 			if( len(record_REGtoREG_reg_transitivity[reg1][reg2]) >= MAX_CHAINS ):
@@ -219,18 +224,18 @@ def build_REG_pop_from_stack():
 	for reg in range(0,Analysis.ssaRegCount):
 		record_REG_pop_from_stack[reg] = dict()
 		if( sp_num in db[reg] and db[reg][sp_num] != [] ):
-			add_REG_pop_from_stack( reg, 0, db[reg][sp_num])
+			add_REG_pop_from_stack( reg, 0, [ gadget_num for gadget_num in db[reg][sp_num] if Database.gadgetDB[gadget_num].hasNormalRet() and Database.gadgetDB[gadget_num].isValidSpInc()] )
 			
 	# Then reg <- mem(esp+ X )
 	db = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG]
 	for reg in range(0,Analysis.ssaRegCount):
-		for i  in range(0, len(Database.gadgetLookUp[GadgetType.MEMEXPRtoREG].expr_list)):
+		for i  in range(0, len(Database.gadgetLookUp[GadgetType.MEMEXPRtoREG][reg].expr_list)):
 			# For each expr so that reg <- mem(expr)
-			expr = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG].expr_list[i]
+			expr = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG][reg].expr_list[i]
 			(isInc, inc) = expr.isRegIncrement(sp_num)
-			if( isInc ):
+			if( isInc and inc > 0):
 				# If expr is esp + X 
-				add_REG_pop_from_stack(reg, inc, Database.gadgetLookUp[GadgetType.MEMEXPRtoREG].gadget_list[i])
+				add_REG_pop_from_stack(reg, inc, [ gadget_num for gadget_num in Database.gadgetLookUp[GadgetType.MEMEXPRtoREG][reg].gadget_list[i] if Database.gadgetDB[gadget_num].hasNormalRet() and Database.gadgetDB[gadget_num].isValidSpInc()])
 	
 	built_REG_pop_from_stack = True
 				
@@ -249,16 +254,16 @@ def add_REG_pop_from_stack(reg, offset, gadgets_list, gadgets_sorted=False ):
 	global MAX_CHAINS
 	global record_REG_pop_from_stack	
 	
-	if( not record_REG_pop_from_stack[reg][offset] ):
+	if( not offset in record_REG_pop_from_stack[reg] ):
 		if( not gadgets_sorted ):
-			record_REG_pop_from_stack[reg][offset] = sorted(gadgets_list, key= lambda gadget:Databse.gadgetDB[gadget].nbInstr)
+			record_REG_pop_from_stack[reg][offset] = sorted(gadgets_list, key= lambda gadget:Database.gadgetDB[gadget].nbInstr)
 		else:
 			record_REG_pop_from_stack[reg][offset] = list(gadgets_list)
 		return 
 		
 	# Preparing merge with fusion sort 
 	if( not gadgets_sorted ):
-		gadgets_list = sorted(gadgets_list, key=lambda gadget:Databse.gadgetDB[gadget].nbInstr)
+		gadgets_list = sorted(gadgets_list, key=lambda gadget:Database.gadgetDB[gadget].nbInstr)
 		
 	# Merging  
 	for i in range(0, len(record_REG_pop_from_stack[reg][offset])):
@@ -266,7 +271,7 @@ def add_REG_pop_from_stack(reg, offset, gadgets_list, gadgets_sorted=False ):
 			return 
 		if( record_REG_pop_from_stack[reg][offset][i] == gadgets_list[0] ):
 			gadgets_list = gadgets_list[1:]
-		elif( Database.gadgetDB[record_REG_pop_from_stack[reg][offset][i]].nbInstr >= Database.gadgetDB[gadgets_list[0]].nbInstr ):
+		elif( Database.gadgetDB[record_REG_pop_from_stack[reg][offset][i]].nbInstr > Database.gadgetDB[gadgets_list[0]].nbInstr ):
 			record_REG_pop_from_stack[reg][offset].insert(i, gadgets_list[0])
 			gadgets_list = gadgets_list[1:]
 		else:
@@ -277,13 +282,19 @@ def add_REG_pop_from_stack(reg, offset, gadgets_list, gadgets_sorted=False ):
 	if( remaining_len > 0 ):
 		record_REG_pop_from_stack[reg][offset] += gadgets_list[:remaining_len]
 		
-def found_REG_pop_from_stack(reg, offset, n=1):
+def found_CSTtoREG_pop_from_stack(reg, cst, n=1):
 	"""
-	Returns the n first gadgets that do reg <- mem(sp+offset)
+	Returns the n first gadgets that do reg <- cst by poping cst from the stack 
 	"""
 	global record_REG_pop_from_stack
-	if( not offset in record_REG_pop_from_stack[reg] ):
-		return []
-	return record_REG_pop_from_stack[reg][offset][:n]
+	cst_padding = set_padding_unit(value=cst)
+	default_padding = set_padding_unit()
+	res = []
+	for offset in sorted(record_REG_pop_from_stack[reg].keys()):
+		for g in record_REG_pop_from_stack[reg][offset]:
+			chain = [g] + [default_padding for i in range(0, offset*8/Analysis.ArchInfo.bits)] + [cst_padding] + [default_padding for i in range(offset+1, (Database.gadgetDB[g].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8))]
+			res.append(chain)
+	
+	return res[:n]
 	
 

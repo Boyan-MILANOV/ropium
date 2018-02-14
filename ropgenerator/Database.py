@@ -193,7 +193,6 @@ def generated_gadgets_to_DB():
 		i += 1
 	f.close()
 	signal.signal(signal.SIGINT, original_sigint_handler)
-	sigint = False
 		
 	# This variable should be written before calculating spInc or simplifying conditions !!!
 	Expr.nb_regs = Analysis.ssaRegCount-1
@@ -206,12 +205,16 @@ def generated_gadgets_to_DB():
 	
 	sys.stdout.write("\r"+" "*90+"\r")
 		
-	cTime = datetime.now() - startTime	
+	cTime = datetime.now() - startTime
+	if( sigint ):
+		print("[!] SIGINT ended the analysis prematurely, gadget database might be incomplete")	
+		sigint = False	
 	print "\tGadgets analyzed : " + str(len(asmGadgets))
 	print "\tSuccessfully translated : " + str(success)
 	print "\tComputation time : " + str(cTime)
 	if( warnings > 0 ):
 		print("\tUnexpected exceptions : " + str(warnings) + " (logs in '.warnings.log')")
+	
 	
 def simplifyGadgets():
 	"""
@@ -232,7 +235,7 @@ def fillGadgetLookUp():
 		for i in range(0,len(gadget_list)):
 			if( gadget_num == gadget_list[i] ):
 				return 
-			elif( gadgetDB[gadget_list[i]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
+			elif( gadgetDB[gadget_list[i]].nbInstr > gadgetDB[gadget_num].nbInstr ):
 				gadget_list.insert(i, gadget_num )
 				return 
 		gadget_list.append(gadget_num)

@@ -55,7 +55,8 @@ class search_engine:
 		if( gtype == GadgetType.REGtoREG ):
 			return self._REGtoREG_basic_strategy(arg1, arg2, n=n)
 		elif( gtype == GadgetType.CSTtoREG ):
-			return self._CSTtoREG_basic_strategy(arg1, arg2, n=n)
+			res = self._CSTtoREG_basic_strategy(arg1, arg2, n=n)
+			return res
 		elif( gtype == GadgetType.MEMtoREG ):
 			return self._MEMtoREG_basic_strategy(arg1, arg2, n=n)
 		elif( gtype == GadgetType.REGtoMEM ):
@@ -83,6 +84,9 @@ class search_engine:
 				SearchHelper.build_REGtoREG_reg_transitivity(iterations=DEPTH)
 			res = SearchHelper.found_REGtoREG_reg_transitivity(arg1, arg2, n=n)
 			return res
+		elif( gtype == GadgetType.CSTtoREG ):
+			res = self._CSTtoREG_pop_from_stack(arg1, arg2, n=n)
+			return res
 		else:
 			return []
 		
@@ -103,11 +107,21 @@ class search_engine:
 				res.append(gadget_num)
 		return res
 		
-	def _CSTtoREG_pop_from_stack_strategy(self, reg, cst, n=1):
+	
+	def _CSTtoREG_pop_from_stack(self, reg, cst, n=1):
 		"""
-		Returns a payload that puts cst into reg by poping it from the stack 
-		"""
-		return []
+		Returns a payload that puts cst into register reg by poping it from the stack
+		""" 
+		
+		if ( not SearchHelper.built_REG_pop_from_stack ):
+			SearchHelper.build_REG_pop_from_stack()	
+		
+		if( not reg in SearchHelper.record_REG_pop_from_stack ):
+			return []
+
+		res = SearchHelper.found_CSTtoREG_pop_from_stack(reg, cst, n=n)
+		return res
+		
 	
 	
 	def _REGtoREG_basic_strategy(self, reg1, reg2, n=1):
@@ -260,7 +274,10 @@ def show_chains( chain_list ):
 			print("\t-------------------")
 			for gadget_num in chain:
 				if( SearchHelper.is_padding(gadget_num)):
-					print("\t"+"0x%x" % SearchHelper.get_padding_unit(gadget_num) + " (Padding)")
+					padding_str = '0x'+format(SearchHelper.get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x')
+					if( gadget_num == SearchHelper.DEFAULT_PADDING_UNIT_INDEX ):
+						padding_str += " (Padding)" 
+					print("\t"+padding_str)
 				else:
 					print("\t"+Database.gadgetDB[gadget_num].addrStr + " (" + Database.gadgetDB[gadget_num].asmStr + ")")
 	elif( PYTHON_OUTPUT ):
