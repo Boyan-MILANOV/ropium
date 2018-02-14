@@ -31,9 +31,9 @@ Or download the source (prefer this method if you want the last version of the t
     
 Install Dependencies
 --------------------
-**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **z3**, and **barf**:
+**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **z3**, **enum**, and **barf**:
 
-- **ROPgadget**, **prompt_toolkit**, and **z3-soler** packages will be added automaticaly during installation
+- **enum**, **ROPgadget**, **prompt_toolkit**, and **z3-soler** packages will be added automaticaly during installation
 
 - **barf v0.4.0** will also be installed automatically. In case you already have barf on your computer, note that ROPGenerator is not compatible with later versions than 0.4.0
 
