@@ -34,7 +34,7 @@ setup(name='ropgenerator',
       scripts=['ROPGenerator'],
       install_requires=['ROPGadget', 'prompt_toolkit', 'z3-solver', 'barf==0.4.0', 'enum', 'capstone==3.0.5rc2'],   
       dependency_links=['https://github.com/Z3Prover/z3/tree/master/src/api/python'],
-      keywords='ROP chain gadget semantic automatic exploit',  
+      keywords='ROP generator chain gadget semantic automatic exploit ropchain',  
       zip_safe=False, 
       cmdclass={
         'clean': CleanCommand,

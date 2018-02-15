@@ -13,6 +13,12 @@ import signal
 # List of the available gadgets
 gadgetDB = []
 
+# Used to limit max accepted computation time for a gadget 
+def timeout_handler(signum, frame):
+    signal.alarm(0)
+    raise GadgetException("Too much to compute gadget dependencies")
+signal.signal(signal.SIGALRM, timeout_handler)
+
 #################################################
 # VARIOUS DATA STRUCTURES TO STORE DEPENDENCIES #
 #################################################
@@ -139,7 +145,7 @@ def generated_gadgets_to_DB():
         No value returned. But the gadgets are stored in the gadgets[] array in Database module.
     """
     global sigint 
-    
+    global current_gadget
     def sigint_handler(signal, frame):
         global sigint
         sigint = True
@@ -180,12 +186,14 @@ def generated_gadgets_to_DB():
             if( i % (len(asmGadgets)/30) == 0 and i > 0 or i == len(asmGadgets)):
                 sys.stdout.write("|")
                 sys.stdout.flush()
-            f.write("Gadget : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\n")
+            #print("Gadget : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\n")
+            signal.alarm(1)
             gadget = Gadget(i, addr, asm)
+            signal.alarm(0)
             success += 1
             gadgetDB.append( gadget )
         except Exception as e:
-            #print e
+            signal.alarm(0)
             if( not isinstance(e, GadgetException)):
                 warnings = warnings + 1
                 f.write("Error in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException message: " + str(e) + '\n\n')

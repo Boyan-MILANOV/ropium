@@ -2,8 +2,8 @@
 # Implements the data structure useful for the representation of a gadget using graph theory 
 # Provides primitives to extract dependencies from a given graph 
 
-from ropgenerator.Expr import *
-from ropgenerator.Cond import *
+from ropgenerator.Expr import ConstExpr, SSAExpr, MEMExpr, Op, SSAReg, Cat, Extr, Convert, strToReg
+from ropgenerator.Cond import Cond, CT, CTrue, CFalse, simplify
 from ropgenerator.Analysis import revertRegNamesTable
 from ropgenerator.Logs import log
 

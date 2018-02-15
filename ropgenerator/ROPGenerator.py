@@ -10,6 +10,8 @@ from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.contrib.completers import WordCompleter
 
+import sys
+
 
 
 ASCII_art = """
@@ -39,6 +41,8 @@ def main():
     # Launching ROPGenerator 
     print(ASCII_art)
     Config.load_config()
+    f = open(".stderr-log", "w")
+    sys.stderr = f
     quit = False
     while( not quit ):
         user_input = prompt(u">>> ", history=command_history)

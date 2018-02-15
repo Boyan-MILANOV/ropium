@@ -1,42 +1,47 @@
-# ROPGenerator - Expr.py module
-# Implements the data structure to represent arithmetical and logical expressions using abstract values for registers and memory.
+"""
+ROPGenerator - Expr.py module
+Implements the data structure to represent arithmetical and logical 
+expressions using abstract values for registers and memory.
+"""
 
-from z3 import *
-from ropgenerator.Cond import * 
+from z3 import BitVec, BitVecVal, BitVecNumRef
+from ropgenerator.Cond import Cond, CT, CTrue, CFalse
 from ropgenerator.Logs import log
 INTEGRITY_CHECK = False 
 
-# Variables used to make the Z3 SMT modelisation 
+# Variables used to make the Z3 SMT modelisation
 regToSMT = {} # Keys : ( SSARegister ), Values : Z3 BitVec
 memorySMT = None # Z3 Array of bitVec 
 
 # number of registers
 nb_regs = None
 
-# Size of the registers - this variable must be set when architecture is known 
-REGSIZE = -1 
+# Size of the registers - this variable must be set when architecture is known
+class REGSIZE:
+    size = -1
 
 
-# Custom exception type 
-class ExprException( Exception ):
+# Custom exception type
+class ExprException(Exception):
     def __init__(self, msg):
         self.msg = msg
         log(msg)
     def __str__(self):
-        return self.msg 
+        return self.msg
     
-######################################## 
+########################################
 # REPRESENTATION OF REGISTERS WITH SSA #
 ########################################
     
 class SSAReg:
     """
     Implements generic SSA representation of a register.
-    The register itself got an ID that is a integer : self.num 
+    The register itself got an ID that is a integer : self.num
     Then the SSA is obtained by adding another integer : self.ind
     The total number of registers in use is available in variable 'ssaRegCount'
 
-    Example : if EAX's ID is 0 then EAX_5 would be (num:0, ind:5) which string represenation is R0_5 
+    Example : if EAX's ID is 0 then EAX_5 would be (num:0, ind:5) whose
+    string represenation is R0_5 
     """
     
     def __init__(self, num, ind):
@@ -53,28 +58,28 @@ class SSAReg:
         return (self.num+1)*5000 - self.ind
         
     def toZ3(self):
-        if( regToSMT.get(self) == None ):
-            regToSMT[self] = BitVec( str(self), Expr.REGSIZE )
-        return regToSMT[self] 
+        if regToSMT.get(self) == None:
+            regToSMT[self] = BitVec( str(self), REGSIZE.size)
+        return regToSMT[self]
 
-def strToReg( string ):
+def strToReg(string):
     """
-    Converts a string in a SSAReg. 
-    String must be "RX_Y" where X and Y are positive integers 
+    Converts a string in a SSAReg
+    String must be "RX_Y" where X and Y are positive integers
     """
     s1, s2 = string.split("_")
-    return SSAReg( int(s1[1:]), int(s2))
+    return SSAReg(int(s1[1:]), int(s2))
     
-def prevOcc( reg ):
+def prevOcc(reg):
     """
     Returns the previous occurence of a register
     prevOcc( R1_2 ) = R1_1
-    prevOcc( R1_0 ) = R1_0 
+    prevOcc( R1_0 ) = R1_0
     """
-    if( reg.ind == 0 ):
-        return SSAReg( reg.num, reg.ind ) 
+    if reg.ind == 0:
+        return SSAReg(reg.num, reg.ind)
     else:
-        return SSAReg( reg.num, reg.ind -1 )
+        return SSAReg(reg.num, reg.ind-1)
         
         
 #################################
@@ -88,10 +93,10 @@ class Expr:
     General class implemeting expressions containing registers and memory accesses
         (self.size) (int) is the number of bits the expression should be stored in
     """
-    
+
     def __init__(self):
         self.size = -1
-        self.z3 = None    
+        self.z3 = None
         self.args = []
             
     def replaceReg(self, reg, expr):
@@ -101,81 +106,80 @@ class Expr:
             reg - (SSAReg) the register that will be replace
             expr - (Expr) the expression that replaces 'var'
         """
-        
+
     def replaceMultiReg( self, reg_dict):
         """
-        This method returns an expression where the occurences of the registers present in the reg_dict dictionnary are replaced by their corresponding value in the dictionnary 
-        Parameters : 
+        This method returns an expression where the occurences of the registers present in the reg_dict dictionnary are replaced by their corresponding value in the dictionnary
+        Parameters :
             reg_dict - (Dictionnary) Entries are SSAReg expressions and values are Expr 
         """
-        
-    def replaceMemAcc( self, addr, expr ):
+
+    def replaceMemAcc(self, addr, expr ):
         """
         This method replaces every memory access at address 'addr' by the expression 'expr'
         Parameters : 
             addr - (Expr)
             expr - (Expr)
         """
-        
-    def getRegisters( self, ignoreMemAcc = False ):
+
+    def getRegisters(self, ignoreMemAcc=False):
         """
         Returns a list of SSARegiters that occur in the expression
         Eliminate multiple occurences in the list  
-        The ignoreMemAcc option is used to omit registers that appear in memory accesses (e.g MEM[R1_3 + 0x8 + R7_1) 
+        The ignoreMemAcc option is used to omit registers that appear in memory accesses (e.g MEM[R1_3 + 0x8 + R7_1)
         """
-        
-    def getMemAcc( self ):
+
+    def getMemAcc(self):
         """
-        Returns a list of Expr representing addresses at which memory is accessed 
-        """    
+        Returns a list of Expr representing addresses at which memory is accessed
+        """
         
     def __hash__(self):
         """
         Hash function
         """
-        
+
     def replaceITE(self, expr):
         """
         Replace the first ITE found with expression 'expr'
         Parameters :
-            expr - (Expr) 
+            expr - (Expr)
         """
-        
+
     def flattenITE(self):
         """
-        Transforms an expression in a list of couples ( Expr, Cond ) by flattening the If-Then-Else expressions 
+        Transforms an expression in a list of couples ( Expr, Cond ) by flattening the If-Then-Else expressions
         """
-        
-    def toZ3( self ):
+
+    def toZ3(self):
         """
         Returns the translation in Z3 of the expression
-        The expression returned will be a BiVec() of size 'self.size' 
+        The expression returned will be a BiVec() of size 'self.size'
         """
-    def toArray( self ):
+    def toArray(self):
         """
         Returns its 'array' representation as a vector V
-        Coefficient at position i is the coefficient of register Ri_... 
-        Last coefficient is a constant 
-        If the expression can not be converted, [] is returned 
-         
+        Coefficient at position i is the coefficient of register Ri_...
+        Last coefficient is a constant
+        If the expression can not be converted, [] is returned
+
         So length of the array will be Expr.nb_regs + 1
         
-        Example : [1, 0, 2, 0, ...,  -8] is R1 + 3*R -8 
+        Example : [1, 0, 2, 0, ...,  -8] is R1 + 3*R -8
         
         """
-    
-    def simplify( self ):
+
+    def simplify(self):
         """
         Tries some simplifications on itself 
         """
-        
+
     def isRegIncrement(self, reg_num):
         """
         Returns (True, CST) iff this expression is (REG +/- CST)
         Returns (False, None) otherwise 
         """
-        
-    
+
 class ConstExpr(Expr):
     """
     Describes a constant value
@@ -184,13 +188,13 @@ class ConstExpr(Expr):
     
     def __init__(self, value, size):
         Expr.__init__(self)
-        if( isinstance( value, int ) or isinstance( value, long)):
+        if(isinstance(value, int ) or isinstance(value, long)):
             self.value = value
         else:
-            self.value = int( value, 16)
+            self.value = int(value, 16)
         self.size = size 
-        self.z3 = BitVecVal( value, size )
-            
+        self.z3 = BitVecVal(value, size )
+
     def __str__(self):
         return "0x%x" % (self.value)
 
@@ -247,7 +251,7 @@ class SSAExpr(Expr):
     def __init__(self, reg):
         Expr.__init__(self)
         self.reg = reg
-        self.size = Expr.REGSIZE
+        self.size = REGSIZE.size
     
     def __str__(self):
         return str(self.reg)
@@ -365,9 +369,9 @@ class MEMExpr(Expr):
     def toZ3(self):
         if( self.z3 == None ):
             addr = self.addr.toZ3()
-            res = Expr.memorySMT[addr]
+            res = memorySMT[addr]
             for i in range(1,self.size/8):
-                res = Concat( Expr.memorySMT[addr+i], res )
+                res = Concat( memorySMT[addr+i], res )
             self.z3 = res    
         return self.z3
         
@@ -718,6 +722,7 @@ class Convert(Expr):
             return "%sUto%s(%s)" % ( self.args[0].size, self.size, ','.join(str(a) for a in self.args))
         
     def replaceReg( self, reg, expr ):
+        #print("DEBUG, replace in " + str(self))
         return Convert( self.size, self.args[0].replaceReg(reg, expr), self.signed)
         
     def replaceMultiReg(self, reg_dict):
@@ -795,6 +800,7 @@ class Cat(Expr):
         return "Cat%d(%s)" % ( self.size, ','.join(str(a[0]) for a in self.args))
         
     def replaceReg( self, reg, expr ):
+        #print("DEBUG, replace in " + str(self))
         self.args = [[a[0].replaceReg(reg, expr), a[1]] for a in self.args]
         return self
         
@@ -1143,7 +1149,7 @@ def parseStrToExpr( string, regNamesTable ):
         if( not success ):
             return (False, addr)
         else:
-            return (True, MEMExpr(addr, Expr.REGSIZE ))
+            return (True, MEMExpr(addr, REGSIZE.size ))
             
     # It is register or cst ? 
     if( string in regNamesTable ):
@@ -1159,4 +1165,4 @@ def parseStrToExpr( string, regNamesTable ):
                     value = int(string, 2)
                 except:
                     return (False, "Invalid operand: " + string )
-        return (True, ConstExpr( value, Expr.REGSIZE))
+        return (True, ConstExpr( value, REGSIZE.size))

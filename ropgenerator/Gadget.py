@@ -2,9 +2,10 @@
 # Implements the data structure to represent gadgets
 # And building functions for creating them from BARF IR 
 
-from ropgenerator.Expr import *
-from ropgenerator.Cond import *
-from ropgenerator.Graph import *
+from ropgenerator.Expr import ConstExpr, SSAExpr, MEMExpr, Op, SSAReg, Cat, Extr, Convert, strToReg, ITE, REGSIZE, memorySMT
+from ropgenerator.Cond import Cond, CT, CTrue, CFalse, simplify
+from ropgenerator.Graph import Graph, Arc, GadgetDependencies, CurrentAnalysis, MEMNode, SSANode, ConstNode, ITENode
+from z3 import Array, BitVecSort
 import ropgenerator.Analysis as Analysis 
 from ropgenerator.Logs import log
 from enum import Enum
@@ -68,7 +69,7 @@ class Gadget:
         self.asmStr = "; ".join(str(i) for i in ins)
         self.hexStr = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in raw)
         # Initializing the memory in Z3 for this gadget 
-        Expr.memorySMT = Array( "MEM", BitVecSort(Expr.REGSIZE), BitVecSort(8))
+        memorySMT = Array( "MEM", BitVecSort(REGSIZE.size), BitVecSort(8))
         self.addr = addr # int
         # Get the string for the address, depends on the architecture size 
         self.addrStr = '0x'+format(addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
@@ -151,7 +152,7 @@ class Gadget:
         # (2) Graph construction...
         # Iterate through all reill instructions : 
         for i in range(0, len(irsb)) :
-            instr = irsb[i]     
+            instr = irsb[i]
             self.nbInstr = self.nbInstr + 1
             # Translating different types of instructions
             if( instr.mnemonic == ReilMnemonic.NOP ):
@@ -236,7 +237,7 @@ class Gadget:
                         expr = self.translateFullRegAssignement( expr, instr.operands[2] )
                     else:
                         expr = Convert(instr.operands[2].size, expr)
-                    if( instr.operands[2].size != Expr.REGSIZE ):
+                    if( instr.operands[2].size != REGSIZE.size ):
                         expr = self.translateFullRegAssignement( expr, instr.operands[2] )
                     regDep = expr.getRegisters()
                     memDep = expr.getMemAcc()
@@ -280,7 +281,7 @@ class Gadget:
                     # Creation of the ite node
                     iteNode = ITENode( cond, ifzero, ifnotzero )
                     # Link the real node to the ITE node 
-                    node = SSANode( reg, Convert( Expr.REGSIZE, expr))
+                    node = SSANode( reg, Convert( REGSIZE.size, expr))
                     node.outgoingArcs.append( Arc(iteNode) )
                     self.graph.nodes[str(reg)] = node
 
@@ -290,7 +291,7 @@ class Gadget:
                 # If jmp to a fixed location 
                 if( isinstance( instr.operands[2], ReilImmediateOperand ) and instr.operands[2].size != 40 and instr.operands[2].size != 72 ):
                     addr = ConstExpr(instr.operands[2].immediate)
-                    addr.size = Expr.REGSIZE
+                    addr.size = REGSIZE.size
                 # If it is a pointer 
                 elif( instr.operands[2].size == 40 or instr.operands[2].size == 72 ):
                     #We test if the value is less than 0x100
@@ -317,7 +318,7 @@ class Gadget:
                 if( isinstance( instr.operands[0], ReilImmediateOperand ) and instr.operands[0].immediate != 0 ):
                     self.valuesTable[str(ip)] = addr
                     expr = addr
-                    node = SSANode( ip, Convert(Expr.REGSIZE, addr))
+                    node = SSANode( ip, Convert(REGSIZE.size, addr))
                     for dep in addr.getRegisters(ignoreMemAcc=True):
                         node.outgoingArcs.append( Arc( self.graph.nodes[str(dep)]))
                     for mem in addr.getMemAcc():
@@ -337,15 +338,15 @@ class Gadget:
                     self.graph.condJmps.append( cond )
                     self.graph.condPath.append( Cond( CT.AND, cond.invert(), self.graph.condPath[self.graph.countCondJmps]))
                     # TODO : this seems not to put the good address into nextInstrAddr ??? 
-                    nextInstrAddr = ConstExpr(irsb[i+1].address >> 8, Expr.REGSIZE) 
+                    nextInstrAddr = ConstExpr(irsb[i+1].address >> 8, REGSIZE.size) 
                     # 1 - FIRST STEP : ITE Node to say : IP takes new value OR stays the same
-                    expr = ITE(cond, addr, ConstExpr(instr.address >> 8, Expr.REGSIZE))
+                    expr = ITE(cond, addr, ConstExpr(instr.address >> 8, REGSIZE.size))
                     self.valuesTable[str(reg)] = expr
                     # Adding node to the graph 
                     # Creation of the ite node
                     # We consider that either the jump is taken ( to addr )
                     #   or the value stays the one of the current instruction ( instr.address >> 8 )
-                    iteNode = ITENode( cond, addr, ConstExpr(instr.address >> 8, Expr.REGSIZE) )
+                    iteNode = ITENode( cond, addr, ConstExpr(instr.address >> 8, REGSIZE.size) )
                     for dep in addr.getRegisters():
                         iteNode.outgoingArcs.append( Arc( self.graph.nodes[str(dep)] ))
                     for mem in addr.getMemAcc():
@@ -390,7 +391,7 @@ class Gadget:
                     return Convert(op.size, res)
             else:
                 fullExpr = self._getReg(op._name)
-                if( op.size == Expr.REGSIZE ):
+                if( op.size == REGSIZE.size ):
                     return fullExpr
                 else:
                     (reg, offset) = barfGetAlias( op._name )
@@ -450,8 +451,8 @@ class Gadget:
             addr - (ReilOperand) The address where memory is read
             reg - (ReilOperand) The register where the read value is stored 
         """
-        if( addr.size != Expr.REGSIZE ):
-            raise GadgetException("Addressing expression of size %d is incompatible with registers of size %d in %s architecture" %(addr.size, Expr.REGSIZE, Analysis.ArchInfo.currentArch))
+        if( addr.size != REGSIZE.size ):
+            raise GadgetException("Addressing expression of size %d is incompatible with registers of size %d in %s architecture" %(addr.size, REGSIZE.size, Analysis.ArchInfo.currentArch))
         expr = self.barfOperandToExpr( addr )
         res = MEMExpr( expr, reg.size )
         return res 
@@ -469,7 +470,7 @@ class Gadget:
             op - (ReilOperand) the register in which value should be stored 
             
         """
-        if( expr.size == Expr.REGSIZE ):
+        if( expr.size == REGSIZE.size ):
             return expr
         # reg is the full register name 
         # offset is the offset at which 'op' starts in the register 
@@ -481,7 +482,7 @@ class Gadget:
             offset = 0
         # Special treatement of the flags 
         if(reg == "rflags"):
-            return Convert( Expr.REGSIZE, expr)
+            return Convert( REGSIZE.size, expr)
         # Else we translate : 
         else:
             oldReg = self._getReg(op.name)
