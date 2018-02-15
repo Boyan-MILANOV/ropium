@@ -62,8 +62,8 @@ class Gadget:
         # ins is an array of Assembly instructions 
         try:
             (irsb,ins) = Analysis.getIR( raw, addr )
-        except Exception as e:
-            raise GadgetException(str(e.msg))
+        except Analysis.AnalysisException as e:
+            raise GadgetException(str(e))
         
         # Some strings representations 
         self.asmStr = "; ".join(str(i) for i in ins)
