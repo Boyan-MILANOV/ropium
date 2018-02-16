@@ -297,4 +297,39 @@ def found_CSTtoREG_pop_from_stack(reg, cst, n=1):
     
     return res[:n]
     
+    
+    
+##################################
+# Chains for reg write on stack  #
+##################################
+
+
+# record_REG_write_to_memory[reg] is a dict() --> D 
+# D[reg2] where reg2 is a register is a dict() --> D2
+# D2[offset] is the list of gadgets such that : 
+#   mem(reg2 + offset) = reg 
+record_REG_write_to_memory = dict()
+built_REG_write_to_memory = False
+
+def build_REG_write_to_memory():
+    global record_REG_write_to_memory
+    global built_REG_write_to_memory
+    # Initializing the dictionnaries
+    for reg in range(0, Analysis.ssaRegCount):
+        record_REG_write_to_memory[reg] = dict()
+        for reg2 in range(0, Analysis.ssaRegCount):
+            record_REG_write_to_memory[reg][reg2] = dict()
+    
+    # Filling the dictionnaries :
+    db = Database.gadgetLookUp[GadgetType.REGtoMEM]      
+    
+    
+    
+    
+def add_REG_write_to_memory():
+    return False
+    
+def found_REG_write_to_memory():
+    return []
+    
 

@@ -230,27 +230,39 @@ def find_gadgets(args):
         gtype = parsed_args[1]
         left = parsed_args[2]
         right = parsed_args[3]
+        gadgets = []
+        chains = []
         # Search with basic strategy
-        gadgets = search.basic_strategy(gtype, left, right, n=10)[:10]
-        gadgetsValidRet = [g for g in gadgets if Database.gadgetDB[g].hasNormalRet()]
-        if( not gadgetsValidRet ):
-            # Search with chaining strategies
-            chains = search.chaining_strategy(gtype, left, right, n=10)
-            show_chains(chains)
+        gadgets = search.basic_strategy(gtype, left, right, n=10)
+        gadgetsValidRet = [g for g in gadgets if Database.gadgetDB[g].hasNormalRet()][:10]
+        gadgetsPossibleRet = [g for g in gadgets if not Database.gadgetDB[g].hasNormalRet()][:10]
+        # Search with chaining strategies if no good gadget found 
+        if( not gadgetsValidRet ):     
+            chains = search.chaining_strategy(gtype, left, right, n=10)[:10]
+            
+        if( gadgetsValidRet ):
+            print("\n\tFound matching gadget(s):\n")
+            show_gadgets(gadgetsValidRet)
+            if( chains ):
+                print("\n\tBuilt matching ROP Chain(s):\n")
+                show_chains(chains)          
         else:
-            show_gadgets(gadgets)
-        
-def show_gadgets( gadget_list ):
+            if( chains ):
+                print("\n\tBuilt matching ROP Chain(s):\n")
+                show_chains(chains)
+            elif( gadgetsPossibleRet ):
+                print("\n\tFound possibly matching gadget(s):\n")
+                show_gadgets(gadgetsPossibleRet)
+            else:       
+                print("\n\tNo matching Gadgets or ROP Chains found")
+                
+               
+def show_gadgets( gadget_list,  ):
     """
     Pretty prints a list of gadgets 
     Parameters:
         gadget_list - list of gadget UID 
     """
-    if( gadget_list != [] ):
-        print("\n\tFound matching gadget(s):\n")
-    else:
-        print("\n\tNo matching gadgets found")
-        return 
     if( RAW_OUTPUT ):
         for gadget_num in gadget_list:
             print("\t"+Database.gadgetDB[gadget_num].addrStr + " (" + Database.gadgetDB[gadget_num].asmStr + ")  ") 
@@ -264,11 +276,6 @@ def show_chains( chain_list ):
         chain_list - list of chains (a chain is a list of gadget UID and/or padding units)
     """
     
-    if( chain_list != [] ):
-        print("\n\tBuilt matching ROP Chain(s):\n")
-    else:
-        print("\n\tNo matching ROP Chains found")
-        return 
     if( RAW_OUTPUT ):
         for chain in chain_list:
             print("\t-------------------")

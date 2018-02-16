@@ -6,6 +6,7 @@ import ropgenerator.Analysis as Analysis
 from ropgenerator.Gadget import Gadget, GadgetException, GadgetType
 from datetime import datetime
 from ropgenerator.Cond import Cond, CT
+from ropgenerator.Expr import SSAExpr
 
 import ropgenerator.Expr as Expr
 import signal
@@ -197,7 +198,7 @@ def generated_gadgets_to_DB():
             signal.alarm(0)
             if( not isinstance(e, GadgetException)):
                 warnings = warnings + 1
-                f.write("Unexpected rror in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException message: " +str(type(e)) + str(e) + '\n\n')
+                f.write("Unexpected error in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException message: " +str(type(e)) + str(e) + '\n\n')
 
         i += 1
     f.close()
@@ -321,7 +322,7 @@ def fillGadgetLookUp():
                     if( dep[0].reg.num in memLookUpREGtoMEM.written_values[-1]):
                         add_gadget(memLookUpREGtoMEM.written_values[-1][dep[0].reg.num], i)
                     else:
-                        memLookUpREGtoMEM.written_values[len(memLookUpREGtoMEM.addr_list)-1][dep[0].reg.num] = [i]
+                        memLookUpREGtoMEM.written_values[-1][dep[0].reg.num] = [i]
                 elif( isinstance(dep[0], Expr.ConstExpr) and dep[1].isTrue(hard=hard_simplify)):
                     if( dep[0].value in memLookUpCSTtoMEM.written_values[-1]):
                         add_gadget(memLookUpCSTtoMEM.written_values[-1][dep[0].value], i)
@@ -340,7 +341,7 @@ def pretty_print_registers():
     else:
         print("\n\tRegisters present in the gadget database:")
         print("\t(Architeture is '" + Analysis.ArchInfo.currentArch +"')\n")
-        for reg in regNamesTable.keys():
+        for reg in Analysis.regNamesTable.keys():
             if( reg == Analysis.ArchInfo.ip ):
                 print('\t'+reg+ " (instruction pointer)")
             elif( reg == Analysis.ArchInfo.sp ):

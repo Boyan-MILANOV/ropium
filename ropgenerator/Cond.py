@@ -550,6 +550,7 @@ class Cond:
             try:        
                 res = str(v.check())
             except Exception as e:
+                print("DEBUG OUCH GOT EXCEPTION IN Z3 !!!")
                 res = "sat"
             debug_solver_count = debug_solver_count + 1
             if( str(res) == "unsat" ):
