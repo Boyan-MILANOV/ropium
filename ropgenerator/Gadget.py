@@ -480,10 +480,10 @@ class Gadget:
         else:
             reg = op._name
             offset = 0
-        # Special treatement of the flags 
+        # Special treatement of the flags
         if(reg == "rflags"):
             return Convert( REGSIZE.size, expr)
-        # Else we translate : 
+        # Else we translate :
         else:
             oldReg = self._getReg(op.name)
             high = Extr( oldReg.size-1, offset+expr.size, oldReg )

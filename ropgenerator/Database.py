@@ -192,12 +192,13 @@ def generated_gadgets_to_DB():
             signal.alarm(0)
             success += 1
             gadgetDB.append( gadget )
+        
         except Exception as e:
             signal.alarm(0)
             if( not isinstance(e, GadgetException)):
                 warnings = warnings + 1
-                f.write("Error in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException message: " + str(e) + '\n\n')
-                
+                f.write("Unexpected rror in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException message: " +str(type(e)) + str(e) + '\n\n')
+
         i += 1
     f.close()
     signal.signal(signal.SIGINT, original_sigint_handler)

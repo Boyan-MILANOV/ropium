@@ -722,7 +722,6 @@ class Convert(Expr):
             return "%sUto%s(%s)" % ( self.args[0].size, self.size, ','.join(str(a) for a in self.args))
         
     def replaceReg( self, reg, expr ):
-        #print("DEBUG, replace in " + str(self))
         return Convert( self.size, self.args[0].replaceReg(reg, expr), self.signed)
         
     def replaceMultiReg(self, reg_dict):
@@ -800,7 +799,6 @@ class Cat(Expr):
         return "Cat%d(%s)" % ( self.size, ','.join(str(a[0]) for a in self.args))
         
     def replaceReg( self, reg, expr ):
-        #print("DEBUG, replace in " + str(self))
         self.args = [[a[0].replaceReg(reg, expr), a[1]] for a in self.args]
         return self
         
@@ -951,9 +949,7 @@ class Extr(Expr):
             else:
                 return res    
             if(  self.high == simpExpr.size -1 and self.low == shiftVal ):
-                #print("DEBUG, REPLACING" + str(res))
                 res = simpExpr.args[0]
-                #print("\tDEBUG BY " + str(res))
         return res 
     
     def isRegIncrement(self, reg_num):
