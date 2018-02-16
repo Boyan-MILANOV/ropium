@@ -35,7 +35,9 @@ Install Dependencies
 --------------------
 **ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **z3-solver**, **enum**, and **barf**:
 
-- **enum**, **ROPgadget**, **prompt_toolkit**, and **z3-solver** packages will be added automaticaly during installation
+- **enum**, **ROPgadget**, and **prompt_toolkit** packages will be added automaticaly during installation
+
+- **z3-solver** will also be installed automatically. However, the currently available package on pypi has small bugs. They don't affect ROPGenerator's efficiency but sometimes produce annoying messages on the screen. The issue has been dealt with since November 2017, so unless the pypi package wa updated I recommend building z3 localy from the source : https://github.com/Z3Prover/z3 
 
 - **barf v0.4.0** will also be installed automatically. In case you already have barf on your computer, note that ROPGenerator is not compatible with later versions than 0.4.0
 
