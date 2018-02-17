@@ -22,7 +22,7 @@ from ropgenerator.Gadget import GadgetType
 DEFAULT_PADDING_BYTE = 0xFF # The default byte used for padding 
 PADDING_UNITS = []  # List of the different padding units ( as integers )
 MAX_PADDING = 40 # The maximum padding accepted for a gadget in an ROP chain 
-MAX_CHAINS = 10 # The maximum number of chains we store for one operation 
+MAX_CHAINS = 100 # The maximum number of chains we store for one operation 
 DEFAULT_PADDING_UNIT_INDEX = -1
 
 
@@ -213,10 +213,7 @@ built_REG_pop_from_stack = False
 def build_REG_pop_from_stack():
     global built_REG_pop_from_stack
     global record_REG_pop_from_stack
-    global PADDING_BYTE
-    global PADDING_UNIT
-    global PADDING_GADGET  
-    global MAX_PADDING 
+ 
     
     # First reg <- mem(esp)
     db = Database.gadgetLookUp[GadgetType.MEMtoREG]
@@ -229,13 +226,13 @@ def build_REG_pop_from_stack():
     # Then reg <- mem(esp+ X )
     db = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG]
     for reg in range(0,Analysis.ssaRegCount):
-        for i  in range(0, len(Database.gadgetLookUp[GadgetType.MEMEXPRtoREG][reg].expr_list)):
+        for i  in range(0, len(db[reg].expr_list)):
             # For each expr so that reg <- mem(expr)
-            expr = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG][reg].expr_list[i]
+            expr = db[reg].expr_list[i]
             (isInc, inc) = expr.isRegIncrement(sp_num)
             if( isInc and inc > 0):
                 # If expr is esp + X 
-                add_REG_pop_from_stack(reg, inc, [ gadget_num for gadget_num in Database.gadgetLookUp[GadgetType.MEMEXPRtoREG][reg].gadget_list[i] if Database.gadgetDB[gadget_num].hasNormalRet() and Database.gadgetDB[gadget_num].isValidSpInc()])
+                add_REG_pop_from_stack(reg, inc, [ gadget_num for gadget_num in db[reg].gadget_list[i] if Database.gadgetDB[gadget_num].hasNormalRet() and Database.gadgetDB[gadget_num].isValidSpInc()])
     
     built_REG_pop_from_stack = True
                 
@@ -243,13 +240,16 @@ def build_REG_pop_from_stack():
 def add_REG_pop_from_stack(reg, offset, gadgets_list, gadgets_sorted=False ):
     """
     Adds gadgets that put mem(esp+offset) into reg
-    Addition to the record_REG_pop_from_stack[reg] list is made in increasing order according to gadgets length (number of REIL instructions. This is to get the best gadgets (shorter) first 
+    Addition to the record_REG_pop_from_stack[reg] list is made in 
+    increasing order according to gadgets length (number of REIL instructions. 
+    This is to get the best gadgets (shorter) first 
     
     Parameters:
         reg - int
         offset - int 
         gadgets_list - list of int 
-        gadgets_sorted - Bool (True iff the gadgets_list parameter supplied has been sorted already ) 
+        gadgets_sorted - Bool (True iff the gadgets_list parameter supplied has been sorted already )
+        
     """
     global MAX_CHAINS
     global record_REG_pop_from_stack    
@@ -321,15 +321,85 @@ def build_REG_write_to_memory():
             record_REG_write_to_memory[reg][reg2] = dict()
     
     # Filling the dictionnaries :
-    db = Database.gadgetLookUp[GadgetType.REGtoMEM]      
+    db = Database.gadgetLookUp[GadgetType.REGtoMEM]
+    for reg in range(0, Analysis.ssaRegCount):
+        for i in range(0, len(db[reg].addr__list)):
+            addr = db[reg].addr_list[i]
+            # We want to store only addresses of type REG +-/* CST
+            reg_list = addr.getRegisters()
+            if( len(reg_list) == 1 ):
+                (isInc, inc) = addr.isRegIncremement(reg_list[0])
+                if( isInc ):
+                    add_REG_write_to_memory( reg, reg_list[0], offset, [g for g in db[reg].written_values[i] if Database.gadgetDB[g].hasNormalRet() and Database.gadgetDB[g].isValidSpInc() ] )
+                    
+                    
+                    
+    built_REG_write_to_memory = True
+                 
     
     
     
     
-def add_REG_write_to_memory():
-    return False
+def add_REG_write_to_memory(reg, reg2, offset, gadget_list, gadget_sorted=False):
+    """
+    Adds gadgets that write reg at mem(reg2+offset)
+    Addition to the record_REG_write_to_memory list is made in increasing 
+    order according to gadgets length (number of REIL instructions).   
+    This is to get the best gadgets (shorter) first 
     
-def found_REG_write_to_memory():
-    return []
+    Parameters:
+        reg - int
+        reg2 - int 
+        offset - int
+        gadgets_list - list of int 
+        gadgets_sorted - Bool (True iff the gadgets_list parameter supplied has been sorted already ) 
+    
+    """
+    global MAX_CHAINS
+    global record_REG_write_to_memory
+    
+    if( not offset in record_REG_write_to_memory[reg][reg2] ):
+        record_REG_write_to_memory[reg][reg2][offset] = []
+        
+    if( not gadget_sorted ):
+        gadgets_list = sorted(gadgets_list, key=lambda gadget:Database.gadgetDB[gadget].nbInstr)
+        
+    for i in range(0, len(record_REG_write_to_memory[reg][reg2][offset])):
+        if( i >= MAX_CHAINS or not gadgets_list ):
+            return 
+        if( record_REG_write_to_memory[reg][reg2][offset][i] == gadgets_list[0] ):
+            gadgets_list = gadgets_list[1:]
+        elif( Database.gadgetDB[record_REG_write_to_memory[reg][reg2][offset][i]].nbInstr > Database.gadgetDB[gadgets_list[0]].nbInstr ):
+            record_REG_write_to_memory[reg][reg2][offset].insert(i, gadgets_list[0])
+            gadgets_list = gadgets_list[1:]
+        else:
+            i = i + 1
+            
+    # If some are left in gadgets_list at the end 
+    remaining_len = MAX_CHAINS - len(record_REG_write_to_memory[reg][reg2][offset])
+    if( remaining_len > 0 ):
+        record_REG_write_to_memory[reg][reg2][offset] += gadgets_list[:remaining_len]
+
+    
+def found_REG_write_to_memory(reg, reg2, offset):
+    """
+    Returns the gadgets that do mem(reg2+offset) <- reg by poping cst from the stack 
+    Parameters:
+        reg, reg2, offset - int
+    """
+    global record_REG_write_to_memory
+    global MAX_PADDING
+    
+    if( not offset in record_REG_write_to_memory[reg][reg2] ):
+        return []
+    res = []
+    for g in record_REG_write_to_memory[reg][reg2][offset]:
+        default_padding = set_padding_unit()
+        padding_units = (Database.gadgetDB[g].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8)
+        if( padding_units <= MAX_PADDING ):
+            padding_chain = [default_padding for i in range(0,padding_units)]
+            res.append( [g] + padding_chain )
+
+    return res
     
 
