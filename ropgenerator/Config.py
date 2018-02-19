@@ -8,8 +8,8 @@ CMD_CONFIG_HELP =  "\n\t------------------------------"
 CMD_CONFIG_HELP += "\n\tROPGenerator 'config' command\n\t(Configure ROPGenerator)"
 CMD_CONFIG_HELP += "\n\t------------------------------"
 CMD_CONFIG_HELP += "\n\n\tUsage:\tconfig show\t(Show the current configuration)\n\t\tconfig <parameter>=<value> [<parameter>=<value> ...]\t(Change the configuration)"
-CMD_CONFIG_HELP += "\n\n\tParameters:\n\t\tarch:\t\tarchitecture (available " + ','.join(Analysis.supportedArchs) + ')\n\t\tropgadget:\tpath to the folder containing ROPgadget.py tool'
-CMD_CONFIG_HELP += "\n\n\tExamples:\n\t\tconfig arch=X86\n\t\tconfig arch=X86_64 ropgadget=/usr/bin/ROPGadget"
+CMD_CONFIG_HELP += "\n\n\tParameters:\n\t\tarch:\t\tarchitecture (available " + ','.join(Analysis.supportedArchs) + ')\n\t\tropgadget:\tcommand to run ROPgadget tool (typically "ROPgadget" or "/path/to/ROPgadget.py")'
+CMD_CONFIG_HELP += "\n\n\tExamples:\n\t\tconfig arch=X86\n\t\tconfig arch=X86_64 ropgadget=/usr/bin/ROPgadget/ROPgadget.py"
 
 
 
@@ -17,7 +17,7 @@ config_file = "./.ROPGenerator-conf"
 
 # ROPGENERATOR CONIGURATION DEFAULT 
 ARCH = "X86_64"
-PATH_ROPGADGET = "/usr/bin/ROPgadget"
+PATH_ROPGADGET = "ROPgadget"
 
 
 def print_help():
@@ -65,11 +65,11 @@ def set_arch(arch):
     
 def set_ropgadget(path):
     global PATH_ROPGADGET
-    if( os.path.isfile(path+'/ROPgadget.py')):
+    if( os.path.isfile(path)):
         PATH_ROPGADGET = path
-        print("New ropgadget location : " + path+'/ROPgadget.py')
+        print("New ropgadget location : " + path)
     else:
-        print("Error. '" + path+"/ROPgadget.py' could not be found")
+        print("Error. '" + path+"' could not be found")
 
 def save_config():
     global ARCH

@@ -68,14 +68,13 @@ class Gadget:
         
         if( raw in analyzed_raw_to_gadget ):
             self._copy_gadget( num, addr, analyzed_raw_to_gadget[raw] )
-            analyzed_raw_to_gadget[raw] = self
         else:
             try:
                 (irsb,ins) = Analysis.getIR( raw, addr )
             except Analysis.AnalysisException as e:
                 raise GadgetException(str(e))
             
-            self.duplicate = None # If the gadget is a copy of another gadget, then self.duplicate = number of the original gadget ! 
+            self.duplicate = None # If the gadget is a copy of another gadget, then self.duplicate = pointer to the original gadget ! 
             # Some strings representations 
             self.asmStr = "; ".join(str(i) for i in ins)
             self.hexStr = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in raw)
@@ -95,9 +94,10 @@ class Gadget:
             self.graph = Graph()
             self.buildGraph(irsb)
             self.getDependencies()
+            analyzed_raw_to_gadget[raw] = self
         
         
-    def _copy_gadget( new_num, new_addr, same_gadget ):
+    def _copy_gadget( self, new_num, new_addr, same_gadget ):
         """
         Copies the gadget 'same_gadget' into the current gadget and changes
         only the number and the address
@@ -121,7 +121,7 @@ class Gadget:
         # Copying graph and computing the dependencies 
         self.graph = same_gadget.graph
         self.dep = same_gadget.dep
-        self.duplicate = same_gadget.num
+        self.duplicate = same_gadget
         
     def _getReg( self, regStr):
         """
@@ -551,7 +551,7 @@ class Gadget:
         """
         
         if( self.duplicate ):
-            self.spInc = Database.gadgetDB[self.duplicate].spInc
+            self.spInc = self.duplicate.spInc
             return 
         
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
@@ -584,7 +584,7 @@ class Gadget:
         """
         
         if( self.duplicate ):
-            self.normalRet = Database.gadgetDB[self.duplicate].normalRet
+            self.normalRet = self.duplicate.normalRet
             return 
     
         ip = SSAReg(Analysis.regNamesTable[Analysis.ArchInfo.ip], self.graph.lastMod[Analysis.regNamesTable[Analysis.ArchInfo.ip]])

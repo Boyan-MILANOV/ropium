@@ -4,6 +4,7 @@
 import ropgenerator.Database as Database
 import ropgenerator.Analysis as Analysis
 import ropgenerator.generate_opcodes as generate_opcodes
+import ropgenerator.SearchHelper as SearchHelper
 
 # Help for the load command
 CMD_LOAD_HELP = "\n\t---------------------------------"
@@ -34,6 +35,7 @@ def load(args):
     Analysis.regNamesTable = dict()
     Analysis.revertRegNamesTable = dict()
     Analysis.ssaRegCount = 0
+    SearchHelper.reinit()
 
 
     if( generate_opcodes.generate(filename)):

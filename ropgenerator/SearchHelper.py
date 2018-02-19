@@ -409,13 +409,22 @@ def found_REG_write_to_memory(reg, reg2, offset):
 ###########################
 # REINITIALIZATION OF ALL #
 ###########################
-PADDING_UNITS = []
-record_REGtoREG_reg_transitivity = dict()
-built_REGtoREG_reg_transitivity = False
-record_REG_pop_from_stack = dict()
-built_REG_pop_from_stack = False
-record_REG_write_to_memory = dict()
-built_record_REG_write_to_memory = False
 
 
+def reinit():
+    global PADDING_UNITS
+    global record_REGtoREG_reg_transitivity
+    global built_REGtoREG_reg_transitivity
+    global record_REG_pop_from_stack
+    global built_REG_pop_from_stack
+    global record_REG_write_to_memory
+    global built_record_REG_write_to_memory
+
+    PADDING_UNITS = []
+    record_REGtoREG_reg_transitivity = dict()
+    built_REGtoREG_reg_transitivity = False
+    record_REG_pop_from_stack = dict()
+    built_REG_pop_from_stack = False
+    record_REG_write_to_memory = dict()
+    built_record_REG_write_to_memory = False
 

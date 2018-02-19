@@ -1,6 +1,6 @@
 # ROPGenerator - ROPGenerator module
 # Central module to run, prompts for commands and execute them ;) 
-import ropgenerator.Database as Database
+from ropgenerator.Database import pretty_print_registers
 import ropgenerator.Analysis as Analysis
 import ropgenerator.Gadget_finder as Gadget_finder
 import ropgenerator.Load as Load
@@ -85,7 +85,7 @@ def main():
                 print("Missing arguments. Type 'load help' for help")
     
         elif( command == CMD_REGISTERS ):
-            Database.pretty_print_registers()
+            pretty_print_registers()
         elif( command == CMD_CONFIG):
             if( argslen > 1 ):
                 if( args[1] == CMD_HELP ):

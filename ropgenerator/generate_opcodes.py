@@ -24,7 +24,7 @@ def generate(filename):
         print("Error. Could not find file '{}'".format(filename))
         return False
          
-    ropgadget = Config.PATH_ROPGADGET+"/ROPgadget.py"
+    ropgadget = Config.PATH_ROPGADGET
     print("Executing ROPgadget as: " + ropgadget )
     try:
         p = subprocess.Popen([ropgadget,"--binary",filename,"--dump", "--all"],stdout=subprocess.PIPE)

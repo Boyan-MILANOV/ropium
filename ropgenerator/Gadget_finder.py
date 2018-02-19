@@ -76,7 +76,6 @@ class search_engine:
         Returns a list of chains ( a chain is a list of gadgets )
         """
         DEPTH = 3
-        
         if( gtype == GadgetType.REGtoREG ):
             # If first time building reg transitivity for arg1 
             if( not SearchHelper.built_REGtoREG_reg_transitivity ):

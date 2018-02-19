@@ -4,7 +4,7 @@ Implements the data structure to represent arithmetical and logical
 expressions using abstract values for registers and memory.
 """
 
-from z3 import BitVec, BitVecVal, BitVecNumRef
+from z3 import BitVec, BitVecVal, BitVecNumRef, Concat, Extract
 from ropgenerator.Cond import Cond, CT, CTrue, CFalse
 from ropgenerator.Logs import log
 INTEGRITY_CHECK = False 
@@ -19,6 +19,7 @@ nb_regs = None
 # Size of the registers - this variable must be set when architecture is known
 class REGSIZE:
     size = -1
+
 
 
 # Custom exception type

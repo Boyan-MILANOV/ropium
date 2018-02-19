@@ -3,7 +3,7 @@
 
 import sys
 import ropgenerator.Analysis as Analysis
-from ropgenerator.Gadget import Gadget, GadgetException, GadgetType
+from ropgenerator.Gadget import Gadget, GadgetException, GadgetType, analyzed_raw_to_gadget
 from datetime import datetime
 from ropgenerator.Cond import Cond, CT
 from ropgenerator.Expr import SSAExpr
@@ -166,7 +166,6 @@ def generated_gadgets_to_DB():
     i = 0
     success = 0
     warnings = 0
-    startTime = datetime.now()
     chargingBarSize = 30
     chargingBarStr = " "*chargingBarSize
     sys.stdout.write("[+] Working under architecture: " + Analysis.ArchInfo.currentArch + '\n')
@@ -178,6 +177,7 @@ def generated_gadgets_to_DB():
     f = open(".warnings.log", "w") 
     original_sigint_handler = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, sigint_handler)
+    startTime = datetime.now()
     for g in asmGadgets:
         if( sigint ):
             break
@@ -265,7 +265,7 @@ def fillGadgetLookUp():
         gadgetLookUp[GadgetType.EXPRtoREG][reg_num] = exprLookUp()
         # For MEMEXPRtoREG
         gadgetLookUp[GadgetType.MEMEXPRtoREG][reg_num] = exprLookUp()
-        # For REGtoMEM
+        # For others types 
         # No initialisation needed
             
     

@@ -32,7 +32,8 @@ def hardSimplify( condZ3 ):
     """
     global debug_solver_count
     debug_solver_count = debug_solver_count + 1
-    return Then('simplify', 'propagate-values', 'ctx-solver-simplify')(condZ3).as_expr()
+    return Then('simplify', 'propagate-values')(condZ3).as_expr()
+    # Could use also , 'ctx-solver-simplify' strategy 
  
 ##############################
 # TYPES OF CONDITIONS ( CT ) #
@@ -272,7 +273,6 @@ class Cond:
             self.z3 = BoolSort().cast(False) 
         else:
             raise CondException("Condition type %s cannot be converted into Z3 format " % self.cond)
-        
         return self.z3     
             
             
@@ -513,10 +513,12 @@ class Cond:
             /!\ Notice that a 'hard simplification' is way more expensive than a 'soft simplification' but can
             return better results 
         """
-        if( self.Z3Simplified ):
+
+        if( self.Z3Simplified ):         
             return self.z3
         
-        self.z3 = hardSimplify(self.toZ3())
+        condZ3 = self.toZ3()
+        self.z3 = hardSimplify(condZ3)
         if( self.z3 == BoolSort().cast(True)):
             self.setTrue()
         elif( self.z3 == BoolSort().cast(False)):
@@ -546,11 +548,11 @@ class Cond:
             v = Solver()
             v.add(Not(condZ3))
             signal.signal(signal.SIGALRM, TimeOutRaiser)
-            #signal.setitimer(signal.ITIMER_REAL, 1)    
+            #signal.setitimer(signal.ITIMER_REAL, 1)
             try:        
                 res = str(v.check())
             except Exception as e:
-                print("DEBUG OUCH GOT EXCEPTION IN Z3 !!!")
+                log("z3 Failed to check the following condition: " + str(Not(condZ3)))
                 res = "sat"
             debug_solver_count = debug_solver_count + 1
             if( str(res) == "unsat" ):
