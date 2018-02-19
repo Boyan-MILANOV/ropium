@@ -207,15 +207,14 @@ def generated_gadgets_to_DB():
     # This variable should be written before calculating spInc or simplifying conditions !!!
     Expr.nb_regs = Analysis.ssaRegCount-1
     
-    
     # Second pass analysis once all gadgets are collected
     for gadget in gadgetDB:
         gadget.calculateSpInc()
         gadget.calculateRet()
-    
-    sys.stdout.write("\r"+" "*90+"\r")
         
     cTime = datetime.now() - startTime
+    
+    sys.stdout.write("\r"+" "*90+"\r")   
     if( sigint ):
         print("[!] SIGINT ended the analysis prematurely, gadget database might be incomplete")
         sigint = False

@@ -29,6 +29,13 @@ def load(args):
     else:
         print("Missing argument. Type 'load help' for help")
 
+    # Cleaning the data structures 
+    Database.gadgetDB = []
+    Analysis.regNamesTable = dict()
+    Analysis.revertRegNamesTable = dict()
+    Analysis.ssaRegCount = 0
+
+
     if( generate_opcodes.generate(filename)):
         Database.generated_gadgets_to_DB()
         Database.simplifyGadgets()

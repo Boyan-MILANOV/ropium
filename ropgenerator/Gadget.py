@@ -33,8 +33,11 @@ class GadgetType(Enum):
     
     
     
-    
-        
+# List of gadgets already analyzed !!     
+# Keys are gadget.asmStr 
+# Values are a pair (dep, graph) = (pointer to GadgetDependencies object, pointer to the related graph) 
+# /!\ DIfferent gadgets will share the same GadgetDependencies object
+analyzed_raw_to_gadget = dict()
 
 
 ##############################
@@ -54,37 +57,71 @@ class Gadget:
         (self.asmStr) : (str) The string of the assembly instructions 
         (self.dep) : (GadgetDependencies) The dependencies of the gadget 
     """
+    global analyzed_raw_to_gadget
+    
     def __init__(self, num, addr, raw):
         """
         (raw) is the raw string of the instructions of the gadget 
         """
         # irsb is an array of BARF instructions
         # ins is an array of Assembly instructions 
-        try:
-            (irsb,ins) = Analysis.getIR( raw, addr )
-        except Analysis.AnalysisException as e:
-            raise GadgetException(str(e))
         
-        # Some strings representations 
-        self.asmStr = "; ".join(str(i) for i in ins)
-        self.hexStr = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in raw)
+        if( raw in analyzed_raw_to_gadget ):
+            self._copy_gadget( num, addr, analyzed_raw_to_gadget[raw] )
+            analyzed_raw_to_gadget[raw] = self
+        else:
+            try:
+                (irsb,ins) = Analysis.getIR( raw, addr )
+            except Analysis.AnalysisException as e:
+                raise GadgetException(str(e))
+            
+            self.duplicate = None # If the gadget is a copy of another gadget, then self.duplicate = number of the original gadget ! 
+            # Some strings representations 
+            self.asmStr = "; ".join(str(i) for i in ins)
+            self.hexStr = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in raw)
+            # Initializing the memory in Z3 for this gadget 
+            memorySMT = Array( "MEM", BitVecSort(REGSIZE.size), BitVecSort(8))
+            self.addr = addr # int
+            # Get the string for the address, depends on the architecture size 
+            self.addrStr = '0x'+format(addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
+            self.regCount = {} # Keys are integers, values are integers. regCount[2] = 0 <=> R2_0 have appeared but R2_1 not yet 
+            self.spInc = None # How much have Stack Pointer been incremented by 
+            self.num = num # Identifier or the gadget
+            self.normalRet = None # True iff the gadgets ends up by a normal ret; instruction 
+            self.nbInstr = 0 # Number of REIL instructions of this gadget 
+            self.dep = None
+            self.valuesTable = {} # Used dinamically when building graph 
+            # Building graph and computing the dependencies 
+            self.graph = Graph()
+            self.buildGraph(irsb)
+            self.getDependencies()
+        
+        
+    def _copy_gadget( new_num, new_addr, same_gadget ):
+        """
+        Copies the gadget 'same_gadget' into the current gadget and changes
+        only the number and the address
+        
+        This function is used to avoid computing dependencies twice for 
+        identical gadgets that have different addresses 
+        """
+        self.asmStr = same_gadget.asmStr
+        self.hexStr = same_gadget.hexStr
         # Initializing the memory in Z3 for this gadget 
         memorySMT = Array( "MEM", BitVecSort(REGSIZE.size), BitVecSort(8))
-        self.addr = addr # int
+        self.addr = new_addr # int
         # Get the string for the address, depends on the architecture size 
-        self.addrStr = '0x'+format(addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
-        self.graph = Graph()
-        self.regCount = {} # Keys are integers, values are integers. regCount[2] = 0 <=> R2_0 have appeared but R2_1 not yet 
-        self.spInc = None # How much have Stack Pointer been incremented by 
-        self.num = num # Identifier or the gadget
-        self.normalRet = None # True iff the gadgets ends up by a normal ret; instruction 
-        self.nbInstr = 0 # Number of REIL instructions of this gadget 
-        self.dep = None
-        self.valuesTable = {} # Used dinamically when building graph 
-        # Building graph and computing the dependencies 
-        self.buildGraph(irsb)
-        self.getDependencies()
-        
+        self.addrStr = '0x'+format(new_addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
+        self.regCount = same_gadget.regCount # Keys are integers, values are integers. regCount[2] = 0 <=> R2_0 have appeared but R2_1 not yet 
+        self.spInc = same_gadget.spInc # How much have Stack Pointer been incremented by 
+        self.num = new_num # Identifier or the gadget
+        self.normalRet = same_gadget.normalRet # True iff the gadgets ends up by a normal ret; instruction 
+        self.nbInstr = same_gadget.nbInstr # Number of REIL instructions of this gadget 
+        self.valuesTable = same_gadget.valuesTable # Used dinamically when building graph 
+        # Copying graph and computing the dependencies 
+        self.graph = same_gadget.graph
+        self.dep = same_gadget.dep
+        self.duplicate = same_gadget.num
         
     def _getReg( self, regStr):
         """
@@ -512,6 +549,11 @@ class Gadget:
         """
         Compute how much the stack pointer has advanced after this gadget is executed 
         """
+        
+        if( self.duplicate ):
+            self.spInc = Database.gadgetDB[self.duplicate].spInc
+            return 
+        
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
         if( not sp_num in self.graph.lastMod ):
             self.spInc = 0
@@ -540,6 +582,10 @@ class Gadget:
         /!\ MUST be called after calculateSpInc()
         
         """
+        
+        if( self.duplicate ):
+            self.normalRet = Database.gadgetDB[self.duplicate].normalRet
+            return 
     
         ip = SSAReg(Analysis.regNamesTable[Analysis.ArchInfo.ip], self.graph.lastMod[Analysis.regNamesTable[Analysis.ArchInfo.ip]])
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
@@ -570,12 +616,13 @@ class Gadget:
         """
         Get the dependencies of the gadget 
         """
-        CurrentAnalysis.gadget = self
-        CurrentAnalysis.graph = self.graph
-        if( self.dep == None ):
+        if( self.dep != None ):
+            return self.dep
+        else:
+            CurrentAnalysis.gadget = self
+            CurrentAnalysis.graph = self.graph
             self.dep = self.graph.getDependencies()
-            #self.calculateSpInc() do it later 
-        return self.dep
+            return self.dep
          
          
          

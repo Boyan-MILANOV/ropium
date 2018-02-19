@@ -27,7 +27,7 @@ def generate(filename):
     ropgadget = Config.PATH_ROPGADGET+"/ROPgadget.py"
     print("Executing ROPgadget as: " + ropgadget )
     try:
-        p = subprocess.Popen([ropgadget,"--binary",filename,"--dump"],stdout=subprocess.PIPE)
+        p = subprocess.Popen([ropgadget,"--binary",filename,"--dump", "--all"],stdout=subprocess.PIPE)
     except Exception as e:
         print("Error. Could not execute ' " +ropgadget+ " --binary " + filename + " --dump '")
         print("Error message is: " + str(e))

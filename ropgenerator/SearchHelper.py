@@ -402,4 +402,20 @@ def found_REG_write_to_memory(reg, reg2, offset):
 
     return res
     
+    
+    
+    
+    
+###########################
+# REINITIALIZATION OF ALL #
+###########################
+PADDING_UNITS = []
+record_REGtoREG_reg_transitivity = dict()
+built_REGtoREG_reg_transitivity = False
+record_REG_pop_from_stack = dict()
+built_REG_pop_from_stack = False
+record_REG_write_to_memory = dict()
+built_record_REG_write_to_memory = False
+
+
 

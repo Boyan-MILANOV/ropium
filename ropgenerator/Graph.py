@@ -25,11 +25,13 @@ class GadgetDependencies:
                 Values are lists of couples ( Expr, Cond). Each couple C models one conditional dependency.
                 C[0] is the Expression, C[1] is the condition
         (self.memDep) - Dictionnary. Keys are (Expr) Values are the same than for self.regDep
-                memDep[addr] are the dependencies of the memory at address 'addr'              
+                memDep[addr] are the dependencies of the memory at address 'addr'       
+        (self.simpified) is set to true if self.simplifyConditions() has already been called !        
     """
     def __init__(self):
         self.regDep = {} # Keys are (SSAReg)
         self.memDep = {} # Keys are (Expr) 
+        self.simplifiedCond = False
         
     def flattenITE( self ):
         """
@@ -192,13 +194,15 @@ class GadgetDependencies:
                 dep[0] = dep[0].simplify()
                 dep[1].clean()
                     
-    
+        
+        
     def simplifyConditions( self, hard=False ):
         """
         Simplifies the dependencies according to the conditions evaluated to True/False (removes impossible dependencies)
         /!\ Should be called only after all gadgets have been loaded !!! otherwise Expr.nb_regs is still unknown 
         """
-        
+        if( self.simplifiedCond ):
+            return 
         for reg in self.regDep.keys():
             newDeps = [] 
             for dep in self.regDep[reg]:
@@ -212,6 +216,7 @@ class GadgetDependencies:
                     newDeps.append( dep )
             self.memDep[expr] = newDeps
         
+        self.simplifiedCond = True
 
     def printRegDeps(self):
         """
