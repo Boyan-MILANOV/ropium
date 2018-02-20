@@ -1,7 +1,7 @@
 # ROPGenerator - ROPGenerator module
 # Central module to run, prompts for commands and execute them ;) 
 from ropgenerator.Database import pretty_print_registers
-from ropgenerator.Colors import write_colored, error_colored
+from ropgenerator.Colors import write_colored, error_colored, info_colored
 import ropgenerator.Analysis as Analysis
 import ropgenerator.Gadget_finder as Gadget_finder
 import ropgenerator.Load as Load
@@ -104,6 +104,8 @@ def main():
             # New line
             if( command != None):
                 print("")
+                
+        info_colored("Closing ROPGenerator...\n")
         exit(0)
     except Exception as e:
         # print with light-red ANSI code and END ANSI code

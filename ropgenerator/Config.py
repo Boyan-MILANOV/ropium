@@ -1,7 +1,7 @@
 # ROPGenerator - Config.py module
 # Stores the configuration for the tool 
 import ropgenerator.Analysis as Analysis
-from ropgenerator.Colors import info_colored
+from ropgenerator.Colors import info_colored, error_colored
 import os 
 
 # Help for the config command
@@ -50,11 +50,12 @@ def update_config(args):
         print_config()
         return 
     
+    info_colored("Updating configuration\n")
     for arg in args:
         arg_list = arg.split('=')
         left = arg_list[0]
         if( len(arg_list) < 2 ):
-            print("Error. Missing right part in argument " + arg)
+            print("\tError. Missing right part in argument " + arg)
             return 
         else:
             right = arg_list[1]
@@ -65,7 +66,7 @@ def update_config(args):
             elif( left == "limit" ):
                 set_limit(left)
             else:
-                print("Ignored unknown parameter '"+left+"'. Type 'config help' for help")
+                print("\tIgnored unknown parameter '"+left+"'. Type 'config help' for help")
 
 
 def set_arch(arch):
@@ -73,18 +74,18 @@ def set_arch(arch):
     if( arch in Analysis.supportedArchs ):
         ARCH = arch
         Analysis.setArch(arch)
-        print("Now working under architecture: " + arch)
+        print("\tNow working under architecture: " + arch)
     else:
-        print("Architecture '" + arch + "' is not supported. Available architectures are: " + ','.join(Analysis.supportedArchs)) 
+        print("\tArchitecture '" + arch + "' is not supported. Available architectures are: " + ','.join(Analysis.supportedArchs)) 
     
 def set_ropgadget(path):
     global DEFAULT_PATH_ROPGADGET
     global PATH_ROPGADGET
     if( (os.path.isfile(path) and path[:-3] == ".py") or path == DEFAULT_PATH_ROPGADGET):
         PATH_ROPGADGET = path
-        print("New ropgadget location : " + path)
+        print("\tNew ropgadget location : " + path)
     else:
-        print("Error. '" + path+"' could not be found")
+        print("\tError. '" + path+"' could not be found")
 
 def set_limit(limit):
     global LIMIT
@@ -94,22 +95,23 @@ def set_limit(limit):
         try:
             limit = int(limit, 10)
             LIMIT = limit
+            print("\tNow looking for up to {} gadgets by request".format(str(LIMIT)))
         except:
-            print("Error. 'limit' parameter should be a base 10 integer")
+            print("\tError. 'limit' parameter should be a base 10 integer")
          
 
 def save_config():
     global ARCH
     global PATH_ROPGADGET
     global LIMIT
-    try:
+    try:        
         f = open(ROPGENERATOR_CONFIG_FILE, "w")
         f.write(ARCH + '\n')
         f.write(PATH_ROPGADGET + '\n')
         f.write(str(LIMIT) + '\n')
         f.close()
     except:
-        print("Error saving the last ROPGenerator configuration")
+        error_colored("Error while saving the last ROPGenerator configuration\n")
         
 def load_config():
     global ARCH
@@ -120,9 +122,10 @@ def load_config():
         PATH_ROPGADGET = f.readline()[:-1]
         LIMIT = int(f.readline()[:-1], 10)
         f.close()
+        #info_colored("Loaded configuration\n")
     except:
         if( os.path.isfile(ROPGENERATOR_CONFIG_FILE)):
-            info_colored("Couldn't load custom configuration, using the default one")
+            info_colored("Couldn't load custom configuration, using the default one\n")
         default_config()
     Analysis.setArch(ARCH)
     
