@@ -64,7 +64,7 @@ def update_config(args):
             elif( left == "ropgadget" ):
                 set_ropgadget(right)
             elif( left == "limit" ):
-                set_limit(left)
+                set_limit(right)
             else:
                 print("\tIgnored unknown parameter '"+left+"'. Type 'config help' for help")
 

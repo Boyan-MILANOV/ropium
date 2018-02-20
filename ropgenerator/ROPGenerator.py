@@ -41,8 +41,6 @@ def main():
         # Launching ROPGenerator 
         write_colored(ASCII_art)
         Config.load_config()
-        f = open(".stderr-log", "w")
-        sys.stderr = f
         quit = False
         while( not quit ):
             write_colored(">>> ")

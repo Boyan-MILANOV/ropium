@@ -17,10 +17,18 @@ import signal
 # List of the available gadgets
 gadgetDB = []
 
+
+old_stdout = sys.stdout
+old_stderr = sys.stderr
 # Used to limit max accepted computation time for a gadget 
 def timeout_handler(signum, frame):
+    global old_stdout
+    global old_stderr
+    
     signal.alarm(0)
-    raise GadgetException("Too much to compute gadget dependencies")
+    sys.stdout = old_stdout
+    sys.stderr = old_stderr
+    raise Exception("Too much to compute gadget dependencies")
 signal.signal(signal.SIGALRM, timeout_handler)
 
 #################################################
@@ -150,6 +158,9 @@ def generated_gadgets_to_DB():
     """
     global sigint 
     global current_gadget
+    global old_stdout
+    global old_stderr
+    
     def sigint_handler(signal, frame):
         global sigint
         sigint = True
@@ -165,7 +176,8 @@ def generated_gadgets_to_DB():
         instr = instr.decode("hex")
         asmGadgets.append((addr, instr))
     f.close()
-    # Analyze them 
+    # Analyze them
+    junk_file = open("/dev/null", "w") 
     i = 0
     success = 0
     warnings = 0
@@ -193,19 +205,26 @@ def generated_gadgets_to_DB():
                 sys.stdout.flush()
             #print("Gadget : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\n")
             signal.alarm(1)
+            sys.stdout = sys.stderr = junk_file
+            print("test")
             gadget = Gadget(i, addr, asm)
             signal.alarm(0)
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
             success += 1
             gadgetDB.append( gadget )
         
         except Exception as e:
             signal.alarm(0)
+            sys.stdout = old_stdout
+            sys.stderr = old_stderr
             if( not isinstance(e, GadgetException)):
                 warnings = warnings + 1
                 f.write("Unexpected error in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException message: (" + str(type(e)) + ") " + str(e) + '\n\n')
 
         i = i + 1
     f.close()
+    junk_file.close()
     signal.signal(signal.SIGINT, original_sigint_handler)
         
     # This variable should be written before calculating spInc or simplifying conditions !!!
