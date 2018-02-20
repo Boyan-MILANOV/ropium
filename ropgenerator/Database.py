@@ -58,7 +58,7 @@ class memLookUp:
     Class used to help storing the dependencies for the memory in gadgetLookUp
     
     - addr_list is a list of expressions corresponding to memory addresses 
-    - written_values is a list of dictionnaries whose content depends on the type of dependency the structure is used to store
+    - written_values is a list of dictionnaries whose content depends on the type of dependency the structure is used to store. Values are always a list of gadgets. 
     Depending on the use: 
         REGtoMEM : keys are register uid (int)
         CSTtoMEM : keys are the constant value (int)
@@ -122,8 +122,8 @@ class memLookUp:
 # REGtoREG dictionnary : gadgetLookUp[REGtoREG][REG1][REG2] = uid (number) of gadget in the gadgetDB list that puts REG2 in REG1
 # CSTtoREG dictionnary : gadgetLookUp[REGtoREG][REG][CST] = uid (number) of gadget in the gadgetDB list that puts CST in REG
 # MEMtoREG dictionnary : gadgetLookUp[MEMtoREG][REG][ADDR] = uid (number) of gadget in the gadgetDB that puts MEM[addr] in REG
-# REGtoMEM dictionnary : gadgetLookUp[REGtoMEM] = memLookUp() for gadgets  that writes reg in the memory 
-# CSTtoMEM dictionnary : gadgetLookUp[CSTtoMEM] = memLookUp() for gadgets that writes cst in the memory 
+# REGtoMEM dictionnary : gadgetLookUp[REGtoMEM] = memLookUp() for gadgets  that writes registers in the memory 
+# CSTtoMEM dictionnary : gadgetLookUp[CSTtoMEM] = memLookUp() for gadgets that writes constants in the memory 
 # EXPRtoREG dictionnary : gadgetLookUp[EXPRtoREG][REG] = exprLookUp() 
 # MEMEXPRtoREG dictionnary : gadgetLookUp[MEMEXPRtoREG][REG] = exprLookUp (stored expressions are not MEMEXPR but only the address)
  
@@ -169,7 +169,7 @@ def generated_gadgets_to_DB():
     chargingBarSize = 30
     chargingBarStr = " "*chargingBarSize
     sys.stdout.write("[+] Working under architecture: " + Analysis.ArchInfo.currentArch + '\n')
-    sys.stdout.write("[+] Creating gadget database : \n")
+    sys.stdout.write("[+] Creating gadget database\n")
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
@@ -200,7 +200,7 @@ def generated_gadgets_to_DB():
                 warnings = warnings + 1
                 f.write("Unexpected error in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException message: (" + str(type(e)) + ") " + str(e) + '\n\n')
 
-        i += 1
+        i = i + 1
     f.close()
     signal.signal(signal.SIGINT, original_sigint_handler)
         
@@ -211,6 +211,7 @@ def generated_gadgets_to_DB():
     for gadget in gadgetDB:
         gadget.calculateSpInc()
         gadget.calculateRet()
+
         
     cTime = datetime.now() - startTime
     
@@ -229,8 +230,21 @@ def simplifyGadgets():
     """
     Apply some simplifications on the gadget dependencies
     """
+    chargingBarSize = 30
+    chargingBarStr = " "*chargingBarSize
+    i = 0
+    sys.stdout.write("[+] Simplifying gadgets\n")
+    sys.stdout.write("\tProgression [")
+    sys.stdout.write(chargingBarStr)
+    sys.stdout.write("]\r\tProgression [")
+    sys.stdout.flush()   
     for gadget in gadgetDB:
+        if( i % (len(gadgetDB)/30) == 0 and i > 0 or i == len(gadgetDB)):
+                sys.stdout.write("|")
+                sys.stdout.flush()
         gadget.getDependencies().simplifyConditions()
+        i = i + 1
+    sys.stdout.write("\r"+" "*90+"\r") 
     
 def fillGadgetLookUp():
     """
@@ -268,10 +282,20 @@ def fillGadgetLookUp():
         # For others types 
         # No initialisation needed
             
-    
+    # Some stuff for printing 
+    chargingBarSize = 30 
+    chargingBarStr = " "*chargingBarSize
+    sys.stdout.write("[+] Updating gadget tables\n")
+    sys.stdout.write("\tProgression [")
+    sys.stdout.write(chargingBarStr)
+    sys.stdout.write("]\r\tProgression [")
+    sys.stdout.flush()   
     # Update the gadgetLookUp table
     hard_simplify=False
     for i in range(0, len(gadgetDB)):
+        if( i % (len(gadgetDB)/30) == 0 and i > 0 or i == len(gadgetDB)):
+                sys.stdout.write("|")
+                sys.stdout.flush()
         gadget = gadgetDB[i]
         for reg, deps in gadget.getDependencies().regDep.iteritems():
             for dep in deps:
@@ -331,7 +355,8 @@ def fillGadgetLookUp():
                 else:
                     pass
 
-
+    # Clean the charging bar 
+    sys.stdout.write("\r"+" "*90+"\r") 
 
                 
 def pretty_print_registers():

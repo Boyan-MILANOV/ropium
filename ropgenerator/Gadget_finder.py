@@ -14,7 +14,7 @@ CMD_FIND_HELP += "\n\tROPGenerator 'find' command\n\t(Find gadgets that execute 
 CMD_FIND_HELP += "\n\t-----------------------------------------------"
 CMD_FIND_HELP += "\n\n\tUsage:\tfind [OPTIONS] <reg>=<expr>\n\t\tfind [OPTIONS] <reg>=mem(<expr>)\n\t\tfind [OPTIONS] mem(<expr>)=<expr>"
 CMD_FIND_HELP += "\n\n\tOptions: No options available for the moment"
-CMD_FIND_HELP += "\n\n\tExamples:\n\t\tfind rax=rbp\t\t\t(put the value of rbp in rax)\n\t\tfind rbx=0xff\t\t\t(put the value 255 in rbx)\n\t\tfind rax = mem(rsp)\t\t(pop the top of the stack into rax)\n\t\tfind mem(rsp-8)=rcx\t\t(push rcx onto the stack)\n\t\tfind mem(rbp-0x10)=0b101\t(write 5 at address rbp-16)"
+CMD_FIND_HELP += "\n\n\tExamples:\n\t\tfind rax=rbp\t\t\t(put the value of rbp in rax)\n\t\tfind rbx=0xff\t\t\t(put the value 255 in rbx)\n\t\tfind rax=mem(rsp)\t\t(pop the top of the stack into rax)\n\t\tfind mem(rsp-8)=rcx\t\t(push rcx onto the stack)\n\t\tfind mem(rbp-0x10)=0b101\t(write 5 at address rbp-16)"
 
 
 def print_help():
@@ -75,12 +75,12 @@ class search_engine:
         Search for gadgets with advanced chaining methods
         Returns a list of chains ( a chain is a list of gadgets )
         """
-        DEPTH = 3
+
         if( gtype == GadgetType.REGtoREG ):
             # If first time building reg transitivity for arg1 
             if( not SearchHelper.built_REGtoREG_reg_transitivity ):
                 # We build it !! 
-                SearchHelper.build_REGtoREG_reg_transitivity(iterations=DEPTH)
+                SearchHelper.build_REGtoREG_reg_transitivity()
             res = SearchHelper.found_REGtoREG_reg_transitivity(arg1, arg2, n=n)
             return res
         elif( gtype == GadgetType.CSTtoREG ):
@@ -375,11 +375,11 @@ def parse_user_request(req):
     elif( left[:4] == 'mem(' ):
         (success,addr) = Expr.parseStrToExpr(left[4:-1], Analysis.regNamesTable)
         if( not success ):
-            return (False, "Error. Invalid address: " + left[4:-1] + " ({}".format(addr))
+            return (False, "Error. {}".format(addr))
         addr = addr.simplify()
         (success, right_expr) = Expr.parseStrToExpr(right, Analysis.regNamesTable)
         if( not success ):
-            return (False, "Error. Invalid operand: " + right + " ({}".format(right_expr))
+            return (False, "Error. {}".format(right_expr))
         right_expr = right_expr.simplify()
         # Test if REGtoMEM
         if( isinstance(right_expr, Expr.SSAExpr)):
@@ -388,7 +388,7 @@ def parse_user_request(req):
         elif( isinstance( right_expr, Expr.ConstExpr)):
             return ( True, GadgetType.CSTtoMEM, addr, right_expr.value )
         else:
-            return (False, "Operand '" +right+"' is invalid or not yet supported by ROPGenerator :(")
+            return (False, "Formula '" +req+"' is invalid or not yet supported by ROPGenerator :(")
     return ( False, "Operand '" +left+"' is invalid or not yet supported by ROPGenerator :(")
     
 

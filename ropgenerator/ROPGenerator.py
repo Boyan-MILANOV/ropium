@@ -103,7 +103,7 @@ def main():
         # New line
         if( command != None):
             print("")
-    exit()
+    exit(0)
 
 # Run it !    
 main()

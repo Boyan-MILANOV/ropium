@@ -16,8 +16,12 @@ CMD_CONFIG_HELP += "\n\n\tExamples:\n\t\tconfig arch=X86\n\t\tconfig arch=X86_64
 config_file = "./.ROPGenerator-conf"
 
 # ROPGENERATOR CONIGURATION DEFAULT 
-ARCH = "X86_64"
-PATH_ROPGADGET = "ROPgadget"
+DEFAULT_ARCH = "X86_64"
+DEFAULT_PATH_ROPGADGET = "ROPgadget"
+
+
+ARCH = DEFAULT_ARCH
+PATH_ROPGADGET = DEFAULT_PATH_ROPGADGET
 
 
 def print_help():
@@ -64,8 +68,9 @@ def set_arch(arch):
         print("Architecture '" + arch + "' is not supported. Available architectures are: " + ','.join(Analysis.supportedArchs)) 
     
 def set_ropgadget(path):
+    global DEFAULT_PATH_ROPGADGET
     global PATH_ROPGADGET
-    if( os.path.isfile(path)):
+    if( (os.path.isfile(path) and path[:-3] == ".py") or path == DEFAULT_PATH_ROPGADGET):
         PATH_ROPGADGET = path
         print("New ropgadget location : " + path)
     else:
@@ -99,8 +104,10 @@ def load_config():
 def default_config():
     global ARCH
     global PATH_ROPGADGET
-    ARCH = "X86_64"
-    PATH_ROPGADGET = "usr/bin/ROPgadget"
+    global DEFAULT_ARCH
+    global DEFAULT_PATH_ROPGADGET
+    ARCH = DEFAULT_ARCH
+    PATH_ROPGADGET = DEFAULT_PATH_ROPGADGET
     Analysis.setArch(ARCH)
     
 

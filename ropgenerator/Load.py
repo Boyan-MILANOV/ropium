@@ -42,6 +42,7 @@ def load(args):
         Database.generated_gadgets_to_DB()
         Database.simplifyGadgets()
         Database.fillGadgetLookUp()
+        SearchHelper.build_all()
     else:
         print("\n Could not load gadgets")
     

@@ -5,6 +5,7 @@
 
 import ropgenerator.Database as Database
 import ropgenerator.Analysis as Analysis
+import sys
 from ropgenerator.Gadget import GadgetType
 
 #####################################
@@ -65,7 +66,7 @@ record_REGtoREG_reg_transitivity = dict()
 built_REGtoREG_reg_transitivity = False
 
 
-def build_REGtoREG_reg_transitivity(iterations):
+def build_REGtoREG_reg_transitivity():
     """
     Builds chains for operation REG <- REG 
     Parameters:
@@ -80,9 +81,13 @@ def build_REGtoREG_reg_transitivity(iterations):
     global PADDING_GADGET  
     global MAX_PADDING 
     
+    iterations=4
+    
     # Choose a padding unit 
     padding_uid = set_padding_unit()
     
+    # Initialize printing info
+    sys.stdout.write("[+] Performing additionnal analysis (chain gadgets by transitivity)\n") 
     # Transitive closure 
     # During algorithm the chains are stored as triples:
     #     ( chain, used_regs, nb_instr )
@@ -154,9 +159,7 @@ def add_REGtoREG_reg_transitivity(reg1, reg2, chain , regs_chain, nbInstr):
     global record_REGtoREG_reg_transitivity
     global MAX_CHAINS
     
-    #print("DEBUG I AM CALLING THIS SHIT ?") 
     if( not chain ):
-        #print("DEBUG ERROE CHAIN IS EMPTY")
         return False
     if( not reg1 in record_REGtoREG_reg_transitivity ):
         record_REGtoREG_reg_transitivity[reg1] = dict()
@@ -172,14 +175,11 @@ def add_REGtoREG_reg_transitivity(reg1, reg2, chain , regs_chain, nbInstr):
             return False
         elif( len(chain) < len(record_REGtoREG_reg_transitivity[reg1][reg2][i][0])):
             record_REGtoREG_reg_transitivity[reg1][reg2].insert(i, (chain, regs_chain, nbInstr))
-            
-            #print("DEBUG Inserted " + str(chain) + " into " + str(record_REGtoREG_reg_transitivity[reg1][reg2]))
             if( len(record_REGtoREG_reg_transitivity[reg1][reg2]) >= MAX_CHAINS ):
                 del record_REGtoREG_reg_transitivity[reg1][reg2][-1]
             return True
         elif( len(chain) <= len(record_REGtoREG_reg_transitivity[reg1][reg2][i][0]) and nbInstr < nbInstr_recorded_chain):
             record_REGtoREG_reg_transitivity[reg1][reg2].insert(i, (chain, regs_chain, nbInstr))
-            #print("DEBUG Inserted " + str(chain) + " into " + str(record_REGtoREG_reg_transitivity[reg1][reg2]))    
             if( len(record_REGtoREG_reg_transitivity[reg1][reg2]) >= MAX_CHAINS ):
                 del record_REGtoREG_reg_transitivity[reg1][reg2][-1]
             return True
@@ -214,7 +214,15 @@ def build_REG_pop_from_stack():
     global built_REG_pop_from_stack
     global record_REG_pop_from_stack
  
-    
+    # Initialization for printing charging bar 
+    chargingBarSize = Analysis.ssaRegCount
+    chargingBarStr = " "*chargingBarSize
+    sys.stdout.write("[+] Performing additionnal analysis (poping registers from stack)\n")
+    sys.stdout.write("\tProgression [")
+    sys.stdout.write(chargingBarStr)
+    sys.stdout.write("]\r\tProgression [")
+    sys.stdout.flush() 
+        
     # First reg <- mem(esp)
     db = Database.gadgetLookUp[GadgetType.MEMtoREG]
     sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
@@ -226,6 +234,9 @@ def build_REG_pop_from_stack():
     # Then reg <- mem(esp+ X )
     db = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG]
     for reg in range(0,Analysis.ssaRegCount):
+        # Printing the charging bar 
+        sys.stdout.write("|")
+        sys.stdout.flush()
         for i  in range(0, len(db[reg].expr_list)):
             # For each expr so that reg <- mem(expr)
             expr = db[reg].expr_list[i]
@@ -234,6 +245,7 @@ def build_REG_pop_from_stack():
                 # If expr is esp + X 
                 add_REG_pop_from_stack(reg, inc, [ gadget_num for gadget_num in db[reg].gadget_list[i] if Database.gadgetDB[gadget_num].hasNormalRet() and Database.gadgetDB[gadget_num].isValidSpInc()])
     
+    sys.stdout.write("\r"+" "*90+"\r")
     built_REG_pop_from_stack = True
                 
     
@@ -314,6 +326,19 @@ built_REG_write_to_memory = False
 def build_REG_write_to_memory():
     global record_REG_write_to_memory
     global built_REG_write_to_memory
+    
+    if( built_REG_write_to_memory ):
+        return
+    
+    # Initialization for printing charging bar 
+    chargingBarSize = Analysis.ssaRegCount
+    chargingBarStr = " "*chargingBarSize
+    sys.stdout.write("[+] Performing additionnal analysis (writing registers on stack)\n")
+    sys.stdout.write("\tProgression [")
+    sys.stdout.write(chargingBarStr)
+    sys.stdout.write("]\r\tProgression [")
+    sys.stdout.flush() 
+    
     # Initializing the dictionnaries
     for reg in range(0, Analysis.ssaRegCount):
         record_REG_write_to_memory[reg] = dict()
@@ -321,19 +346,25 @@ def build_REG_write_to_memory():
             record_REG_write_to_memory[reg][reg2] = dict()
     
     # Filling the dictionnaries :
+    
     db = Database.gadgetLookUp[GadgetType.REGtoMEM]
     for reg in range(0, Analysis.ssaRegCount):
-        for i in range(0, len(db[reg].addr__list)):
-            addr = db[reg].addr_list[i]
-            # We want to store only addresses of type REG +-/* CST
-            reg_list = addr.getRegisters()
-            if( len(reg_list) == 1 ):
-                (isInc, inc) = addr.isRegIncremement(reg_list[0])
+        # Printing the charging bar 
+        sys.stdout.write("|")
+        sys.stdout.flush()
+        
+        for i in range(0, len(db.addr_list)):
+            try:
+                addr = db.addr_list[i]
+                # We want to store only addresses of type REG +-/* CST
+                (isInc, inc) = addr.isRegIncrement(addr)
                 if( isInc ):
-                    add_REG_write_to_memory( reg, reg_list[0], offset, [g for g in db[reg].written_values[i] if Database.gadgetDB[g].hasNormalRet() and Database.gadgetDB[g].isValidSpInc() ] )
-                    
-                    
-                    
+                    add_REG_write_to_memory( reg, reg_list[0], offset, [g for g in db.written_values[i] if Database.gadgetDB[g].hasNormalRet() and Database.gadgetDB[g].isValidSpInc() ] )
+            except Exception as e:
+                print("Error")
+                print(e)
+                exit(0)
+    sys.stdout.write("\r"+" "*90+"\r")                               
     built_REG_write_to_memory = True
                  
     
@@ -406,10 +437,14 @@ def found_REG_write_to_memory(reg, reg2, offset):
     
     
     
-###########################
-# REINITIALIZATION OF ALL #
-###########################
+#####################
+# GLOBAL FUNCTIONS  #
+#####################
 
+def build_all():
+    build_REGtoREG_reg_transitivity()
+    build_REG_pop_from_stack()
+    build_REG_write_to_memory()
 
 def reinit():
     global PADDING_UNITS
