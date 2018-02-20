@@ -655,4 +655,11 @@ def isStoreInstr( mnemonic ):
 def isPutInstr( mnemonic ):
     return mnemonic == ReilMnemonic.STR        
         
-     
+    
+    
+#############################
+# REINITIALIZATION FUNCTION #
+#############################
+def reinit():
+    global analyzed_raw_to_gadget
+    analyzed_raw_to_gadget = dict()

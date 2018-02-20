@@ -156,3 +156,15 @@ class AnalysisException(Exception):
         log(msg)
     def __str__(self, msg):
         return str(msg)
+        
+        
+#############################
+# REINITIALIZATION FUNCTION #
+#############################
+def reinit():
+    global ssaRegCount
+    global regNamesTable
+    global revertRegNamesTable
+    ssaRegCount = 0
+    regNamesTable = dict()
+    revertRegNamesTable = dict()

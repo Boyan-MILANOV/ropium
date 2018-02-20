@@ -6,6 +6,7 @@
 import ropgenerator.Database as Database
 import ropgenerator.Analysis as Analysis
 import sys
+from ropgenerator.Colors import info_colored
 from ropgenerator.Gadget import GadgetType
 
 #####################################
@@ -87,7 +88,7 @@ def build_REGtoREG_reg_transitivity():
     padding_uid = set_padding_unit()
     
     # Initialize printing info
-    sys.stdout.write("[+] Performing additionnal analysis (chain gadgets by transitivity)\n") 
+    info_colored("Performing additionnal analysis (chain gadgets by transitivity)\n") 
     # Transitive closure 
     # During algorithm the chains are stored as triples:
     #     ( chain, used_regs, nb_instr )
@@ -217,7 +218,7 @@ def build_REG_pop_from_stack():
     # Initialization for printing charging bar 
     chargingBarSize = Analysis.ssaRegCount
     chargingBarStr = " "*chargingBarSize
-    sys.stdout.write("[+] Performing additionnal analysis (poping registers from stack)\n")
+    info_colored("Performing additionnal analysis (poping registers from stack)\n")
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
@@ -333,7 +334,7 @@ def build_REG_write_to_memory():
     # Initialization for printing charging bar 
     chargingBarSize = Analysis.ssaRegCount
     chargingBarStr = " "*chargingBarSize
-    sys.stdout.write("[+] Performing additionnal analysis (writing registers on stack)\n")
+    info_colored("Performing additionnal analysis (writing registers on stack)\n")
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
@@ -453,7 +454,7 @@ def reinit():
     global record_REG_pop_from_stack
     global built_REG_pop_from_stack
     global record_REG_write_to_memory
-    global built_record_REG_write_to_memory
+    global built_REG_write_to_memory
 
     PADDING_UNITS = []
     record_REGtoREG_reg_transitivity = dict()
@@ -461,5 +462,5 @@ def reinit():
     record_REG_pop_from_stack = dict()
     built_REG_pop_from_stack = False
     record_REG_write_to_memory = dict()
-    built_record_REG_write_to_memory = False
+    built_REG_write_to_memory = False
 

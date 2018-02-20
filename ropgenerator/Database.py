@@ -7,6 +7,7 @@ from ropgenerator.Gadget import Gadget, GadgetException, GadgetType, analyzed_ra
 from datetime import datetime
 from ropgenerator.Cond import Cond, CT
 from ropgenerator.Expr import SSAExpr
+from ropgenerator.Colors import write_colored, info_colored, error_colored
 
 import ropgenerator.Expr as Expr
 import signal
@@ -168,8 +169,8 @@ def generated_gadgets_to_DB():
     warnings = 0
     chargingBarSize = 30
     chargingBarStr = " "*chargingBarSize
-    sys.stdout.write("[+] Working under architecture: " + Analysis.ArchInfo.currentArch + '\n')
-    sys.stdout.write("[+] Creating gadget database\n")
+    info_colored("Working under architecture: " + Analysis.ArchInfo.currentArch + '\n')
+    info_colored("Creating gadget database\n")
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
@@ -217,7 +218,7 @@ def generated_gadgets_to_DB():
     
     sys.stdout.write("\r"+" "*90+"\r")   
     if( sigint ):
-        print("[!] SIGINT ended the analysis prematurely, gadget database might be incomplete")
+        error_colored("SIGINT ended the analysis prematurely, gadget database might be incomplete\n")
         sigint = False
     print "\tGadgets analyzed : " + str(len(asmGadgets))
     print "\tSuccessfully translated : " + str(success)
@@ -233,7 +234,7 @@ def simplifyGadgets():
     chargingBarSize = 30
     chargingBarStr = " "*chargingBarSize
     i = 0
-    sys.stdout.write("[+] Simplifying gadgets\n")
+    info_colored("Simplifying gadgets\n")
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
@@ -285,7 +286,7 @@ def fillGadgetLookUp():
     # Some stuff for printing 
     chargingBarSize = 30 
     chargingBarStr = " "*chargingBarSize
-    sys.stdout.write("[+] Updating gadget tables\n")
+    info_colored("Updating gadget tables\n")
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
@@ -372,4 +373,11 @@ def pretty_print_registers():
                 print('\t'+reg+ " (stack pointer)")
             else:
                 print('\t'+reg)
+                
+#############################
+# REINITIALIZATION FUNCTION #
+#############################
+def reinit():
+    global gadgetDB
+    gadgetDB = []
 

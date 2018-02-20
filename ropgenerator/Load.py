@@ -5,6 +5,8 @@ import ropgenerator.Database as Database
 import ropgenerator.Analysis as Analysis
 import ropgenerator.generate_opcodes as generate_opcodes
 import ropgenerator.SearchHelper as SearchHelper
+import ropgenerator.Gadget as Gadget
+from ropgenerator.Colors import info_colored
 
 # Help for the load command
 CMD_LOAD_HELP = "\n\t---------------------------------"
@@ -26,25 +28,22 @@ def load(args):
             msg += " (Ignoring extra arguments '"
             msg += ', '.join(args[1:])
             msg += "')"
-        print(msg)
+        info_colored(msg+'\n')
     else:
         print("Missing argument. Type 'load help' for help")
 
-    # Cleaning the data structures 
-    Database.gadgetDB = []
-    Analysis.regNamesTable = dict()
-    Analysis.revertRegNamesTable = dict()
-    Analysis.ssaRegCount = 0
+    # Cleaning the data structures
+    Gadget.reinit()
+    Database.reinit()
+    Analysis.reinit()
     SearchHelper.reinit()
-
 
     if( generate_opcodes.generate(filename)):
         Database.generated_gadgets_to_DB()
         Database.simplifyGadgets()
         Database.fillGadgetLookUp()
         SearchHelper.build_all()
-    else:
-        print("\n Could not load gadgets")
+    
     
     
     
