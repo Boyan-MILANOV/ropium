@@ -6,9 +6,11 @@ The current version supports *x86* and *x64* binaries.
 
 Overview
 --------
-ROPGenerator uses the tool ROPgadget (https://github.com/JonathanSalwan/ROPgadget) to extract gadgets from binaries and the barf-project (https://github.com/programa-stic/barf-project) to disassembly them. After gadgets are extracted, it performs semantic analysis in order to compute their semantic and stores them according to their utility. Once the analysis is done, you can request ROPGenerator to automatically find gadgets or ROP chains by supplying semantic queries. 
+ROPGenerator uses the tool ROPgadget (https://github.com/JonathanSalwan/ROPgadget) to extract gadgets from binaries and the barf-project (https://github.com/programa-stic/barf-project) to disassembly them. After gadgets are extracted, it analyzes them in order to compute their semantic and stores them according to their usefullness. Once the analysis is done, you can request ROPGenerator to automatically find gadgets or ROP chains by supplying semantic queries. 
 
-ROPGenerator is written in python. The current version is still a beta and the tool is still under active development. The tool has python2-only dependencies so it runs under python2 so far.  
+ROPGenerator is written in python. The tool has python2-only dependencies so it runs under python2 so far.  
+
+**Please note** that the current ROPGenerator version is still a beta under active development, therefore it might be a little unstable on some systems. 
 
 Why using ROPGenerator ? 
 ----------------------------
@@ -20,26 +22,26 @@ Installation
 ============
 Install ROPGenerator
 --------------------
-You can install **ROPGenerator** with pip 
+You can download the source (prefer this method if you want the latest and more stable version of the tool) and run 
+
+	$ python setup.py install
+	$ ROPGenerator
+
+Or install **ROPGenerator** with pip 
 
 	$ pip install ropgenerator
 	$ ROPGenerator
 	
-Or download the source (prefer this method if you want the last version of the tool) and run 
 
-	$ python setup.py install
-	$ ROPGenerator
 
     
 Install Dependencies
 --------------------
 **ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **z3-solver**, **enum**, and **barf**:
 
-- **enum**, **ROPgadget**, and **prompt_toolkit** packages will be added automaticaly during installation
+- **enum**, **z3-solver**, **barf v0.4.0**, and **prompt_toolkit** packages will be added automaticaly during installation
 
-- **z3-solver** will also be installed automatically. However, the currently available package on pypi has small bugs. They don't affect ROPGenerator's efficiency but sometimes produce annoying messages on the screen. The issue has been dealt with since November 2017, so unless the pypi package wa updated I recommend building z3 localy from the source : https://github.com/Z3Prover/z3 
-
-- **barf v0.4.0** will also be installed automatically. In case you already have barf on your computer, note that ROPGenerator is not compatible with later versions than 0.4.0
+- **ROPgadget** will also be installed automatically if you don't have it already. However, the currently available package on pypi is not up-to-date. Since ROPGenerator uses a late ROPgadget feature (*--dump* option) I recommend installing ROPgadget from the source at https://github.com/JonathanSalwan/ROPgadget. If you have trouble loading binaries with ROPGenerator ("Can not run 'ROPgadget --binary /your/binray --dump --all'" kind of error), definitely check if your ROPgadget is up-to-date ;)  
 
 
 Getting started
