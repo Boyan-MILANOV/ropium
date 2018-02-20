@@ -9,6 +9,7 @@ from ropgenerator.Cond import Cond, CT
 from ropgenerator.Expr import SSAExpr
 from ropgenerator.Colors import write_colored, info_colored, error_colored
 from ropgenerator.Config import ROPGENERATOR_DIRECTORY
+from ropgenerator.generate_opcodes import opcodes_file
 
 import ropgenerator.Expr as Expr
 import signal
@@ -156,7 +157,7 @@ def generated_gadgets_to_DB():
         
     
      # Read all gadgets that have been generated !
-    f = open('.generated_opcodes', "r")
+    f = open(opcodes_file, "r")
     asmGadgets = []
     for line in f:
         (addr,instr) = line[:-1].split('#')

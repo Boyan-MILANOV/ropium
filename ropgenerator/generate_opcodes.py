@@ -4,11 +4,14 @@ import sys
 import ropgenerator.Config as Config
 from ropgenerator.Colors import error_colored
 
+opcodes_file = Config.ROPGENERATOR_DIRECTORY + "generated_opcodes"
 
 def generate(filename):
     """
     Returns true if success, false otherwise 
     """    
+    global opcodes_file
+    
     if( not os.path.isfile(filename)):
         print("Error. Could not find file '{}'".format(filename))
         return False
@@ -22,8 +25,9 @@ def generate(filename):
         print("\tError message is: " + str(e))
         print("\n\t(Maybe check/update your config with the 'config' command, or make sure you have the last ROPgadget version installed)")
         return False
-          
-    f = open(".generated_opcodes","w")
+         
+    
+    f = open(opcodes_file,"w")
 
     # Write gadgets 
     first = True
