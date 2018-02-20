@@ -6,6 +6,7 @@ import ropgenerator.Database as Database
 import ropgenerator.Analysis as Analysis
 import re
 from ropgenerator.Gadget import GadgetType
+from ropgenerator.Config import LIMIT 
 import ropgenerator.SearchHelper as SearchHelper
 
 # Help for the search command
@@ -76,11 +77,7 @@ class search_engine:
         Returns a list of chains ( a chain is a list of gadgets )
         """
 
-        if( gtype == GadgetType.REGtoREG ):
-            # If first time building reg transitivity for arg1 
-            if( not SearchHelper.built_REGtoREG_reg_transitivity ):
-                # We build it !! 
-                SearchHelper.build_REGtoREG_reg_transitivity()
+        if( gtype == GadgetType.REGtoREG ): 
             res = SearchHelper.found_REGtoREG_reg_transitivity(arg1, arg2, n=n)
             return res
         elif( gtype == GadgetType.CSTtoREG ):
@@ -111,13 +108,8 @@ class search_engine:
         """
         Returns a payload that puts cst into register reg by poping it from the stack
         """ 
-        
-        if ( not SearchHelper.built_REG_pop_from_stack ):
-            SearchHelper.build_REG_pop_from_stack()    
-        
         if( not reg in SearchHelper.record_REG_pop_from_stack ):
             return []
-
         res = SearchHelper.found_CSTtoREG_pop_from_stack(reg, cst, n=n)
         return res
         
@@ -232,19 +224,19 @@ def find_gadgets(args):
         gadgets = []
         chains = []
         # Search with basic strategy
-        gadgets = search.basic_strategy(gtype, left, right, n=10)
-        gadgetsValidRet = [g for g in gadgets if Database.gadgetDB[g].hasNormalRet()][:10]
-        gadgetsPossibleRet = [g for g in gadgets if not Database.gadgetDB[g].hasNormalRet()][:10]
+        gadgets = search.basic_strategy(gtype, left, right, n=LIMIT)
+        gadgetsValidRet = [g for g in gadgets if Database.gadgetDB[g].hasNormalRet()]
+        gadgetsPossibleRet = [g for g in gadgets if not Database.gadgetDB[g].hasNormalRet()]
         # Search with chaining strategies if no good gadget found 
         if( not gadgetsValidRet ):     
-            chains = search.chaining_strategy(gtype, left, right, n=10)[:10]
+            chains = search.chaining_strategy(gtype, left, right, n=LIMIT)
             
         if( gadgetsValidRet ):
             print("\n\tFound matching gadget(s):\n")
             show_gadgets(gadgetsValidRet)
             if( chains ):
                 print("\n\tBuilt matching ROP Chain(s):\n")
-                show_chains(chains)          
+                show_chains(chains)
         else:
             if( chains ):
                 print("\n\tBuilt matching ROP Chain(s):\n")

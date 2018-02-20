@@ -82,6 +82,9 @@ def build_REGtoREG_reg_transitivity():
     global PADDING_GADGET  
     global MAX_PADDING 
     
+    if( built_REGtoREG_reg_transitivity ):
+        return 
+    
     iterations=4
     
     # Choose a padding unit 
@@ -196,6 +199,11 @@ def found_REGtoREG_reg_transitivity(reg1, reg2, n=1):
     Returns the n first chains found for reg1 <- reg2 
     """
     global record_REGtoREG_reg_transitivity
+    global built_REGtoREG_reg_transitivity
+    
+    if( not built_REGtoREG_reg_transitivity ):
+        build_REGtoREG_reg_transitivity()
+    
     if( not reg1 in record_REGtoREG_reg_transitivity ):
         return []
     if( reg2 in record_REGtoREG_reg_transitivity[reg1] ):
@@ -214,6 +222,9 @@ built_REG_pop_from_stack = False
 def build_REG_pop_from_stack():
     global built_REG_pop_from_stack
     global record_REG_pop_from_stack
+    
+    if( built_REG_pop_from_stack ):
+        return 
  
     # Initialization for printing charging bar 
     chargingBarSize = Analysis.ssaRegCount
@@ -300,6 +311,11 @@ def found_CSTtoREG_pop_from_stack(reg, cst, n=1):
     Returns the n first gadgets that do reg <- cst by poping cst from the stack 
     """
     global record_REG_pop_from_stack
+    global built_REG_pop_from_stack
+    
+    if( not built_REG_pop_from_stack ):
+        build_REG_pop_from_stack()
+        
     cst_padding = set_padding_unit(value=cst)
     default_padding = set_padding_unit()
     res = []
@@ -307,7 +323,8 @@ def found_CSTtoREG_pop_from_stack(reg, cst, n=1):
         for g in record_REG_pop_from_stack[reg][offset]:
             chain = [g] + [default_padding for i in range(0, offset*8/Analysis.ArchInfo.bits)] + [cst_padding] + [default_padding for i in range(offset+1, (Database.gadgetDB[g].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8))]
             res.append(chain)
-    
+        if( len(res) >= n): 
+            break;
     return res[:n]
     
     
@@ -413,14 +430,19 @@ def add_REG_write_to_memory(reg, reg2, offset, gadget_list, gadget_sorted=False)
         record_REG_write_to_memory[reg][reg2][offset] += gadgets_list[:remaining_len]
 
     
-def found_REG_write_to_memory(reg, reg2, offset):
+def found_REG_write_to_memory(reg, reg2, offset, n=1):
     """
-    Returns the gadgets that do mem(reg2+offset) <- reg by poping cst from the stack 
+    Returns the n first gadgets that do mem(reg2+offset) <- reg by poping cst from the stack 
     Parameters:
         reg, reg2, offset - int
+        n - int 
     """
     global record_REG_write_to_memory
+    global built_REG_write_to_memory
     global MAX_PADDING
+    
+    if( not built_REG_write_to_memory ):
+        build_REG_write_to_memory()
     
     if( not offset in record_REG_write_to_memory[reg][reg2] ):
         return []
@@ -431,8 +453,10 @@ def found_REG_write_to_memory(reg, reg2, offset):
         if( padding_units <= MAX_PADDING ):
             padding_chain = [default_padding for i in range(0,padding_units)]
             res.append( [g] + padding_chain )
+        if( len(res) >= n ):
+            break
 
-    return res
+    return res[:n]
     
     
     

@@ -8,6 +8,7 @@ from datetime import datetime
 from ropgenerator.Cond import Cond, CT
 from ropgenerator.Expr import SSAExpr
 from ropgenerator.Colors import write_colored, info_colored, error_colored
+from ropgenerator.Config import ROPGENERATOR_DIRECTORY
 
 import ropgenerator.Expr as Expr
 import signal
@@ -175,7 +176,8 @@ def generated_gadgets_to_DB():
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
     sys.stdout.flush()    
-    f = open(".warnings.log", "w") 
+    warnings_file = ROPGENERATOR_DIRECTORY + "warnings-logs"
+    f = open(warnings_file, "w") 
     original_sigint_handler = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, sigint_handler)
     startTime = datetime.now()
@@ -224,7 +226,7 @@ def generated_gadgets_to_DB():
     print "\tSuccessfully translated : " + str(success)
     print "\tComputation time : " + str(cTime)
     if( warnings > 0 ):
-        print("\tUnexpected exceptions : " + str(warnings) + " (logs in '.warnings.log')")
+        print("\tUnexpected exceptions : " + str(warnings) + " (logs in '{}')".format(warnings_file))
     
     
 def simplifyGadgets():

@@ -1,37 +1,45 @@
 # ROPGenerator - Config.py module
 # Stores the configuration for the tool 
 import ropgenerator.Analysis as Analysis
+from ropgenerator.Colors import info_colored
 import os 
 
 # Help for the config command
 CMD_CONFIG_HELP =  "\n\t------------------------------"
 CMD_CONFIG_HELP += "\n\tROPGenerator 'config' command\n\t(Configure ROPGenerator)"
 CMD_CONFIG_HELP += "\n\t------------------------------"
-CMD_CONFIG_HELP += "\n\n\tUsage:\tconfig show\t(Show the current configuration)\n\t\tconfig <parameter>=<value> [<parameter>=<value> ...]\t(Change the configuration)"
-CMD_CONFIG_HELP += "\n\n\tParameters:\n\t\tarch:\t\tarchitecture (available " + ','.join(Analysis.supportedArchs) + ')\n\t\tropgadget:\tcommand to run ROPgadget tool (typically "ROPgadget" or "/path/to/ROPgadget.py")'
-CMD_CONFIG_HELP += "\n\n\tExamples:\n\t\tconfig arch=X86\n\t\tconfig arch=X86_64 ropgadget=/usr/bin/ROPgadget/ROPgadget.py"
+CMD_CONFIG_HELP += "\n\n\tUsage:\tconfig show\n\t\tconfig <parameter>=<value> [<parameter>=<value> ...]"
+CMD_CONFIG_HELP += "\n\n\tParameters:\n\t\tarch:\t\tarchitecture (available " + ','.join(Analysis.supportedArchs) + ')\n\t\tropgadget:\tcommand to run ROPgadget tool (typically\n\t\t\t\t"ROPgadget" or "/path/to/ROPgadget.py")\n\t\tlimit:\t\tnumber of matching gadgets to find for a query'
+CMD_CONFIG_HELP += "\n\n\tExamples:\n\t\tconfig arch=X86\n\t\tconfig arch=X86_64 ropgadget=/usr/ROPgadget.py limit=4"
 
 
 
-config_file = "./.ROPGenerator-conf"
+
 
 # ROPGENERATOR CONIGURATION DEFAULT 
 DEFAULT_ARCH = "X86_64"
 DEFAULT_PATH_ROPGADGET = "ROPgadget"
-
+DEFAULT_LIMIT = 3
 
 ARCH = DEFAULT_ARCH
 PATH_ROPGADGET = DEFAULT_PATH_ROPGADGET
-
+LIMIT = DEFAULT_LIMIT
+ROPGENERATOR_DIRECTORY = "/usr/ropgenerator/"
+ROPGENERATOR_CONFIG_FILE = ROPGENERATOR_DIRECTORY + "ROPGenerator-conf"
 
 def print_help():
     print(CMD_CONFIG_HELP)
 
 def print_config():
     global ARCH
+    global PATH_ROPGADGET
+    global LIMIT
+    
+    
     print("\n\tROPGenerator's current configuration:\n")
     print("\tarch:\t\t" + ARCH)
     print("\tropgadget:\t" + PATH_ROPGADGET)
+    print("\tlimit:\t\t" + str(LIMIT))
     print("")    
 
 def update_config(args):
@@ -54,6 +62,8 @@ def update_config(args):
                 set_arch(right)
             elif( left == "ropgadget" ):
                 set_ropgadget(right)
+            elif( left == "limit" ):
+                set_limit(left)
             else:
                 print("Ignored unknown parameter '"+left+"'. Type 'config help' for help")
 
@@ -76,13 +86,27 @@ def set_ropgadget(path):
     else:
         print("Error. '" + path+"' could not be found")
 
+def set_limit(limit):
+    global LIMIT
+    if( isinstance(limit, int)):
+        LIMIT = limit
+    else:
+        try:
+            limit = int(limit, 10)
+            LIMIT = limit
+        except:
+            print("Error. 'limit' parameter should be a base 10 integer")
+         
+
 def save_config():
     global ARCH
     global PATH_ROPGADGET
+    global LIMIT
     try:
-        f = open(config_file, "w")
+        f = open(ROPGENERATOR_CONFIG_FILE, "w")
         f.write(ARCH + '\n')
         f.write(PATH_ROPGADGET + '\n')
+        f.write(str(LIMIT) + '\n')
         f.close()
     except:
         print("Error saving the last ROPGenerator configuration")
@@ -91,13 +115,14 @@ def load_config():
     global ARCH
     global PATH_ROPGADGET
     try:
-        f = open(config_file, "r" )
+        f = open(ROPGENERATOR_CONFIG_FILE, "r" )
         ARCH = f.readline()[:-1]
         PATH_ROPGADGET = f.readline()[:-1]
+        LIMIT = int(f.readline()[:-1], 10)
         f.close()
     except:
-        if( os.path.isfile(config_file)):
-            print("Couldn't load custom configuration, using the default one")
+        if( os.path.isfile(ROPGENERATOR_CONFIG_FILE)):
+            info_colored("Couldn't load custom configuration, using the default one")
         default_config()
     Analysis.setArch(ARCH)
     
@@ -108,6 +133,7 @@ def default_config():
     global DEFAULT_PATH_ROPGADGET
     ARCH = DEFAULT_ARCH
     PATH_ROPGADGET = DEFAULT_PATH_ROPGADGET
+    LIMIT = DEFAULT_LIMIT
     Analysis.setArch(ARCH)
     
 
