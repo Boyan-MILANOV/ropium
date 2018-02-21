@@ -71,6 +71,7 @@ class memLookUp:
     Depending on the use: 
         REGtoMEM : keys are register uid (int)
         CSTtoMEM : keys are the constant value (int)
+        MEMEXPRtoMEM : keys are Expr (addr of the MEMEXPR)
     """
     
     def __init__(self):
@@ -117,8 +118,21 @@ class memLookUp:
             i = i + 1
         return res
 
-    
-
+    def lookUpEXPRtoMEM( self, addr, expr, n=1 ):
+        """
+        Returns gadgets numbers that put expr (or mem(expr) depending of the use of the memLookUp ) into mem(addr)
+        """
+        i = 0
+        found = 0
+        res = []
+        # Iterate for all write addresses
+        while( i < len(self.addr_list ) and len(res) < n):
+            # Check if we have a dependency for the given expr
+            for stored_expr in self.written_values[i].keys():
+                if( Cond(CT.EQUAL, expr, stored_expr).isTrue(hard=True)):
+                    res += self.written_values[i][stored_expr]
+            i = i + 1
+        return res
 
 # Hash tables to look up registers
 # Different kinds :
@@ -135,8 +149,9 @@ class memLookUp:
 # CSTtoMEM dictionnary : gadgetLookUp[CSTtoMEM] = memLookUp() for gadgets that writes constants in the memory 
 # EXPRtoREG dictionnary : gadgetLookUp[EXPRtoREG][REG] = exprLookUp() 
 # MEMEXPRtoREG dictionnary : gadgetLookUp[MEMEXPRtoREG][REG] = exprLookUp (stored expressions are not MEMEXPR but only the address)
+# MEMEXPRtoMEM dictionnary : gadgetLookUp[MEMEXPRtoMEM] = memLookUp() for gadgets that write mem(expr) in the memory 
  
-gadgetLookUp = {GadgetType.REGtoREG:dict(), GadgetType.REGtoMEM:memLookUp(), GadgetType.MEMtoREG:dict(),GadgetType.CSTtoREG:dict(),GadgetType.CSTtoMEM:memLookUp(), GadgetType.EXPRtoREG:dict(), GadgetType.MEMEXPRtoREG:dict()}
+gadgetLookUp = {GadgetType.REGtoREG:dict(), GadgetType.REGtoMEM:memLookUp(), GadgetType.MEMtoREG:dict(),GadgetType.CSTtoREG:dict(),GadgetType.CSTtoMEM:memLookUp(), GadgetType.EXPRtoREG:dict(), GadgetType.MEMEXPRtoREG:dict(), GadgetType.MEMEXPRtoMEM:memLookUp(), GadgetType.EXPRtoMEM:memLookUp()}
 
 
 
@@ -258,20 +273,20 @@ def simplifyGadgets():
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
-    sys.stdout.flush()   
+    sys.stdout.flush()
     for gadget in gadgetDB:
         if( i % (len(gadgetDB)/30) == 0 and i > 0 or i == len(gadgetDB)):
                 sys.stdout.write("|")
                 sys.stdout.flush()
         gadget.getDependencies().simplifyConditions()
         i = i + 1
-    sys.stdout.write("\r"+" "*70+"\r") 
-    
+    sys.stdout.write("\r"+" "*70+"\r")
+  
 def fillGadgetLookUp():
     """
     Fill the gadgetLookUp dictionnary with gadgets from the gadgetDB list
     """
-    
+  
     def add_gadget( gadget_list, gadget_num ):
         """
         Adds a gadget in a list of gadgets in increasing order ( order is gadget.nbInstr value )
@@ -302,8 +317,9 @@ def fillGadgetLookUp():
         gadgetLookUp[GadgetType.MEMEXPRtoREG][reg_num] = exprLookUp()
         # For others types 
         # No initialisation needed
-            
-    # Some stuff for printing 
+
+     
+    # Initialize the printed charging bar
     chargingBarSize = 30 
     chargingBarStr = " "*chargingBarSize
     info_colored("Updating gadget tables\n")
@@ -350,28 +366,42 @@ def fillGadgetLookUp():
                     
                     
         for addr, deps in gadget.getDependencies().memDep.iteritems():
-            # For REGtoMEM
-            memLookUpREGtoMEM = gadgetLookUp[GadgetType.REGtoMEM]
-            memLookUpREGtoMEM.addr_list.append(addr)
-            memLookUpREGtoMEM.written_values.append(dict())
+            # Init 
+            REGtoMEM_added = False           
+            CSTtoMEM_added = False
+            MEMEXPRtoMEM_added = False
             
-            # For CSTtoMEM
-            memLookUpCSTtoMEM = gadgetLookUp[GadgetType.CSTtoMEM]
-            memLookUpCSTtoMEM.addr_list.append(addr)
-            memLookUpCSTtoMEM.written_values.append(dict())
-            
+            # Going through dependencies 
             for dep in deps:
                 # For REGtoMEM
                 if( isinstance( dep[0], Expr.SSAExpr ) and dep[1].isTrue(hard=hard_simplify)):
-                    if( dep[0].reg.num in memLookUpREGtoMEM.written_values[-1]):
-                        add_gadget(memLookUpREGtoMEM.written_values[-1][dep[0].reg.num], i)
+                    if( not REGtoMEM_added ):
+                        REGtoMEM_added = True
+                        gadgetLookUp[GadgetType.REGtoMEM].addr_list.append(addr)
+                        gadgetLookUp[GadgetType.REGtoMEM].written_values.append(dict())
+                    if( dep[0].reg.num in gadgetLookUp[GadgetType.REGtoMEM].written_values[-1]):
+                        add_gadget(gadgetLookUp[GadgetType.REGtoMEM].written_values[-1][dep[0].reg.num], i)
                     else:
-                        memLookUpREGtoMEM.written_values[-1][dep[0].reg.num] = [i]
+                        gadgetLookUp[GadgetType.REGtoMEM].written_values[-1][dep[0].reg.num] = [i]
+                # For CSTtoMEM
                 elif( isinstance(dep[0], Expr.ConstExpr) and dep[1].isTrue(hard=hard_simplify)):
-                    if( dep[0].value in memLookUpCSTtoMEM.written_values[-1]):
-                        add_gadget(memLookUpCSTtoMEM.written_values[-1][dep[0].value], i)
+                    if( not CSTtoMEM_added ):
+                        CSTtoMEM_added = True
+                        gadgetLookUp[GadgetType.CSTtoMEM].addr_list.append(addr)
+                        gadgetLookUp[GadgetType.CSTtoMEM].written_values.append(dict())
+                    if( dep[0].value in gadgetLookUp[GadgetType.CSTtoMEM].written_values[-1]):
+                        add_gadget(gadgetLookUp[GadgetType.CSTtoMEM].written_values[-1][dep[0].value], i)
                     else:
-                        memLookUpCSTtoMEM.written_values[-1][dep[0].value] = [i]
+                        gadgetLookUp[GadgetType.CSTtoMEM].written_values[-1][dep[0].value] = [i]
+                elif( isinstance(dep[0], Expr.MEMExpr) and dep[1].isTrue(hard=hard_simplify)):
+                    if( not MEMEXPRtoMEM_added ):
+                        MEMEXPRtoMEM_added = True
+                        gadgetLookUp[GadgetType.MEMEXPRtoMEM].addr_list.append(addr)
+                        gadgetLookUp[GadgetType.MEMEXPRtoMEM].written_values.append(dict())
+                    if( dep[0].addr in gadgetLookUp[GadgetType.MEMEXPRtoMEM].written_values[-1]):
+                        add_gadget(gadgetLookUp[GadgetType.MEMEXPRtoMEM].written_values[-1][dep[0].addr], i)
+                    else:
+                        gadgetLookUp[GadgetType.MEMEXPRtoMEM].written_values[-1][dep[0].addr] = [i]      
                 # FOR THE REST --> IMPLEMENT LATER !!
                 else:
                     pass

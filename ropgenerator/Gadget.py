@@ -29,7 +29,8 @@ class GadgetType(Enum):
     
     REGtoMEM = "REGtoMEM"    # mem(expr) = reg
     CSTtoMEM = "CSTtoMEM"    # mem(expr) = cst
-    EXPRtoMEM = "EXPRtoMEM"    # mem(expr) = expr 
+    EXPRtoMEM = "EXPRtoMEM"    # mem(expr) = expr
+    MEMEXPRtoMEM = "MEMEXPRtoMEM" # mem(expr) = mem(expr)
     
     
     

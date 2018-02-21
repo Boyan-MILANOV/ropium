@@ -22,7 +22,7 @@ def print_help():
     print(CMD_FIND_HELP)
 
 # The different options
-RAW_OUTPUT = True # Output the gadgets addresses raw 
+RAW_OUTPUT = True # Output the gadgets addresses raw
 PYTHON_OUTPUT = False # Output the gadgets in python ( like p += <gadget hex>  # commentary )
 
 
@@ -51,7 +51,8 @@ class search_engine:
             gtype = GadgetType.REGtoMEM, arg1 is Expr, arg2 is reg UID
             gtype = GadgetType.CSTtoMEM, arg1 is Expr, arg2 is (int)
             gtype = GadgetType.EXPRtoREG, arg1 is reg UID, arg2 is Expr
-            gtype = GadgetType.MEMEXPRtoREG, arg1 is reg UID, arg2 is a MEMEXPR
+            gtype = GadgetType.MEMEXPRtoREG, arg1 is reg UID, arg2 is an Expr (addr of MEMEXPR)
+            gtype = GadgetType.MEMEXPRtoMEM, arg1 is Expr, arg2 is Expr
         """
         if( gtype == GadgetType.REGtoREG ):
             return self._REGtoREG_basic_strategy(arg1, arg2, n=n)
@@ -67,7 +68,9 @@ class search_engine:
         elif( gtype == GadgetType.EXPRtoREG ):
             return self._EXPRtoREG_basic_strategy(arg1, arg2, n=n)
         elif( gtype == GadgetType.MEMEXPRtoREG ):
-            return self._MEMEXPRtoREG_basic_strategy(arg1, arg2.addr, n=n)
+            return self._MEMEXPRtoREG_basic_strategy(arg1, arg2, n=n)
+        elif( gtype == GadgetType.MEMEXPRtoMEM ):
+            return self._MEMEXPRtoMEM_basic_strategy(arg1, arg2, n=n)
         else:
             return []
             
@@ -97,11 +100,11 @@ class search_engine:
             return []
         res = []
         for gadget_num in db[reg][cst]:
-            if( n <= 0 ):
+            if( len(res) >= n ):
                 break
             else:
                 res.append(gadget_num)
-        return res
+        return res[:n]
         
     
     def _CSTtoREG_pop_from_stack(self, reg, cst, n=1):
@@ -125,12 +128,11 @@ class search_engine:
             return []
         res = []
         for gadget_num in db[reg1][reg2]:
-            if( n <= 0 ):
+            if( len(res) >= n ):
                 break
             else:
-                n = n - 1
-            res.append( gadget_num)
-        return res
+                res.append( gadget_num)
+        return res[:n]
             
         
     def _MEMtoREG_basic_strategy(self, reg, addr, n=1):
@@ -149,7 +151,7 @@ class search_engine:
             else:
                 n = n - 1
             res.append( gadget_num )
-        return res
+        return res[:n]
     
     def _EXPRtoREG_basic_strategy(self, reg, expr, n=1):
         """
@@ -191,6 +193,14 @@ class search_engine:
         reg - int, number of the register 
         """
         return Database.gadgetLookUp[GadgetType.REGtoMEM].lookUpREGtoMEM(addr_expr, reg, n)
+
+    def _MEMEXPRtoMEM_basic_strategy(self, addr, expr, n=1):
+        """
+        Searches for gadgets that write mem(expr) at mem(addr)
+        addr - Expr
+        expr - Expr 
+        """
+        return Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, n)
 
 # The module-wide search engine 
 search = search_engine()
@@ -285,9 +295,11 @@ def show_chains( chain_list ):
 def parse_args(args):
     """
     Parse the user supplied arguments to the 'find' function
-    Returns either a tuple (True, GadgetType, x, y )where x and y are:
-        [ See parse_user_request specification for the list of possible results]
+    Returns either a tuple (True, GadgetType, x, y )
     Or if not supported or invalid arguments, returns a tuple (False, msg)
+    
+    ---> See parse_user_request() specification for the list of possible tuples
+         and values/types of x and y     
     """
     seen = False
     i = 0 # Argument counter 
@@ -326,8 +338,10 @@ def parse_user_request(req):
         if CSTtoREG, x is register uid for ROPG IR and y is an (int)
         if MEMtoREG, x and y are register UID
         if EXPRtoREG, x is register UID and y is (Expr)
-        if CSTtoMEM, x is (Expr) and y is (int)
+        if CSTtoMEM, x is (Expr)(the memory address) and y is (int)
         if REGtoMEM, x is (Expr) and y is register UID
+        if MEMEXPRtoMEM, x is (Expr) and y is (Expr) the address of the memory that has
+                        been stored. (e.g mem(a) <- mem(b), then x = a and y = b )
     Or if not supported or invalid arguments, returns a tuple (False, msg)
     """
 
@@ -354,7 +368,7 @@ def parse_user_request(req):
             if( isinstance(addr, Expr.SSAExpr)):
                 return (True, GadgetType.MEMtoREG, Analysis.regNamesTable[left], addr.reg.num)
             else:
-                return (True, GadgetType.MEMEXPRtoREG, Analysis.regNamesTable[left], right_expr)
+                return (True, GadgetType.MEMEXPRtoREG, Analysis.regNamesTable[left], right_expr.addr)
             
         # Test if CSTtoREG
         elif( isinstance(right_expr, Expr.ConstExpr)):
@@ -379,6 +393,10 @@ def parse_user_request(req):
         # Test if it is CSTtoMEM
         elif( isinstance( right_expr, Expr.ConstExpr)):
             return ( True, GadgetType.CSTtoMEM, addr, right_expr.value )
+        # Test if it is MEMEXPRtoMEM
+        elif( isinstance( right_expr, Expr.MEMExpr)):
+            return ( True, GadgetType.MEMEXPRtoMEM, addr, right_expr.addr )
+        
         else:
             return (False, "Formula '" +req+"' is invalid or not yet supported by ROPGenerator :(")
     return ( False, "Operand '" +left+"' is invalid or not yet supported by ROPGenerator :(")

@@ -485,7 +485,7 @@ class Op(Expr):
         # Simplifications 
         if( op == "Not" ):
             if( isinstance( left, Op ) and Op.op == "Not" ):
-                return left.args[0]
+                res = left.args[0]
         elif( op == "Add" ):
             const = None
             subAdd = None
@@ -525,8 +525,18 @@ class Op(Expr):
                         res = Op( "Add", [ConstExpr( newConst, const.size ), subSub.args[0] ])
                     else:
                         res= subSub.args[0]
-            return res
+            
         
+        elif( op == "Sub" ):
+            if( isinstance(right, ConstExpr) and right.value == 0 ):
+                res = left            
+        elif( op == "Mul" ):
+            if( isinstance(left, ConstExpr) and left.value == 0 ):
+                res = left
+            elif( isinstance(left, ConstExpr) and left.value == 1 ):
+                res = right
+            elif( isinstance(right, ConstExpr) and right.value == 1 ):
+                res = left        
         elif( op == "Xor" ):
             if( isinstance(left, ConstExpr) and left.value == 0 ):
                 res = right
@@ -534,9 +544,8 @@ class Op(Expr):
                 res = left
             elif( left == right ):
                 res = ConstExpr(0, left.size)
-            return res
-        else:
-            return res
+            
+        return res
             
     def isRegIncrement(self, reg_num):
         """

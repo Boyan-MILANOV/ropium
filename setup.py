@@ -12,7 +12,7 @@ class CleanCommand(Command):
         os.system('rm -vr ./build ./*.pyc ./*.tgz ./*.egg-info ./Generated_opcodes.py ')
 
 setup(name='ropgenerator',
-      version='0.3.2',
+      version='0.3.3',
       description='ROPGenerator makes ROP exploits easy by finding and chaining gadgets',
       url='https://github.com/Boyan-MILANOV/ropgenerator',
       author='Boyan MILANOV',
@@ -28,7 +28,7 @@ setup(name='ropgenerator',
       ],
       packages=['ropgenerator'],
       scripts=['ROPGenerator'],
-      install_requires=['ROPGadget', 'prompt_toolkit', 'z3-solver', 'barf==0.4.0', 'enum', 'capstone==3.0.5rc2'],   
+      install_requires=['ROPGadget>=5.6', 'prompt_toolkit', 'z3-solver', 'barf==0.4.0', 'enum', 'capstone==3.0.5rc2'],   
       dependency_links=['https://github.com/Z3Prover/z3/tree/master/src/api/python'],
       keywords='rop generator chain gadget semantic automatic exploit ropchain',  
       zip_safe=False, 
