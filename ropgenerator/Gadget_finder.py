@@ -1,7 +1,7 @@
 # ROPGenerator - Gadget_finder module 
 # Searching for gadgets and chaining them :) !! 
 
-import ropgenerator.Expr as Expr    
+import ropgenerator.Expr as Expr
 import ropgenerator.Database as Database
 import ropgenerator.Analysis as Analysis
 import re

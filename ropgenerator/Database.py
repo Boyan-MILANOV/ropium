@@ -109,21 +109,19 @@ def generated_gadgets_to_DB():
                 f.write("Unexpected error in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException message: (" + str(type(e)) + ") " + str(e) + '\n\n')
 
         i = i + 1
+    # Restoring the state
     f.close()
     junk_file.close()
-    signal.signal(signal.SIGINT, original_sigint_handler)
-        
+    signal.signal(signal.SIGINT, original_sigint_handler)       
     # This variable should be written before calculating spInc or simplifying conditions !!!
-    Expr.nb_regs = Analysis.ssaRegCount-1
-    
+    Expr.nb_regs = Analysis.ssaRegCount-1   
     # Second pass analysis once all gadgets are collected
     for gadget in gadgetDB:
         gadget.calculateSpInc()
         gadget.calculateRet()
-
-        
+     # Getting time   
     cTime = datetime.now() - startTime
-    
+    # Printing summary information 
     sys.stdout.write("\r"+" "*70+'\r')   
     if( sigint ):
         error_colored("SIGINT ended the analysis prematurely, gadget database might be incomplete\n")
@@ -245,30 +243,25 @@ class memLookUp:
         Returns gadgets numbers that put expr (or mem(expr) depending 
         of the use of the memLookUp ) into mem(addr)
         """
-        print("DEBUG, addr is " + str(addr) + " and expr is " + str(expr))
         i = 0
         res = []
         # Iterate for all write addresses
         while( i < len(self.addr_list ) and len(res) < n):
             # Check if addresses correspond
             addr_cond = Cond(CT.EQUAL, self.addr_list[i], addr)
-            print(addr_cond)
             if( not addr_cond.isTrue(hard=True)):
                 i = i + 1
                 continue
-            # If addresses correspond, then check if we 
+            # If addresses correspond, then check if we
             # have a dependency for the given expr
-            print("DEBUG, written values [i] is " + str(self.written_values[i]))
             for stored_expr in self.written_values[i].keys():
-                print("\tDEBUG, stored_expr is " + str(stored_expr))
+                if( expr.size != stored_expr.size ):
+                    # If different sizes, we don't compare 
+                    continue
                 cond = Cond(CT.EQUAL, expr, stored_expr) 
-                print("\tDEBUG, cond created")
                 if( cond.isTrue(hard=True)):
-                    print("\t--> adding it")
                     res += self.written_values[i][stored_expr]
-                print("\tDEBUG out of it")
             i = i + 1
-        print("DEBUG END, returning " + str(res))
         return res
         
 

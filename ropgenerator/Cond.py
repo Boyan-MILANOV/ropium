@@ -165,14 +165,6 @@ class Cond:
         self.Z3Simplified = False
         self.cleaned = cleaned 
         self.checked = checked 
-        # Adjusting 
-        if( right and isArithmeticComp(cond) ):
-            print("DEBUG, Adjusting ")
-            if( left.size > right.size ):
-                self.right = Convert(left.size, right)
-            elif( left.size < right.size ):
-                self.left = Convert(right.size, left)
-            print("DEBUG, end adjusting")
 
                 
     def __eq__(self, other ):
@@ -260,8 +252,6 @@ class Cond:
         if( self.cond == CT.NOT ):
             self.z3 = Not( self.right.toZ3() )
         elif (self.cond == CT.EQUAL):
-            print("DEBUG LEFT " + str(self.left.toZ3()))
-            print("DEBUG RIGHT " + str(self.right.toZ3()))
             self.z3 = (self.left.toZ3() == (self.right.toZ3()))
         elif (self.cond == CT.NOTEQUAL):
             self.z3 = Not(self.left.toZ3() == (self.right.toZ3()))
