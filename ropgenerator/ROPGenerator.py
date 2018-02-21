@@ -104,14 +104,14 @@ def main():
                 print("")
                 
         info_colored("Closing ROPGenerator...\n")
-        exit(0)
+        
     except Exception as e:
         # print with light-red ANSI code and END ANSI code
         print("")
         error_colored("ROPGenerator failed unexpectedly\n")
         print(e)
-        exit(0)
-
+    
+    exit(0)
 # Run it !
 main()
         

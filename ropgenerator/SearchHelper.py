@@ -257,7 +257,7 @@ def build_REG_pop_from_stack():
                 # If expr is esp + X 
                 add_REG_pop_from_stack(reg, inc, [ gadget_num for gadget_num in db[reg].gadget_list[i] if Database.gadgetDB[gadget_num].hasNormalRet() and Database.gadgetDB[gadget_num].isValidSpInc()])
     
-    sys.stdout.write("\r"+" "*90+"\r")
+    sys.stdout.write("\r"+" "*70+"\r")
     built_REG_pop_from_stack = True
                 
     
@@ -372,17 +372,13 @@ def build_REG_write_to_memory():
         sys.stdout.flush()
         
         for i in range(0, len(db.addr_list)):
-            try:
-                addr = db.addr_list[i]
-                # We want to store only addresses of type REG +-/* CST
-                (isInc, inc) = addr.isRegIncrement(addr)
-                if( isInc ):
-                    add_REG_write_to_memory( reg, reg_list[0], offset, [g for g in db.written_values[i] if Database.gadgetDB[g].hasNormalRet() and Database.gadgetDB[g].isValidSpInc() ] )
-            except Exception as e:
-                print("Error")
-                print(e)
-                exit(0)
-    sys.stdout.write("\r"+" "*90+"\r")                               
+            addr = db.addr_list[i]
+            # We want to store only addresses of type REG +-/* CST
+            (isInc, inc) = addr.isRegIncrement(addr)
+            if( isInc ):
+                add_REG_write_to_memory( reg, reg_list[0], offset, [g for g in db.written_values[i] if Database.gadgetDB[g].hasNormalRet() and Database.gadgetDB[g].isValidSpInc() ] )
+
+    sys.stdout.write("\r"+" "*70+"\r")                               
     built_REG_write_to_memory = True
                  
     

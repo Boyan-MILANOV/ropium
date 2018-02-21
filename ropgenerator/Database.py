@@ -26,8 +26,6 @@ def timeout_handler(signum, frame):
     global old_stderr
     
     signal.alarm(0)
-    sys.stdout = old_stdout
-    sys.stderr = old_stderr
     raise Exception("Too much to compute gadget dependencies")
 signal.signal(signal.SIGALRM, timeout_handler)
 
@@ -238,7 +236,7 @@ def generated_gadgets_to_DB():
         
     cTime = datetime.now() - startTime
     
-    sys.stdout.write("\r"+" "*90+"\r")   
+    sys.stdout.write("\r"+" "*70+'\r')   
     if( sigint ):
         error_colored("SIGINT ended the analysis prematurely, gadget database might be incomplete\n")
         sigint = False
@@ -267,7 +265,7 @@ def simplifyGadgets():
                 sys.stdout.flush()
         gadget.getDependencies().simplifyConditions()
         i = i + 1
-    sys.stdout.write("\r"+" "*90+"\r") 
+    sys.stdout.write("\r"+" "*70+"\r") 
     
 def fillGadgetLookUp():
     """
@@ -379,7 +377,7 @@ def fillGadgetLookUp():
                     pass
 
     # Clean the charging bar 
-    sys.stdout.write("\r"+" "*90+"\r") 
+    sys.stdout.write("\r"+" "*70+"\r") 
 
                 
 def pretty_print_registers():
