@@ -71,6 +71,8 @@ class search_engine:
             return self._MEMEXPRtoREG_basic_strategy(arg1, arg2, n=n)
         elif( gtype == GadgetType.MEMEXPRtoMEM ):
             return self._MEMEXPRtoMEM_basic_strategy(arg1, arg2, n=n)
+        elif( gtype == GadgetType.EXPRtoMEM ):
+            return self._EXPRtoMEM_basic_strategy(arg1, arg2, n=n)
         else:
             return []
             
@@ -201,6 +203,14 @@ class search_engine:
         expr - Expr 
         """
         return Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, n)
+        
+    def _EXPRtoMEM_basic_strategy(self, addr, expr, n=1):
+        """
+        Searches for gadgets that write expr at mem(addr)
+        addr - Expr
+        expr - Expr 
+        """
+        return Database.gadgetLookUp[GadgetType.EXPRtoMEM].lookUpEXPRtoMEM(addr, expr, n)
 
 # The module-wide search engine 
 search = search_engine()
@@ -392,13 +402,17 @@ def parse_user_request(req):
             return (True, GadgetType.REGtoMEM, addr, right_expr.reg.num)        
         # Test if it is CSTtoMEM
         elif( isinstance( right_expr, Expr.ConstExpr)):
-            return ( True, GadgetType.CSTtoMEM, addr, right_expr.value )
+            return (True, GadgetType.CSTtoMEM, addr, right_expr.value )
         # Test if it is MEMEXPRtoMEM
         elif( isinstance( right_expr, Expr.MEMExpr)):
-            return ( True, GadgetType.MEMEXPRtoMEM, addr, right_expr.addr )
-        
+            return (True, GadgetType.MEMEXPRtoMEM, addr, right_expr.addr )
+        # Test if it is EXPRtoMEM
+        elif( isinstance( right_expr, Expr.Expr )):
+            return (True, GadgetType.EXPRtoMEM, addr, right_expr )
+        # Otherwise, wrong argument 
         else:
             return (False, "Formula '" +req+"' is invalid or not yet supported by ROPGenerator :(")
-    return ( False, "Operand '" +left+"' is invalid or not yet supported by ROPGenerator :(")
+    else:
+        return ( False, "Operand '" +left+"' is invalid or not yet supported by ROPGenerator :(")
     
 

@@ -3,7 +3,7 @@ ROPGenerator - Analysis.py module
 Gathers information about the analysis being run
 """
 
-from ropgenerator.Expr import REGSIZE
+from ropgenerator.Expr import REGSIZE, set_memorySMT
 from ropgenerator.Logs import log
 
 from barf.arch import ARCH_X86_MODE_32
@@ -70,21 +70,24 @@ def setArch(arch):
     """
     if arch in supportedArchs:
         ArchInfo.currentArch = arch
-        #print "[+] Working under architecture : " + str(arch)
         if arch == "X86":
             ArchInfo.bits = 32
             REGSIZE.size = 32
+            set_memorySMT(32)
             ArchInfo.ip = "eip"
             ArchInfo.sp = "esp"
+            ArchInfo.currentArchInfo = X86ArchitectureInformation(ARCH_X86_MODE_32)
         elif arch == "X86_64":
             ArchInfo.bits = 64
             REGSIZE.size = 64
+            set_memorySMT(64)
             ArchInfo.ip = "rip"
             ArchInfo.sp = "rsp"
+            ArchInfo.currentArchInfo = X86ArchitectureInformation(ARCH_X86_MODE_64)
     else:
         raise AnalysisException("Architecture %s is not supported.\
-         Sorry ! " % arch)
-        
+         Sorry ! " % arch)    
+    
 def helpArch():
     """
     Dsplays available architectures
@@ -113,18 +116,10 @@ def getIR(opCodeStr, address):
         arch_mode =  ARCH_X86_MODE_32
         disassembler = X86Disassembler(architecture_mode=arch_mode)
         ir_translator = X86Translator(architecture_mode=arch_mode)
-        REGSIZE.size = 32
-        ArchInfo.currentArchInfo = X86ArchitectureInformation(arch_mode)
-        ArchInfo.ip = "eip"
-        ArchInfo.sp = "esp"
     elif arch == "X86_64":
         arch_mode =  ARCH_X86_MODE_64
         disassembler = X86Disassembler(architecture_mode=arch_mode)
         ir_translator = X86Translator(architecture_mode=arch_mode)
-        REGSIZE.size = 64 
-        ArchInfo.currentArchInfo = X86ArchitectureInformation(arch_mode)
-        ArchInfo.ip = "rip"
-        ArchInfo.sp = "rsp"
     else:
         raise AnalysisException("Architecture %s not yet supported" % arch)
     # Translating into IR 

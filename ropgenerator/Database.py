@@ -29,131 +29,6 @@ def timeout_handler(signum, frame):
     raise Exception("Too much to compute gadget dependencies")
 signal.signal(signal.SIGALRM, timeout_handler)
 
-#################################################
-# VARIOUS DATA STRUCTURES TO STORE DEPENDENCIES #
-#################################################
-
-
-# exprLookUp
-
-class exprLookUp:
-    """
-    Class used to store dependencies of type EXPRtoREG
-    Each register should have its own exprLookUp
-    """
-    def __init__(self):
-        self.expr_list = []# LIst of EXPR that are stored in REG
-        self.gadget_list = []# gadget_list[i] = list of gadgets that put expr_list[i] in the regiter
-
-    def lookUpEXPRtoREG(self, expr, n=10):
-        """
-        Return at most n gadgets that correspond to expr
-        """
-        i = 0
-        found = 0
-        res = []
-        while( i < len(self.expr_list ) and len(res) < n):
-            cond = Cond(CT.EQUAL, self.expr_list[i], expr)
-            if( cond.isTrue(hard=True)):
-                res += self.gadget_list[i]
-            i = i + 1
-        return res 
-
-
-# memLookUp:
-
-class memLookUp:
-    """
-    Class used to help storing the dependencies for the memory in gadgetLookUp
-    
-    - addr_list is a list of expressions corresponding to memory addresses 
-    - written_values is a list of dictionnaries whose content depends on the type of dependency the structure is used to store. Values are always a list of gadgets. 
-    Depending on the use: 
-        REGtoMEM : keys are register uid (int)
-        CSTtoMEM : keys are the constant value (int)
-        MEMEXPRtoMEM : keys are Expr (addr of the MEMEXPR)
-    """
-    
-    def __init__(self):
-        self.addr_list=[] # To check if an access to an address is available
-        self.written_values=[] # List of dictionnaries 
-        
-    def lookUpREGtoMEM( self, addr, reg, n=10 ):
-        """
-        Returns gadgets numbers that put reg at mem(addr) as a list of gadgets uids
-        reg - (int)
-        addr - Expr
-        """
-        i = 0
-        found = 0
-        res = []
-        # Iterate for all write addresses 
-        while( i < len(self.addr_list) and len(res) < n):
-            # If we have a dependencie for the requested register 
-            if( reg in self.written_values[i]):
-                # Comparing the addresses with hard=True so we call z3 solver
-                cond = Cond(CT.EQUAL, self.addr_list[i], addr)
-                if( cond.isTrue(hard=True)):
-                    res += self.written_values[i][reg]
-            i = i + 1
-        return res 
-        
-    def lookUpCSTtoMEM( self, addr, cst, n=10):
-        """
-        Returns gadgets numbers that put cst at mem(addr) as a list of gadgets uids
-        cst - (int)
-        addr - Expr
-        """
-        i = 0
-        found = 0
-        res = []
-        # Iterate for all write addresses
-        while( i < len(self.addr_list ) and len(res) < n):
-            # If we have a dependencie for the requested constant
-            if( cst in self.written_values[i]):
-                # Comparing the addresses with hard=True so we call z3 solver
-                cond = Cond(CT.EQUAL, self.addr_list[i], addr)
-                if( cond.isTrue(hard=True)):
-                    res += self.written_values[i][cst]
-            i = i + 1
-        return res
-
-    def lookUpEXPRtoMEM( self, addr, expr, n=1 ):
-        """
-        Returns gadgets numbers that put expr (or mem(expr) depending of the use of the memLookUp ) into mem(addr)
-        """
-        i = 0
-        found = 0
-        res = []
-        # Iterate for all write addresses
-        while( i < len(self.addr_list ) and len(res) < n):
-            # Check if we have a dependency for the given expr
-            for stored_expr in self.written_values[i].keys():
-                if( Cond(CT.EQUAL, expr, stored_expr).isTrue(hard=True)):
-                    res += self.written_values[i][stored_expr]
-            i = i + 1
-        return res
-
-# Hash tables to look up registers
-# Different kinds :
-# REGtoREG, REGtoMEM, MEMtoREG, MEMtoMEM, CSTtoREG, CSTtoMEM, EXPRtoREG, ... (see GadgetType class )
-
-# gadgetLookUp: 
-# keys are GadgetTypes
-# values are dictionnaries (different organization for all of them 
-
-# REGtoREG dictionnary : gadgetLookUp[REGtoREG][REG1][REG2] = uid (number) of gadget in the gadgetDB list that puts REG2 in REG1
-# CSTtoREG dictionnary : gadgetLookUp[REGtoREG][REG][CST] = uid (number) of gadget in the gadgetDB list that puts CST in REG
-# MEMtoREG dictionnary : gadgetLookUp[MEMtoREG][REG][ADDR] = uid (number) of gadget in the gadgetDB that puts MEM[addr] in REG
-# REGtoMEM dictionnary : gadgetLookUp[REGtoMEM] = memLookUp() for gadgets  that writes registers in the memory 
-# CSTtoMEM dictionnary : gadgetLookUp[CSTtoMEM] = memLookUp() for gadgets that writes constants in the memory 
-# EXPRtoREG dictionnary : gadgetLookUp[EXPRtoREG][REG] = exprLookUp() 
-# MEMEXPRtoREG dictionnary : gadgetLookUp[MEMEXPRtoREG][REG] = exprLookUp (stored expressions are not MEMEXPR but only the address)
-# MEMEXPRtoMEM dictionnary : gadgetLookUp[MEMEXPRtoMEM] = memLookUp() for gadgets that write mem(expr) in the memory 
- 
-gadgetLookUp = {GadgetType.REGtoREG:dict(), GadgetType.REGtoMEM:memLookUp(), GadgetType.MEMtoREG:dict(),GadgetType.CSTtoREG:dict(),GadgetType.CSTtoMEM:memLookUp(), GadgetType.EXPRtoREG:dict(), GadgetType.MEMEXPRtoREG:dict(), GadgetType.MEMEXPRtoMEM:memLookUp(), GadgetType.EXPRtoMEM:memLookUp()}
-
-
 
 #############################################
 # GENERATING GADGETS AND STORING            #
@@ -177,10 +52,8 @@ def generated_gadgets_to_DB():
     def sigint_handler(signal, frame):
         global sigint
         sigint = True
-        
-        
-    
-     # Read all gadgets that have been generated !
+
+    # Read all gadgets that have been generated !
     f = open(opcodes_file, "r")
     asmGadgets = []
     for line in f:
@@ -282,6 +155,142 @@ def simplifyGadgets():
         i = i + 1
     sys.stdout.write("\r"+" "*70+"\r")
   
+  
+#################################################
+# VARIOUS DATA STRUCTURES TO STORE DEPENDENCIES #
+#################################################
+
+# exprLookUp
+class exprLookUp:
+    """
+    Class used to store dependencies of type EXPRtoREG
+    Each register should have its own exprLookUp
+    """
+    def __init__(self):
+        self.expr_list = []# LIst of EXPR that are stored in REG
+        self.gadget_list = []# gadget_list[i] = list of gadgets that put expr_list[i] in the regiter
+
+    def lookUpEXPRtoREG(self, expr, n=10):
+        """
+        Return at most n gadgets that correspond to expr
+        """
+        i = 0
+        found = 0
+        res = []
+        while( i < len(self.expr_list ) and len(res) < n):
+            cond = Cond(CT.EQUAL, self.expr_list[i], expr)
+            if( cond.isTrue(hard=True)):
+                res += self.gadget_list[i]
+            i = i + 1
+        return res 
+
+
+# memLookUp:
+class memLookUp:
+    """
+    Class used to help storing the dependencies for the memory in gadgetLookUp
+    
+    - addr_list is a list of expressions corresponding to memory addresses 
+    - written_values is a list of dictionnaries whose content depends on the type of dependency the structure is used to store. Values are always a list of gadgets. 
+    Depending on the use: 
+        REGtoMEM : keys are register uid (int)
+        CSTtoMEM : keys are the constant value (int)
+        MEMEXPRtoMEM : keys are Expr (addr of the MEMEXPR)
+    """
+    
+    def __init__(self):
+        self.addr_list=[] # To check if an access to an address is available
+        self.written_values=[] # List of dictionnaries 
+        
+    def lookUpREGtoMEM( self, addr, reg, n=1 ):
+        """
+        Returns gadgets numbers that put reg at mem(addr) as a list of gadgets uids
+        reg - (int)
+        addr - Expr
+        """
+        i = 0
+        res = []
+        # Iterate for all write addresses 
+        while( i < len(self.addr_list) and len(res) < n):
+            # If we have a dependencie for the requested register 
+            if( reg in self.written_values[i]):
+                # Comparing the addresses with hard=True so we call z3 solver
+                cond = Cond(CT.EQUAL, self.addr_list[i], addr)
+                if( cond.isTrue(hard=True)):
+                    res += self.written_values[i][reg]
+            i = i + 1
+        return res[:10]
+        
+    def lookUpCSTtoMEM( self, addr, cst, n=1):
+        """
+        Returns gadgets numbers that put cst at mem(addr) as a list of gadgets uids
+        cst - (int)
+        addr - Expr
+        """
+        i = 0
+        res = []
+        # Iterate for all write addresses
+        while( i < len(self.addr_list ) and len(res) < n):
+            # If we have a dependencie for the requested constant
+            if( cst in self.written_values[i]):
+                # Comparing the addresses with hard=True so we call z3 solver
+                cond = Cond(CT.EQUAL, self.addr_list[i], addr)
+                if( cond.isTrue(hard=True)):
+                    res += self.written_values[i][cst]
+            i = i + 1
+        return res[:n]
+
+    def lookUpEXPRtoMEM( self, addr, expr, n=1 ):
+        """
+        Returns gadgets numbers that put expr (or mem(expr) depending 
+        of the use of the memLookUp ) into mem(addr)
+        """
+        print("DEBUG, addr is " + str(addr) + " and expr is " + str(expr))
+        i = 0
+        res = []
+        # Iterate for all write addresses
+        while( i < len(self.addr_list ) and len(res) < n):
+            # Check if addresses correspond
+            addr_cond = Cond(CT.EQUAL, self.addr_list[i], addr)
+            print(addr_cond)
+            if( not addr_cond.isTrue(hard=True)):
+                i = i + 1
+                continue
+            # If addresses correspond, then check if we 
+            # have a dependency for the given expr
+            print("DEBUG, written values [i] is " + str(self.written_values[i]))
+            for stored_expr in self.written_values[i].keys():
+                print("\tDEBUG, stored_expr is " + str(stored_expr))
+                cond = Cond(CT.EQUAL, expr, stored_expr) 
+                print("\tDEBUG, cond created")
+                if( cond.isTrue(hard=True)):
+                    print("\t--> adding it")
+                    res += self.written_values[i][stored_expr]
+                print("\tDEBUG out of it")
+            i = i + 1
+        print("DEBUG END, returning " + str(res))
+        return res
+        
+
+# Hash tables to look up registers
+# Different kinds :
+# REGtoREG, REGtoMEM, MEMtoREG, MEMtoMEM, CSTtoREG, CSTtoMEM, EXPRtoREG, ... (see GadgetType class )
+
+# gadgetLookUp: 
+# keys are GadgetTypes
+# values are dictionnaries (different organization for all of them 
+
+# REGtoREG dictionnary : gadgetLookUp[REGtoREG][REG1][REG2] = uid (number) of gadget in the gadgetDB list that puts REG2 in REG1
+# CSTtoREG dictionnary : gadgetLookUp[REGtoREG][REG][CST] = uid (number) of gadget in the gadgetDB list that puts CST in REG
+# MEMtoREG dictionnary : gadgetLookUp[MEMtoREG][REG][ADDR] = uid (number) of gadget in the gadgetDB that puts MEM[addr] in REG
+# REGtoMEM dictionnary : gadgetLookUp[REGtoMEM] = memLookUp() for gadgets  that writes registers in the memory 
+# CSTtoMEM dictionnary : gadgetLookUp[CSTtoMEM] = memLookUp() for gadgets that writes constants in the memory 
+# EXPRtoREG dictionnary : gadgetLookUp[EXPRtoREG][REG] = exprLookUp() 
+# MEMEXPRtoREG dictionnary : gadgetLookUp[MEMEXPRtoREG][REG] = exprLookUp (stored expressions are not MEMEXPR but only the address)
+# MEMEXPRtoMEM dictionnary : gadgetLookUp[MEMEXPRtoMEM] = memLookUp() for gadgets that write mem(expr) in the memory 
+ 
+gadgetLookUp = {GadgetType.REGtoREG:dict(), GadgetType.REGtoMEM:memLookUp(), GadgetType.MEMtoREG:dict(),GadgetType.CSTtoREG:dict(),GadgetType.CSTtoMEM:memLookUp(), GadgetType.EXPRtoREG:dict(), GadgetType.MEMEXPRtoREG:dict(), GadgetType.MEMEXPRtoMEM:memLookUp(), GadgetType.EXPRtoMEM:memLookUp()} 
+  
 def fillGadgetLookUp():
     """
     Fill the gadgetLookUp dictionnary with gadgets from the gadgetDB list
@@ -370,9 +379,14 @@ def fillGadgetLookUp():
             REGtoMEM_added = False           
             CSTtoMEM_added = False
             MEMEXPRtoMEM_added = False
+            EXPRtoMEM_added = False
             
             # Going through dependencies 
             for dep in deps:
+                # Check for integrity of the database
+                if( not isinstance(dep[0], Expr.Expr)):
+                    raise Exception("Invalid dependency in fillGadgetLookUp(): " + str(dep[0]))
+            
                 # For REGtoMEM
                 if( isinstance( dep[0], Expr.SSAExpr ) and dep[1].isTrue(hard=hard_simplify)):
                     if( not REGtoMEM_added ):
@@ -393,6 +407,7 @@ def fillGadgetLookUp():
                         add_gadget(gadgetLookUp[GadgetType.CSTtoMEM].written_values[-1][dep[0].value], i)
                     else:
                         gadgetLookUp[GadgetType.CSTtoMEM].written_values[-1][dep[0].value] = [i]
+                # For MEMEXPRtoMEM
                 elif( isinstance(dep[0], Expr.MEMExpr) and dep[1].isTrue(hard=hard_simplify)):
                     if( not MEMEXPRtoMEM_added ):
                         MEMEXPRtoMEM_added = True
@@ -402,11 +417,18 @@ def fillGadgetLookUp():
                         add_gadget(gadgetLookUp[GadgetType.MEMEXPRtoMEM].written_values[-1][dep[0].addr], i)
                     else:
                         gadgetLookUp[GadgetType.MEMEXPRtoMEM].written_values[-1][dep[0].addr] = [i]      
-                # FOR THE REST --> IMPLEMENT LATER !!
-                else:
-                    pass
+                # For EXPRtoMEM
+                elif( isinstance(dep[0], Expr.Expr) and dep[1].isTrue(hard=hard_simplify)):
+                    if( not EXPRtoMEM_added ):
+                        EXPRtoMEM_added = True
+                        gadgetLookUp[GadgetType.EXPRtoMEM].addr_list.append(addr)
+                        gadgetLookUp[GadgetType.EXPRtoMEM].written_values.append(dict())
+                    if( dep[0] in gadgetLookUp[GadgetType.EXPRtoMEM].written_values[-1]):
+                        add_gadget(gadgetLookUp[GadgetType.EXPRtoMEM].written_values[-1][dep[0]], i)
+                    else:
+                        gadgetLookUp[GadgetType.EXPRtoMEM].written_values[-1][dep[0]] = [i]
 
-    # Clean the charging bar 
+    # Clean the charging bar
     sys.stdout.write("\r"+" "*70+"\r") 
 
                 

@@ -35,8 +35,7 @@ def is_padding(gadget_num):
 def set_padding_unit(value=None):
     global DEFAULT_PADDING_BYTE
     global PADDING_UNITS
-    
-    
+
     if( PADDING_UNITS == []):
         # Set the default padding unit  
         # This should be the first element of the list as DEFAULT_PADDING_UNIT_INDEX is -1 ( element at index 0 ;) ) 

@@ -80,7 +80,6 @@ class Gadget:
             self.asmStr = "; ".join(str(i) for i in ins)
             self.hexStr = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in raw)
             # Initializing the memory in Z3 for this gadget 
-            memorySMT = Array( "MEM", BitVecSort(REGSIZE.size), BitVecSort(8))
             self.addr = addr # int
             # Get the string for the address, depends on the architecture size 
             self.addrStr = '0x'+format(addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
@@ -108,8 +107,7 @@ class Gadget:
         """
         self.asmStr = same_gadget.asmStr
         self.hexStr = same_gadget.hexStr
-        # Initializing the memory in Z3 for this gadget 
-        memorySMT = Array( "MEM", BitVecSort(REGSIZE.size), BitVecSort(8))
+        # Initializing the memory in Z3 for this gadget
         self.addr = new_addr # int
         # Get the string for the address, depends on the architecture size 
         self.addrStr = '0x'+format(new_addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')

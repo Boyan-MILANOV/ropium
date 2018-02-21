@@ -4,23 +4,27 @@ Implements the data structure to represent arithmetical and logical
 expressions using abstract values for registers and memory.
 """
 
-from z3 import BitVec, BitVecVal, BitVecNumRef, Concat, Extract
+from z3 import BitVec, BitVecVal, BitVecNumRef, Concat, Extract, Array, BitVecSort
 from ropgenerator.Cond import Cond, CT, CTrue, CFalse
 from ropgenerator.Logs import log
 INTEGRITY_CHECK = False 
 
-# Variables used to make the Z3 SMT modelisation
-regToSMT = {} # Keys : ( SSARegister ), Values : Z3 BitVec
-memorySMT = None # Z3 Array of bitVec 
 
-# number of registers
-nb_regs = None
+
 
 # Size of the registers - this variable must be set when architecture is known
 class REGSIZE:
     size = -1
+# number of registers
+nb_regs = None
 
+# Variables used to make the Z3 SMT modelisation
+regToSMT = {} # Keys : ( SSARegister ), Values : Z3 BitVec
+memorySMT = None
 
+def set_memorySMT(regsize):
+    global memorySMT
+    memorySMT = Array( "MEM", BitVecSort(regsize), BitVecSort(8)) # Z3 Array of bitVec
 
 # Custom exception type
 class ExprException(Exception):
@@ -368,11 +372,14 @@ class MEMExpr(Expr):
         return MEMExpr( self.addr.replaceITE(expr), self.size)
         
     def toZ3(self):
+        global memorySMT
         if( self.z3 == None ):
             addr = self.addr.toZ3()
             res = memorySMT[addr]
             for i in range(1,self.size/8):
-                res = Concat( memorySMT[addr+i], res )
+                i_z3 = BitVecVal(i, addr.size)
+                test = memorySMT[addr+i_z3]
+                res = Concat( memorySMT[addr+i_z3], res )
             self.z3 = res    
         return self.z3
         
