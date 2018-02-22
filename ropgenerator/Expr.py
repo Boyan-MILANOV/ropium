@@ -4,7 +4,7 @@ Implements the data structure to represent arithmetical and logical
 expressions using abstract values for registers and memory.
 """
 
-from z3 import BitVec, BitVecVal, BitVecNumRef, Concat, Extract, Array, BitVecSort
+from z3 import BitVec, BitVecVal, BitVecNumRef, Concat, Extract, Array, BitVecSort, SignExt, ZeroExt, LShR, simplify
 from ropgenerator.Cond import Cond, CT, CTrue, CFalse
 from ropgenerator.Logs import log
 INTEGRITY_CHECK = False 
@@ -377,7 +377,7 @@ class MEMExpr(Expr):
             addr = self.addr.toZ3()
             res = memorySMT[addr]
             for i in range(1,self.size/8):
-                i_z3 = BitVecVal(i, addr.size)
+                i_z3 = BitVecVal(i, self.addr.size)
                 test = memorySMT[addr+i_z3]
                 res = Concat( memorySMT[addr+i_z3], res )
             self.z3 = res    

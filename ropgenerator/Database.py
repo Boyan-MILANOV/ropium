@@ -258,7 +258,8 @@ class memLookUp:
                 if( expr.size != stored_expr.size ):
                     # If different sizes, we don't compare 
                     continue
-                cond = Cond(CT.EQUAL, expr, stored_expr) 
+                cond = Cond(CT.EQUAL, expr, stored_expr)
+                print("DEBUG, cond " + str(cond))
                 if( cond.isTrue(hard=True)):
                     res += self.written_values[i][stored_expr]
             i = i + 1
@@ -361,7 +362,7 @@ def fillGadgetLookUp():
                         gadgetLookUp[GadgetType.MEMEXPRtoREG][reg.num].expr_list.append(dep[0].addr)
                         gadgetLookUp[GadgetType.MEMEXPRtoREG][reg.num].gadget_list.append([i])
                 # FOR EXPRtoREG
-                elif( dep[1].isTrue() ):
+                elif( dep[1].isTrue(hard=hard_simplify) ):
                     exprLookUpEXPRtoREG = gadgetLookUp[GadgetType.EXPRtoREG][reg.num]
                     exprLookUpEXPRtoREG.expr_list.append(dep[0])
                     exprLookUpEXPRtoREG.gadget_list.append([i])
