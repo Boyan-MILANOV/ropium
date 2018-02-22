@@ -8,6 +8,7 @@ import re
 from ropgenerator.Gadget import GadgetType
 from ropgenerator.Config import LIMIT 
 import ropgenerator.SearchHelper as SearchHelper
+from ropgenerator.Constraints import Constraint, SingleConstraint, ConstraintType 
 
 # Help for the search command
 CMD_FIND_HELP =    "\n\t-----------------------------------------------"
@@ -34,13 +35,12 @@ class search_engine:
 
     def __init__(self):
         self.truc = None
-        
-    
-    def basic_strategy(self, gtype, arg1, arg2, n=1):
+ 
+    def basic_strategy(self, gtype, arg1, arg2, constraint, n=1):
         """
         Search for gadgets basic method ( without chaining ) 
         Returns a list of possible gadgets of maximum size n
-        
+
         Parameters: 
         gtype - instance of GadgetType
         n - (int) number of gadgets to return 
@@ -55,45 +55,44 @@ class search_engine:
             gtype = GadgetType.MEMEXPRtoMEM, arg1 is Expr, arg2 is Expr
         """
         if( gtype == GadgetType.REGtoREG ):
-            return self._REGtoREG_basic_strategy(arg1, arg2, n=n)
+            return self._REGtoREG_basic_strategy(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.CSTtoREG ):
-            res = self._CSTtoREG_basic_strategy(arg1, arg2, n=n)
-            return res
+            return self._CSTtoREG_basic_strategy(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.MEMtoREG ):
-            return self._MEMtoREG_basic_strategy(arg1, arg2, n=n)
+            return self._MEMtoREG_basic_strategy(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.REGtoMEM ):
-            return self._REGtoMEM_basic_strategy(arg1, arg2, n=n)
+            return self._REGtoMEM_basic_strategy(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.CSTtoMEM ):
-            return self._CSTtoMEM_basic_strategy(arg1, arg2, n=n)
+            return self._CSTtoMEM_basic_strategy(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.EXPRtoREG ):
-            return self._EXPRtoREG_basic_strategy(arg1, arg2, n=n)
+            return self._EXPRtoREG_basic_strategy(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.MEMEXPRtoREG ):
-            return self._MEMEXPRtoREG_basic_strategy(arg1, arg2, n=n)
+            return self._MEMEXPRtoREG_basic_strategy(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.MEMEXPRtoMEM ):
-            return self._MEMEXPRtoMEM_basic_strategy(arg1, arg2, n=n)
+            return self._MEMEXPRtoMEM_basic_strategy(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.EXPRtoMEM ):
-            return self._EXPRtoMEM_basic_strategy(arg1, arg2, n=n)
+            return self._EXPRtoMEM_basic_strategy(arg1, arg2, constraint, n=n)
         else:
             return []
             
-    def chaining_strategy(self, gtype, arg1, arg2, n=1):
+    def chaining_strategy(self, gtype, arg1, arg2, constraint, n=1):
         """
         Search for gadgets with advanced chaining methods
         Returns a list of chains ( a chain is a list of gadgets )
         """
 
         if( gtype == GadgetType.REGtoREG ): 
-            res = SearchHelper.found_REGtoREG_reg_transitivity(arg1, arg2, n=n)
+            res = SearchHelper.found_REGtoREG_reg_transitivity(arg1, arg2, constraint, n=n)
             return res
         elif( gtype == GadgetType.CSTtoREG ):
-            res = self._CSTtoREG_pop_from_stack(arg1, arg2, n=n)
+            res = self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n)
             return res
         else:
             return []
         
         
     
-    def _CSTtoREG_basic_strategy(self, reg, cst, n=1):
+    def _CSTtoREG_basic_strategy(self, reg, cst, constraint, n=1):
         """
         Searches for a gadget that puts directly the constant cst into register reg 
         """
@@ -104,23 +103,23 @@ class search_engine:
         for gadget_num in db[reg][cst]:
             if( len(res) >= n ):
                 break
-            else:
+            elif( constraint.validate(Database.gadgetDB[gadget_num])):
                 res.append(gadget_num)
         return res[:n]
         
     
-    def _CSTtoREG_pop_from_stack(self, reg, cst, n=1):
+    def _CSTtoREG_pop_from_stack(self, reg, cst, constraint, n=1):
         """
         Returns a payload that puts cst into register reg by poping it from the stack
         """ 
         if( not reg in SearchHelper.record_REG_pop_from_stack ):
             return []
-        res = SearchHelper.found_CSTtoREG_pop_from_stack(reg, cst, n=n)
+        res = SearchHelper.found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=n)
         return res
         
     
     
-    def _REGtoREG_basic_strategy(self, reg1, reg2, n=1):
+    def _REGtoREG_basic_strategy(self, reg1, reg2, constraint, n=1):
         """
         Searches for a gadget that puts reg2 into reg1
         reg1, reg2 - int 
@@ -132,12 +131,12 @@ class search_engine:
         for gadget_num in db[reg1][reg2]:
             if( len(res) >= n ):
                 break
-            else:
+            elif( constraint.validate(Database.gadgetDB[gadget_num])):
                 res.append( gadget_num)
         return res[:n]
             
         
-    def _MEMtoREG_basic_strategy(self, reg, addr, n=1):
+    def _MEMtoREG_basic_strategy(self, reg, addr, constraint, n=1):
         """
         Searches for a gadget that puts mem(addr) into reg
         reg - int, number of the register to affect
@@ -148,14 +147,13 @@ class search_engine:
             return []
         res = []
         for gadget_num in db[reg][addr]:
-            if( n <= 0 ):
+            if( len(res) >= n ):
                 break
-            else:
-                n = n - 1
-            res.append( gadget_num )
+            elif( constraint.validate(Database.gadgetDB[gadget_num])):
+                res.append( gadget_num )
         return res[:n]
     
-    def _EXPRtoREG_basic_strategy(self, reg, expr, n=1):
+    def _EXPRtoREG_basic_strategy(self, reg, expr, constraint, n=1):
         """
         Searches for gadgets that put the expression 'expr' into register reg 
         expr - Expr
@@ -164,9 +162,9 @@ class search_engine:
         db = Database.gadgetLookUp[GadgetType.EXPRtoREG]
         if( not reg in db ):
             return []
-        return db[reg].lookUpEXPRtoREG(expr, n)
+        return db[reg].lookUpEXPRtoREG(expr, constraint, n)
         
-    def _MEMEXPRtoREG_basic_strategy(self, reg, addr, n=1):
+    def _MEMEXPRtoREG_basic_strategy(self, reg, addr, constraint, n=1):
         """
         Searches for gadgets that put the expression mem(addr) into register reg
         addr - Expr
@@ -177,40 +175,40 @@ class search_engine:
         if( not reg in db ):
             return []
         # Search for addr directly, because we store only reg<-addr instead of reg<-mem(addr)
-        return db[reg].lookUpEXPRtoREG(addr, n)
+        return db[reg].lookUpEXPRtoREG(addr, constraint, n)
         
         
-    def _CSTtoMEM_basic_strategy(self, addr_expr, cst, n=1):
+    def _CSTtoMEM_basic_strategy(self, addr_expr, cst, constraint, n=1):
         """
         Searches for gadgets that write the constant cst att mem(addr_expr)
         addr_expr - Expr
         cst - int 
         """
-        return Database.gadgetLookUp[GadgetType.CSTtoMEM].lookUpCSTtoMEM(addr_expr, cst, n)
+        return Database.gadgetLookUp[GadgetType.CSTtoMEM].lookUpCSTtoMEM(addr_expr, cst, constraint, n)
 
-    def _REGtoMEM_basic_strategy(self, addr_expr, reg, n=1):
+    def _REGtoMEM_basic_strategy(self, addr_expr, reg, constraint, n=1):
         """
         Searches for gadgets that write reg in the memory at address addr_expr
         addr_expr - Expr
         reg - int, number of the register 
         """
-        return Database.gadgetLookUp[GadgetType.REGtoMEM].lookUpREGtoMEM(addr_expr, reg, n)
+        return Database.gadgetLookUp[GadgetType.REGtoMEM].lookUpREGtoMEM(addr_expr, reg, constraint, n)
 
-    def _MEMEXPRtoMEM_basic_strategy(self, addr, expr, n=1):
+    def _MEMEXPRtoMEM_basic_strategy(self, addr, expr, constraint, n=1):
         """
         Searches for gadgets that write mem(expr) at mem(addr)
         addr - Expr
         expr - Expr 
         """
-        return Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, n)
+        return Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n)
         
-    def _EXPRtoMEM_basic_strategy(self, addr, expr, n=1):
+    def _EXPRtoMEM_basic_strategy(self, addr, expr, constraint, n=1):
         """
         Searches for gadgets that write expr at mem(addr)
         addr - Expr
         expr - Expr 
         """
-        return Database.gadgetLookUp[GadgetType.EXPRtoMEM].lookUpEXPRtoMEM(addr, expr, n)
+        return Database.gadgetLookUp[GadgetType.EXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n)
 
 # The module-wide search engine 
 search = search_engine()
@@ -243,13 +241,15 @@ def find_gadgets(args):
         right = parsed_args[3]
         gadgets = []
         chains = []
+        # Establish initial constraint 
+        constraint = Constraint([SingleConstraint(ConstraintType.BAD_BYTES, ['6f', '68', 'ff'])])
         # Search with basic strategy
-        gadgets = search.basic_strategy(gtype, left, right, n=LIMIT)
+        gadgets = search.basic_strategy(gtype, left, right, constraint, n=LIMIT)
         gadgetsValidRet = [g for g in gadgets if Database.gadgetDB[g].hasNormalRet()]
         gadgetsPossibleRet = [g for g in gadgets if not Database.gadgetDB[g].hasNormalRet()]
         # Search with chaining strategies if no good gadget found 
         if( not gadgetsValidRet ):     
-            chains = search.chaining_strategy(gtype, left, right, n=LIMIT)
+            chains = search.chaining_strategy(gtype, left, right, constraint, n=LIMIT)
             
         if( gadgetsValidRet ):
             print("\n\tFound matching gadget(s):\n")
@@ -294,7 +294,9 @@ def show_chains( chain_list ):
                 if( SearchHelper.is_padding(gadget_num)):
                     padding_str = '0x'+format(SearchHelper.get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x')
                     if( gadget_num == SearchHelper.DEFAULT_PADDING_UNIT_INDEX ):
-                        padding_str += " (Padding)" 
+                        padding_str += " (Padding)"
+                    else:
+                        padding_str += " (Custom Padding)"
                     print("\t"+padding_str)
                 else:
                     print("\t"+Database.gadgetDB[gadget_num].addrStr + " (" + Database.gadgetDB[gadget_num].asmStr + ")")

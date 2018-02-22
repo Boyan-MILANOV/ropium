@@ -167,7 +167,7 @@ class exprLookUp:
         self.expr_list = []# LIst of EXPR that are stored in REG
         self.gadget_list = []# gadget_list[i] = list of gadgets that put expr_list[i] in the regiter
 
-    def lookUpEXPRtoREG(self, expr, n=10):
+    def lookUpEXPRtoREG(self, expr, constraint, n=10):
         """
         Return at most n gadgets that correspond to expr
         """
@@ -177,7 +177,7 @@ class exprLookUp:
         while( i < len(self.expr_list ) and len(res) < n):
             cond = Cond(CT.EQUAL, self.expr_list[i], expr)
             if( cond.isTrue(hard=True)):
-                res += self.gadget_list[i]
+                res += [g for g in self.gadget_list[i] if constraint.validate(gadgetDB[g])]
             i = i + 1
         return res 
 
@@ -199,7 +199,7 @@ class memLookUp:
         self.addr_list=[] # To check if an access to an address is available
         self.written_values=[] # List of dictionnaries 
         
-    def lookUpREGtoMEM( self, addr, reg, n=1 ):
+    def lookUpREGtoMEM( self, addr, reg, constraint, n=1 ):
         """
         Returns gadgets numbers that put reg at mem(addr) as a list of gadgets uids
         reg - (int)
@@ -214,11 +214,11 @@ class memLookUp:
                 # Comparing the addresses with hard=True so we call z3 solver
                 cond = Cond(CT.EQUAL, self.addr_list[i], addr)
                 if( cond.isTrue(hard=True)):
-                    res += self.written_values[i][reg]
+                    res += [g for g in self.written_values[i][reg] if constraint.validate(gadgetDB[g])]
             i = i + 1
         return res[:10]
         
-    def lookUpCSTtoMEM( self, addr, cst, n=1):
+    def lookUpCSTtoMEM( self, addr, cst, constraint, n=1):
         """
         Returns gadgets numbers that put cst at mem(addr) as a list of gadgets uids
         cst - (int)
@@ -233,11 +233,11 @@ class memLookUp:
                 # Comparing the addresses with hard=True so we call z3 solver
                 cond = Cond(CT.EQUAL, self.addr_list[i], addr)
                 if( cond.isTrue(hard=True)):
-                    res += self.written_values[i][cst]
+                    res += [g for g in self.written_values[i][cst] if constraint.validate(gadgetDB[g])]
             i = i + 1
         return res[:n]
 
-    def lookUpEXPRtoMEM( self, addr, expr, n=1 ):
+    def lookUpEXPRtoMEM( self, addr, expr, constraint, n=1 ):
         """
         Returns gadgets numbers that put expr (or mem(expr) depending 
         of the use of the memLookUp ) into mem(addr)
@@ -259,7 +259,7 @@ class memLookUp:
                     continue
                 cond = Cond(CT.EQUAL, expr, stored_expr)
                 if( cond.isTrue(hard=True)):
-                    res += self.written_values[i][stored_expr]
+                    res += [g for g in self.written_values[i][stored_expr] if constraint.validate(gadgetDB[g])]
             i = i + 1
         return res
         

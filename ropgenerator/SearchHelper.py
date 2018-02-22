@@ -8,6 +8,7 @@ import ropgenerator.Analysis as Analysis
 import sys
 from ropgenerator.Colors import info_colored
 from ropgenerator.Gadget import GadgetType
+from ropgenerator.Constraints import ConstraintType
 
 #####################################
 #    ROP Chains format
@@ -38,7 +39,7 @@ def set_padding_unit(value=None):
 
     if( PADDING_UNITS == []):
         # Set the default padding unit  
-        # This should be the first element of the list as DEFAULT_PADDING_UNIT_INDEX is -1 ( element at index 0 ;) ) 
+        # This should be the first element of the list since DEFAULT_PADDING_UNIT_INDEX is -1 ( element at index 0 ;) ) 
         bytes_in_unit = Analysis.ArchInfo.bits/8
         res = 0
         for i in range(0, bytes_in_unit):
@@ -57,6 +58,90 @@ def get_padding_unit(uid=-1):
     global PADDING_UNITS
     return PADDING_UNITS[-1-uid]
 
+def get_valid_padding( constraint ):
+    """
+    Creates a padding value that satisfies the BAD_BYTES constraint(s)
+    in 'constraint)
+    Returns a int if success
+    Returns None if no valid padding unit has been found 
+    """
+    bad_bytes_list = []
+    for c in constraint.constraints_list:
+        if( c.type == ConstraintType.BAD_BYTES ):
+            bad_bytes_list += c.constraint_list
+    # Getting a valid padding byte 
+    hex_char = ['f','e','d','c','b','a','9','8','7','6','5','4','3','2','1','0']
+    found = False
+    for c1 in hex_char:
+        for c2 in hex_char:
+            c = c1+c2
+            if( not c in bad_bytes_list ):
+                found = True
+                break
+        if( found ):
+            break
+    if( not found ):
+        return None
+    else:
+        padding_byte = int(c, 16)
+    # Calculate the new padding unit 
+    bytes_in_unit = Analysis.ArchInfo.bits/8
+    res = 0
+    for i in range(0, bytes_in_unit):
+        res = res*0x100 + padding_byte
+    return res
+
+def validate_chain(chain, constraint):
+    """
+    Returns true iff all gadgets in a chain verify a constraint  
+    """
+    for gadget_num in chain:
+        if( (not is_padding(gadget_num)) and not constraint.validate(Database.gadgetDB[gadget_num]) ):
+            return False
+        elif( is_padding(gadget_num) and gadget_num != DEFAULT_PADDING_UNIT_INDEX ):
+            # Verify that the custom padding doesn't contain bad bytes 
+            # Get the corresponding string 
+            padding_str = format(get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x')
+            # Check for bad bytes
+            for i in range(0, len(padding_str), 2):
+                if( padding_str[i,i+2] in constraint.get_all_bad_bytes()):
+                    return False
+    return True
+    
+def adjust_chain(chain, new_padding):
+    """
+    Replaces the default padding with new_padding in a chain
+    """
+    global DEFAULT_PADDING_UNIT_INDEX
+    return [g if g != DEFAULT_PADDING_UNIT_INDEX else new_padding for g in chain]
+    
+    
+def filter_chains(chain_list, constraint, n):
+    """
+    Returns the n first chains in chain_list that satisfy the constraint
+    """
+    global DEFAULT_PADDING_BYTE
+    # If the default padding works, keep it
+    print("DEBUG, is " + hex(DEFAULT_PADDING_BYTE)[-2:])
+    print("DEBUG, in " + str( constraint.get_all_bad_bytes()))
+    if( not hex(DEFAULT_PADDING_BYTE)[-2:] in constraint.get_all_bad_bytes()):
+        return chain_list[:n]
+    print("DEBUG --> no !, getting a new padding ")      
+    # Otherwise get a new padding if necessary 
+    new_padding_int = get_valid_padding(constraint)
+    if( not new_padding_int):
+        # If no possible padding, return empty list 
+        return []
+    else:
+        new_padding = set_padding_unit(value=new_padding_int)
+    # Filter the chains 
+    res = []
+    for chain in chain_list:
+        if( validate_chain( chain, constraint )):
+            res.append(adjust_chain(chain, new_padding))
+        if( len(res) >= n):
+            break 
+    return res
 
 #############################################
 # Chains for REGtoREG transitivity strategy #
@@ -193,7 +278,7 @@ def add_REGtoREG_reg_transitivity(reg1, reg2, chain , regs_chain, nbInstr):
     else:
         return False
     
-def found_REGtoREG_reg_transitivity(reg1, reg2, n=1):
+def found_REGtoREG_reg_transitivity(reg1, reg2, constraint, n=1):
     """
     Returns the n first chains found for reg1 <- reg2 
     """
@@ -206,7 +291,7 @@ def found_REGtoREG_reg_transitivity(reg1, reg2, n=1):
     if( not reg1 in record_REGtoREG_reg_transitivity ):
         return []
     if( reg2 in record_REGtoREG_reg_transitivity[reg1] ):
-        return record_REGtoREG_reg_transitivity[reg1][reg2][:n]
+        return filter_chains(record_REGtoREG_reg_transitivity[reg1][reg2], constraint, n)
     else:
         return []    
         
@@ -305,7 +390,7 @@ def add_REG_pop_from_stack(reg, offset, gadgets_list, gadgets_sorted=False ):
     if( remaining_len > 0 ):
         record_REG_pop_from_stack[reg][offset] += gadgets_list[:remaining_len]
         
-def found_CSTtoREG_pop_from_stack(reg, cst, n=1):
+def found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=1):
     """
     Returns the n first gadgets that do reg <- cst by poping cst from the stack 
     """
@@ -322,9 +407,7 @@ def found_CSTtoREG_pop_from_stack(reg, cst, n=1):
         for g in record_REG_pop_from_stack[reg][offset]:
             chain = [g] + [default_padding for i in range(0, offset*8/Analysis.ArchInfo.bits)] + [cst_padding] + [default_padding for i in range(offset+1, (Database.gadgetDB[g].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8))]
             res.append(chain)
-        if( len(res) >= n): 
-            break;
-    return res[:n]
+    return filter_chains(res, constraint, n)
     
     
     
@@ -425,7 +508,7 @@ def add_REG_write_to_memory(reg, reg2, offset, gadget_list, gadget_sorted=False)
         record_REG_write_to_memory[reg][reg2][offset] += gadgets_list[:remaining_len]
 
     
-def found_REG_write_to_memory(reg, reg2, offset, n=1):
+def found_REG_write_to_memory(reg, reg2, offset, constraint, n=1):
     """
     Returns the n first gadgets that do mem(reg2+offset) <- reg by poping cst from the stack 
     Parameters:
@@ -448,10 +531,8 @@ def found_REG_write_to_memory(reg, reg2, offset, n=1):
         if( padding_units <= MAX_PADDING ):
             padding_chain = [default_padding for i in range(0,padding_units)]
             res.append( [g] + padding_chain )
-        if( len(res) >= n ):
-            break
 
-    return res[:n]
+    return filter_chains(res, constraint, n)
     
     
     
