@@ -90,9 +90,8 @@ def generated_gadgets_to_DB():
                 sys.stdout.write("|")
                 sys.stdout.flush()
             #print("Gadget : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\n")
-            signal.alarm(1)
             sys.stdout = sys.stderr = junk_file
-            print("test")
+            signal.alarm(1)
             gadget = Gadget(i, addr, asm)
             signal.alarm(0)
             sys.stdout = old_stdout
@@ -259,7 +258,6 @@ class memLookUp:
                     # If different sizes, we don't compare 
                     continue
                 cond = Cond(CT.EQUAL, expr, stored_expr)
-                print("DEBUG, cond " + str(cond))
                 if( cond.isTrue(hard=True)):
                     res += self.written_values[i][stored_expr]
             i = i + 1
