@@ -292,7 +292,17 @@ def found_REGtoREG_reg_transitivity(reg1, reg2, constraint, n=1):
         return filter_chains(record_REGtoREG_reg_transitivity[reg1][reg2], constraint, n)
     else:
         return []    
-        
+ 
+def possible_REGtoREG_reg_transitivity(reg):
+    """
+    Returns all the registers reg2 such that reg <- reg2 is possible
+    I.e, record_REGtoREG_reg_transitivity[reg][reg2] exists 
+    """       
+    global record_REGtoREG_reg_transitivity
+    if( not reg in record_REGtoREG_reg_transitivity):
+        return []
+    else:
+        return record_REGtoREG_reg_transitivity[reg].keys()
         
 ##########################################
 # Chains for REG pop from stack strategy #
@@ -398,6 +408,9 @@ def found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=1):
     if( not built_REG_pop_from_stack ):
         build_REG_pop_from_stack()
         
+    if( not reg in record_REG_pop_from_stack ):
+        return []
+    
     cst_padding = set_padding_unit(value=cst)
     default_padding = set_padding_unit()
     res = []

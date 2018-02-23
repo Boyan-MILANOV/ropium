@@ -42,7 +42,29 @@ class search_engine:
     def __init__(self):
         self.truc = None
  
-    def basic_strategy(self, gtype, arg1, arg2, constraint, n=1):
+    def find(self, gtype, arg1, arg2, constraint, n=1, basic=True, chainable=True):
+        """
+        Searches for gadgets 
+        basic = False means that we don't call _basic_strategy
+        """
+        res = []
+        # Adjusting the constraint
+        if( not chainable ):
+            return self._basic_strategy(gtype, arg1, arg2, constraint, n=n)
+        else:
+            constraint.add(SingleConstraint(ConstraintType.CHAINABLE_RET, []))
+        # Searching with basic strategies 
+        if( basic ):
+            res = self._basic_strategy(gtype, arg1, arg2, constraint, n=n)
+        # If not enough chains found, chaining with advanced strategy 
+        if(len(res) <= n):
+            res += self._chaining_strategy(gtype, arg1, arg2, constraint, n=n-len(res))
+        return res
+ 
+    def _validate_gadget_(self, gadget_num):
+        return ( Database.gadgetDB[gadget_num].hasNormalRet() and Database.gadgetDB[gadget_num].isValidSpInc() )
+    
+    def _basic_strategy(self, gtype, arg1, arg2, constraint, n=1):
         """
         Search for gadgets basic method ( without chaining ) 
         Returns a list of possible gadgets of maximum size n
@@ -81,7 +103,7 @@ class search_engine:
         else:
             return []
             
-    def chaining_strategy(self, gtype, arg1, arg2, constraint, n=1):
+    def _chaining_strategy(self, gtype, arg1, arg2, constraint, n=1):
         """
         Search for gadgets with advanced chaining methods
         Returns a list of chains ( a chain is a list of gadgets )
@@ -110,17 +132,38 @@ class search_engine:
             if( len(res) >= n ):
                 break
             elif( constraint.validate(Database.gadgetDB[gadget_num])):
-                res.append(gadget_num)
+                res.append([gadget_num])
         return res[:n]
         
     
-    def _CSTtoREG_pop_from_stack(self, reg, cst, constraint, n=1):
+    def _CSTtoREG_pop_from_stack(self, reg, cst, constraint, n=1, unusable=[]):
         """
         Returns a payload that puts cst into register reg by poping it from the stack
+        unusable: list of reg UID that can not be used in the chaining strategy 
         """ 
-        if( not reg in SearchHelper.record_REG_pop_from_stack ):
-            return []
-        res = SearchHelper.found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=n)
+        # Direct pop from the stack 
+        res = SearchHelper.found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=n)        
+        # Pop in another register and use register transitivity
+        if( len(res) <= n ):
+            for other_reg in SearchHelper.possible_REGtoREG_reg_transitivity(reg):
+                if( other_reg != reg and not other_reg in unusable):
+                    # Get other s.t reg <- other_reg 
+                    reg_to_reg_chains = SearchHelper.found_REGtoREG_reg_transitivity(reg, other_reg, constraint, n=n)
+                    # If we have reg <- other_reg 
+                    # We try to pop the constant in other_reg
+                    if( reg_to_reg_chains ):
+                        other_reg_CSTtoREG = self._CSTtoREG_basic_strategy(other_reg, cst, constraint, n=n)
+                        if( len(other_reg_CSTtoREG) < n ):
+                            # TODO,  HERE SHOULD ADD SOME CONSTRAINT 
+                            other_reg_CSTtoREG += self._CSTtoREG_pop_from_stack(other_reg, cst, constraint, n=n, unusable=unusable+[reg])
+                        # Merge: 
+                        # First cst to other_reg 
+                        # then other_reg in reg
+                        for other_pop in other_reg_CSTtoREG:
+                            for reg_to_reg in reg_to_reg_chains:
+                                res.append( other_pop + reg_to_reg )
+                                if( len(res) >= n ):
+                                    return res
         return res
         
     
@@ -138,7 +181,7 @@ class search_engine:
             if( len(res) >= n ):
                 break
             elif( constraint.validate(Database.gadgetDB[gadget_num])):
-                res.append( gadget_num)
+                res.append([gadget_num])
         return res[:n]
             
         
@@ -156,7 +199,7 @@ class search_engine:
             if( len(res) >= n ):
                 break
             elif( constraint.validate(Database.gadgetDB[gadget_num])):
-                res.append( gadget_num )
+                res.append( [gadget_num] )
         return res[:n]
     
     def _EXPRtoREG_basic_strategy(self, reg, expr, constraint, n=1):
@@ -168,7 +211,7 @@ class search_engine:
         db = Database.gadgetLookUp[GadgetType.EXPRtoREG]
         if( not reg in db ):
             return []
-        return db[reg].lookUpEXPRtoREG(expr, constraint, n)
+        return [[g] for g in db[reg].lookUpEXPRtoREG(expr, constraint, n)]
         
     def _MEMEXPRtoREG_basic_strategy(self, reg, addr, constraint, n=1):
         """
@@ -181,7 +224,7 @@ class search_engine:
         if( not reg in db ):
             return []
         # Search for addr directly, because we store only reg<-addr instead of reg<-mem(addr)
-        return db[reg].lookUpEXPRtoREG(addr, constraint, n)
+        return [[g] for g in db[reg].lookUpEXPRtoREG(addr, constraint, n)]
         
         
     def _CSTtoMEM_basic_strategy(self, addr_expr, cst, constraint, n=1):
@@ -190,7 +233,7 @@ class search_engine:
         addr_expr - Expr
         cst - int 
         """
-        return Database.gadgetLookUp[GadgetType.CSTtoMEM].lookUpCSTtoMEM(addr_expr, cst, constraint, n)
+        return [[g] for g in Database.gadgetLookUp[GadgetType.CSTtoMEM].lookUpCSTtoMEM(addr_expr, cst, constraint, n)]
 
     def _REGtoMEM_basic_strategy(self, addr_expr, reg, constraint, n=1):
         """
@@ -198,7 +241,7 @@ class search_engine:
         addr_expr - Expr
         reg - int, number of the register 
         """
-        return Database.gadgetLookUp[GadgetType.REGtoMEM].lookUpREGtoMEM(addr_expr, reg, constraint, n)
+        return [[g] for g in Database.gadgetLookUp[GadgetType.REGtoMEM].lookUpREGtoMEM(addr_expr, reg, constraint, n)]
 
     def _MEMEXPRtoMEM_basic_strategy(self, addr, expr, constraint, n=1):
         """
@@ -206,7 +249,7 @@ class search_engine:
         addr - Expr
         expr - Expr 
         """
-        return Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n)
+        return [[g] for g in Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n)]
         
     def _EXPRtoMEM_basic_strategy(self, addr, expr, constraint, n=1):
         """
@@ -214,7 +257,7 @@ class search_engine:
         addr - Expr
         expr - Expr 
         """
-        return Database.gadgetLookUp[GadgetType.EXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n)
+        return [[g] for g in Database.gadgetLookUp[GadgetType.EXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n)]
 
 # The module-wide search engine 
 search = search_engine()
@@ -246,30 +289,19 @@ def find_gadgets(args):
         left = parsed_args[2]
         right = parsed_args[3]
         constraint = parsed_args[4]
-        gadgets = []
         chains = []
         # Search with basic strategy
-        gadgets = search.basic_strategy(gtype, left, right, constraint, n=LIMIT)
-        gadgetsValidRet = [g for g in gadgets if Database.gadgetDB[g].hasNormalRet()]
-        gadgetsPossibleRet = [g for g in gadgets if not Database.gadgetDB[g].hasNormalRet()]
-        # Search with chaining strategies if no good gadget found 
-        if( not gadgetsValidRet ):     
-            chains = search.chaining_strategy(gtype, left, right, constraint, n=LIMIT)
-            
-        if( gadgetsValidRet ):
-            print("\n\tFound matching gadget(s):\n")
-            show_gadgets(gadgetsValidRet)
-            if( chains ):
-                print("\n\tBuilt matching ROP Chain(s):\n")
-                show_chains(chains)
+        chains = search.find(gtype, left, right, constraint, n=LIMIT)
+        # Display results 
+        if( chains ):
+            print("\n\tBuilt matching ROP Chain(s):\n")
+            show_chains(chains)
         else:
-            if( chains ):
-                print("\n\tBuilt matching ROP Chain(s):\n")
-                show_chains(chains)
-            elif( gadgetsPossibleRet ):
-                print("\n\tFound possibly matching gadget(s):\n")
-                show_gadgets(gadgetsPossibleRet)
-            else:       
+            possible_gadgets = search.find(gtype, left, right, constraint, n=LIMIT, chainable=False)
+            if( possible_gadgets ):
+                print("\n\tFound possibly matching Gadget(s):\n")
+                show_chains(possible_gadgets)
+            else:
                 print("\n\tNo matching Gadgets or ROP Chains found")
                 
                
@@ -308,7 +340,7 @@ def show_chains( chain_list ):
     elif( PYTHON_OUTPUT ):
         print("\t\tPython output not supported yet :'(")
     
-        
+
 def parse_args(args):
     """
     Parse the user supplied arguments to the 'find' function

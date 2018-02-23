@@ -19,6 +19,7 @@ class ConstraintType(Enum):
     REGS_NOT_MODIFIED="REGS_NOT_MODIFIED"
     REGS_VALID_POINTER="REGS_VALID_POINTER"
     BAD_BYTES="BAD_BYTES"
+    CHAINABLE_RET="CHAINABLE_RET"
     
     
 class SingleConstraint:
@@ -31,12 +32,18 @@ class SingleConstraint:
     Type of 'constraint_list'
         ctype = REGS_NOT_MODIFIED, REGS_VALID_POINTER, then a list of reg UID
         ctype = BAD_BYTES, then a list of strings representing bad bytes (['00', 'FF', '0A'])
+        ctype = CHAINABLE_RET then an empty list 
         /!\ hex letters must be in lower case ! 
     """
     def __init__(self, ctype, constraint_list):
         self.type = ctype
         self.constraint_list = constraint_list
         
+    def __str__(self):
+        res = ''
+        res += self.type + ': '
+        res += str(self.constraint_list)
+        return res        
         
 class Constraint:
     """
@@ -46,7 +53,11 @@ class Constraint:
         self.constraints_list = single_constraints_list
     
     def __str__(self):
-        print("Constraint is ")
+        res = ''
+        res += "Constraint:\n"
+        for c in self.constraints_list:
+            res += '\t'+str(c)+'\n'
+        return res
     
     def add(self, constraint): 
         """
@@ -71,6 +82,9 @@ class Constraint:
             elif( c.type == ConstraintType.BAD_BYTES):
                 if( not self._validate_BAD_BYTES(gadget, c.constraint_list)):
                     return False
+            elif( c.type == ConstraintType.CHAINABLE_RET):
+                if( not self._validate_CHAINABLE_RET(gadget)):
+                    return False
             else:
                 raise ConstraintException("Invalid constraint type: " + str(c.type))
         return True
@@ -87,7 +101,9 @@ class Constraint:
             if( hex_addr_byte in bad_bytes_list):
                 return False
         return True
-        
+      
+    def _validate_CHAINABLE_RET(self, gadget):
+        return (gadget.hasNormalRet() and gadget.isValidSpInc())
         
     def get_all_bad_bytes(self):
         res = []
