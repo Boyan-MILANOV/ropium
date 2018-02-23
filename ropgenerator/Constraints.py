@@ -40,10 +40,13 @@ class SingleConstraint:
         
 class Constraint:
     """
-    A list of single constraints
+    A constraint is a list of single constraints
     """   
-    def __init__(self, single_constraints_list=[]):
+    def __init__(self, single_constraints_list):
         self.constraints_list = single_constraints_list
+    
+    def __str__(self):
+        print("Constraint is ")
     
     def add(self, constraint): 
         """

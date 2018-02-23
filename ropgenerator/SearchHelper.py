@@ -70,10 +70,10 @@ def get_valid_padding( constraint ):
         if( c.type == ConstraintType.BAD_BYTES ):
             bad_bytes_list += c.constraint_list
     # Getting a valid padding byte 
-    hex_char = ['f','e','d','c','b','a','9','8','7','6','5','4','3','2','1','0']
+    hex_chars = 'fedcba9876543210'
     found = False
-    for c1 in hex_char:
-        for c2 in hex_char:
+    for c1 in hex_chars:
+        for c2 in hex_chars:
             c = c1+c2
             if( not c in bad_bytes_list ):
                 found = True
@@ -104,7 +104,7 @@ def validate_chain(chain, constraint):
             padding_str = format(get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x')
             # Check for bad bytes
             for i in range(0, len(padding_str), 2):
-                if( padding_str[i,i+2] in constraint.get_all_bad_bytes()):
+                if( padding_str[i:i+2] in constraint.get_all_bad_bytes()):
                     return False
     return True
     
@@ -121,13 +121,11 @@ def filter_chains(chain_list, constraint, n):
     Returns the n first chains in chain_list that satisfy the constraint
     """
     global DEFAULT_PADDING_BYTE
-    # If the default padding works, keep it
-    print("DEBUG, is " + hex(DEFAULT_PADDING_BYTE)[-2:])
-    print("DEBUG, in " + str( constraint.get_all_bad_bytes()))
+    # If the default padding works, keep it, only validate the gadgets
     if( not hex(DEFAULT_PADDING_BYTE)[-2:] in constraint.get_all_bad_bytes()):
-        return chain_list[:n]
-    print("DEBUG --> no !, getting a new padding ")      
-    # Otherwise get a new padding if necessary 
+        return [chain for chain in chain_list if validate_chain(chain, constraint)][:n]     
+    
+    # Otherwise get a new padding
     new_padding_int = get_valid_padding(constraint)
     if( not new_padding_int):
         # If no possible padding, return empty list 

@@ -10,13 +10,19 @@ from ropgenerator.Config import LIMIT
 import ropgenerator.SearchHelper as SearchHelper
 from ropgenerator.Constraints import Constraint, SingleConstraint, ConstraintType 
 
+# Definition of options names
+OPTION_BAD_BYTES = '-bad' 
+
 # Help for the search command
 CMD_FIND_HELP =    "\n\t-----------------------------------------------"
 CMD_FIND_HELP += "\n\tROPGenerator 'find' command\n\t(Find gadgets that execute specific operations)"
 CMD_FIND_HELP += "\n\t-----------------------------------------------"
 CMD_FIND_HELP += "\n\n\tUsage:\tfind [OPTIONS] <reg>=<expr>\n\t\tfind [OPTIONS] <reg>=mem(<expr>)\n\t\tfind [OPTIONS] mem(<expr>)=<expr>"
-CMD_FIND_HELP += "\n\n\tOptions: No options available for the moment"
-CMD_FIND_HELP += "\n\n\tExamples:\n\t\tfind rax=rbp\t\t\t(put the value of rbp in rax)\n\t\tfind rbx=0xff\t\t\t(put the value 255 in rbx)\n\t\tfind rax=mem(rsp)\t\t(pop the top of the stack into rax)\n\t\tfind mem(rsp-8)=rcx\t\t(push rcx onto the stack)\n\t\tfind mem(rbp-0x10)=0b101\t(write 5 at address rbp-16)"
+CMD_FIND_HELP += "\n\n\tOptions:"
+CMD_FIND_HELP += "\n\t\t"+OPTION_BAD_BYTES+"\tspecify bad bytes for payload. Expected format is a \n\t\t\tlist of bytes separated by comas (e.g '-bad 0A,0B,2F')"
+#CMD_FIND_HELP += "\n\n\tExamples:\n\t\tfind rax=rbp\t\t\t(put the value of rbp in rax)\n\t\tfind rbx=0xff\t\t\t(put the value 255 in rbx)\n\t\tfind rax=mem(rsp)\t\t(pop the top of the stack into rax)\n\t\tfind mem(rsp-8)=rcx\t\t(push rcx onto the stack)\n\t\tfind mem(rbp-0x10)=0b101\t(write 5 at address rbp-16)\n\t\tfind -bad 0A,0D rax=rcx\t\t(exclude bad bytes '\\x0a','\\x0d')"
+CMD_FIND_HELP += "\n\n\tExamples:\n\t\tfind rax=rbp\n\t\tfind rbx=0xff)\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind mem(rbp-0x10)=0b101\n\t\tfind -bad 0A,0D rax=rcx+rax+4"
+
 
 
 def print_help():
@@ -239,10 +245,9 @@ def find_gadgets(args):
         gtype = parsed_args[1]
         left = parsed_args[2]
         right = parsed_args[3]
+        constraint = parsed_args[4]
         gadgets = []
         chains = []
-        # Establish initial constraint 
-        constraint = Constraint([SingleConstraint(ConstraintType.BAD_BYTES, ['6f', '68', 'ff'])])
         # Search with basic strategy
         gadgets = search.basic_strategy(gtype, left, right, constraint, n=LIMIT)
         gadgetsValidRet = [g for g in gadgets if Database.gadgetDB[g].hasNormalRet()]
@@ -268,7 +273,7 @@ def find_gadgets(args):
                 print("\n\tNo matching Gadgets or ROP Chains found")
                 
                
-def show_gadgets( gadget_list,  ):
+def show_gadgets(gadget_list):
     """
     Pretty prints a list of gadgets 
     Parameters:
@@ -313,20 +318,37 @@ def parse_args(args):
     ---> See parse_user_request() specification for the list of possible tuples
          and values/types of x and y     
     """
-    seen = False
+    global OPTION_BAD_BYTES
+    
+    seenExpr = False
+    seenBadBytes = False
     i = 0 # Argument counter 
+    constraint = Constraint([])
     while( i < len(args)):
         arg = args[i]
         # Look for options
         if( arg[0] == '-' ):
-            # Ignore
-            pass
+            if( seenExpr ):
+                return (False, "Error. Options must come before the search request")       
+            # bad bytes option 
+            if( arg == OPTION_BAD_BYTES):
+                if( seenBadBytes ):
+                    return (False, "Error. '" + OPTION_BAD_BYTES + "' option should be used only once.")
+                seenBadBytes = True
+                (success, bad_bytes_list) = parse_bad_bytes(args[i+1])
+                if( not success ):
+                    return (False, bad_bytes_list)
+                i = i+1
+                constraint.add( SingleConstraint(ConstraintType.BAD_BYTES, bad_bytes_list))
+            # Otherwise Ignore
+            else:
+                return (False, "Error. Option '{}' not supported".format(arg))
         # If not option it should be a request expr=expr
         else:    
-            if( seen ):
+            if( seenExpr ):
                 return (False, "Error. Extra expressions not supported (" + arg + "). Only one at a time please")
             else:
-                seen = True
+                seenExpr = True
                 parsed_expr = parse_user_request(arg)
                 if( not parsed_expr[0]):    
                     # Maybe the user added millions of spaces, BAD but we try to correct his request syntaxe :/ 
@@ -335,10 +357,10 @@ def parse_args(args):
                 if( parsed_expr[0] == False ):
                     return (False, parsed_expr[1])
         i = i + 1
-    if( not seen ):
+    if( not seenExpr ):
         return (False, "Error. Missing specification of gadget to find")
     else:
-        return parsed_expr
+        return parsed_expr+(constraint,)
         
                  
 def parse_user_request(req):
@@ -411,10 +433,32 @@ def parse_user_request(req):
         # Test if it is EXPRtoMEM
         elif( isinstance( right_expr, Expr.Expr )):
             return (True, GadgetType.EXPRtoMEM, addr, right_expr )
-        # Otherwise, wrong argument 
+        # Otherwise, wrong argument 
         else:
             return (False, "Formula '" +req+"' is invalid or not yet supported by ROPGenerator :(")
     else:
         return ( False, "Operand '" +left+"' is invalid or not yet supported by ROPGenerator :(")
     
-
+def parse_bad_bytes(string):
+    """
+    Parses a bad bytes string into a list of bad bytes
+    Input: a string of format like "00,0A,FF,32,C7"
+    Ouput if valid string : (True, list) where list = 
+        ['00', '0a', 'ff', '32', 'c7'] (separate them in individual strings
+        and force lower case)
+    Output if invalid string (False, error_message)
+    """
+    hex_chars = '0123456789abcdefABCDEF'
+    i = 0
+    bad_bytes = []
+    user_bad_bytes = [b.lower() for b in string.split(',')]
+    for user_bad_byte in user_bad_bytes:
+        if( not user_bad_byte ):
+            return (False, "Error. Missing bad byte after ','")
+        elif( len(user_bad_byte) != 2 ):
+            return (False, "Error. '{}' is not a valid byte".format(user_bad_byte))
+        elif( not ((user_bad_byte[i] in hex_chars) and (user_bad_byte[i+1] in hex_chars))):
+            return (False, "Error. '{}' is not a valid byte".format(user_bad_byte))
+        else:
+            bad_bytes.append(user_bad_byte)
+    return (True, bad_bytes)
