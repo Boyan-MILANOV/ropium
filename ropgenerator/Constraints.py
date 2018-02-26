@@ -17,53 +17,43 @@ class ConstraintType(Enum):
     Different kind of constraints applicable on gadgets 
     """
     REGS_NOT_MODIFIED="REGS_NOT_MODIFIED"
-    REGS_VALID_POINTER="REGS_VALID_POINTER"
+    REGS_VALID_POINTER_READ="REGS_VALID_POINTER_READ"
+    REGS_VALID_POINTER_WRITE="REGS_VALID_POINTER_WRITE"
     BAD_BYTES="BAD_BYTES"
     CHAINABLE_RET="CHAINABLE_RET"
     
-    
-class SingleConstraint:
+
+class Constraint:
     """
-    A single constraint instance
-    Parameters:
-        ctype - ConstraintType instance
-        constraint_list - depends on ctype (see below)
-        
-    Type of 'constraint_list'
+    A constraint is a set of single constraints stored in a dict()
+    Dictionnary keys are ConstraintType
+    Dictionnary values depend on the ConstraintType 'ctype' 
         ctype = REGS_NOT_MODIFIED, REGS_VALID_POINTER, then a list of reg UID
         ctype = BAD_BYTES, then a list of strings representing bad bytes (['00', 'FF', '0A'])
         ctype = CHAINABLE_RET then an empty list 
         /!\ hex letters must be in lower case ! 
-    """
-    def __init__(self, ctype, constraint_list):
-        self.type = ctype
-        self.constraint_list = constraint_list
-        
-    def __str__(self):
-        res = ''
-        res += self.type + ': '
-        res += str(self.constraint_list)
-        return res        
-        
-class Constraint:
-    """
-    A constraint is a list of single constraints
     """   
-    def __init__(self, single_constraints_list):
-        self.constraints_list = single_constraints_list
+    def __init__(self):
+        self.constraints = dict()
     
     def __str__(self):
         res = ''
         res += "Constraint:\n"
-        for c in self.constraints_list:
-            res += '\t'+str(c)+'\n'
+        for ctype, clist in self.constraints.iteritems():
+            res += '\t'+ctype+': '+str(clist)+'\n'
         return res
     
-    def add(self, constraint): 
+    def add(self, constraint_type, constraint_list ): 
         """
-        Add a single constraint 
+        Add a single constraint and return 
         """
-        self.constraints_list.append(constraint)
+        new_constraint = Constraint()
+        new_constraint.constraints = dict(self.constraints)
+        if( not constraint_type in new_constraint.constraints):
+            new_constraint.constraints[constraint_type] = constraint_list
+        else:
+            new_constraint.constraints[constraint_type] = list(set(new_constraint.constraints[constraint_type] + constraint_list))
+        return new_constraint
     
     
     def validate(self, gadget):
@@ -72,27 +62,33 @@ class Constraint:
         Parameters:
             gadget - Gadget instance
         """
-        for c in self.constraints_list:
-            if( c.type == ConstraintType.REGS_NOT_MODIFIED ):
-                if( not self._validate_REG_NOT_MODIFIED(gadget, c.constraint_list)):
+        for ctype, clist in self.constraints.iteritems():
+            if( ctype == ConstraintType.REGS_NOT_MODIFIED ):
+                if( not self._validate_REG_NOT_MODIFIED(gadget, clist)):
                     return False
-            elif( c.type == ConstraintType.REGS_VALID_POINTER ):
-                if( not self._validate_REGS_VALID_POINTER(gadget, c.constraint_list)):
+            elif( ctype == ConstraintType.REGS_VALID_POINTER_READ ):
+                if( not self._validate_REGS_VALID_POINTER_READ(gadget, clist)):
                     return False
-            elif( c.type == ConstraintType.BAD_BYTES):
-                if( not self._validate_BAD_BYTES(gadget, c.constraint_list)):
+            elif( ctype == ConstraintType.REGS_VALID_POINTER_WRITE ):
+                if( not self._validate_REGS_VALID_POINTER_WRITE(gadget, clist)):
                     return False
-            elif( c.type == ConstraintType.CHAINABLE_RET):
+            elif( ctype == ConstraintType.BAD_BYTES):
+                if( not self._validate_BAD_BYTES(gadget, clist)):
+                    return False
+            elif( ctype == ConstraintType.CHAINABLE_RET):
                 if( not self._validate_CHAINABLE_RET(gadget)):
                     return False
             else:
-                raise ConstraintException("Invalid constraint type: " + str(c.type))
+                raise ConstraintException("Invalid constraint type: " + str(ctype))
         return True
         
     def _validate_REGS_NOT_MODIFIED(self, gadget, regs_list):
         return False
         
-    def _validate_REGS_VALID_POINTER(self, gadget, regs_list):
+    def _validate_REGS_VALID_POINTER_READ(self, gadget, regs_list):
+        return False
+    
+    def _validate_REGS_VALID_POINTER_WRITE(self, gadget, regs_list):
         return False
     
     def _validate_BAD_BYTES(self, gadget, bad_bytes_list):
@@ -104,14 +100,16 @@ class Constraint:
       
     def _validate_CHAINABLE_RET(self, gadget):
         return (gadget.hasNormalRet() and gadget.isValidSpInc())
-        
-    def get_all_bad_bytes(self):
-        res = []
-        for c in self.constraints_list:
-            if( c.type == ConstraintType.BAD_BYTES ): 
-                res += c.constraint_list
-        return res
-        
+    
+    def get(self, ctype):
+        """
+        Returns the list associated to ctype
+        ctype - ConstraintType
+        """   
+        if( ctype in self.constraints ):
+            return self.constraints[ctype]
+        else:
+            return []
     
     
     

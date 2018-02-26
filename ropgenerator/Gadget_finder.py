@@ -8,7 +8,7 @@ import re
 from ropgenerator.Gadget import GadgetType
 from ropgenerator.Config import LIMIT 
 import ropgenerator.SearchHelper as SearchHelper
-from ropgenerator.Constraints import Constraint, SingleConstraint, ConstraintType 
+from ropgenerator.Constraints import Constraint, ConstraintType 
 
 # Definition of options names
 OPTION_BAD_BYTES = '-bad' 
@@ -52,7 +52,7 @@ class search_engine:
         if( not chainable ):
             return self._basic_strategy(gtype, arg1, arg2, constraint, n=n)
         else:
-            constraint.add(SingleConstraint(ConstraintType.CHAINABLE_RET, []))
+            constraint = constraint.add(ConstraintType.CHAINABLE_RET, [])
         # Searching with basic strategies 
         if( basic ):
             res = self._basic_strategy(gtype, arg1, arg2, constraint, n=n)
@@ -355,7 +355,7 @@ def parse_args(args):
     seenExpr = False
     seenBadBytes = False
     i = 0 # Argument counter 
-    constraint = Constraint([])
+    constraint = Constraint()
     while( i < len(args)):
         arg = args[i]
         # Look for options
@@ -371,7 +371,7 @@ def parse_args(args):
                 if( not success ):
                     return (False, bad_bytes_list)
                 i = i+1
-                constraint.add( SingleConstraint(ConstraintType.BAD_BYTES, bad_bytes_list))
+                constraint = constraint.add( ConstraintType.BAD_BYTES, bad_bytes_list)
             # Otherwise Ignore
             else:
                 return (False, "Error. Option '{}' not supported".format(arg))

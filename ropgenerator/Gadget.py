@@ -8,6 +8,7 @@ from ropgenerator.Graph import Graph, Arc, GadgetDependencies, CurrentAnalysis, 
 from z3 import Array, BitVecSort
 import ropgenerator.Analysis as Analysis 
 from ropgenerator.Logs import log
+from ropgenerator.Constraints import Constraint, ConstraintType
 from enum import Enum
 
 from barf.core.reil import *
@@ -89,7 +90,9 @@ class Gadget:
             self.normalRet = None # True iff the gadgets ends up by a normal ret; instruction 
             self.nbInstr = 0 # Number of REIL instructions of this gadget 
             self.dep = None
-            self.valuesTable = {} # Used dinamically when building graph 
+            self.valuesTable = {} # Used dinamically when building graph
+            self.validPreConstraint = None # If the preconstraint is valid or not
+            self.preConstraint = None
             # Building graph and computing the dependencies 
             self.graph = Graph()
             self.buildGraph(irsb)
@@ -115,6 +118,8 @@ class Gadget:
         self.spInc = same_gadget.spInc # How much have Stack Pointer been incremented by 
         self.num = new_num # Identifier or the gadget
         self.normalRet = same_gadget.normalRet # True iff the gadgets ends up by a normal ret; instruction 
+        self.validPreConstraint = same_gadget.validPreConstraint
+        self.preConstraint = same_gadget.preConstraint
         self.nbInstr = same_gadget.nbInstr # Number of REIL instructions of this gadget 
         self.valuesTable = same_gadget.valuesTable # Used dinamically when building graph 
         # Copying graph and computing the dependencies 
@@ -623,7 +628,48 @@ class Gadget:
             self.dep = self.graph.getDependencies()
             return self.dep
          
-         
+        
+    def calculatePreConstraint(self):
+        """
+        Generates a constraint that must be verified before the gadget
+        is executed so that it doesn't crash
+        If a constraint is successfuly generated :
+            - self.validPreConstraint <- True
+            - self.preCOnstraint <- Constraint instance
+        otherwise
+            - self.validPreConstraint <- False
+        """
+        if( self.duplicate ):
+            self.preConstraint = self.duplicate.preConstraint
+            self.validPreConstraint = self.duplicate.validPreConstraint
+        else:
+            # Generate the constraint 
+            constraint = Constraint()
+            # Go through memory dependencies ( mem <- expr )
+            for addr in self.getDependencies().memDep.keys():
+                (isInc, reg, inc) = addr.isRegIncrement(-1)
+                if( isInc ):
+                    constraint.add(ConstraintType.REGS_VALID_POINTER_WRITE, [reg])
+                    print("\tDEBUG, adding preC for " + str(addr))
+                else:
+                    self.validPreConstraint = False
+                    print("\tDEBUG, no valid preC for " + str(addr))
+                    return
+            # Go through dependencies that include MEMExpr
+                # Todo  
+            
+            self.validPreConstraint = True
+            self.preConstraint = constraint
+    
+    def hasValidPreConstraint(self):
+        """
+        Generates a constraint that must be verified before the gadget
+        is executed so that it doesn't crash
+        """
+        return self.validPreConstraint
+            
+        
+        
          
 ####################################
 # BARF/REIL MANIPULATION FUNCTIONS #

@@ -181,8 +181,12 @@ class Expr:
 
     def isRegIncrement(self, reg_num):
         """
-        Returns (True, CST) iff this expression is (REG +/- CST)
-        Returns (False, None) otherwise 
+        If the expression is (REG +- CST)
+            Returns (True, CST) if reg_num is an int 
+            Returns (True, REG, CST) is reg_num is -1 
+        Else
+            Returns (False, None)
+            or (False, None, None) 
         """
 
 class ConstExpr(Expr):
@@ -236,11 +240,10 @@ class ConstExpr(Expr):
         return self
         
     def isRegIncrement(self, reg_num):
-        """
-        Returns (True, CST) iff this expression is (REG +/- CST)
-        Returns (False, None) otherwise 
-        """
-        return (False, None)
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
         
     def toArray(self):
         res = [0 for x in range(0,nb_regs)]
@@ -304,10 +307,16 @@ class SSAExpr(Expr):
         
     def isRegIncrement(self, reg_num):
         """
-        Returns (True, CST) iff this expression is (REG +/- CST)
-        Returns (False, None) otherwise 
+        If the expression is (REG +- CST)
+            Returns (True, CST) if reg_num is an int 
+            Returns (True, REG, CST) is reg_num is -1 
+        Else
+            Returns (False, None)
+            or (False, None, None) 
         """
-        if( self.reg.num == reg_num ):
+        if( reg_num == -1 ):
+            return (True, self.reg.num, 0)
+        elif( self.reg.num == reg_num ):
             return (True, 0)
         else:
             return (False, None)
@@ -391,11 +400,10 @@ class MEMExpr(Expr):
         return MEMExpr( self.addr.simplify(), self.size )
         
     def isRegIncrement(self, reg_num):
-        """
-        Returns (True, CST) iff this expression is (REG +/- CST)
-        Returns (False, None) otherwise 
-        """
-        return (False, None)
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
         
     def toArray(self):
         return []
@@ -556,8 +564,11 @@ class Op(Expr):
             
     def isRegIncrement(self, reg_num):
         """
-        Returns (True, CST) iff this expression is (REG +/- CST)
-        Returns (False, None) otherwise 
+        If the expression is (REG +- CST)
+            Returns (True, CST) if reg_num is an int 
+            Returns (True, REG, CST) is reg_num is -1 
+        Else
+            Returns (False, None) 
         """
         if( self.op != "Add" and self.op != "Sub"):
             return (False, None)
@@ -572,19 +583,34 @@ class Op(Expr):
         else:
             factor = -1
         
-        if( isinstance(left, SSAExpr)):
-            if( isinstance( right, ConstExpr) and left.reg.num == reg_num):
-                return (True, factor*right.value)
+        # Search for a particular register
+        if( reg_num != -1 ):           
+            if( isinstance(left, SSAExpr)):
+                if( isinstance( right, ConstExpr) and left.reg.num == reg_num):
+                    return (True, factor*right.value)
+                else:
+                    return (False, None)
+            elif( isinstance(right, SSAExpr) and right.reg.num == reg_num):
+                if( isinstance( left, ConstExpr)):
+                    return (True, factor*left.value)
+                else:
+                    return (False, None)
             else:
                 return (False, None)
-        elif( isinstance(right, SSAExpr) and right.reg.num == reg_num):
-            if( isinstance( left, ConstExpr)):
-                return (True, factor*left.value)
+        # Or search for any register increment 
+        else:           
+            if( isinstance(left, SSAExpr)):
+                if( isinstance( right, ConstExpr)):
+                    return (True, left.reg.num, factor*right.value)
+                else:
+                    return (False, None, None)
+            elif( isinstance(right, SSAExpr)):
+                if( isinstance( left, ConstExpr)):
+                    return (True, right.reg.num, factor*left.value)
+                else:
+                    return (False, None, None)
             else:
-                return (False, None)
-        else:
-            return (False,None)
-        
+                return (False, None, None)
         
     def toArray(self):
         if( self.op == "Add" ):
@@ -706,11 +732,10 @@ class ITE(Expr):
         return ITE( self.cond, newArgs[0], newArgs[1] )
         
     def isRegIncrement(self, reg_num):
-        """
-        Returns (True, CST) iff this expression is (REG +/- CST)
-        Returns (False, None) otherwise 
-        """
-        return (False, None)
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
         
     def toArray(self):
         return []
@@ -786,11 +811,10 @@ class Convert(Expr):
         return res 
         
     def isRegIncrement(self, reg_num):
-        """
-        Returns (True, CST) iff this expression is (REG +/- CST)
-        Returns (False, None) otherwise 
-        """
-        return (False, None)
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
     
     def toArray(self):
         return []
@@ -881,11 +905,10 @@ class Cat(Expr):
         return Cat(newArgs)
     
     def isRegIncrement(self, reg_num):
-        """
-        Returns (True, CST) iff this expression is (REG +/- CST)
-        Returns (False, None) otherwise 
-        """
-        return (False, None)
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
         
     def toArray(self):
         return []
@@ -974,7 +997,10 @@ class Extr(Expr):
         Returns (True, CST) iff this expression is (REG +/- CST)
         Returns (False, None) otherwise 
         """
-        return (False, None)
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
         
     def toArray(self):
         return []

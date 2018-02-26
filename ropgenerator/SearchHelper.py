@@ -65,10 +65,7 @@ def get_valid_padding( constraint ):
     Returns a int if success
     Returns None if no valid padding unit has been found 
     """
-    bad_bytes_list = []
-    for c in constraint.constraints_list:
-        if( c.type == ConstraintType.BAD_BYTES ):
-            bad_bytes_list += c.constraint_list
+    bad_bytes_list = constraint.get(ConstraintType.BAD_BYTES)
     # Getting a valid padding byte 
     hex_chars = 'fedcba9876543210'
     found = False
@@ -104,7 +101,7 @@ def validate_chain(chain, constraint):
             padding_str = format(get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x')
             # Check for bad bytes
             for i in range(0, len(padding_str), 2):
-                if( padding_str[i:i+2] in constraint.get_all_bad_bytes()):
+                if( padding_str[i:i+2] in constraint.get(ConstraintType.BAD_BYTES)):
                     return False
     return True
     
@@ -122,7 +119,7 @@ def filter_chains(chain_list, constraint, n):
     """
     global DEFAULT_PADDING_BYTE
     # If the default padding works, keep it, only validate the gadgets
-    if( not hex(DEFAULT_PADDING_BYTE)[-2:] in constraint.get_all_bad_bytes()):
+    if( not hex(DEFAULT_PADDING_BYTE)[-2:] in constraint.get(ConstraintType.BAD_BYTES)):
         return [chain for chain in chain_list if validate_chain(chain, constraint)][:n]     
     
     # Otherwise get a new padding
