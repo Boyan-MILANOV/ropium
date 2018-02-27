@@ -33,7 +33,11 @@ class GadgetType(Enum):
     EXPRtoMEM = "EXPRtoMEM"    # mem(expr) = expr
     MEMEXPRtoMEM = "MEMEXPRtoMEM" # mem(expr) = mem(expr)
     
-    
+class RetType(Enum):
+    UNKNOWN = "UNKNOWN"
+    RET = "RET"
+    CALL_REG = "CALL_REG"
+    JMP_REG = "JMP_REG"   
     
 # List of gadgets already analyzed !!     
 # Keys are gadget.asmStr 
@@ -87,11 +91,12 @@ class Gadget:
             self.regCount = {} # Keys are integers, values are integers. regCount[2] = 0 <=> R2_0 have appeared but R2_1 not yet 
             self.spInc = None # How much have Stack Pointer been incremented by 
             self.num = num # Identifier or the gadget
-            self.normalRet = None # True iff the gadgets ends up by a normal ret; instruction 
+            self.ret = RetType.UNKNOWN # Type of the last instruction of the gadget (ret, call, ... )
+            self.retValue = None # (int) register to jmp to if ret is CALL_REG or JMP_REG  
             self.nbInstr = 0 # Number of REIL instructions of this gadget 
             self.dep = None
             self.valuesTable = {} # Used dinamically when building graph
-            self.validPreConstraint = None # If the preconstraint is valid or not
+            self.validPreConstraint = None # If the preconstraint is valid or not
             self.preConstraint = None
             # Building graph and computing the dependencies 
             self.graph = Graph()
@@ -117,7 +122,8 @@ class Gadget:
         self.regCount = same_gadget.regCount # Keys are integers, values are integers. regCount[2] = 0 <=> R2_0 have appeared but R2_1 not yet 
         self.spInc = same_gadget.spInc # How much have Stack Pointer been incremented by 
         self.num = new_num # Identifier or the gadget
-        self.normalRet = same_gadget.normalRet # True iff the gadgets ends up by a normal ret; instruction 
+        self.ret = same_gadget.ret # True iff the gadgets ends up by a normal ret; instruction 
+        self.retValue = same_gadget.retValue
         self.validPreConstraint = same_gadget.validPreConstraint
         self.preConstraint = same_gadget.preConstraint
         self.nbInstr = same_gadget.nbInstr # Number of REIL instructions of this gadget 
@@ -588,17 +594,17 @@ class Gadget:
         """
         
         if( self.duplicate ):
-            self.normalRet = self.duplicate.normalRet
+            self.ret = self.duplicate.ret
             return 
     
         ip = SSAReg(Analysis.regNamesTable[Analysis.ArchInfo.ip], self.graph.lastMod[Analysis.regNamesTable[Analysis.ArchInfo.ip]])
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
         if( not self.spInc ):
-            self.normalRet = False
+            self.ret = RetType.UNKNOWN
             return 
         
         if( not ip in self.dep.regDep ):
-            self.normalRet = False
+            self.ret = RetType.UNKNOWN
             return 
             
         for dep in self.dep.regDep[ip]:
@@ -608,14 +614,30 @@ class Gadget:
                     (isInc, inc) = addr.isRegIncrement(sp_num)    
                     # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
                     if( isInc and inc == (self.spInc - (Analysis.ArchInfo.bits/8)) ):
-                        self.normalRet = True
+                        self.ret = RetType.RET
                     else:
-                        self.normalRet = False
+                        self.ret = RetType.UNKNOWN
+                elif( isinstance(dep[0], SSAExpr )):
+                    self.retValue = dep[0].reg.num
+                    self.ret = RetType.JMP_REG
+                return 
         
         
     def hasNormalRet(self):
-        return self.normalRet
+        return self.ret == RetType.RET
         
+    def hasJmpReg(self):
+        if( self.ret == RetType.JMP_REG ):
+            return (True, self.retValue)
+        else:
+            return (False, None) 
+        
+    def hasCallReg(self):
+        if( self.ret == RetType.CALL_REG ):
+            return (True, self.retValue)
+        else:
+            return (False, None) 
+    
     def getDependencies(self):
         """
         Get the dependencies of the gadget 
@@ -650,10 +672,8 @@ class Gadget:
                 (isInc, reg, inc) = addr.isRegIncrement(-1)
                 if( isInc ):
                     constraint.add(ConstraintType.REGS_VALID_POINTER_WRITE, [reg])
-                    print("\tDEBUG, adding preC for " + str(addr))
                 else:
                     self.validPreConstraint = False
-                    print("\tDEBUG, no valid preC for " + str(addr))
                     return
             # Go through dependencies that include MEMExpr
                 # Todo  

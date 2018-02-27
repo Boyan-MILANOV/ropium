@@ -119,11 +119,6 @@ def generated_gadgets_to_DB():
         gadget.calculateSpInc()
         gadget.calculateRet()
         gadget.calculatePreConstraint()
-        print("DEBUG, gadget : "+gadget.asmStr)
-        if( gadget.hasValidPreConstraint() ):
-            print("\tDEBUG, preConstraint : " + str(gadget.preConstraint))
-        else:
-            print("\tDEBUG, no valid pre constraint")
         
      # Getting time   
     cTime = datetime.now() - startTime

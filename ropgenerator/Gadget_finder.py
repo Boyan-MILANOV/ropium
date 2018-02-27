@@ -51,7 +51,6 @@ class search_engine:
         # Adjusting the constraint
         if( not chainable ):
             return self._basic_strategy(gtype, arg1, arg2, constraint, n=n)
-        else:
             constraint = constraint.add(ConstraintType.CHAINABLE_RET, [])
         # Searching with basic strategies 
         if( basic ):

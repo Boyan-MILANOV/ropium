@@ -543,9 +543,6 @@ def found_REG_write_to_memory(reg, reg2, offset, constraint, n=1):
     return filter_chains(res, constraint, n)
     
     
-    
-    
-    
 #####################
 # GLOBAL FUNCTIONS  #
 #####################
