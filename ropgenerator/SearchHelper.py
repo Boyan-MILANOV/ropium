@@ -7,7 +7,7 @@ import ropgenerator.Database as Database
 import ropgenerator.Analysis as Analysis
 import sys
 from ropgenerator.Colors import info_colored
-from ropgenerator.Gadget import GadgetType
+from ropgenerator.Gadget import GadgetType, RetType
 from ropgenerator.Constraints import ConstraintType
 
 #####################################
@@ -32,10 +32,15 @@ DEFAULT_PADDING_UNIT_INDEX = -1
 
 def is_padding(gadget_num):
     return (int(gadget_num) < 0)
-
+        
+def get_padding_unit(uid=-1):
+    global PADDING_UNITS
+    return PADDING_UNITS[-1-uid]
+    
 def set_padding_unit(value=None):
     global DEFAULT_PADDING_BYTE
     global PADDING_UNITS
+    global DEFAULT_PADDING_UNIT_INDEX
 
     if( PADDING_UNITS == []):
         # Set the default padding unit  
@@ -46,23 +51,19 @@ def set_padding_unit(value=None):
             res = res*0x100 + DEFAULT_PADDING_BYTE
         PADDING_UNITS = [res]
         
+    if( value == get_padding_unit(DEFAULT_PADDING_UNIT_INDEX)):
+        return DEFAULT_PADDING_UNIT_INDEX       
     if( value != None ):
         PADDING_UNITS.append(value)
         return -1*len(PADDING_UNITS)
     else:
-        ## So far we return the default padding unit
-        ## Later we'll implement adding new padding_units (for other strategies)
-        return -1
-        
-def get_padding_unit(uid=-1):
-    global PADDING_UNITS
-    return PADDING_UNITS[-1-uid]
+        return DEFAULT_PADDING_UNIT_INDEX
 
 def get_valid_padding( constraint ):
     """
     Creates a padding value that satisfies the BAD_BYTES constraint(s)
-    in 'constraint)
-    Returns a int if success
+    in 'constraint'
+    Returns a negative int if success
     Returns None if no valid padding unit has been found 
     """
     bad_bytes_list = constraint.get(ConstraintType.BAD_BYTES)
@@ -125,7 +126,7 @@ def filter_chains(chain_list, constraint, n):
     # Otherwise get a new padding
     new_padding_int = get_valid_padding(constraint)
     if( not new_padding_int):
-        # If no possible padding, return empty list 
+        # If no possible padding, return empty list 
         return []
     else:
         new_padding = set_padding_unit(value=new_padding_int)
@@ -137,6 +138,27 @@ def filter_chains(chain_list, constraint, n):
         if( len(res) >= n):
             break 
     return res
+
+
+def pad_gadgets(gadget_num_list, constraint):
+    """
+    Takes a gadget and returns a chain with padding  
+    Pre-condition: the gadget has a valid return and a valid sp increment 
+    """
+    res = []
+    padding_int = get_valid_padding(constraint)
+    padding_unit = set_padding_unit(padding_int)
+    for gadget_num in gadget_num_list:
+        gadget = Database.gadgetDB[gadget_num]
+        if( gadget.ret == RetType.RET ):
+            nb_padding_units = (Database.gadgetDB[gadget_num].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8)
+            res.append( [gadget_num] + [padding_unit]*nb_padding_units)
+        elif( gadget.ret == RetType.JMP_REG ):
+            nb_padding_units = Database.gadgetDB[gadget_num].spInc/(Analysis.ArchInfo.bits/8)
+            res.append( [gadget_num] + [padding_unit]*nb_padding_units)
+        else:
+            res.append([gadget_num])
+    return sorted(res, key = lambda x:len(x)) 
 
 #############################################
 # Chains for REGtoREG transitivity strategy #

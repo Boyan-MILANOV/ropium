@@ -571,7 +571,7 @@ class Gadget:
         
         sp = SSAReg(sp_num, self.graph.lastMod[sp_num])
         if( not sp in self.dep.regDep ): 
-            self.spInc = None
+            self.spInc = 0
             return 
             
         for dep in self.dep.regDep[sp]:
@@ -579,9 +579,10 @@ class Gadget:
                 (isInc, inc) = dep[0].isRegIncrement(sp.num)
                 if( isInc ):
                     self.spInc = inc
-                    return 
+                    return
                 else:
                     self.spInc = None
+                    return
         
     def isValidSpInc(self):
         return self.spInc != None and self.spInc >= 0
@@ -595,11 +596,12 @@ class Gadget:
         
         if( self.duplicate ):
             self.ret = self.duplicate.ret
+            self.retValue = self.duplicate.retValue
             return 
-    
+           
         ip = SSAReg(Analysis.regNamesTable[Analysis.ArchInfo.ip], self.graph.lastMod[Analysis.regNamesTable[Analysis.ArchInfo.ip]])
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
-        if( not self.spInc ):
+        if( not self.isValidSpInc() ):
             self.ret = RetType.UNKNOWN
             return 
         

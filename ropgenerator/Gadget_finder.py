@@ -46,12 +46,13 @@ class search_engine:
         """
         Searches for gadgets 
         basic = False means that we don't call _basic_strategy
+        chainable = True means that we want only chainable gadgets 
         """
-        res = []
-        # Adjusting the constraint
+        res = []        
         if( not chainable ):
             return self._basic_strategy(gtype, arg1, arg2, constraint, n=n)
-            constraint = constraint.add(ConstraintType.CHAINABLE_RET, [])
+        # Adjusting the constraint
+        constraint = constraint.add(ConstraintType.CHAINABLE_RET, [])
         # Searching with basic strategies 
         if( basic ):
             res = self._basic_strategy(gtype, arg1, arg2, constraint, n=n)
@@ -131,8 +132,8 @@ class search_engine:
             if( len(res) >= n ):
                 break
             elif( constraint.validate(Database.gadgetDB[gadget_num])):
-                res.append([gadget_num])
-        return res[:n]
+                res.append(gadget_num)
+        return SearchHelper.pad_gadgets(res[:n], constraint)
         
     
     def _CSTtoREG_pop_from_stack(self, reg, cst, constraint, n=1, unusable=[]):
@@ -180,8 +181,8 @@ class search_engine:
             if( len(res) >= n ):
                 break
             elif( constraint.validate(Database.gadgetDB[gadget_num])):
-                res.append([gadget_num])
-        return res[:n]
+                res.append(gadget_num)
+        return SearchHelper.pad_gadgets(res[:n], constraint)
             
         
     def _MEMtoREG_basic_strategy(self, reg, addr, constraint, n=1):
@@ -198,8 +199,8 @@ class search_engine:
             if( len(res) >= n ):
                 break
             elif( constraint.validate(Database.gadgetDB[gadget_num])):
-                res.append( [gadget_num] )
-        return res[:n]
+                res.append( gadget_num )
+        return SearchHelper.pad_gadgets(res[:n], constraint)
     
     def _EXPRtoREG_basic_strategy(self, reg, expr, constraint, n=1):
         """
@@ -210,7 +211,7 @@ class search_engine:
         db = Database.gadgetLookUp[GadgetType.EXPRtoREG]
         if( not reg in db ):
             return []
-        return [[g] for g in db[reg].lookUpEXPRtoREG(expr, constraint, n)]
+        return SearchHelper.pad_gadgets(db[reg].lookUpEXPRtoREG(expr, constraint, n), constraint)
         
     def _MEMEXPRtoREG_basic_strategy(self, reg, addr, constraint, n=1):
         """
@@ -223,7 +224,7 @@ class search_engine:
         if( not reg in db ):
             return []
         # Search for addr directly, because we store only reg<-addr instead of reg<-mem(addr)
-        return [[g] for g in db[reg].lookUpEXPRtoREG(addr, constraint, n)]
+        return SearchHelper.pad_gadgets(db[reg].lookUpEXPRtoREG(addr, constraint, n), constraint)
         
         
     def _CSTtoMEM_basic_strategy(self, addr_expr, cst, constraint, n=1):
@@ -232,7 +233,7 @@ class search_engine:
         addr_expr - Expr
         cst - int 
         """
-        return [[g] for g in Database.gadgetLookUp[GadgetType.CSTtoMEM].lookUpCSTtoMEM(addr_expr, cst, constraint, n)]
+        SearchHelper.pad_gadgets( Database.gadgetLookUp[GadgetType.CSTtoMEM].lookUpCSTtoMEM(addr_expr, cst, constraint, n), constraint)
 
     def _REGtoMEM_basic_strategy(self, addr_expr, reg, constraint, n=1):
         """
@@ -240,7 +241,7 @@ class search_engine:
         addr_expr - Expr
         reg - int, number of the register 
         """
-        return [[g] for g in Database.gadgetLookUp[GadgetType.REGtoMEM].lookUpREGtoMEM(addr_expr, reg, constraint, n)]
+        SearchHelper.pad_gadgets( Database.gadgetLookUp[GadgetType.REGtoMEM].lookUpREGtoMEM(addr_expr, reg, constraint, n), constraint)
 
     def _MEMEXPRtoMEM_basic_strategy(self, addr, expr, constraint, n=1):
         """
@@ -248,7 +249,7 @@ class search_engine:
         addr - Expr
         expr - Expr 
         """
-        return [[g] for g in Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n)]
+        SearchHelper.pad_gadgets(Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n), constraint)
         
     def _EXPRtoMEM_basic_strategy(self, addr, expr, constraint, n=1):
         """
@@ -256,7 +257,7 @@ class search_engine:
         addr - Expr
         expr - Expr 
         """
-        return [[g] for g in Database.gadgetLookUp[GadgetType.EXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n)]
+        SearchHelper.pad_gadgets(Database.gadgetLookUp[GadgetType.EXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n), constraint)
 
 # The module-wide search engine 
 search = search_engine()

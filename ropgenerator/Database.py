@@ -218,7 +218,7 @@ class memLookUp:
                 if( cond.isTrue(hard=True)):
                     res += [g for g in self.written_values[i][reg] if constraint.validate(gadgetDB[g])]
             i = i + 1
-        return res[:10]
+        return res[:n]
         
     def lookUpCSTtoMEM( self, addr, cst, constraint, n=1):
         """
