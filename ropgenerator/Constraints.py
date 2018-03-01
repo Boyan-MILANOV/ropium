@@ -45,7 +45,8 @@ class Constraint:
     
     def add(self, constraint_type, constraint_list ): 
         """
-        Add a single constraint and return 
+        Adds a single constraint
+        Returns a new Constraint instance
         """
         new_constraint = Constraint()
         new_constraint.constraints = dict(self.constraints)
@@ -55,6 +56,15 @@ class Constraint:
             new_constraint.constraints[constraint_type] = list(set(new_constraint.constraints[constraint_type] + constraint_list))
         return new_constraint
     
+    def remove_all( self, constraint_type):
+        """
+        Removes all constraints for a given ConstraintType 
+        Returns a new Constraint instance
+        """
+        new_constraint = Constraint()
+        new_constraint.constraints = dict(self.constraints)
+        new_constraint.constraints.pop(constraint_type, None)
+        return new_constraint
     
     def validate(self, gadget):
         """

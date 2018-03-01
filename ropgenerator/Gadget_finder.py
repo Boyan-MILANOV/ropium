@@ -37,7 +37,9 @@ PYTHON_OUTPUT = False # Output the gadgets in python ( like p += <gadget hex>  #
 # SEARCH ENGINE FOR GADGETS #
 ############################
 
+DEFAULT_DEPTH = 3
 class search_engine:
+    global DEFAULT_DEPTH
 
     def __init__(self):
         self.truc = None
@@ -52,13 +54,13 @@ class search_engine:
         if( not chainable ):
             return self._basic_strategy(gtype, arg1, arg2, constraint, n=n)
         # Adjusting the constraint
-        constraint = constraint.add(ConstraintType.CHAINABLE_RET, [])
-        # Searching with basic strategies 
+        constraint_with_chainable = constraint.add(ConstraintType.CHAINABLE_RET, [])
+        # Searching with basic strategies for chainable
         if( basic ):
-            res = self._basic_strategy(gtype, arg1, arg2, constraint, n=n)
-        # If not enough chains found, chaining with advanced strategy 
+            res = self._basic_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n)
+        # If not enough chains found, chaining with advanced strategy 
         if(len(res) <= n):
-            res += self._chaining_strategy(gtype, arg1, arg2, constraint, n=n-len(res))
+            res += self._chaining_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n-len(res))
         return res
  
     def _validate_gadget_(self, gadget_num):
@@ -103,23 +105,118 @@ class search_engine:
         else:
             return []
             
-    def _chaining_strategy(self, gtype, arg1, arg2, constraint, n=1):
+    def _chaining_strategy(self, gtype, arg1, arg2, constraint, n=1, unusable=[], depth=DEFAULT_DEPTH):
         """
         Search for gadgets with advanced chaining methods
         Returns a list of chains ( a chain is a list of gadgets )
         """
-
+        if( depth <= 0 ):
+            return []
+        res = []  
         if( gtype == GadgetType.REGtoREG ): 
-            res = SearchHelper.found_REGtoREG_reg_transitivity(arg1, arg2, constraint, n=n)
+            res += self._REGtoREG_transitivity(arg1, arg2, constraint, n=n)
+            res += self._REGtoREG_adjust_jmp_reg(arg1, arg2, constraint, n=n, unusable=unusable, depth=depth)
             return res
         elif( gtype == GadgetType.CSTtoREG ):
-            res = self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n)
+            res += self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n,unusable=unusable)
             return res
         else:
             return []
         
         
+    def _REGtoREG_transitivity(self, reg, reg2, constraint, n=1):
+        """
+        Searches for a chain that puts reg2 in reg
+        """
+        # Direct search with the SearchHelper
+        return SearchHelper.found_REGtoREG_reg_transitivity(reg, reg2, constraint, n=n)
+   
+    def _REGtoREG_adjust_jmp_reg(self, reg, reg2, constraint, n=1, unusable=[], depth=DEFAULT_DEPTH):
+        """
+        Searches for chains matching gadgets finishing by jmp or call 
+        And adjusts them by handling the call/jmp
+        """
+        if( depth <= 0 ):
+            return []
+            
+        res = []
+        # Find not chainable gadgets 
+        constraint_not_chainable = constraint.remove_all(ConstraintType.CHAINABLE_RET)
+        # For all possible intermediate registers that come
+        #     from jmpReg gadgets 
+        for inter_reg in range(0,Analysis.ssaRegCount):
+            if( inter_reg in unusable or inter_reg == reg or inter_reg == reg2 ):
+                continue
+            # Get gadgets that terminate by jmp reg
+            # Here since _basc_strategy returns single gadgets
+            # as padded ROP chains we take only g[0] which is
+            # the number of the gadget, first in the ROP chain           
+            possible_gadgets = [g[0] for g in  self._REGtoREG_basic_strategy( reg, inter_reg, constraint_not_chainable, n=n-len(res)) if Database.gadgetDB[g[0]].hasJmpReg()[0] ]
+            # Then try to adjust them 
+            for g in possible_gadgets:
+                padded_g = SearchHelper.pad_gadgets([g], constraint_not_chainable)
+                jmp_to_reg = Database.gadgetDB[g].hasJmpReg()[1]
+                # COMPUTE PRE CONSTRAINT 
+                # Get a corresponding ret gadget 
+                adjusting_jmp_reg = self._adjust_jmp_reg(jmp_to_reg, constraint)
+                if( not adjusting_jmp_reg ):
+                    continue
+                else:
+                    # Get the rest of the chain
+                    previous_chains = self._chaining_strategy( GadgetType.REGtoREG, inter_reg, reg2, constraint, n=n, unusable=unusable+[reg], depth=depth-1)
+                    for c in previous_chains:
+                        res.append(c+adjusting_jmp_reg[0]+padded_g)
+                        if( len(res) >= n ):
+                            return res
+        
+        # For all normal ret gadgets, try jmReg gadgets
+        for inter_reg in SearchHelper.possible_REGtoREG_reg_transitivity(reg):
+            if( inter_reg in unusable or inter_reg == reg or inter_reg == reg2 ):
+                continue
+            # Get inter_reg <- reg2
+            last_chains = SearchHelper.found_REGtoREG_reg_transitivity(reg, inter_reg, constraint, n=n-len(res))
+            possible_gadgets = [g[0] for g in  self._REGtoREG_basic_strategy( inter_reg, reg2, constraint_not_chainable, n=n-len(res))if Database.gadgetDB[g[0]].hasJmpReg()[0]]
+            # Then try to adjust them 
+            for g in possible_gadgets:
+                padded_g = SearchHelper.pad_gadgets([g], constraint_not_chainable)[0]
+                jmp_to_reg = Database.gadgetDB[g].hasJmpReg()[1]
+                # COMPUTE PRE CONSTRAINT 
+                # Get a corresponding ret gadget 
+                adjusting_jmp_reg = self._adjust_jmp_reg(jmp_to_reg, constraint)
+                if( not adjusting_jmp_reg ):
+                    continue
+                else:                   
+                    for c in last_chains:
+                        res.append( adjusting_jmp_reg[0] + padded_g + c )
+                        if( len(res) >= n ):
+                            return res
+        
+        # TODO for all 'normal ret' gadgets, recursive call
+        # with unusable options and constraints about what can be modified or not ;-) 
+        return res
+        
     
+    def _adjust_jmp_reg(self, reg, constraint, n=1):
+        """
+        Finds chains that puts in 'reg' the address of a ret gadget
+        """
+        ret_adjust_gadgets = [c[0] for c in self._RET_offset(0, constraint, n=100) if len(c) == 1]
+        if( not ret_adjust_gadgets ):
+            return []
+        res = []
+        for g in ret_adjust_gadgets:
+            addr = Database.gadgetDB[g].addr
+            res += self.find(GadgetType.CSTtoREG, reg, addr, constraint, n=n-len(res))
+            # Update the addr_to_gadgetStr dict in SearchHelper
+            # This is used to have a better printing of the chains
+            # Instead of indicating the constant as (Custom Padding)
+            # we will write 'address of gadget ....'
+            SearchHelper.addr_to_gadgetStr[addr]=Database.gadgetDB[g].asmStr
+            if( len(res) >= n ):
+                return res
+        return res
+             
+        
     def _CSTtoREG_basic_strategy(self, reg, cst, constraint, n=1):
         """
         Searches for a gadget that puts directly the constant cst into register reg 
@@ -233,7 +330,7 @@ class search_engine:
         addr_expr - Expr
         cst - int 
         """
-        SearchHelper.pad_gadgets( Database.gadgetLookUp[GadgetType.CSTtoMEM].lookUpCSTtoMEM(addr_expr, cst, constraint, n), constraint)
+        return SearchHelper.pad_gadgets( Database.gadgetLookUp[GadgetType.CSTtoMEM].lookUpCSTtoMEM(addr_expr, cst, constraint, n), constraint)
 
     def _REGtoMEM_basic_strategy(self, addr_expr, reg, constraint, n=1):
         """
@@ -241,7 +338,7 @@ class search_engine:
         addr_expr - Expr
         reg - int, number of the register 
         """
-        SearchHelper.pad_gadgets( Database.gadgetLookUp[GadgetType.REGtoMEM].lookUpREGtoMEM(addr_expr, reg, constraint, n), constraint)
+        return SearchHelper.pad_gadgets( Database.gadgetLookUp[GadgetType.REGtoMEM].lookUpREGtoMEM(addr_expr, reg, constraint, n), constraint)
 
     def _MEMEXPRtoMEM_basic_strategy(self, addr, expr, constraint, n=1):
         """
@@ -249,7 +346,7 @@ class search_engine:
         addr - Expr
         expr - Expr 
         """
-        SearchHelper.pad_gadgets(Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n), constraint)
+        return SearchHelper.pad_gadgets(Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n), constraint)
         
     def _EXPRtoMEM_basic_strategy(self, addr, expr, constraint, n=1):
         """
@@ -257,7 +354,16 @@ class search_engine:
         addr - Expr
         expr - Expr 
         """
-        SearchHelper.pad_gadgets(Database.gadgetLookUp[GadgetType.EXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n), constraint)
+        return SearchHelper.pad_gadgets(Database.gadgetLookUp[GadgetType.EXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n), constraint)
+
+
+    def _RET_offset(self, offset, constraint, n=1):
+        """
+        Searches for gadgets that do ip <- mem(sp + offset) 
+        """
+        ip_num = Analysis.regNamesTable[Analysis.ArchInfo.ip]
+        return SearchHelper.found_REG_pop_from_stack(ip_num, offset, constraint, n=n)
+        
 
 # The module-wide search engine 
 search = search_engine()
@@ -332,6 +438,8 @@ def show_chains( chain_list ):
                     padding_str = '0x'+format(SearchHelper.get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x')
                     if( gadget_num == SearchHelper.DEFAULT_PADDING_UNIT_INDEX ):
                         padding_str += " (Padding)"
+                    elif( SearchHelper.get_padding_unit(gadget_num) in SearchHelper.addr_to_gadgetStr ):
+                        padding_str += " (@ddress of: "+SearchHelper.addr_to_gadgetStr[SearchHelper.get_padding_unit(gadget_num)]+")"
                     else:
                         padding_str += " (Custom Padding)"
                     print("\t"+padding_str)

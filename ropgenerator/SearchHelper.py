@@ -25,9 +25,10 @@ from ropgenerator.Constraints import ConstraintType
 DEFAULT_PADDING_BYTE = 0xFF # The default byte used for padding 
 PADDING_UNITS = []  # List of the different padding units ( as integers )
 MAX_PADDING = 40 # The maximum padding accepted for a gadget in an ROP chain 
-MAX_CHAINS = 100 # The maximum number of chains we store for one operation 
+MAX_CHAINS = 1000 # The maximum number of chains we store for one operation 
 DEFAULT_PADDING_UNIT_INDEX = -1
 
+addr_to_gadgetStr = dict()
 
 
 def is_padding(gadget_num):
@@ -210,6 +211,7 @@ def build_REGtoREG_reg_transitivity():
                         padding_chain = [padding_uid for i in range(0,padding_units)] 
                         nbInstr = Database.gadgetDB[gadget_num].nbInstr
                         add_REGtoREG_reg_transitivity(reg1, reg2, [gadget_num]+padding_chain, [reg2], nbInstr)
+                        
                 else:
                     pass
                 
@@ -224,7 +226,7 @@ def build_REGtoREG_reg_transitivity():
                         for chain2_3 in record_REGtoREG_reg_transitivity[reg2][reg3]:
                             for chain1_2 in record_REGtoREG_reg_transitivity[reg1][reg2]:
                                 # Check for path redundency and looping 
-                                if( not [reg for reg in chain2_3[1] if reg in chain1_2[1]]):
+                                if( not reg1 in chain2_3[1] and not [reg for reg in chain2_3[1] if reg in chain1_2[1]]):     
                                     new_chain = chain2_3[0] + chain1_2[0]
                                     new_regs_chain = chain2_3[1] + [reg2] + chain1_2[1]
                                     new_nbInstr = chain2_3[2] + chain1_2[2]
@@ -321,7 +323,11 @@ def possible_REGtoREG_reg_transitivity(reg):
     if( not reg in record_REGtoREG_reg_transitivity):
         return []
     else:
-        return record_REGtoREG_reg_transitivity[reg].keys()
+        res = []
+        for key in record_REGtoREG_reg_transitivity[reg].keys():
+            if( len(record_REGtoREG_reg_transitivity[reg][key]) > 0 ):
+                res.append(key)
+        return res
         
 ##########################################
 # Chains for REG pop from stack strategy #
@@ -439,8 +445,23 @@ def found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=1):
             res.append(chain)
     return filter_chains(res, constraint, n)
     
+  
+def found_REG_pop_from_stack(reg, offset, constraint, n=1):  
+    """
+    Returns the n first gadgets that do reg <- mem(sp+offset)  
+    """
+    global record_REG_pop_from_stack
+    global built_REG_pop_from_stack
     
-    
+    if( not built_REG_pop_from_stack ):
+        build_REG_pop_from_stack()       
+    if( not reg in record_REG_pop_from_stack ):
+        return []
+    if( not offset in record_REG_pop_from_stack ):
+        return []
+    res = [[g] for g in record_REG_pop_from_stack[reg][offset] if constraint.validate(Database.gadgetDB[g]) ]
+    return res 
+        
 ##################################
 # Chains for reg write on stack  #
 ##################################

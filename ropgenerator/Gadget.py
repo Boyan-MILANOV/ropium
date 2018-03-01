@@ -601,7 +601,7 @@ class Gadget:
            
         ip = SSAReg(Analysis.regNamesTable[Analysis.ArchInfo.ip], self.graph.lastMod[Analysis.regNamesTable[Analysis.ArchInfo.ip]])
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
-        if( not self.isValidSpInc() ):
+        if( self.spInc == None ):
             self.ret = RetType.UNKNOWN
             return 
         
@@ -623,7 +623,7 @@ class Gadget:
                     self.retValue = dep[0].reg.num
                     self.ret = RetType.JMP_REG
                 return 
-        
+        self.ret = RetType.UNKNOWN
         
     def hasNormalRet(self):
         return self.ret == RetType.RET
