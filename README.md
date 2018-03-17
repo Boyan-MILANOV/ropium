@@ -73,9 +73,17 @@ Get help
 			exit: 		exit ROPGenerator
 			
 If you are using ROPGenerator for the first time, quickly configure the tool
+	
+	>>> config show
 
-	>>> config arch=X86_64 ropgadget=/home/ROPgadget/ROPgadget.py
-	Now working under architecture: X86_64
+		ROPGenerator's current configuration:
+
+		arch:		X86_64
+		ropgadget:	ROPgadget4ROPGenerator
+		limit:		3
+	
+	>>> config arch=X86 ropgadget=/home/ROPgadget/ROPgadget.py
+	Now working under architecture: X86
 	New ropgadget command : /home/ROPgadget/ROPgadget.py
  			
 Load gadgets from a binary
