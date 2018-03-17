@@ -24,13 +24,13 @@ Install ROPGenerator
 --------------------
 You can download the source (prefer this method if you want the latest and more stable version of the tool) and run 
 
-	$ python setup.py install
-	$ ROPGenerator
+	$ sudo python setup.py install
+	$ sudo ROPGenerator
 
 Or install **ROPGenerator** with pip 
 
-	$ pip install ropgenerator
-	$ ROPGenerator
+	$ sudo pip install ropgenerator
+	$ sudo ROPGenerator
 	
 
 
@@ -41,7 +41,7 @@ Install Dependencies
 
 - **enum**, **z3-solver**, **barf v0.4.0**, and **prompt_toolkit** packages will be added automaticaly during installation
 
-- **ROPgadget** will also be installed automatically if you don't have it already. However, the currently available package on pypi is not up-to-date. Since ROPGenerator uses a late ROPgadget feature (*--dump* option) I recommend installing ROPgadget from the source at https://github.com/JonathanSalwan/ROPgadget. If you have trouble loading binaries with ROPGenerator ("Can not run 'ROPgadget --binary /your/binray --dump --all'" kind of error), definitely check if your ROPgadget is up-to-date ;)  
+- **ROPgadget** will also be installed automatically if you don't have it already. However, the currently available package on pypi is not up-to-date. Therefore, it will be installed as "**ROPgadget4ROPGenerator**", a recent fork of ROPgadget.
 
 
 Getting started
@@ -74,80 +74,83 @@ Get help
 			
 If you are using ROPGenerator for the first time, quickly configure the tool
 
-	>>> config arch=X86_64 ropgadget=/home/ropgenerator/ROPgadget
+	>>> config arch=X86_64 ropgadget=/home/ROPgadget/ROPgadget.py
 	Now working under architecture: X86_64
-	New ropgadget location : /home/ropgenerator/ROPgadget/ROPgadget.py
+	New ropgadget command : /home/ROPgadget/ROPgadget.py
  			
 Load gadgets from a binary
 
-	>>> load /bin/ls
-	Extracting gadgets from file '/bin/ls'
-	Executing ROPgadget as: /home/ropgenerator/ROPgadget/ROPgadget.py
-	Finished : 1425 gadgets generated
+	>>> load /bin/tar
+	[+] Extracting gadgets from file '/bin/tar'
+		Executing ROPgadget as: ROPgadget4ROPGenerator
+		Finished : 12534 gadgets generated
 	[+] Working under architecture: X86_64
-	[+] Creating gadget database : 
-		Gadgets analyzed : 1425
-		Successfully translated : 962
-		Computation time : 0:00:29.704368
+	[+] Creating gadget database
+		Gadgets analyzed : 12534                                      
+		Successfully translated : 10189
+		Computation time : 0:01:42.018046
+	[+] Simplifying gadgets
+	[+] Updating gadget tables                                            
+	[+] Performing additionnal analysis (chain gadgets by transitivity)   
+	[+] Performing additionnal analysis (poping registers from stack)
+	[+] Performing additionnal analysis (writing registers on stack)   
 
-Look for gadgets 
+Easily look for gadgets ! 
 
 	>>> find rax=rbx
-
-		Found matching gadget(s):
-
-		0x000000000040d7db (mov rax, rbx; pop rbx; pop rbp; pop r12; pop r13; ret)  
-		0x000000000040ca7f (mov rax, rbx; pop rbx; pop rbp; pop r12; ret) 
-
-	>>> find rbx=rdx
 
 		Built matching ROP Chain(s):
 
 		-------------------
-		0x0000000000404988 (mov rax, rdx; ret)
-		0x000000000040b857 (push rax; mov eax, ebp; pop rbx; pop rbp; pop r12; ret)
-		0xffffffffffffffff (Padding)
+		0x0000000000416991 (mov rax, rbx; pop rbx; ret)
 		0xffffffffffffffff (Padding)
 		-------------------
-		0x0000000000404988 (mov rax, rdx; ret)
-		0x000000000040b873 (push rax; xor ebp, ebp; pop rbx; mov eax, ebp; pop rbp; pop r12; ret)
-		0xffffffffffffffff (Padding)
+		0x00000000004169ce (mov rax, rbx; pop rbx; ret)
 		0xffffffffffffffff (Padding)
 		-------------------
-		0x000000000040a2f7 (mov rax, rdx; pop rbx; pop rbp; ret)
+		0x0000000000419592 (mov rax, rbx; pop rbx; ret)
+		0xffffffffffffffff (Padding)
+
+
+	>>> find rsi=rax
+
+		Built matching ROP Chain(s):
+
+		-------------------
+		0x0000000000431357 (push rax; mov eax, ebp; pop rbx; pop rbp; pop r12; ret)
 		0xffffffffffffffff (Padding)
 		0xffffffffffffffff (Padding)
-		0x000000000040b857 (push rax; mov eax, ebp; pop rbx; pop rbp; pop r12; ret)
-		0xffffffffffffffff (Padding)
-		0xffffffffffffffff (Padding)
+		0x00000000004043fe (pop rax; ret)
+		0x0000000000400372 (@ddress of: ret)
+		0x000000000042e7b8 (mov rdx, rbx; call rax)
+		0x00000000004043fe (pop rax; ret)
+		0x0000000000400372 (@ddress of: ret)
+		0x000000000042e1c4 (mov rsi, rdx; call rax)
+
 
 
 	>>> find mem(rsp-8)=rax
 
-		Found matching gadget(s):
+		Built matching ROP Chain(s):
 
-		0x000000000040b857 (push rax; mov eax, ebp; pop rbx; pop rbp; pop r12; ret)  
-		0x000000000040b873 (push rax; xor ebp, ebp; pop rbx; mov eax, ebp; pop rbp; pop r12; ret)  
+		-------------------
+		0x0000000000431357 (push rax; mov eax, ebp; pop rbx; pop rbp; pop r12; ret)
+		0xffffffffffffffff (Padding)
+		0xffffffffffffffff (Padding)
+ 
 
-	>>> find rbx=0x4041424344454748
+	>>> find rbx=0x441424344454647
 
 		Built matching ROP Chain(s):
 
 		-------------------
-		0x0000000000404dc0 (pop rbx; ret)
-		0x4041424344454748
+		0x000000000040445b (pop rbx; ret)
+		0x0441424344454647 (Custom Padding)
 		-------------------
-		0x0000000000404dbb (nop dword ptr [rax+rax*1]; pop rbx; ret)
-		0x4041424344454748
-		-------------------
-		0x0000000000409cb4 (mov eax, 0x1; pop rbx; ret)
-		0x4041424344454748
-		-------------------
-		0x0000000000404f90 (pop rbx; pop rbp; ret)
-		0x4041424344454748
+		0x00000000004043fe (pop rax; ret)
+		0x0441424344454647 (Custom Padding)
+		0x0000000000431357 (push rax; mov eax, ebp; pop rbx; pop rbp; pop r12; ret)
 		0xffffffffffffffff (Padding)
-		-------------------
-		0x000000000040a2f7 (mov rax, rdx; pop rbx; pop rbp; ret)
-		0x4041424344454748
 		0xffffffffffffffff (Padding)
+
 		
