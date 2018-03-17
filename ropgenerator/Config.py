@@ -18,13 +18,13 @@ CMD_CONFIG_HELP += "\n\n\tExamples:\n\t\tconfig arch=X86\n\t\tconfig arch=X86_64
 
 # ROPGENERATOR CONIGURATION DEFAULT 
 DEFAULT_ARCH = "X86_64"
-DEFAULT_PATH_ROPGADGET = "ROPgadget"
+DEFAULT_PATH_ROPGADGET = "ROPgadget4ROPGenerator"
 DEFAULT_LIMIT = 3
 
 ARCH = DEFAULT_ARCH
 PATH_ROPGADGET = DEFAULT_PATH_ROPGADGET
 LIMIT = DEFAULT_LIMIT
-ROPGENERATOR_DIRECTORY = "/var/ropgenerator/"
+ROPGENERATOR_DIRECTORY = "/etc/ROPGenerator/"
 ROPGENERATOR_CONFIG_FILE = ROPGENERATOR_DIRECTORY + "ROPGenerator-conf"
 
 def print_help():
@@ -81,9 +81,9 @@ def set_arch(arch):
 def set_ropgadget(path):
     global DEFAULT_PATH_ROPGADGET
     global PATH_ROPGADGET
-    if( (os.path.isfile(path) and path[:-3] == ".py") or path == DEFAULT_PATH_ROPGADGET):
+    if( (os.path.isfile(path) and path[:-3] == ".py") or path == DEFAULT_PATH_ROPGADGET or path == "ROPgadget"):
         PATH_ROPGADGET = path
-        print("\tNew ropgadget location : " + path)
+        print("\tNew ropgadget command : " + path)
     else:
         print("\tError. '" + path+"' could not be found")
 

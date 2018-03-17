@@ -154,7 +154,7 @@ class search_engine:
             possible_gadgets = [g[0] for g in  self._REGtoREG_basic_strategy( reg, inter_reg, constraint_not_chainable, n=n-len(res)) if Database.gadgetDB[g[0]].hasJmpReg()[0] ]
             # Then try to adjust them 
             for g in possible_gadgets:
-                padded_g = SearchHelper.pad_gadgets([g], constraint_not_chainable)
+                padded_g = SearchHelper.pad_gadgets([g], constraint_not_chainable)[0]
                 jmp_to_reg = Database.gadgetDB[g].hasJmpReg()[1]
                 # COMPUTE PRE CONSTRAINT 
                 # Get a corresponding ret gadget 

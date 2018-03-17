@@ -143,8 +143,9 @@ def filter_chains(chain_list, constraint, n):
 
 def pad_gadgets(gadget_num_list, constraint):
     """
-    Takes a gadget and returns a chain with padding  
-    Pre-condition: the gadget has a valid return and a valid sp increment 
+    Takes a list of gadgets and returns a list of chains
+    Each chain of the result corresponds to the padded gadget
+    Pre-condition: the gadgets have a valid return and a valid sp increment 
     """
     res = []
     padding_int = get_valid_padding(constraint)
