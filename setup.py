@@ -34,7 +34,7 @@ setup(name='ropgenerator',
       cmdclass={
         'clean': CleanCommand,
       },
-      data_files=[("/etc/ROPGenerator/", [])]
+      data_files=[("/etc/ROPGenerator", [])]
     )
       
      
