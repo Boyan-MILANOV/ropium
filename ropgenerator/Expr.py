@@ -571,9 +571,15 @@ class Op(Expr):
             Returns (False, None) 
         """
         if( self.op != "Add" and self.op != "Sub"):
-            return (False, None)
+            if( reg_num == -1 ):
+                return (False, None, None)
+            else:
+                return (False, None)
         elif( len(self.args) != 2 ):
-            return (False, None)
+            if( reg_num == -1 ):
+                return (False, None, None)
+            else:
+                return (False, None)
         else:
             left = self.args[0]
             right = self.args[1]

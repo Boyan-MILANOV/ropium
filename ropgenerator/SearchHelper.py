@@ -6,7 +6,7 @@
 import ropgenerator.Database as Database
 import ropgenerator.Analysis as Analysis
 import sys
-from ropgenerator.Colors import info_colored
+from ropgenerator.Colors import string_bold, info_colored
 from ropgenerator.Gadget import GadgetType, RetType
 from ropgenerator.Constraints import ConstraintType
 
@@ -194,7 +194,7 @@ def build_REGtoREG_reg_transitivity():
     padding_uid = set_padding_unit()
     
     # Initialize printing info
-    info_colored("Performing additionnal analysis (chain gadgets by transitivity)\n") 
+    info_colored(string_bold("Performing additionnal analysis")+": chain gadgets by transitivity\n") 
     # Transitive closure 
     # During algorithm the chains are stored as triples:
     #     ( chain, used_regs, nb_instr )
@@ -328,7 +328,7 @@ def possible_REGtoREG_reg_transitivity(reg):
         for key in record_REGtoREG_reg_transitivity[reg].keys():
             if( len(record_REGtoREG_reg_transitivity[reg][key]) > 0 ):
                 res.append(key)
-        return res
+        return list(set(res))
         
 ##########################################
 # Chains for REG pop from stack strategy #
@@ -347,7 +347,7 @@ def build_REG_pop_from_stack():
     # Initialization for printing charging bar 
     chargingBarSize = Analysis.ssaRegCount
     chargingBarStr = " "*chargingBarSize
-    info_colored("Performing additionnal analysis (poping registers from stack)\n")
+    info_colored(string_bold("Performing additionnal analysis")+ ": poping registers from stack\n")
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
@@ -467,6 +467,7 @@ def found_REG_pop_from_stack(reg, offset, constraint, n=1):
 # Chains for reg write on stack  #
 ##################################
 
+# !!!!!!!!!! NOT WORKING YET 
 
 # record_REG_write_to_memory[reg] is a dict() --> D 
 # D[reg2] where reg2 is a register is a dict() --> D2
@@ -485,7 +486,7 @@ def build_REG_write_to_memory():
     # Initialization for printing charging bar 
     chargingBarSize = Analysis.ssaRegCount
     chargingBarStr = " "*chargingBarSize
-    info_colored("Performing additionnal analysis (writing registers on stack)\n")
+    info_colored(string_bold("Performing additionnal analysis")+": writing registers on stack\n")
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
@@ -587,6 +588,150 @@ def found_REG_write_to_memory(reg, reg2, offset, constraint, n=1):
     return filter_chains(res, constraint, n)
     
     
+####################################
+# Chains for reg <- reg +- offset  #
+####################################
+
+# record_REG_increment is a dict 
+# D[reg1][reg2][offset] = list of gadgets that do reg1 <- reg2 + offset 
+record_REGINCtoREG = dict()
+built_REGINCtoREG = False    
+    
+def build_REGINCtoREG():
+    global record_REGINCtoREG
+    global built_REGINCtoREG
+    
+    if( built_REGINCtoREG ):
+            return 
+      
+    # Initialization for printing charging bar 
+    chargingBarSize = Analysis.ssaRegCount
+    chargingBarStr = " "*chargingBarSize
+    info_colored(string_bold("Performing additionnal analysis")+": filtering register increments\n")
+    sys.stdout.write("\tProgression [")
+    sys.stdout.write(chargingBarStr)
+    sys.stdout.write("]\r\tProgression [")
+    sys.stdout.flush()   
+            
+    # Initializing the dictionnaries
+    for reg in range(0, Analysis.ssaRegCount):
+        record_REGINCtoREG[reg] = dict()
+        for reg2 in range(0, Analysis.ssaRegCount):
+            record_REGINCtoREG[reg][reg2] = dict()
+            
+    # Filling the dictionnaries :
+    
+    db = Database.gadgetLookUp[GadgetType.EXPRtoREG]
+    for reg in range(0, Analysis.ssaRegCount):
+        # Printing the charging bar 
+        sys.stdout.write("|")
+        sys.stdout.flush()
+        
+        for i in range(0, len(db[reg].expr_list)):
+            expr = db[reg].expr_list[i]
+            # We want expressions only of type REG +-/* CST
+            (isInc, reg2, inc) = expr.isRegIncrement(-1)
+            if( isInc ):
+                add_REGINCtoREG( reg, reg2, inc, [g for g in db[reg].gadget_list[i] if Database.gadgetDB[g].hasNormalRet() and Database.gadgetDB[g].isValidSpInc() ] )
+                
+    sys.stdout.write("\r"+" "*70+"\r")                               
+    built_REGINCtoREG = True
+    
+    
+def add_REGINCtoREG(reg, reg2, inc, gadgets_list, gadgets_sorted=False):
+    """
+    Adds gadgets that put reg2+inc into reg
+    Addition to the record_REGINC[reg][reg2][inc] list is made in 
+    increasing order according to gadgets length (number of REIL instructions). 
+    This is to get the best gadgets (shorter) first 
+    
+    Parameters:
+        reg, reg2 - int
+        inc - int 
+        gadgets_list - list of int 
+        gadgets_sorted - Bool (True iff the gadgets_list parameter supplied has been sorted already )
+        
+    """
+    global MAX_CHAINS
+    global record_REGINCtoREG   
+    
+    if( not inc in record_REGINCtoREG[reg][reg2] ):
+        if( not gadgets_sorted ):
+            record_REGINCtoREG[reg][reg2][inc] = sorted(gadgets_list, key= lambda gadget:Database.gadgetDB[gadget].nbInstr)
+        else:
+            record_REGINCtoREG[reg][reg2][inc] = list(gadgets_list)
+        return 
+        
+    # Preparing merge with fusion sort 
+    if( not gadgets_sorted ):
+        gadgets_list = sorted(gadgets_list, key=lambda gadget:Database.gadgetDB[gadget].nbInstr)
+        
+    # Merging  
+    for i in range(0, len(record_REGINCtoREG[reg][reg2][inc])):
+        if( i >= MAX_CHAINS or not gadgets_list ):
+            return 
+        if( record_REGINCtoREG[reg][reg2][inc][i] == gadgets_list[0] ):
+            gadgets_list = gadgets_list[1:]
+        elif( Database.gadgetDB[record_REGINCtoREG[reg][reg2][inc][i]].nbInstr > Database.gadgetDB[gadgets_list[0]].nbInstr ):
+            record_REGINCtoREG[reg][reg2][inc].insert(i, gadgets_list[0])
+            gadgets_list = gadgets_list[1:]
+        else:
+            i = i + 1
+            
+    # If some are left in gadgets_list at the end 
+    remaining_len = MAX_CHAINS - len(record_REGINCtoREG[reg][reg2][inc])
+    if( remaining_len > 0 ):
+        record_REGINCtoREG[reg][reg2][inc] += gadgets_list[:remaining_len]
+        
+
+
+def found_REGINCtoREG(reg, reg2, inc, constraint, n=1):  
+    """
+    Returns the n first gadgets that do reg <- mem(sp+offset)  
+    """
+    global record_REGINCtoREG
+    global build_REGINCtoREG
+    
+    if( not built_REGINCtoREG ):
+        build_REGINCtoREG()
+    
+    if( inc not in record_REGINCtoREG[reg][reg2] ):
+        return []
+    
+    return filter_chains(pad_gadgets([ g for g in record_REGINCtoREG[reg][reg2][inc] if\
+    Database.gadgetDB[g].hasNormalRet() and Database.gadgetDB[g].isValidSpInc()], constraint))[:n]
+    
+    
+def found_REGINCtoREG_no_padding(reg, reg2, inc, constraint, n=1):
+    global record_REGINCtoREG
+    global build_REGINCtoREG
+    
+    if( not built_REGINCtoREG ):
+        build_REGINCtoREG()
+        
+    if( inc in record_REGINCtoREG[reg][reg2] ):
+        return [g for g in record_REGINCtoREG[reg][reg2][inc] if constraint.validate( Database.gadgetDB[g])][:n]
+    else:  
+        return []
+    
+def possible_REGINCtoREG( reg, reg2 ):
+    """
+    Returns a list of increments inc such that reg <- reg2 + inc is possible
+    """
+    global record_REGINCtoREG
+    global build_REGINCtoREG
+    
+    if( not built_REGINCtoREG ):
+        build_REGINCtoREG()
+    
+    
+    res = []
+    for key in record_REGINCtoREG[reg][reg2].keys():
+        if( len(record_REGINCtoREG[reg][reg2][key]) > 0 ):
+            res.append( key )
+    return list(set(res))
+    
+
 #####################
 # GLOBAL FUNCTIONS  #
 #####################
@@ -595,6 +740,7 @@ def build_all():
     build_REGtoREG_reg_transitivity()
     build_REG_pop_from_stack()
     build_REG_write_to_memory()
+    build_REGINCtoREG()
 
 def reinit():
     global PADDING_UNITS
@@ -604,6 +750,8 @@ def reinit():
     global built_REG_pop_from_stack
     global record_REG_write_to_memory
     global built_REG_write_to_memory
+    global record_REGINCtoREG
+    global built_REGINCtoREG
 
     PADDING_UNITS = []
     record_REGtoREG_reg_transitivity = dict()
@@ -612,4 +760,5 @@ def reinit():
     built_REG_pop_from_stack = False
     record_REG_write_to_memory = dict()
     built_REG_write_to_memory = False
-
+    record_REGINCtoREG = dict()
+    built_REGINCtoREG = False

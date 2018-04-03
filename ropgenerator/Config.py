@@ -1,16 +1,18 @@
 # ROPGenerator - Config.py module
 # Stores the configuration for the tool 
 import ropgenerator.Analysis as Analysis
-from ropgenerator.Colors import info_colored, error_colored
+from ropgenerator.Colors import string_special, string_bold,info_colored, error_colored, BOLD_COLOR_ANSI, END_COLOR_ANSI
 import os 
 
 # Help for the config command
-CMD_CONFIG_HELP =  "\n\t------------------------------"
+CMD_CONFIG_HELP = BOLD_COLOR_ANSI
+CMD_CONFIG_HELP +=  "\n\t------------------------------"
 CMD_CONFIG_HELP += "\n\tROPGenerator 'config' command\n\t(Configure ROPGenerator)"
 CMD_CONFIG_HELP += "\n\t------------------------------"
-CMD_CONFIG_HELP += "\n\n\tUsage:\tconfig show\n\t\tconfig <parameter>=<value> [<parameter>=<value> ...]"
-CMD_CONFIG_HELP += "\n\n\tParameters:\n\t\tarch:\t\tarchitecture (available " + ','.join(Analysis.supportedArchs) + ')\n\t\tropgadget:\tcommand to run ROPgadget tool (typically\n\t\t\t\t"ROPgadget" or "/path/to/ROPgadget.py")\n\t\tlimit:\t\tnumber of matching gadgets to find for a query'
-CMD_CONFIG_HELP += "\n\n\tExamples:\n\t\tconfig arch=X86\n\t\tconfig arch=X86_64 ropgadget=/usr/ROPgadget.py limit=4"
+CMD_CONFIG_HELP += END_COLOR_ANSI
+CMD_CONFIG_HELP += "\n\n\t"+string_bold("Usage")+":\tconfig show\n\t\tconfig <parameter>=<value> [<parameter>=<value> ...]"
+CMD_CONFIG_HELP += "\n\n\t"+string_bold("Parameters")+":\n\t\t"+string_special("arch")+":\t\tarchitecture (available " + ','.join(Analysis.supportedArchs) + ')\n\t\t'+string_special("ropgadget")+':\tcommand to run ROPgadget tool (typically\n\t\t\t\t"ROPgadget" or "/path/to/ROPgadget.py")\n\t\t'+string_special("limit")+':\t\tnumber of matching gadgets to find for a query'
+CMD_CONFIG_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tconfig arch=X86\n\t\tconfig arch=X86_64 ropgadget=/usr/ROPgadget.py limit=4"
 
 
 

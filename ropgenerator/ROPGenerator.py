@@ -1,7 +1,7 @@
 # ROPGenerator - ROPGenerator module
 # Central module to run, prompts for commands and execute them ;) 
 from ropgenerator.Database import pretty_print_registers
-from ropgenerator.Colors import write_colored, error_colored, info_colored
+from ropgenerator.Colors import string_special, string_bold, write_colored, error_colored, info_colored, BOLD_COLOR_ANSI, END_COLOR_ANSI
 import ropgenerator.Analysis as Analysis
 import ropgenerator.Gadget_finder as Gadget_finder
 import ropgenerator.Load as Load
@@ -55,26 +55,25 @@ def main():
             if( command == None):
                 pass
             elif( command == CMD_HELP ):
-                print("\n\t-----------------------------------------------------------")
-                print("\tROPGenerator commands")
-                print("\t(For more information about a command type '<command> help')")
-                print("\t-----------------------------------------------------------\n")
-                print('\t\t' + CMD_HELP + ': \t\tprint available commands')
-                print('\t\t' + CMD_LOAD + ': \t\tload usable gadgets from a binary file')
-                print('\t\t' + CMD_FIND + ': \t\tfind gadgets that execute specific operations')
-                print('\t\t' + CMD_REGISTERS + ': \tprint available registers for the current architecture')
-                print('\t\t' + CMD_CONFIG + ': \tconfigure ROPGenerator')
-                print('\t\t' + CMD_EXIT + ': \t\texit ROPGenerator')
+                print(string_bold("\t-----------------------------------------------------------\n\tROPGenerator commands"))
+                print(string_special("\t(For more information about a command type '<command> help')"))
+                print(string_bold("\t-----------------------------------------------------------\n"))
+                print('\t' + string_bold(CMD_HELP) + ': \t\tprint available commands')
+                print('\t' + string_bold(CMD_LOAD) + ': \t\tload usable gadgets from a binary file')
+                print('\t' + string_bold(CMD_FIND) + ': \t\tfind gadgets that execute specific operations')
+                print('\t' + string_bold(CMD_REGISTERS) + ': \tprint available registers for the current architecture')
+                print('\t' + string_bold(CMD_CONFIG) + ': \tconfigure ROPGenerator')
+                print('\t' + string_bold(CMD_EXIT) + ': \t\texit ROPGenerator')
             elif( command == CMD_FIND ):
                 if( argslen > 1 ):
                     if( args[1] == CMD_HELP ):
                         Gadget_finder.print_help()
                     else:
+                        Gadget_finder.set_user_input(user_input[len(CMD_FIND):])
                         Gadget_finder.find_gadgets(args[1:])
                 else:
                     print("Missing arguments. Type 'find help' for help")
             elif( command == CMD_LOAD ):
-                # Thi should be in a Load.py module 
                 if( argslen > 1 ):
                     if( args[1] == CMD_HELP):
                         Load.print_help()
@@ -103,7 +102,7 @@ def main():
             if( command != None):
                 print("")
                 
-        info_colored("Closing ROPGenerator...\n")
+        info_colored(string_bold("Closing ROPGenerator...\n"))
         
     except Exception as e:
         # print with light-red ANSI code and END ANSI code

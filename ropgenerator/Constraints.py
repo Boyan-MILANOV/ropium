@@ -3,6 +3,7 @@
 
 from enum import Enum
 from ropgenerator.Logs import log
+import Expr
 
 class ConstraintException( Exception ):
     def __init__( self, msg ):
@@ -74,7 +75,7 @@ class Constraint:
         """
         for ctype, clist in self.constraints.iteritems():
             if( ctype == ConstraintType.REGS_NOT_MODIFIED ):
-                if( not self._validate_REG_NOT_MODIFIED(gadget, clist)):
+                if( not self._validate_REGS_NOT_MODIFIED(gadget, clist)):
                     return False
             elif( ctype == ConstraintType.REGS_VALID_POINTER_READ ):
                 if( not self._validate_REGS_VALID_POINTER_READ(gadget, clist)):
@@ -93,7 +94,16 @@ class Constraint:
         return True
         
     def _validate_REGS_NOT_MODIFIED(self, gadget, regs_list):
-        return False
+        for reg in regs_list:
+            ssaReg = Expr.SSAReg(reg, gadget.graph.lastMod[reg])
+            if( ssaReg in gadget.dep.regDep ):
+                regdeps = gadget.dep.regDep[ssaReg]
+                if( regdeps[0][1].isTrue() and isinstance(regdeps[0][0], Expr.SSAExpr)):
+                    if( not (regdeps[0][0].reg.num == reg and regdeps[0][0].reg.ind == 0 )):
+                        return False
+                else:
+                    return False
+        return True
         
     def _validate_REGS_VALID_POINTER_READ(self, gadget, regs_list):
         return False

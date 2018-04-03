@@ -7,7 +7,7 @@ from ropgenerator.Gadget import Gadget, GadgetException, GadgetType, analyzed_ra
 from datetime import datetime
 from ropgenerator.Cond import Cond, CT
 from ropgenerator.Expr import SSAExpr
-from ropgenerator.Colors import write_colored, info_colored, error_colored
+from ropgenerator.Colors import string_bold, write_colored, info_colored, error_colored
 from ropgenerator.Config import ROPGENERATOR_DIRECTORY
 from ropgenerator.generate_opcodes import opcodes_file
 
@@ -69,8 +69,8 @@ def generated_gadgets_to_DB():
     warnings = 0
     chargingBarSize = 30
     chargingBarStr = " "*chargingBarSize
-    info_colored("Working under architecture: " + Analysis.ArchInfo.currentArch + '\n')
-    info_colored("Creating gadget database\n")
+    info_colored(string_bold("Working under architecture: ") + Analysis.ArchInfo.currentArch + '\n')
+    info_colored(string_bold("Creating gadget database\n"))
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
@@ -105,7 +105,7 @@ def generated_gadgets_to_DB():
             sys.stderr = old_stderr
             if( not isinstance(e, GadgetException)):
                 warnings = warnings + 1
-                f.write("Unexpected error in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException message: (" + str(type(e)) + ") " + str(e) + '\n\n')
+                f.write("Unexpected error in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException type: " + str(type(e)) + "\nException message: " + str(e) + '\n\n')
 
         i = i + 1
     # Restoring the state
@@ -131,7 +131,8 @@ def generated_gadgets_to_DB():
     print "\tSuccessfully translated : " + str(success)
     print "\tComputation time : " + str(cTime)
     if( warnings > 0 ):
-        print("\tUnexpected exceptions : " + str(warnings) + " (logs in '{}')".format(warnings_file))
+        pass
+        #print("\tUnexpected exceptions : " + str(warnings) + " (logs in '{}')".format(warnings_file))
     
     
 def simplifyGadgets():
@@ -141,7 +142,7 @@ def simplifyGadgets():
     chargingBarSize = 30
     chargingBarStr = " "*chargingBarSize
     i = 0
-    info_colored("Simplifying gadgets\n")
+    info_colored(string_bold("Simplifying gadgets\n"))
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")
@@ -325,7 +326,7 @@ def fillGadgetLookUp():
     # Initialize the printed charging bar
     chargingBarSize = 30 
     chargingBarStr = " "*chargingBarSize
-    info_colored("Updating gadget tables\n")
+    info_colored(string_bold("Updating gadget tables\n"))
     sys.stdout.write("\tProgression [")
     sys.stdout.write(chargingBarStr)
     sys.stdout.write("]\r\tProgression [")

@@ -32,6 +32,8 @@ class GadgetType(Enum):
     CSTtoMEM = "CSTtoMEM"    # mem(expr) = cst
     EXPRtoMEM = "EXPRtoMEM"    # mem(expr) = expr
     MEMEXPRtoMEM = "MEMEXPRtoMEM" # mem(expr) = mem(expr)
+
+    STRPTRtoREG = "STRPTRtoREG" # reg = pointer to "string" 
     
 class RetType(Enum):
     UNKNOWN = "UNKNOWN"

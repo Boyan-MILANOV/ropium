@@ -8,20 +8,27 @@ import re
 from ropgenerator.Gadget import GadgetType
 from ropgenerator.Config import LIMIT 
 import ropgenerator.SearchHelper as SearchHelper
-from ropgenerator.Constraints import Constraint, ConstraintType 
+from ropgenerator.Constraints import Constraint, ConstraintType
+from ropgenerator.Colors import string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold
 
 # Definition of options names
-OPTION_BAD_BYTES = '-bad' 
+OPTION_BAD_BYTES = '--bad-bytes'
+OPTION_KEEP_REGS = '--keep-regs'
+
+OPTION_BAD_BYTES_SHORT = '-b'
+OPTION_KEEP_REGS_SHORT = '-k' 
 
 # Help for the search command
-CMD_FIND_HELP =    "\n\t-----------------------------------------------"
+CMD_FIND_HELP = BOLD_COLOR_ANSI
+CMD_FIND_HELP +=    "\n\t-----------------------------------------------"
 CMD_FIND_HELP += "\n\tROPGenerator 'find' command\n\t(Find gadgets that execute specific operations)"
 CMD_FIND_HELP += "\n\t-----------------------------------------------"
-CMD_FIND_HELP += "\n\n\tUsage:\tfind [OPTIONS] <reg>=<expr>\n\t\tfind [OPTIONS] <reg>=mem(<expr>)\n\t\tfind [OPTIONS] mem(<expr>)=<expr>"
-CMD_FIND_HELP += "\n\n\tOptions:"
-CMD_FIND_HELP += "\n\t\t"+OPTION_BAD_BYTES+"\tspecify bad bytes for payload. Expected format is a \n\t\t\tlist of bytes separated by comas (e.g '-bad 0A,0B,2F')"
-#CMD_FIND_HELP += "\n\n\tExamples:\n\t\tfind rax=rbp\t\t\t(put the value of rbp in rax)\n\t\tfind rbx=0xff\t\t\t(put the value 255 in rbx)\n\t\tfind rax=mem(rsp)\t\t(pop the top of the stack into rax)\n\t\tfind mem(rsp-8)=rcx\t\t(push rcx onto the stack)\n\t\tfind mem(rbp-0x10)=0b101\t(write 5 at address rbp-16)\n\t\tfind -bad 0A,0D rax=rcx\t\t(exclude bad bytes '\\x0a','\\x0d')"
-CMD_FIND_HELP += "\n\n\tExamples:\n\t\tfind rax=rbp\n\t\tfind rbx=0xff)\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind mem(rbp-0x10)=0b101\n\t\tfind -bad 0A,0D rax=rcx+rax+4"
+CMD_FIND_HELP += END_COLOR_ANSI
+CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>\n\t\tfind [OPTIONS] <reg>=mem(<expr>)\n\t\tfind [OPTIONS] mem(<expr>)=<expr>"
+CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
+CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+"\t: bad bytes for payload.\n\t\t\t\tExpected format is a list of bytes \n\t\t\t\tseparated by comas (e.g '-b 0A,0B,2F')"
+CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+"\t: registers that shouldn't be modified.\n\t\t\t\tExpected format is a list of registers \n\t\t\t\tseparated by comas (e.g '-k edi,eax')"
+CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff)\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D rax=rcx+rax+4"
 
 
 
@@ -102,6 +109,8 @@ class search_engine:
             return self._MEMEXPRtoMEM_basic_strategy(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.EXPRtoMEM ):
             return self._EXPRtoMEM_basic_strategy(arg1, arg2, constraint, n=n)
+        elif( gtype == GadgetType.STRPTRtoREG ):
+            return []
         else:
             return []
             
@@ -119,6 +128,9 @@ class search_engine:
             return res
         elif( gtype == GadgetType.CSTtoREG ):
             res += self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n,unusable=unusable)
+            return res
+        elif( gtype == GadgetType.STRPTRtoREG ):
+            res += self._STRPTRtoREG_on_stack(arg1, arg2, constraint, n=n)
             return res
         else:
             return []
@@ -156,13 +168,14 @@ class search_engine:
             for g in possible_gadgets:
                 padded_g = SearchHelper.pad_gadgets([g], constraint_not_chainable)[0]
                 jmp_to_reg = Database.gadgetDB[g].hasJmpReg()[1]
-                # COMPUTE PRE CONSTRAINT 
-                # Get a corresponding ret gadget 
-                adjusting_jmp_reg = self._adjust_jmp_reg(jmp_to_reg, constraint)
+                # COMPUTE PRE CONSTRAINT 
+                preConstraint = constraint.add(ConstraintType.REGS_NOT_MODIFIED, [reg2])
+                # Get a corresponding ret gadget 
+                adjusting_jmp_reg = self._adjust_jmp_reg(jmp_to_reg, preConstraint)
                 if( not adjusting_jmp_reg ):
                     continue
                 else:
-                    # Get the rest of the chain
+                    # Get the rest of the chain
                     previous_chains = self._chaining_strategy( GadgetType.REGtoREG, inter_reg, reg2, constraint, n=n, unusable=unusable+[reg], depth=depth-1)
                     for c in previous_chains:
                         res.append(c+adjusting_jmp_reg[0]+padded_g)
@@ -173,16 +186,17 @@ class search_engine:
         for inter_reg in SearchHelper.possible_REGtoREG_reg_transitivity(reg):
             if( inter_reg in unusable or inter_reg == reg or inter_reg == reg2 ):
                 continue
-            # Get inter_reg <- reg2
+            # Get inter_reg <- reg2
             last_chains = SearchHelper.found_REGtoREG_reg_transitivity(reg, inter_reg, constraint, n=n-len(res))
             possible_gadgets = [g[0] for g in  self._REGtoREG_basic_strategy( inter_reg, reg2, constraint_not_chainable, n=n-len(res))if Database.gadgetDB[g[0]].hasJmpReg()[0]]
             # Then try to adjust them 
             for g in possible_gadgets:
                 padded_g = SearchHelper.pad_gadgets([g], constraint_not_chainable)[0]
                 jmp_to_reg = Database.gadgetDB[g].hasJmpReg()[1]
-                # COMPUTE PRE CONSTRAINT 
-                # Get a corresponding ret gadget 
-                adjusting_jmp_reg = self._adjust_jmp_reg(jmp_to_reg, constraint)
+                # COMPUTE PRE CONSTRAINT 
+                preConstraint = constraint.add(ConstraintType.REGS_NOT_MODIFIED, [reg2])
+                # Get a corresponding ret gadget 
+                adjusting_jmp_reg = self._adjust_jmp_reg(jmp_to_reg, preConstraint)
                 if( not adjusting_jmp_reg ):
                     continue
                 else:                   
@@ -192,7 +206,7 @@ class search_engine:
                             return res
         
         # TODO for all 'normal ret' gadgets, recursive call
-        # with unusable options and constraints about what can be modified or not ;-) 
+        # with unusable options and constraints about what can be modified or not ;-) 
         return res
         
     
@@ -207,10 +221,10 @@ class search_engine:
         for g in ret_adjust_gadgets:
             addr = Database.gadgetDB[g].addr
             res += self.find(GadgetType.CSTtoREG, reg, addr, constraint, n=n-len(res))
-            # Update the addr_to_gadgetStr dict in SearchHelper
-            # This is used to have a better printing of the chains
-            # Instead of indicating the constant as (Custom Padding)
-            # we will write 'address of gadget ....'
+            # Update the addr_to_gadgetStr dict in SearchHelper
+            # This is used to have a better printing of the chains
+            # Instead of indicating the constant as (Custom Padding)
+            # we will write 'address of gadget ....'
             SearchHelper.addr_to_gadgetStr[addr]=Database.gadgetDB[g].asmStr
             if( len(res) >= n ):
                 return res
@@ -238,24 +252,25 @@ class search_engine:
         Returns a payload that puts cst into register reg by poping it from the stack
         unusable: list of reg UID that can not be used in the chaining strategy 
         """ 
-        # Direct pop from the stack 
-        res = SearchHelper.found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=n)        
+        # Direct pop from the stack 
+        res = [g for g in SearchHelper.found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=n)  \
+                if Database.gadgetDB[g[0]].spInc > Analysis.ArchInfo.bits/8]
         # Pop in another register and use register transitivity
         if( len(res) <= n ):
             for other_reg in SearchHelper.possible_REGtoREG_reg_transitivity(reg):
                 if( other_reg != reg and not other_reg in unusable):
-                    # Get other s.t reg <- other_reg 
+                    # Get other s.t reg <- other_reg 
                     reg_to_reg_chains = SearchHelper.found_REGtoREG_reg_transitivity(reg, other_reg, constraint, n=n)
-                    # If we have reg <- other_reg 
-                    # We try to pop the constant in other_reg
+                    # If we have reg <- other_reg 
+                    # We try to pop the constant in other_reg
                     if( reg_to_reg_chains ):
                         other_reg_CSTtoREG = self._CSTtoREG_basic_strategy(other_reg, cst, constraint, n=n)
                         if( len(other_reg_CSTtoREG) < n ):
-                            # TODO,  HERE SHOULD ADD SOME CONSTRAINT 
-                            other_reg_CSTtoREG += self._CSTtoREG_pop_from_stack(other_reg, cst, constraint, n=n, unusable=unusable+[reg])
-                        # Merge: 
-                        # First cst to other_reg 
-                        # then other_reg in reg
+                            # TODO,  HERE SHOULD ADD SOME CONSTRAINT 
+                            other_reg_CSTtoREG += [ g for g in self._CSTtoREG_pop_from_stack(other_reg, cst, constraint, n=n, unusable=unusable+[reg]) if Database.gadgetDB[g[0]].spInc > Analysis.ArchInfo.bits/8]
+                        # Merge: 
+                        # First cst to other_reg 
+                        # then other_reg in reg
                         for other_pop in other_reg_CSTtoREG:
                             for reg_to_reg in reg_to_reg_chains:
                                 res.append( other_pop + reg_to_reg )
@@ -263,6 +278,37 @@ class search_engine:
                                     return res
         return res
         
+    def _STRPTRtoREG_on_stack(self, reg, string, constraint, n=1):
+        """
+        Searches for gadgets that put the address of a string "string"
+        into register reg
+        reg - int
+        string - str
+        """
+        # We need a gadget that does:
+        # reg <- sp+XX 
+        # ip <- sp+YY 
+        # where the string can fit between XX and YY ...
+        
+        # First find all s.t reg <- sp+XX
+        string_len = len(string)+1 # We need to add a \x00 in the end
+        if( string_len % 4 == 0 ):
+            string_bytes_needed = string_len
+        else:
+            string_bytes_needed = string_len + (4 - (string_len%4))
+        
+        sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
+        possible_offsets = sorted(SearchHelper.possible_REGINCtoREG(reg, sp_num ))
+        print("DEBUG, possible offsets:")
+        print(possible_offsets)
+        res = []
+        for offset in possible_offsets:
+            for possible_gadget in SearchHelper.found_REGINCtoREG(reg, sp_num, offset, constraint, n=n):
+                if( Database.gadgetDB[possible_gadget].spInc - Analysis.ArchInfo.bits/8 - offset >= string_bytes_needed):
+                    # TODO ADD THE PADDING !!! 
+                    res += possible_gadget
+        return res
+    
     
     
     def _REGtoREG_basic_strategy(self, reg1, reg2, constraint, n=1):
@@ -374,6 +420,12 @@ search = search_engine()
 ###########################
 # COMMAND TO FIND GADGETS #
 ###########################
+user_input = '' # The command that has been typed by the user
+                # Used when parsing the '->' operator 
+    
+def set_user_input(string):
+    global user_input 
+    user_input = string
     
 def find_gadgets(args):
     """
@@ -400,15 +452,15 @@ def find_gadgets(args):
         chains = search.find(gtype, left, right, constraint, n=LIMIT)
         # Display results 
         if( chains ):
-            print("\n\tBuilt matching ROP Chain(s):\n")
+            print(string_bold("\n\tBuilt matching ROP Chain(s):\n"))
             show_chains(chains)
         else:
             possible_gadgets = search.find(gtype, left, right, constraint, n=LIMIT, chainable=False)
             if( possible_gadgets ):
-                print("\n\tFound possibly matching Gadget(s):\n")
+                print(string_bold("\n\tFound possibly matching Gadget(s):\n"))
                 show_chains(possible_gadgets)
             else:
-                print("\n\tNo matching Gadgets or ROP Chains found")
+                print(string_bold("\n\tNo matching Gadgets or ROP Chains found"))
                 
                
 def show_gadgets(gadget_list):
@@ -432,10 +484,10 @@ def show_chains( chain_list ):
     
     if( RAW_OUTPUT ):
         for chain in chain_list:
-            print("\t-------------------")
+            print(string_bold("\t-------------------"))
             for gadget_num in chain:
                 if( SearchHelper.is_padding(gadget_num)):
-                    padding_str = '0x'+format(SearchHelper.get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x')
+                    padding_str = string_special('0x'+format(SearchHelper.get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x'))
                     if( gadget_num == SearchHelper.DEFAULT_PADDING_UNIT_INDEX ):
                         padding_str += " (Padding)"
                     elif( SearchHelper.get_padding_unit(gadget_num) in SearchHelper.addr_to_gadgetStr ):
@@ -444,7 +496,7 @@ def show_chains( chain_list ):
                         padding_str += " (Custom Padding)"
                     print("\t"+padding_str)
                 else:
-                    print("\t"+Database.gadgetDB[gadget_num].addrStr + " (" + Database.gadgetDB[gadget_num].asmStr + ")")
+                    print("\t"+string_special(Database.gadgetDB[gadget_num].addrStr) + " (" + Database.gadgetDB[gadget_num].asmStr + ")")
     elif( PYTHON_OUTPUT ):
         print("\t\tPython output not supported yet :'(")
     
@@ -462,16 +514,17 @@ def parse_args(args):
     
     seenExpr = False
     seenBadBytes = False
+    seenKeepRegs = False
     i = 0 # Argument counter 
     constraint = Constraint()
     while( i < len(args)):
         arg = args[i]
         # Look for options
-        if( arg[0] == '-' ):
+        if( arg[0] == '-' and arg[1] != '>' ):
             if( seenExpr ):
                 return (False, "Error. Options must come before the search request")       
             # bad bytes option 
-            if( arg == OPTION_BAD_BYTES):
+            if( arg == OPTION_BAD_BYTES or arg == OPTION_BAD_BYTES_SHORT):
                 if( seenBadBytes ):
                     return (False, "Error. '" + OPTION_BAD_BYTES + "' option should be used only once.")
                 seenBadBytes = True
@@ -480,9 +533,18 @@ def parse_args(args):
                     return (False, bad_bytes_list)
                 i = i+1
                 constraint = constraint.add( ConstraintType.BAD_BYTES, bad_bytes_list)
+            elif( arg == OPTION_KEEP_REGS or arg == OPTION_KEEP_REGS_SHORT):
+                if( seenKeepRegs ):
+                    return (False, "Error. '" + OPTION_KEEP_REGS + "' option should be used only once.")
+                seenKeepRegs = True
+                (success, keep_regs_list) = parse_keep_regs(args[i+1])
+                if( not success ):
+                    return (False, keep_regs_list)
+                i = i+1
+                constraint = constraint.add( ConstraintType.REGS_NOT_MODIFIED, keep_regs_list)
             # Otherwise Ignore
             else:
-                return (False, "Error. Option '{}' not supported".format(arg))
+                return (False, "Error. Unknown option: '{}' ".format(arg))
         # If not option it should be a request expr=expr
         else:    
             if( seenExpr ):
@@ -493,7 +555,7 @@ def parse_args(args):
                 if( not parsed_expr[0]):    
                     # Maybe the user added millions of spaces, BAD but we try to correct his request syntaxe :/ 
                     parsed_expr = parse_user_request(''.join(args[i:]))
-                    i = len(args)
+                i = len(args)
                 if( parsed_expr[0] == False ):
                     return (False, parsed_expr[1])
         i = i + 1
@@ -516,12 +578,38 @@ def parse_user_request(req):
         if REGtoMEM, x is (Expr) and y is register UID
         if MEMEXPRtoMEM, x is (Expr) and y is (Expr) the address of the memory that has
                         been stored. (e.g mem(a) <- mem(b), then x = a and y = b )
+        if STRPTRtoREG, x is register uid, y is a string
     Or if not supported or invalid arguments, returns a tuple (False, msg)
     """
-
+    global user_input
     args = req.split('=')
     if( len(args) != 2):
-        return (False, "Invalid request: " + req )
+        # Test if request with '->'  
+        args = user_input.split('->')
+        if( len(args) != 2 ):    
+            return (False, "Invalid request: " + user_input )
+        else:
+            left = args[0].strip()
+            right = ''
+            if( left not in Analysis.regNamesTable ):
+                return (False, "Left operand '{}' should be a register".format(left))
+            # Parsing right side
+            i = 0
+            while( i < len(args[1]) and args[1][i] in [' ', '\t'] ):
+                i = i + 1
+            if( i == len(args[1]) or args[1][i] != '"'):
+                 return (False, '\nInvalid right operand: {} \nIt should be a string between quotes\nE.g: find rax -> "Example operand string"'.format(args[1]))   
+            saved_args1 = args[1]
+            args[1] = args[1][i+1:]
+            index = args[1].find('"')
+            if( index == -1 or len(args[1].split('"')[1].strip()) > 0 ):
+                return (False, '\nInvalid right operand: {} \nIt should be a string between quotes\nE.g: find rbx -> "Example operand string"'.format(saved_args1))
+            args[1] =  args[1][:-1]
+            
+            right = args[1]
+            return (True, GadgetType.STRPTRtoREG, Analysis.regNamesTable[left], right) 
+                
+    # Normal request with '=' 
     left = args[0]
     right = args[1]
     # Test if it is XXXtoREG
@@ -602,3 +690,20 @@ def parse_bad_bytes(string):
         else:
             bad_bytes.append(user_bad_byte)
     return (True, bad_bytes)
+    
+def parse_keep_regs(string):
+    """
+    Parses a 'keep registers' string into a list of register uids
+    Input: a string of format like "rax,rcx,rdi"
+    Output if valid string (True, list) where list = 
+        [1, 3, 4] (R1 is rax, R3 is RCX, ... )
+    Output if invalid string (False, error_message)
+    """
+    user_keep_regs = string.split(',')
+    keep_regs = set()
+    for reg in user_keep_regs:
+        if( reg in Analysis.regNamesTable ):
+            keep_regs.add(Analysis.regNamesTable[reg])
+        else:
+            return (False, "Error. '{}' is not a valid register".format(reg))
+    return (True, list(keep_regs))
