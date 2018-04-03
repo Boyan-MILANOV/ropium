@@ -527,6 +527,8 @@ def parse_args(args):
             if( arg == OPTION_BAD_BYTES or arg == OPTION_BAD_BYTES_SHORT):
                 if( seenBadBytes ):
                     return (False, "Error. '" + OPTION_BAD_BYTES + "' option should be used only once.")
+                if( i+1 >= len(args)):
+                    return (False, "Error. Missing bad bytes after option '"+arg+"'")
                 seenBadBytes = True
                 (success, bad_bytes_list) = parse_bad_bytes(args[i+1])
                 if( not success ):
@@ -536,6 +538,8 @@ def parse_args(args):
             elif( arg == OPTION_KEEP_REGS or arg == OPTION_KEEP_REGS_SHORT):
                 if( seenKeepRegs ):
                     return (False, "Error. '" + OPTION_KEEP_REGS + "' option should be used only once.")
+                if( i+1 >= len(args)):
+                    return (False, "Error. Missing registers after option '"+arg+"'")
                 seenKeepRegs = True
                 (success, keep_regs_list) = parse_keep_regs(args[i+1])
                 if( not success ):
@@ -548,16 +552,15 @@ def parse_args(args):
         # If not option it should be a request expr=expr
         else:    
             if( seenExpr ):
-                return (False, "Error. Extra expressions not supported (" + arg + "). Only one at a time please")
+                return (False, "Error. Unexpected extra expression: '" + ' '.join(args[i:]) + "'. Only one at a time please")
             else:
                 seenExpr = True
-                parsed_expr = parse_user_request(arg)
-                if( not parsed_expr[0]):    
-                    # Maybe the user added millions of spaces, BAD but we try to correct his request syntaxe :/ 
-                    parsed_expr = parse_user_request(''.join(args[i:]))
-                i = len(args)
-                if( parsed_expr[0] == False ):
+                set_user_input(' '.join(args[i:]))
+                parsed_expr = parse_user_request(''.join(args[i:]))
+                if( not parsed_expr[0] ):
                     return (False, parsed_expr[1])
+                else:
+                    i = len(args)
         i = i + 1
     if( not seenExpr ):
         return (False, "Error. Missing specification of gadget to find")
@@ -582,10 +585,10 @@ def parse_user_request(req):
     Or if not supported or invalid arguments, returns a tuple (False, msg)
     """
     global user_input
-    args = req.split('=')
+    args = [x for x in req.split('=',1) if x]
     if( len(args) != 2):
         # Test if request with '->'  
-        args = user_input.split('->')
+        args = [x for x in user_input.split('->',1) if x]
         if( len(args) != 2 ):    
             return (False, "Invalid request: " + user_input )
         else:
@@ -595,15 +598,16 @@ def parse_user_request(req):
                 return (False, "Left operand '{}' should be a register".format(left))
             # Parsing right side
             i = 0
+            args[1] = args[1].encode('ascii', 'replace').decode('ascii', 'ignore')
             while( i < len(args[1]) and args[1][i] in [' ', '\t'] ):
                 i = i + 1
             if( i == len(args[1]) or args[1][i] != '"'):
-                 return (False, '\nInvalid right operand: {} \nIt should be a string between quotes\nE.g: find rax -> "Example operand string"'.format(args[1]))   
+                 return (False, '\nInvalid right operand: {} \nIt should be an ASCII string between quotes\nE.g: find rax -> "Example operand string"'.format(args[1]))   
             saved_args1 = args[1]
             args[1] = args[1][i+1:]
             index = args[1].find('"')
             if( index == -1 or len(args[1].split('"')[1].strip()) > 0 ):
-                return (False, '\nInvalid right operand: {} \nIt should be a string between quotes\nE.g: find rbx -> "Example operand string"'.format(saved_args1))
+                return (False, '\nInvalid right operand: {} \nIt should be an ASCII string between quotes\nE.g: find rbx -> "Example operand string"'.format(saved_args1))
             args[1] =  args[1][:-1]
             
             right = args[1]
@@ -617,7 +621,7 @@ def parse_user_request(req):
         # Test if it is REGtoREG
         (success, right_expr) = Expr.parseStrToExpr(right, Analysis.regNamesTable)
         if( not success ):
-            return (False, "Error. Operand '"+right+"' is incorrect")
+            return (False, "Error. Operand '"+right+"' is incorrect: " + right_expr)
         right_expr = right_expr.simplify()
         if( isinstance(right_expr, Expr.SSAExpr)):
             return (True, GadgetType.REGtoREG, Analysis.regNamesTable[left], right_expr.reg.num)
@@ -625,7 +629,7 @@ def parse_user_request(req):
         elif( isinstance(right_expr, Expr.MEMExpr)):
             splited = right[4:].split(')',1)
             if( len(splited) == 1 or  splited[1] != '' ):
-                return ( False, "Error. Operand '"+right+"' is incorrect")
+                return ( False, "Error. Operand '"+right+"' is incorrect " + right_expr)
             addr = right_expr.addr
             if( isinstance(addr, Expr.SSAExpr)):
                 return (True, GadgetType.MEMtoREG, Analysis.regNamesTable[left], addr.reg.num)

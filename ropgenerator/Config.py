@@ -38,10 +38,10 @@ def print_config():
     global LIMIT
     
     
-    print("\n\tROPGenerator's current configuration:\n")
-    print("\tarch:\t\t" + ARCH)
-    print("\tropgadget:\t" + PATH_ROPGADGET)
-    print("\tlimit:\t\t" + str(LIMIT))
+    print(string_bold("\n\tROPGenerator's current configuration:\n"))
+    print(string_bold("\tarch:\t\t") + ARCH)
+    print(string_bold("\tropgadget:\t") + PATH_ROPGADGET)
+    print(string_bold("\tlimit:\t\t") + str(LIMIT))
     print("")    
 
 def update_config(args):

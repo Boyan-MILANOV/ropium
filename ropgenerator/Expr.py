@@ -513,12 +513,13 @@ class Op(Expr):
                     res = ConstExpr( left.value + right.value, left.size )
                 else:
                     const = left
-            if( isinstance( right, ConstExpr )):
+            elif( isinstance( right, ConstExpr )):
                 if( right.value == 0 ):
                     res = left
                 else:
                     const = right
-            # Check for a sub-expression that is an Addition 
+            
+            # Check for a sub-expression that is an Addition or Substraction
             if( isinstance( left, Op ) and left.op == "Add" ):
                 subAdd = left 
             elif( isinstance( right, Op ) and right.op == "Add" ):
@@ -530,9 +531,9 @@ class Op(Expr):
             # SImplifications if possible     
             if( const != None and subAdd != None ):
                 if( isinstance( subAdd.args[0], ConstExpr )):
-                    res = Op( "Add", [ConstExpr( const.value + subAdd.args[0].value, const.size ), subAdd.args[1]])
+                    res = Op( "Add", [ConstExpr( const.value + subAdd.args[0].value, const.size ), subAdd.args[1]]).simplify()
                 elif( isinstance( subAdd.args[1], ConstExpr )):
-                    res = Op( "Add", [ConstExpr( const.value + subAdd.args[1].value, const.size ), subAdd.args[0]] )
+                    res = Op( "Add", [ConstExpr( const.value + subAdd.args[1].value, const.size ), subAdd.args[0]] ).simplify()
             if( const != None and subSub != None ):
                 if( isinstance( subSub.args[1], ConstExpr )):
                     newConst = const.value - subSub.args[1].value
@@ -540,11 +541,16 @@ class Op(Expr):
                         res = Op( "Add", [ConstExpr( newConst, const.size ), subSub.args[0] ])
                     else:
                         res= subSub.args[0]
-            
         
         elif( op == "Sub" ):
             if( isinstance(right, ConstExpr) and right.value == 0 ):
-                res = left            
+                res = left
+            elif( isinstance(right, ConstExpr) and isinstance(left, Op) and left.op == "Sub" and isinstance(left.args[1], ConstExpr)):
+                res = Op("Sub", [left.args[0], ConstExpr(left.args[1].value+right.value, right.size)]).simplify()
+            elif( isinstance(right, ConstExpr) and isinstance(left, Op) and left.op == "Add" and isinstance(left.args[1], ConstExpr)):
+                res = Op("Add", [left.args[0], ConstExpr(left.args[1].value-right.value, right.size)]).simplify()
+            elif( isinstance( left, ConstExpr) and isinstance(right, ConstExpr) and left.value == right.value):
+                res = ConstExpr(0, left.size)
         elif( op == "Mul" ):
             if( isinstance(left, ConstExpr) and left.value == 0 ):
                 res = left
@@ -1134,17 +1140,20 @@ def parseStrToExpr( string, regNamesTable ):
     Parses a string into an Expr
     Returns a tuple (True, Expr) or (False, ErrorMessage/str)
     """
-    if( string == [] or string == None ):
+    if( not string ):
         return (False, "Invalid expression")
 
     depth_lvl = 0
-    for i in range(0,len(string)):
+    for i in reversed(range(0,len(string))):
         if( (string[i] == "+" or string[i] == "-") and depth_lvl == 0 ):
-            left = string[:i]
             if( i+1 < len(string)):
                 right = string[i+1:]
             else:
                 return (False, "Missing right operand")
+            if( i-1 >= 0 ):
+                left = string[:i]
+            else:
+                return (False, "Missing left operand")
             (left_success, left_expr) = parseStrToExpr(left, regNamesTable)
             (right_success, right_expr) = parseStrToExpr(right, regNamesTable)
             if( not left_success ):
@@ -1157,9 +1166,11 @@ def parseStrToExpr( string, regNamesTable ):
                 else:
                     return ( True, Op("Sub", [left_expr, right_expr]))
         elif(string[i] == "("):
-            depth_lvl = depth_lvl + 1
-        elif( string[i] == ")"):
             depth_lvl = depth_lvl - 1
+            if( depth_lvl < 0 ):
+                return (False, "Error. Parenthesis error in expression")
+        elif( string[i] == ")"):
+            depth_lvl = depth_lvl + 1
         
     depth_lvl = 0            
     for i in range(0, len(string)):

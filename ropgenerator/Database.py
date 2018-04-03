@@ -7,7 +7,7 @@ from ropgenerator.Gadget import Gadget, GadgetException, GadgetType, analyzed_ra
 from datetime import datetime
 from ropgenerator.Cond import Cond, CT
 from ropgenerator.Expr import SSAExpr
-from ropgenerator.Colors import string_bold, write_colored, info_colored, error_colored
+from ropgenerator.Colors import string_special, string_bold, write_colored, info_colored, error_colored
 from ropgenerator.Config import ROPGENERATOR_DIRECTORY
 from ropgenerator.generate_opcodes import opcodes_file
 
@@ -431,13 +431,13 @@ def pretty_print_registers():
     if( not gadgetDB ):
         print("You should generate gadgets before looking at the registers. Type 'load help' for help")
     else:
-        print("\n\tRegisters present in the gadget database:")
-        print("\t(Architeture is '" + Analysis.ArchInfo.currentArch +"')\n")
+        print(string_bold("\n\tRegisters present in the gadget database:"))
+        print(string_special("\t(Architeture is '" + Analysis.ArchInfo.currentArch +"')\n"))
         for reg in Analysis.regNamesTable.keys():
             if( reg == Analysis.ArchInfo.ip ):
-                print('\t'+reg+ " (instruction pointer)")
+                print('\t'+reg+ string_special(" (instruction pointer)"))
             elif( reg == Analysis.ArchInfo.sp ):
-                print('\t'+reg+ " (stack pointer)")
+                print('\t'+reg+ string_special(" (stack pointer)"))
             else:
                 print('\t'+reg)
                 
