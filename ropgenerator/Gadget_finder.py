@@ -298,7 +298,7 @@ class search_engine:
             string_bytes_needed = string_len + (4 - (string_len%4))
         
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
-        possible_offsets = sorted(SearchHelper.possible_REGINCtoREG(reg, sp_num ))
+        possible_offsets = [ off for off in sorted(SearchHelper.possible_REGINCtoREG(reg, sp_num )) if off >= 0 ]
         print("DEBUG, possible offsets:")
         print(possible_offsets)
         res = []

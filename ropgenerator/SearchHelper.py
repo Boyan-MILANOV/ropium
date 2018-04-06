@@ -699,7 +699,7 @@ def found_REGINCtoREG(reg, reg2, inc, constraint, n=1):
         return []
     
     return filter_chains(pad_gadgets([ g for g in record_REGINCtoREG[reg][reg2][inc] if\
-    Database.gadgetDB[g].hasNormalRet() and Database.gadgetDB[g].isValidSpInc()], constraint))[:n]
+    Database.gadgetDB[g].hasNormalRet() and Database.gadgetDB[g].isValidSpInc()], constraint), constraint, n)
     
     
 def found_REGINCtoREG_no_padding(reg, reg2, inc, constraint, n=1):
@@ -723,7 +723,6 @@ def possible_REGINCtoREG( reg, reg2 ):
     
     if( not built_REGINCtoREG ):
         build_REGINCtoREG()
-    
     
     res = []
     for key in record_REGINCtoREG[reg][reg2].keys():

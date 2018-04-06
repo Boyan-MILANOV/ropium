@@ -14,14 +14,14 @@ from prompt_toolkit.contrib.completers import WordCompleter
 import sys
 
 
-ASCII_art = """
+ASCII_art = string_bold("""
    ___  ____  ___  _____                     __          
   / _ \/ __ \/ _ \/ ______ ___ ___ _______ _/ /____  ________
  / , _/ /_/ / ___/ (_ / -_/ _ / -_/ __/ _ `/ __/ _ \/ ______/
 /_/|_|\____/_/   \___/\__/_//_\__/_/  \_,_/\__/\___/_/ v0.3 
     
  
-""" 
+""")
 
 
 # Definitions of commands 
