@@ -505,11 +505,13 @@ class Op(Expr):
                 res = ConstExpr(0, left.size)
         elif( op == "Mul" ):
             if( isinstance(left, ConstExpr) and left.value == 0 ):
-                res = left
+                res = ConstExpr(0, left.size)
             elif( isinstance(left, ConstExpr) and left.value == 1 ):
                 res = right
             elif( isinstance(right, ConstExpr) and right.value == 1 ):
                 res = left        
+            elif( isinstance(right, ConstExpr) and right.value == 0 ):
+				res = ConstExpr(0, left.size)
         elif( op == "Xor" ):
             if( isinstance(left, ConstExpr) and left.value == 0 ):
                 res = right

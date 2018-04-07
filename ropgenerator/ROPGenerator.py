@@ -3,7 +3,7 @@
 from ropgenerator.Database import pretty_print_registers
 from ropgenerator.Colors import string_special, string_bold, write_colored, error_colored, info_colored, BOLD_COLOR_ANSI, END_COLOR_ANSI
 import ropgenerator.Analysis as Analysis
-import ropgenerator.Gadget_finder as Gadget_finder
+import ropgenerator.SearchEngine as SearchEngine
 import ropgenerator.Load as Load
 import ropgenerator.Config as Config
 
@@ -67,10 +67,10 @@ def main():
             elif( command == CMD_FIND ):
                 if( argslen > 1 ):
                     if( args[1] == CMD_HELP ):
-                        Gadget_finder.print_help()
+                        SearchEngine.print_help()
                     else:
-                        Gadget_finder.set_user_input(user_input[len(CMD_FIND):])
-                        Gadget_finder.find_gadgets(args[1:])
+                        SearchEngine.set_user_input(user_input[len(CMD_FIND):])
+                        SearchEngine.find_gadgets(args[1:])
                 else:
                     print("Missing arguments. Type 'find help' for help")
             elif( command == CMD_LOAD ):
