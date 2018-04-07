@@ -200,7 +200,7 @@ class cstLookUp:
         cst - int 
         """
         res = []
-        for gadget_num in self.values.get(cst):
+        for gadget_num in self.values.get(cst, []):
             if( constraint.validate(gadgetDB[gadget_num])):
                 res.append(gadget_num)
             if( len(res) >= n ):
@@ -252,7 +252,7 @@ class exprLookUp:
         cst - int 
         """
         res = []
-        for gadget_num in self.expr[reg].get(cst):
+        for gadget_num in self.expr[reg].get(cst, []):
             if( constraint.validate(gadgetDB[gadget_num])):
                 res.append(gadget_num)
             if( len(res) >= n ):
@@ -434,7 +434,7 @@ class gadgetsLookUp:
         elif( gtype == GadgetType.REGEXPRtoREG ):
             return self.types[gtype][arg1].find(arg2[0], arg2[1], constraint=constraint, n=n)
         elif( gtype == GadgetType.MEMEXPRtoREG ):
-            return self.types[gtype].find(arg1[0], arg1[1], arg2[0], arg2[1], constraint=constraint, n=n)
+            return self.types[gtype][arg1].find(arg2[0], arg2[1], constraint=constraint, n=n)
         elif( gtype == GadgetType.CSTtoMEM ):
             return self.types[gtype].find(arg1[0], arg1[1], arg2, constraint=constraint, n=n)
         elif( gtype == GadgetType.REGEXPRtoMEM ):
@@ -467,3 +467,4 @@ def pretty_print_registers():
 def reinit():
     global gadgetDB
     gadgetDB = []
+    gadgetLookUp = gadgetsLookUp()

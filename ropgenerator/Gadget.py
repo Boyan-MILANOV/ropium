@@ -29,25 +29,16 @@ class GadgetType(Enum):
 	REGEXPRtoMEM="REGEXPRtoMEM" # mem(reg + CST) = reg + CST
 	MEMEXPRtoMEM="MEMEXPRtoMEM" # mem(reg + CST) = mem(reg + CST)
 	STRPTRtoREG = "STRPTRtoREG" # reg = pointer to "string" 
-
-	### debug OLD TYPES
-	### Keep for compatibility and testing while developing new version 
-	REGtoREG = "REGtoREG"   # reg = reg
-	MEMtoREG = "MEMtoREG"    # reg = mem(reg)
-	EXPRtoREG = "EXPRtoREG"    # reg = expr
-	MEMEXPRtoREG = "MEMEXPRtoREG "    # reg = mem(expr)
-	REGtoMEM = "REGtoMEM"    # mem(expr) = reg
-	EXPRtoMEM = "EXPRtoMEM"    # mem(expr) = expr
-	MEMEXPRtoMEM = "MEMEXPRtoMEM" # mem(expr) = mem(expr)
-
-    
     
 class RetType(Enum):
     UNKNOWN = "UNKNOWN"
     RET = "RET"
     CALL_REG = "CALL_REG"
     JMP_REG = "JMP_REG"   
-    
+      
+# Limit for sp increment by a single gadget
+SPINC_LIMIT = 400
+            
 # List of gadgets already analyzed !!     
 # Keys are gadget.asmStr 
 # Values are a pair (dep, graph) = (pointer to GadgetDependencies object, pointer to the related graph) 
@@ -592,7 +583,7 @@ class Gadget:
                     return
         
     def isValidSpInc(self):
-        return self.spInc != None and self.spInc >= 0
+        return self.spInc != None and self.spInc >= 0 and self.spInc <= SPINC_LIMIT
         
     def calculateRet(self):
         """

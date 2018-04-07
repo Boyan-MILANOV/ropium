@@ -145,14 +145,15 @@ def pad_gadgets(gadget_num_list, constraint):
     """
     Takes a list of gadgets and returns a list of chains
     Each chain of the result corresponds to the padded gadget
-    Pre-condition: the gadgets have a valid return and a valid sp increment 
     """
     res = []
     padding_int = get_valid_padding(constraint)
     padding_unit = set_padding_unit(padding_int)
     for gadget_num in gadget_num_list:
         gadget = Database.gadgetDB[gadget_num]
-        if( gadget.ret == RetType.RET ):
+        if( (not gadget.hasNormalRet()) or (not gadget.isValidSpInc())):
+            res.append([gadget_num])
+        elif( gadget.ret == RetType.RET ):
             nb_padding_units = (Database.gadgetDB[gadget_num].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8)
             res.append( [gadget_num] + [padding_unit]*nb_padding_units)
         elif( gadget.ret == RetType.JMP_REG ):

@@ -90,7 +90,7 @@ class search_engine:
         Search for gadgets with advanced chaining methods
         Returns a list of chains ( a chain is a list of gadgets )
         """
-        # DEBUG 
+        # DEBUG temporarily return [] because not implemented 
         return []
         
         if( depth <= 0 ):
@@ -423,11 +423,12 @@ def find_gadgets(args):
                 print(string_bold("\n\tNo matching Gadgets or ROP Chains found"))
                 
                
-def show_gadgets(gadget_list):
+def show_gadgets(gadget_list, check_length=False):
     """
     Pretty prints a list of gadgets 
     Parameters:
         gadget_list - list of gadget UID 
+        check_length = True <=> Factorizes the print if a lot of padding for a single gadget 
     """
     if( RAW_OUTPUT ):
         for gadget_num in gadget_list:
@@ -621,7 +622,7 @@ def parse_user_request(req):
         # Otherwise REGEXPRtoMEM
         else:
             (isInc, num, inc) = right_expr.isRegIncrement(-1)
-            return (True, GadgetType.MEMEXPRtoMEM, [addr_reg, addr_cst], [num,inc])
+            return (True, GadgetType.REGEXPRtoMEM, [addr_reg, addr_cst], [num,inc])
     else:
         return ( False, "Operand '" +left+"' is invalid or not yet supported by ROPGenerator :(")
     
