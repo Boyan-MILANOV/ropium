@@ -28,7 +28,7 @@ CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>\n
 CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
 CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+"\t: bad bytes for payload.\n\t\t\t\tExpected format is a list of bytes \n\t\t\t\tseparated by comas (e.g '-b 0A,0B,2F')"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+"\t: registers that shouldn't be modified.\n\t\t\t\tExpected format is a list of registers \n\t\t\t\tseparated by comas (e.g '-k edi,eax')"
-CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff)\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D rax=rcx+rax+4"
+CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D rax=rcx+rax+4"
 
 
 
@@ -44,7 +44,7 @@ PYTHON_OUTPUT = False # Output the gadgets in python ( like p += <gadget hex>  #
 # SEARCH ENGINE FOR GADGETS #
 ############################
 
-DEFAULT_DEPTH = 3
+DEFAULT_DEPTH = 4
 class search_engine:
     global DEFAULT_DEPTH
 
@@ -57,9 +57,6 @@ class search_engine:
         basic = False means that we don't call _basic_strategy
         chainable = True means that we want only chainable gadgets 
         """
-        print("Find function gets type " + str(gtype))
-        print("-> arg1: {}, arg2: {}".format(arg1, arg2))
-        return []
         
         res = []        
         if( not chainable ):
@@ -74,9 +71,6 @@ class search_engine:
             res += self._chaining_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n-len(res))
         return res
  
-    def _validate_gadget_(self, gadget_num):
-        return ( Database.gadgetDB[gadget_num].hasNormalRet() and Database.gadgetDB[gadget_num].isValidSpInc() )
-    
     def _basic_strategy(self, gtype, arg1, arg2, constraint, n=1):
         """
         Search for gadgets basic method ( without chaining ) 
@@ -86,43 +80,19 @@ class search_engine:
         gtype - instance of GadgetType
         n - (int) number of gadgets to return 
         arg1, arg2 - depends on gtype : 
-            gtype = GadgetType.REGtoREG, arg1 and arg2 are two ints (register UID)
-            gtype = GadgetType.CSTtoREG, arg1 is reg UID, arg2 is an (int)
-            gtype = GadgetType.MEMtoREG, arg1 and arg2 are reg UID
-            gtype = GadgetType.REGtoMEM, arg1 is Expr, arg2 is reg UID
-            gtype = GadgetType.CSTtoMEM, arg1 is Expr, arg2 is (int)
-            gtype = GadgetType.EXPRtoREG, arg1 is reg UID, arg2 is Expr
-            gtype = GadgetType.MEMEXPRtoREG, arg1 is reg UID, arg2 is an Expr (addr of MEMEXPR)
-            gtype = GadgetType.MEMEXPRtoMEM, arg1 is Expr, arg2 is Expr
+            see the parse_user_request function :) 
         """
-        if( gtype == GadgetType.REGtoREG ):
-            return self._REGtoREG_basic_strategy(arg1, arg2, constraint, n=n)
-        elif( gtype == GadgetType.CSTtoREG ):
-            return self._CSTtoREG_basic_strategy(arg1, arg2, constraint, n=n)
-        elif( gtype == GadgetType.MEMtoREG ):
-            return self._MEMtoREG_basic_strategy(arg1, arg2, constraint, n=n)
-        elif( gtype == GadgetType.REGtoMEM ):
-            return self._REGtoMEM_basic_strategy(arg1, arg2, constraint, n=n)
-        elif( gtype == GadgetType.CSTtoMEM ):
-            return self._CSTtoMEM_basic_strategy(arg1, arg2, constraint, n=n)
-        elif( gtype == GadgetType.EXPRtoREG ):
-            return self._EXPRtoREG_basic_strategy(arg1, arg2, constraint, n=n)
-        elif( gtype == GadgetType.MEMEXPRtoREG ):
-            return self._MEMEXPRtoREG_basic_strategy(arg1, arg2, constraint, n=n)
-        elif( gtype == GadgetType.MEMEXPRtoMEM ):
-            return self._MEMEXPRtoMEM_basic_strategy(arg1, arg2, constraint, n=n)
-        elif( gtype == GadgetType.EXPRtoMEM ):
-            return self._EXPRtoMEM_basic_strategy(arg1, arg2, constraint, n=n)
-        elif( gtype == GadgetType.STRPTRtoREG ):
-            return []
-        else:
-            return []
+        gadgets =  Database.gadgetLookUp.find(gtype, arg1, arg2, constraint, n)
+        return SearchHelper.pad_gadgets(gadgets, constraint)
             
     def _chaining_strategy(self, gtype, arg1, arg2, constraint, n=1, unusable=[], depth=DEFAULT_DEPTH):
         """
         Search for gadgets with advanced chaining methods
         Returns a list of chains ( a chain is a list of gadgets )
         """
+        # DEBUG 
+        return []
+        
         if( depth <= 0 ):
             return []
         res = []  
@@ -315,21 +285,7 @@ class search_engine:
     
     
     
-    def _REGtoREG_basic_strategy(self, reg1, reg2, constraint, n=1):
-        """
-        Searches for a gadget that puts reg2 into reg1
-        reg1, reg2 - int 
-        """
-        db = Database.gadgetLookUp[GadgetType.REGtoREG]
-        if( not reg2 in db[reg1]):
-            return []
-        res = []
-        for gadget_num in db[reg1][reg2]:
-            if( len(res) >= n ):
-                break
-            elif( constraint.validate(Database.gadgetDB[gadget_num])):
-                res.append(gadget_num)
-        return SearchHelper.pad_gadgets(res[:n], constraint)
+    
             
         
     def _MEMtoREG_basic_strategy(self, reg, addr, constraint, n=1):
@@ -580,11 +536,9 @@ def parse_user_request(req):
         if REGEXPRtoREG, x is register uid, y is (reg,cst)
         if CSTtoREG, x is register uid for ROPG IR and y is an (int)
         if MEMEXPRtoREG, x is reg UID, y is (addr_reg, addr_cst)
-        
-        if CSTtoMEM, x is (Expr)(the memory address) and y is (int)
-        if REGtoMEM, x is (Expr) and y is register UID
-        if MEMEXPRtoMEM, x is (Expr) and y is (Expr) the address of the memory that has
-                        been stored. (e.g mem(a) <- mem(b), then x = a and y = b )
+        if CSTtoMEM, x is (addr_reg, addr_cst) and y is (int) 
+        if REGEXPRtoMEM, x is (addr_reg, addr_cst) and y is (reg, cst)
+        if MEMEXPRtoMEM, x is (addr_reg, addr_cst) and y is (addr_reg2, addr_cst2)
         if STRPTRtoREG, x is register uid, y is a string
     Or if not supported or invalid arguments, returns a tuple (False, msg)
     """

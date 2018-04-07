@@ -428,7 +428,22 @@ class gadgetsLookUp:
         # Clean the charging bar
         sys.stdout.write("\r"+" "*70+"\r") 
 
-
+    def find(self, gtype, arg1, arg2, constraint, n=1):
+        if( gtype == GadgetType.CSTtoREG ):
+            return self.types[gtype][arg1].find(arg2, constraint=constraint, n=n)
+        elif( gtype == GadgetType.REGEXPRtoREG ):
+            return self.types[gtype][arg1].find(arg2[0], arg2[1], constraint=constraint, n=n)
+        elif( gtype == GadgetType.MEMEXPRtoREG ):
+            return self.types[gtype].find(arg1[0], arg1[1], arg2[0], arg2[1], constraint=constraint, n=n)
+        elif( gtype == GadgetType.CSTtoMEM ):
+            return self.types[gtype].find(arg1[0], arg1[1], arg2, constraint=constraint, n=n)
+        elif( gtype == GadgetType.REGEXPRtoMEM ):
+            return self.types[gtype].find(arg1[0], arg1[1], arg2[0], arg2[1], constraint=constraint, n=n)
+        elif( gtype == GadgetType.MEMEXPRtoMEM ):
+            return self.types[gtype].find(arg1[0], arg1[1], arg2[0], arg2[1], constraint=constraint, n=n)
+        else:
+            return []
+        
 ## Module wide gadgetsLookUp instance 
 gadgetLookUp = gadgetsLookUp()
                 
