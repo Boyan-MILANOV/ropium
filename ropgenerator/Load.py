@@ -43,8 +43,8 @@ def load(args):
     if( generate_opcodes.generate(filename)):
         Database.generated_gadgets_to_DB()
         Database.simplifyGadgets()
-        Database.fillGadgetLookUp()
-        SearchHelper.build_all()
+        Database.gadgetLookUp.fill()
+        #DEBUG SearchHelper.build_all()
     
     
     

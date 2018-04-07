@@ -21,18 +21,26 @@ class GadgetException( Exception ):
         
         
 class GadgetType(Enum):
-    REGtoREG = "REGtoREG"   # reg = reg
-    CSTtoREG = "CSTtoREG"    # reg = cst
-    MEMtoREG = "MEMtoREG"    # reg = mem(reg)
-    EXPRtoREG = "EXPRtoREG"    # reg = expr
-    MEMEXPRtoREG = "MEMEXPRtoREG "    # reg = mem(expr)
-    
-    REGtoMEM = "REGtoMEM"    # mem(expr) = reg
-    CSTtoMEM = "CSTtoMEM"    # mem(expr) = cst
-    EXPRtoMEM = "EXPRtoMEM"    # mem(expr) = expr
-    MEMEXPRtoMEM = "MEMEXPRtoMEM" # mem(expr) = mem(expr)
+	
+	CSTtoREG = "CSTtoREG"    # reg = cst
+	CSTtoMEM = "CSTtoMEM"    # mem( reg + CST ) = cst
+	REGEXPRtoREG="REGEXPRtoREG" # reg = reg + CST
+	MEMEXPRtoREG="MEMEXPRtoREG" # reg = mem(reg + CST)
+	REGEXPRtoMEM="REGEXPRtoMEM" # mem(reg + CST) = reg + CST
+	MEMEXPRtoMEM="MEMEXPRtoMEM" # mem(reg + CST) = mem(reg + CST)
+	STRPTRtoREG = "STRPTRtoREG" # reg = pointer to "string" 
 
-    STRPTRtoREG = "STRPTRtoREG" # reg = pointer to "string" 
+	### debug OLD TYPES
+	### Keep for compatibility and testing while developing new version 
+	REGtoREG = "REGtoREG"   # reg = reg
+	MEMtoREG = "MEMtoREG"    # reg = mem(reg)
+	EXPRtoREG = "EXPRtoREG"    # reg = expr
+	MEMEXPRtoREG = "MEMEXPRtoREG "    # reg = mem(expr)
+	REGtoMEM = "REGtoMEM"    # mem(expr) = reg
+	EXPRtoMEM = "EXPRtoMEM"    # mem(expr) = expr
+	MEMEXPRtoMEM = "MEMEXPRtoMEM" # mem(expr) = mem(expr)
+
+    
     
 class RetType(Enum):
     UNKNOWN = "UNKNOWN"
