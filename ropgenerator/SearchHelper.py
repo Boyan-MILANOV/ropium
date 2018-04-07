@@ -115,7 +115,7 @@ def adjust_chain(chain, new_padding):
     return [g if g != DEFAULT_PADDING_UNIT_INDEX else new_padding for g in chain]
     
     
-def filter_chains(chain_list, constraint, n):
+def filter_chains(chain_list, constraint, n=100):
     """
     Returns the n first chains in chain_list that satisfy the constraint
     """
@@ -252,139 +252,28 @@ def possible_REGtoREG_transitivity(reg):
     return list(record_REGtoREG_transitivity[reg].keys())
       
 
-##########################################
-# Chains for REG pop from stack strategy #
-##########################################
+###########################################
+# Helpers for REG pop from stack strategy #
+###########################################
 
-record_REG_pop_from_stack = dict()
-built_REG_pop_from_stack = False
-
-def build_REG_pop_from_stack():
-    global built_REG_pop_from_stack
-    global record_REG_pop_from_stack
-    
-    if( built_REG_pop_from_stack ):
-        return 
- 
-    # Initialization for printing charging bar 
-    chargingBarSize = Analysis.ssaRegCount
-    chargingBarStr = " "*chargingBarSize
-    info_colored(string_bold("Performing additionnal analysis")+ ": poping registers from stack\n")
-    sys.stdout.write("\tProgression [")
-    sys.stdout.write(chargingBarStr)
-    sys.stdout.write("]\r\tProgression [")
-    sys.stdout.flush() 
-        
-    # First reg <- mem(esp)
-    db = Database.gadgetLookUp[GadgetType.MEMtoREG]
-    sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
-    for reg in range(0,Analysis.ssaRegCount):
-        record_REG_pop_from_stack[reg] = dict()
-        if( sp_num in db[reg] and db[reg][sp_num] != [] ):
-            add_REG_pop_from_stack( reg, 0, [ gadget_num for gadget_num in db[reg][sp_num] if Database.gadgetDB[gadget_num].hasNormalRet() and Database.gadgetDB[gadget_num].isValidSpInc()] )
-            
-    # Then reg <- mem(esp+ X )
-    db = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG]
-    for reg in range(0,Analysis.ssaRegCount):
-        # Printing the charging bar 
-        sys.stdout.write("|")
-        sys.stdout.flush()
-        for i  in range(0, len(db[reg].expr_list)):
-            # For each expr so that reg <- mem(expr)
-            expr = db[reg].expr_list[i]
-            (isInc, inc) = expr.isRegIncrement(sp_num)
-            if( isInc and inc > 0):
-                # If expr is esp + X 
-                add_REG_pop_from_stack(reg, inc, [ gadget_num for gadget_num in db[reg].gadget_list[i] if Database.gadgetDB[gadget_num].hasNormalRet() and Database.gadgetDB[gadget_num].isValidSpInc()])
-    
-    sys.stdout.write("\r"+" "*70+"\r")
-    built_REG_pop_from_stack = True
-                
-    
-def add_REG_pop_from_stack(reg, offset, gadgets_list, gadgets_sorted=False ):
+def pad_CSTtoREG_pop_from_stack(gadget_list, offset, cst, constraint):
     """
-    Adds gadgets that put mem(esp+offset) into reg
-    Addition to the record_REG_pop_from_stack[reg] list is made in 
-    increasing order according to gadgets length (number of REIL instructions. 
-    This is to get the best gadgets (shorter) first 
-    
-    Parameters:
-        reg - int
-        offset - int 
-        gadgets_list - list of int 
-        gadgets_sorted - Bool (True iff the gadgets_list parameter supplied has been sorted already )
-        
+    Given a list of gadgets that does reg <- mem(sp+offset)
+    pad it so that 'cst' is at the right position in the 
+    stack to be put in reg 
+    g - gadget num
     """
-    global MAX_CHAINS
-    global record_REG_pop_from_stack    
-    
-    if( not offset in record_REG_pop_from_stack[reg] ):
-        if( not gadgets_sorted ):
-            record_REG_pop_from_stack[reg][offset] = sorted(gadgets_list, key= lambda gadget:Database.gadgetDB[gadget].nbInstr)
-        else:
-            record_REG_pop_from_stack[reg][offset] = list(gadgets_list)
-        return 
-        
-    # Preparing merge with fusion sort 
-    if( not gadgets_sorted ):
-        gadgets_list = sorted(gadgets_list, key=lambda gadget:Database.gadgetDB[gadget].nbInstr)
-        
-    # Merging  
-    for i in range(0, len(record_REG_pop_from_stack[reg][offset])):
-        if( i >= MAX_CHAINS or not gadgets_list ):
-            return 
-        if( record_REG_pop_from_stack[reg][offset][i] == gadgets_list[0] ):
-            gadgets_list = gadgets_list[1:]
-        elif( Database.gadgetDB[record_REG_pop_from_stack[reg][offset][i]].nbInstr > Database.gadgetDB[gadgets_list[0]].nbInstr ):
-            record_REG_pop_from_stack[reg][offset].insert(i, gadgets_list[0])
-            gadgets_list = gadgets_list[1:]
-        else:
-            i = i + 1
-            
-    # If some are left in gadgets_list at the end 
-    remaining_len = MAX_CHAINS - len(record_REG_pop_from_stack[reg][offset])
-    if( remaining_len > 0 ):
-        record_REG_pop_from_stack[reg][offset] += gadgets_list[:remaining_len]
-        
-def found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=1):
-    """
-    Returns the n first gadgets that do reg <- cst by poping cst from the stack 
-    """
-    global record_REG_pop_from_stack
-    global built_REG_pop_from_stack
-    
-    if( not built_REG_pop_from_stack ):
-        build_REG_pop_from_stack()
-        
-    if( not reg in record_REG_pop_from_stack ):
-        return []
-    
     cst_padding = set_padding_unit(value=cst)
     default_padding = set_padding_unit()
     res = []
-    for offset in sorted(record_REG_pop_from_stack[reg].keys()):
-        for g in record_REG_pop_from_stack[reg][offset]:
-            chain = [g] + [default_padding for i in range(0, offset*8/Analysis.ArchInfo.bits)] + [cst_padding] + [default_padding for i in range(offset+1, (Database.gadgetDB[g].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8))]
-            res.append(chain)
-    return filter_chains(res, constraint, n)
-    
-  
-def found_REG_pop_from_stack(reg, offset, constraint, n=1):  
-    """
-    Returns the n first gadgets that do reg <- mem(sp+offset)  
-    """
-    global record_REG_pop_from_stack
-    global built_REG_pop_from_stack
-    
-    if( not built_REG_pop_from_stack ):
-        build_REG_pop_from_stack()       
-    if( not reg in record_REG_pop_from_stack ):
-        return []
-    if( not offset in record_REG_pop_from_stack ):
-        return []
-    res = [[g] for g in record_REG_pop_from_stack[reg][offset] if constraint.validate(Database.gadgetDB[g]) ]
-    return res 
-        
+    for g in gadget_list:
+        chain= [g] + [default_padding for i in range(0, offset*8/Analysis.ArchInfo.bits)] + \
+            [cst_padding] + \
+            [default_padding for i in range(offset+1, (Database.gadgetDB[g].spInc - \
+                                Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8))]
+        res.append(chain)
+    return filter_chains(res, constraint)
+
 ##################################
 # Chains for reg write on stack  #
 ##################################

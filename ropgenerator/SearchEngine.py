@@ -89,14 +89,13 @@ class search_engine:
         Search for gadgets with advanced chaining methods
         Returns a list of chains ( a chain is a list of gadgets )
         """
-        
         res = []  
         if( (gtype == GadgetType.REGEXPRtoREG) and (arg2[1] == 0)): 
             res += self._REGtoREG_transitivity(arg1, arg2[0], constraint, n=n, unusable=unusable)
-            res += self._REGtoREG_adjust_jmp_reg(arg1, arg2, constraint, n=n)
-            return res
-        else:
-            return []
+            res += self._REGtoREG_adjust_jmp_reg(arg1, arg2[0], constraint, n=n)
+        elif( gtype == GadgetType.CSTtoREG ):
+            res += self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n)
+        return res
         
         
     def _REGtoREG_transitivity(self, reg, reg2, constraint, unusable=[], n=1):
@@ -122,18 +121,17 @@ class search_engine:
         Searches for chains matching gadgets finishing by jmp or call 
         And adjusts them by handling the call/jmp
         """
-            
         res = []
         # Find possible not chainable gadgets 
         constraint_not_chainable = constraint.remove_all(ConstraintType.CHAINABLE_RET)
         possible_gadgets = [g[0] for g in self._basic_strategy(GadgetType.REGEXPRtoREG, reg, [reg2,0], \
-            constraint_not_chainable, n=n, chainable=False) if Database.gadgetDB[g[0]].hasJmpReg()[0] \
+            constraint_not_chainable, n=n) if Database.gadgetDB[g[0]].hasJmpReg()[0] \
             and Database.gadgetDB[g[0]].isValidSpInc()]
         for gadget in possible_gadgets:
             # Pad the gadget 
-            padded_gadget = SearchHelper.pad_gadgets([g], constraint_not_chainable, force_padding=True)[0]
+            padded_gadget = SearchHelper.pad_gadgets([gadget], constraint_not_chainable, force_padding=True)[0]
             # Get the register we are jumping to 
-            jmp_to_reg = Database.gadgetDB[g].hasJmpReg()[1]
+            jmp_to_reg = Database.gadgetDB[gadget].hasJmpReg()[1]
             # COMPUTE PRE CONSTRAINT (don't modify reg2)
             preConstraint = constraint.add(ConstraintType.REGS_NOT_MODIFIED, [reg2])
             # Get chains that adjust the register to be pointing to ret 
@@ -172,18 +170,33 @@ class search_engine:
         """
         ip_num = Analysis.regNamesTable[Analysis.ArchInfo.ip]
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
-        return self._basic_strategy(GadgetType.REGEXPRtoREG, ip_num, [sp_num,offset], constraint=constraint, n=n)
+        res = self.find(GadgetType.MEMEXPRtoREG, ip_num, [sp_num,offset], constraint=constraint, n=n)
+        return res
     
-    def _CSTtoREG_pop_from_stack(self, reg, cst, constraint, n=1, unusable=[]):
+    def _CSTtoREG_pop_from_stack(self, reg, cst, constraint, n=1):
+        """
+        Returns a payload that puts cst into register reg by poping it from the stack
+        """ 
+        res = []
+        # Direct pop from the stack
+        sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp] 
+        for offset in sorted([off for off in Database.gadgetLookUp.types[GadgetType.MEMEXPRtoREG][reg].expr[sp_num].keys()\
+        if off >= 0 ]):
+            possible_gadgets = [g for g in Database.gadgetLookUp.types[GadgetType.MEMEXPRtoREG][reg].expr[sp_num][offset]\
+            if Database.gadgetDB[g].isValidSpInc() and Database.gadgetDB[g].hasNormalRet()]
+            for chain in SearchHelper.pad_CSTtoREG_pop_from_stack(possible_gadgets, offset, cst, constraint=constraint):
+                # At this point 'gadget' does reg <- mem(sp+offset)
+                res.append(chain)
+                if( len(res) >= n ):
+                    return res
+        return res
+        
+    def _CSTtoREG_transitivity(self):
         """
         Returns a payload that puts cst into register reg by poping it from the stack
         unusable: list of reg UID that can not be used in the chaining strategy 
         """ 
-        # Direct pop from the stack 
-        res = [g for g in SearchHelper.found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=n)  \
-                if Database.gadgetDB[g[0]].spInc > Analysis.ArchInfo.bits/8]
-        
-        return res
+        return []
         
     def _STRPTRtoREG_on_stack(self, reg, string, constraint, n=1):
         """

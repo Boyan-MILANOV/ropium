@@ -41,7 +41,7 @@ class Constraint:
         res = ''
         res += "Constraint:\n"
         for ctype, clist in self.constraints.iteritems():
-            res += '\t'+ctype+': '+str(clist)+'\n'
+            res += '\t'+str(ctype)+': '+str(clist)+'\n'
         return res
     
     def add(self, constraint_type, constraint_list ): 
