@@ -3,8 +3,8 @@
 # Provides primitives to extract dependencies from a given graph 
 
 from ropgenerator.Expr import ConstExpr, SSAExpr, MEMExpr, Op, SSAReg, Cat, Extr, Convert, strToReg
-from ropgenerator.Cond import Cond, CT, CTrue, CFalse, simplify
-from ropgenerator.Analysis import revertRegNamesTable
+from ropgenerator.Cond import Cond, CT, CTrue, CFalse
+import ropgenerator.Analysis as Analysis
 from ropgenerator.Logs import log
 
 class GraphException( Exception ):
@@ -54,8 +54,6 @@ class GadgetDependencies:
         
         # replaceTable stores the registers that could be replaced by a basic dependency 
         replaceTable = {}
-        
-        
         
         # For each register get the best basic dep we have
         for reg in CurrentAnalysis.graph.getRegisters():
@@ -196,7 +194,7 @@ class GadgetDependencies:
                     
         
         
-    def simplifyConditions( self, hard=False ):
+    def simplifyConditions( self ):
         """
         Simplifies the dependencies according to the conditions evaluated to True/False (removes impossible dependencies)
         /!\ Should be called only after all gadgets have been loaded !!! otherwise Expr.nb_regs is still unknown 
@@ -206,16 +204,16 @@ class GadgetDependencies:
         for reg in self.regDep.keys():
             newDeps = [] 
             for dep in self.regDep[reg]:
-                if( not dep[1].isFalse(hard=False) ):
+                if( dep[1].isTrue() ):
                     newDeps.append( dep )
             self.regDep[reg] = newDeps
         for expr in self.memDep.keys():
             newDeps = [] 
             for dep in self.memDep[expr]:
-                if( not dep[1].isFalse(hard=False) ):
+                if( dep[1].isTrue() ):
                     newDeps.append( dep )
             self.memDep[expr] = newDeps
-        
+      
         self.simplifiedCond = True
 
     def printRegDeps(self):
@@ -237,9 +235,9 @@ def printDep(d):
     print "\tCondition : "+ str(d[1]) + "\n"
 
 def printAllRegDep(regDep):
-    for reg,dep in regDep.iteritems():
-        print "[-] %s_%d dependencies:" % (revertRegNamesTable[reg.num], reg.ind)
-        [printDep(x) for x in dep]
+    for reg,deps in regDep.iteritems():
+        print "[-] %s_%d dependencies:" % (Analysis.revertRegNamesTable[reg.num], reg.ind)
+        [printDep(x) for x in deps]
         
 def printAllMemDep(memDep):
     for addr, dep in memDep.iteritems():
@@ -298,7 +296,7 @@ class Graph:
         """
         CurrentAnalysis.graph = self
         gadgetDep = GadgetDependencies()
-        for reg in self.nodes.keys():
+        for reg in self.nodes.keys():	
             node = self.nodes[str(reg)]
             if( not( isinstance(node, MEMNode) and not isinstance(node,ITENode))):
                 node.getDependencies( gadgetDep )
@@ -638,14 +636,14 @@ class MEMNode(Node):
         tmp = num
         readLen = size / 8 
         addrID = -1 # Used to optimise combinations without calling the solver...
-        addrKey = str(simplify(addr.toZ3()))
+        addrKey = str(addr.simplify())
         readDict = {addrKey:0} # Basic constraint for optimisation 
         value = MEMExpr( addr, size )
         resTmp = [[MEMExpr(addr, size), CTrue(), readDict]]
         tmpCond = None
         # For each outgoing arc, i.e for each memory write  
         for a in sorted( self.outgoingArcs, reverse=False):
-            optWriteKey = str(simplify(a.label.toZ3())) # key for the store address for optimisation 
+            optWriteKey = str(a.label.simplify()) # key for the store address for optimisation 
             # If a.num > num, then we have checked all memory writes before the read we compute dependencies for 
             if( a.num >= num ):
                 break
@@ -717,7 +715,7 @@ class MEMNode(Node):
         # We go through memory-writes in chronological order 
         for a in sorted(self.outgoingArcs):
             # Key to manipulate the current store address 
-            addrKey = str(simplify(a.label.toZ3()))
+            addrKey = str(a.label.simplify())
             # We get the dependency for the node that is written in memory 
             dep = a.dest.getDependencies(gadgetDep)
             # !!! HERE WE DON'T NEED TO CORRECT THE DEPENDENCIES WITH THE self.storedValues BECAUSE IT HAS ALREADY BEEN DONE FOR REGISTERS AND WE USE THEIR FINAL DEPENDENCIES DIRECTLY 

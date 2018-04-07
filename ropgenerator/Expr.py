@@ -4,27 +4,19 @@ Implements the data structure to represent arithmetical and logical
 expressions using abstract values for registers and memory.
 """
 
-from z3 import BitVec, BitVecVal, BitVecNumRef, Concat, Extract, Array, BitVecSort, SignExt, ZeroExt, LShR, simplify
 from ropgenerator.Cond import Cond, CT, CTrue, CFalse
 from ropgenerator.Logs import log
 INTEGRITY_CHECK = False 
 
-
-
+#########################
+# Module wide variables #
+#########################
 
 # Size of the registers - this variable must be set when architecture is known
 class REGSIZE:
     size = -1
 # number of registers
 nb_regs = None
-
-# Variables used to make the Z3 SMT modelisation
-regToSMT = {} # Keys : ( SSARegister ), Values : Z3 BitVec
-memorySMT = None
-
-def set_memorySMT(regsize):
-    global memorySMT
-    memorySMT = Array( "MEM", BitVecSort(regsize), BitVecSort(8)) # Z3 Array of bitVec
 
 # Custom exception type
 class ExprException(Exception):
@@ -61,11 +53,6 @@ class SSAReg:
         
     def __hash__(self): 
         return (self.num+1)*5000 - self.ind
-        
-    def toZ3(self):
-        if regToSMT.get(self) == None:
-            regToSMT[self] = BitVec( str(self), REGSIZE.size)
-        return regToSMT[self]
 
 def strToReg(string):
     """
@@ -77,7 +64,7 @@ def strToReg(string):
     
 def prevOcc(reg):
     """
-    Returns the previous occurence of a register
+    Returns the previous occurence of a SSA register
     prevOcc( R1_2 ) = R1_1
     prevOcc( R1_0 ) = R1_0
     """
@@ -90,9 +77,6 @@ def prevOcc(reg):
 #################################
 # REPRESENTATION OF EXPRESSIONS #
 #################################
-
-
-
 class Expr:
     """
     General class implemeting expressions containing registers and memory accesses
@@ -101,7 +85,6 @@ class Expr:
 
     def __init__(self):
         self.size = -1
-        self.z3 = None
         self.args = []
             
     def replaceReg(self, reg, expr):
@@ -156,11 +139,6 @@ class Expr:
         Transforms an expression in a list of couples ( Expr, Cond ) by flattening the If-Then-Else expressions
         """
 
-    def toZ3(self):
-        """
-        Returns the translation in Z3 of the expression
-        The expression returned will be a BiVec() of size 'self.size'
-        """
     def toArray(self):
         """
         Returns its 'array' representation as a vector V
@@ -202,7 +180,6 @@ class ConstExpr(Expr):
         else:
             self.value = int(value, 16)
         self.size = size 
-        self.z3 = BitVecVal(value, size )
 
     def __str__(self):
         return "0x%x" % (self.value)
@@ -229,10 +206,7 @@ class ConstExpr(Expr):
         
     def __hash__(self):
         return hash(self.value)
-        
-    def toZ3(self):
-        return self.z3
-        
+                
     def flattenITE(self):
         return [[self, CTrue()]]    
     
@@ -295,9 +269,6 @@ class SSAExpr(Expr):
             
     def replaceITE(self, expr):
         return self
-        
-    def toZ3(self):
-        return self.reg.toZ3()
         
     def flattenITE(self):
         return [[self, CTrue()]]    
@@ -380,18 +351,6 @@ class MEMExpr(Expr):
     def replaceITE(self, expr):
         return MEMExpr( self.addr.replaceITE(expr), self.size)
         
-    def toZ3(self):
-        global memorySMT
-        if( self.z3 == None ):
-            addr = self.addr.toZ3()
-            res = memorySMT[addr]
-            for i in range(1,self.size/8):
-                i_z3 = BitVecVal(i, self.addr.size)
-                test = memorySMT[addr+i_z3]
-                res = Concat( memorySMT[addr+i_z3], res )
-            self.z3 = res    
-        return self.z3
-        
     def flattenITE(self):
         flat = self.addr.flattenITE()
         return [[MEMExpr( f[0], self.size), f[1]] for f in flat]
@@ -463,11 +422,6 @@ class Op(Expr):
         newArgs = [arg.replaceITE(expr) for arg in self.args]
         return Op( self.op, self.size, newArgs)
         
-    def toZ3(self):
-        if( self.z3 == None ):
-            self.z3 = opToZ3( self.op,  self.args )
-        return self.z3
-        
     def flattenITE(self):
         """
         !!! Works only for unary or binary operations 
@@ -487,8 +441,6 @@ class Op(Expr):
             raise ExprException(" flattenITE can not be used with an operator on more than 2 arguments (%d here) " % len(self.args))
         
     def simplify(self):
-        # ! must update the Z3
-        self.z3 = None
         simpArgs = [arg.simplify() for arg in self.args]
         op = self.op 
         left = simpArgs[0]
@@ -731,11 +683,6 @@ class ITE(Expr):
     def replaceITE(self, expr):
         return expr
         
-    def toZ3(self):
-        if( self.z3 == None):
-            self.z3 = If( self.cond.toZ3(), self.args[0].toZ3(size), self.args[1].toZ3(size))
-        return self.z3
-        
     def flattenITE(self):
         return [[self.args[0], self.cond], [self.args[1], self.cond.invert()]]
     
@@ -800,11 +747,6 @@ class Convert(Expr):
         
     def replaceITE(self, expr):
         return Convert( self.size, self.args[0].replaceITE(expr), self.signed)
-        
-    def toZ3(self):
-        if( self.z3 == None ):
-            self.z3 = convertToZ3( self.size, self.args[0], self.signed )
-        return self.z3
         
     def flattenITE(self):
         flat = self.args[0].flattenITE()
@@ -890,14 +832,6 @@ class Cat(Expr):
         self.args = [a[0].replaceITE(expr) for a in self.args]
         return self
         
-    def toZ3(self):
-        if( self.z3 == None ):
-            tmp = self.args[0][0].toZ3()
-            for i in range(1, len(self.args)):
-                tmp = Concat(tmp, self.args[i][0].toZ3())
-            self.z3 = tmp
-        return self.z3
-        
     def flattenITE(self):
     
         newArgs = [a[0].flattenITE() for a in self.args]
@@ -971,10 +905,6 @@ class Extr(Expr):
     def replaceITE(self, expr):
         return Extr(self.high, self.low, self.args[0].replaceITE(expr))
         
-    def toZ3(self):
-        if( self.z3 == None ):
-            self.z3 = Extract( self.high, self.low, self.args[0].toZ3() )
-        return self.z3
         
     def flattenITE(self):
         flat = self.args[0].flattenITE()
@@ -1016,105 +946,6 @@ class Extr(Expr):
         
     def toArray(self):
         return []
-#################################################
-# FUNCTIONS FOR TRANSLATION INTO SMT Z3 OBJECTS #
-#################################################
-
-def opToZ3( op, args):
-    """
-    Translates a unary or binary operator expression into Z3 representation
-    Parameters : 
-        op - (str) the string representation of the operation
-        args - (Array(Expr)) the arguments to which the operator is applied  
-    """
-    left = args[0].toZ3()
-    if( len(args) == 2 ):
-        right = args[1].toZ3()
-    elif( len(args) > 2 ):
-        raise ExprException("Translation into Z3 not supported for operators on more than 2 arguments (%d here)" % len(args))
-    
-    if( op == "Not" ):
-        res = left.__neg__()
-    elif( op == "Add" ):
-        res = left.__add__(right) 
-    elif( op == "Sub" ):
-        res = left.__sub__(right) 
-    elif( op == "Mul" ):
-        res = left.__mul__(right) 
-    elif( op == "Div" ):
-        res = UDiv( left, right ) 
-    elif( op == "Mod" ):
-        res =  left.__mod__(right)
-    elif( op == "Or" ):
-        res =  left.__or__(right) 
-    elif( op == "And" ):
-        res = left.__and__(right) 
-    elif( op == "Xor" ):
-        res = left.__xor__(right) 
-    elif( op == "Shl" ):
-        res =  left.__lshift__( right ) 
-    elif( op == "Shr" ):
-        res =  LShR( left, right ) 
-    elif( op == "Sar" ):
-        res =  left.rshift( right ) 
-    elif( op == "CmpEQ" ):
-        res = If( left == right , BitVecVal(1, 8), BitVecVal(0, 8) ) 
-    elif( op == "CmpNE" ):
-        res =  If( left == right, BitVecVal(0, 8), BitVecVal(1, 8) )
-    elif( op == "Bsh" ):
-        # The BARF bsh operation is quite tricky
-        # It can be used by barf itelf to emulate some instrucions
-        # But aslo to translate directly a SHL or SHR assembly instruction 
-        # BSH( a, b )     = ( a << b ) iff b > 0 
-        #        = ( a >> b ) iff b < 0
-        # So if b is not a constant but a complex expression we have to use some tricks to determine whether the shift should be left or right
-        # At first we try to simplify the expression into a constant BitVevNumRef 
-        #Cast attempt 
-        if( not isinstance( right, BitVecNumRef )):
-            s = simplify(right)
-            if( isinstance( s, BitVecNumRef )):
-                val = s.as_signed_long()
-                right = BitVecVal( val, right.size() ) 
-        # If the cast failed, we just create an if-then-else statement... 
-        if( not isinstance( right, BitVecNumRef )):
-            zero = BitVecVal( 0, right.size() )
-            return If( right.__gt__(zero), simplify( left.__lshift__(right) ), simplify( LShR( left, right)))
-            #raise ExprException("Unable to determine the sign of BSH operand ")    
-        # If the cast was successful, we return the expression 
-        else:
-            dec = right.as_signed_long()
-            if( dec > 0 ):
-                res =  left.__lshift__(right) 
-            elif( dec < 0 ):
-                res =  LShR( left, BitVecVal( -dec, right.size() ))
-            else:
-                res =  left
-    else:
-        raise ExprException("Operation %s not supported for Z3 translation"%op)
-    # The return value is res
-    # Maybe some more operations can be done before return ( simplify, etc )
-    return res 
-    
-def convertToZ3( to, expr, signed ):
-    """
-    Converts a conversion operation into Z3 
-    Parameters:
-        to - (int) the size to which the expression is translated 
-        expr - (Expr) the expression that is translated
-        signed - (Bool) true <=> the widening conversions keep the sign of the operand 
-    """
-    s = expr.size 
-    exprZ3 = expr.toZ3()
-    if( s == to ):
-        res = exprZ3
-    elif( s > to ):
-        res = Extract( to-1, 0, exprZ3 )
-    else: 
-        if( signed ):
-            res = SignExt( to - s, exprZ3 )
-        else:
-            res = ZeroExt( to - s, exprZ3 ) 
-    return res 
 
 ####################################
 # FUCTIONS FOR PARSING EXPRESSIONS #
@@ -1132,8 +963,6 @@ def remove_last_parenthesis(string):
         return string[:-1]
     else:
         return None
-
-
 
 def parseStrToExpr( string, regNamesTable ):
     """

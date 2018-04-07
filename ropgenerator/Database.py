@@ -127,7 +127,7 @@ def generated_gadgets_to_DB():
     if( sigint ):
         error_colored("SIGINT ended the analysis prematurely, gadget database might be incomplete\n")
         sigint = False
-    print "\tGadgets analyzed : " + str(len(asmGadgets))
+    print "\tGadgets analyzed : " + str(i)
     print "\tSuccessfully translated : " + str(success)
     print "\tComputation time : " + str(cTime)
     if( warnings > 0 ):
@@ -179,7 +179,7 @@ class exprLookUp:
         res = []
         while( i < len(self.expr_list ) and len(res) < n):
             cond = Cond(CT.EQUAL, self.expr_list[i], expr)
-            if( cond.isTrue(hard=True)):
+            if( cond.isTrue()):
                 res += [g for g in self.gadget_list[i] if constraint.validate(gadgetDB[g])]
             i = i + 1
         return res 
@@ -214,9 +214,8 @@ class memLookUp:
         while( i < len(self.addr_list) and len(res) < n):
             # If we have a dependencie for the requested register 
             if( reg in self.written_values[i]):
-                # Comparing the addresses with hard=True so we call z3 solver
                 cond = Cond(CT.EQUAL, self.addr_list[i], addr)
-                if( cond.isTrue(hard=True)):
+                if( cond.isTrue()):
                     res += [g for g in self.written_values[i][reg] if constraint.validate(gadgetDB[g])]
             i = i + 1
         return res[:n]
@@ -233,9 +232,8 @@ class memLookUp:
         while( i < len(self.addr_list ) and len(res) < n):
             # If we have a dependencie for the requested constant
             if( cst in self.written_values[i]):
-                # Comparing the addresses with hard=True so we call z3 solver
                 cond = Cond(CT.EQUAL, self.addr_list[i], addr)
-                if( cond.isTrue(hard=True)):
+                if( cond.isTrue()):
                     res += [g for g in self.written_values[i][cst] if constraint.validate(gadgetDB[g])]
             i = i + 1
         return res[:n]
@@ -251,7 +249,7 @@ class memLookUp:
         while( i < len(self.addr_list ) and len(res) < n):
             # Check if addresses correspond
             addr_cond = Cond(CT.EQUAL, self.addr_list[i], addr)
-            if( not addr_cond.isTrue(hard=True)):
+            if( not addr_cond.isTrue()):
                 i = i + 1
                 continue
             # If addresses correspond, then check if we
@@ -261,7 +259,7 @@ class memLookUp:
                     # If different sizes, we don't compare 
                     continue
                 cond = Cond(CT.EQUAL, expr, stored_expr)
-                if( cond.isTrue(hard=True)):
+                if( cond.isTrue()):
                     res += [g for g in self.written_values[i][stored_expr] if constraint.validate(gadgetDB[g])]
             i = i + 1
         return res
@@ -332,7 +330,6 @@ def fillGadgetLookUp():
     sys.stdout.write("]\r\tProgression [")
     sys.stdout.flush()   
     # Update the gadgetLookUp table
-    hard_simplify=False
     for i in range(0, len(gadgetDB)):
         if( i % (len(gadgetDB)/30) == 0 and i > 0 or i == len(gadgetDB)):
                 sys.stdout.write("|")
@@ -341,16 +338,16 @@ def fillGadgetLookUp():
         for reg, deps in gadget.getDependencies().regDep.iteritems():
             for dep in deps:
                 # For REGtoREG
-                if( isinstance(dep[0], Expr.SSAExpr) and dep[1].isTrue(hard=hard_simplify)):
+                if( isinstance(dep[0], Expr.SSAExpr) and dep[1].isTrue()):
                     add_gadget(gadgetLookUp[GadgetType.REGtoREG][reg.num][dep[0].reg.num], i)
                 # For CSTtoREG
-                elif( isinstance(dep[0], Expr.ConstExpr) and dep[1].isTrue(hard=hard_simplify)):
+                elif( isinstance(dep[0], Expr.ConstExpr) and dep[1].isTrue()):
                     if( not dep[0].value in gadgetLookUp[GadgetType.CSTtoREG][reg.num] ):
                         gadgetLookUp[GadgetType.CSTtoREG][reg.num][dep[0].value] = [i]
                     else:    
                         add_gadget(gadgetLookUp[GadgetType.CSTtoREG][reg.num][dep[0].value], i)
                 # For XXXtoREG
-                elif( isinstance(dep[0], Expr.MEMExpr) and dep[1].isTrue(hard=hard_simplify) ):
+                elif( isinstance(dep[0], Expr.MEMExpr) and dep[1].isTrue() ):
                     # For MEMtoREG
                     if( isinstance(dep[0].addr, Expr.SSAExpr)):
                         addrKey = dep[0].addr.reg.num
@@ -363,7 +360,7 @@ def fillGadgetLookUp():
                         gadgetLookUp[GadgetType.MEMEXPRtoREG][reg.num].expr_list.append(dep[0].addr)
                         gadgetLookUp[GadgetType.MEMEXPRtoREG][reg.num].gadget_list.append([i])
                 # FOR EXPRtoREG
-                elif( dep[1].isTrue(hard=hard_simplify) ):
+                elif( dep[1].isTrue() ):
                     exprLookUpEXPRtoREG = gadgetLookUp[GadgetType.EXPRtoREG][reg.num]
                     exprLookUpEXPRtoREG.expr_list.append(dep[0])
                     exprLookUpEXPRtoREG.gadget_list.append([i])
@@ -383,7 +380,7 @@ def fillGadgetLookUp():
                     raise Exception("Invalid dependency in fillGadgetLookUp(): " + str(dep[0]))
             
                 # For REGtoMEM
-                if( isinstance( dep[0], Expr.SSAExpr ) and dep[1].isTrue(hard=hard_simplify)):
+                if( isinstance( dep[0], Expr.SSAExpr ) and dep[1].isTrue()):
                     if( not REGtoMEM_added ):
                         REGtoMEM_added = True
                         gadgetLookUp[GadgetType.REGtoMEM].addr_list.append(addr)
@@ -393,7 +390,7 @@ def fillGadgetLookUp():
                     else:
                         gadgetLookUp[GadgetType.REGtoMEM].written_values[-1][dep[0].reg.num] = [i]
                 # For CSTtoMEM
-                elif( isinstance(dep[0], Expr.ConstExpr) and dep[1].isTrue(hard=hard_simplify)):
+                elif( isinstance(dep[0], Expr.ConstExpr) and dep[1].isTrue()):
                     if( not CSTtoMEM_added ):
                         CSTtoMEM_added = True
                         gadgetLookUp[GadgetType.CSTtoMEM].addr_list.append(addr)
@@ -403,7 +400,7 @@ def fillGadgetLookUp():
                     else:
                         gadgetLookUp[GadgetType.CSTtoMEM].written_values[-1][dep[0].value] = [i]
                 # For MEMEXPRtoMEM
-                elif( isinstance(dep[0], Expr.MEMExpr) and dep[1].isTrue(hard=hard_simplify)):
+                elif( isinstance(dep[0], Expr.MEMExpr) and dep[1].isTrue()):
                     if( not MEMEXPRtoMEM_added ):
                         MEMEXPRtoMEM_added = True
                         gadgetLookUp[GadgetType.MEMEXPRtoMEM].addr_list.append(addr)
@@ -413,7 +410,7 @@ def fillGadgetLookUp():
                     else:
                         gadgetLookUp[GadgetType.MEMEXPRtoMEM].written_values[-1][dep[0].addr] = [i]      
                 # For EXPRtoMEM
-                elif( isinstance(dep[0], Expr.Expr) and dep[1].isTrue(hard=hard_simplify)):
+                elif( isinstance(dep[0], Expr.Expr) and dep[1].isTrue()):
                     if( not EXPRtoMEM_added ):
                         EXPRtoMEM_added = True
                         gadgetLookUp[GadgetType.EXPRtoMEM].addr_list.append(addr)

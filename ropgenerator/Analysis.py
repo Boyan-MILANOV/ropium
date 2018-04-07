@@ -3,7 +3,7 @@ ROPGenerator - Analysis.py module
 Gathers information about the analysis being run
 """
 
-from ropgenerator.Expr import REGSIZE, set_memorySMT
+from ropgenerator.Expr import REGSIZE
 from ropgenerator.Logs import log
 
 from barf.arch import ARCH_X86_MODE_32
@@ -73,14 +73,12 @@ def setArch(arch):
         if arch == "X86":
             ArchInfo.bits = 32
             REGSIZE.size = 32
-            set_memorySMT(32)
             ArchInfo.ip = "eip"
             ArchInfo.sp = "esp"
             ArchInfo.currentArchInfo = X86ArchitectureInformation(ARCH_X86_MODE_32)
         elif arch == "X86_64":
             ArchInfo.bits = 64
             REGSIZE.size = 64
-            set_memorySMT(64)
             ArchInfo.ip = "rip"
             ArchInfo.sp = "rsp"
             ArchInfo.currentArchInfo = X86ArchitectureInformation(ARCH_X86_MODE_64)

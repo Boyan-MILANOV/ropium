@@ -1,7 +1,6 @@
 # ROPGenerator - Cond.py module 
 # Implements the data structure to represent arithmetical and logical conditions on abstract values for registers and memory. 
  
-from z3 import *
 from ropgenerator.Expr import *
 from ropgenerator.Logs import log
 import signal 
@@ -13,27 +12,6 @@ def CondException( Exception ):
         log(msg)
     def __str__(self):
         return self.msg 
-    
-
-
-def TimeOutRaiser(signum, frame):
-    """
-    Function used to limit the time used by the z3 solver
-    It is is the handler for the signal sent in isTrue() and isFalse() functions 
-    """
-    if( Z3running ):
-        raise Exception("z3 solver is too slow")
-
-# Z3 SImplification 
-debug_solver_count = 0     # Number of calls to the solver 
-def hardSimplify( condZ3 ):
-    """
-    Simplify a condition using the z3 solver 
-    """
-    global debug_solver_count
-    debug_solver_count = debug_solver_count + 1
-    return Then('simplify', 'propagate-values')(condZ3).as_expr()
-    # Could use also , 'ctx-solver-simplify' strategy 
  
 ##############################
 # TYPES OF CONDITIONS ( CT ) #
@@ -137,10 +115,7 @@ class Cond:
                     or (Expr, Expr) with self.cond an arithmetic condition ( EQUAL, NOTEQUAL, GT, LE , etc )
                     or (None, None) if self.cond is NONE or TRUE or FALSE
                     or (None, Condition) if self.cond is NOT  
-        (self.simplifiedSoft) - (Bool) True <=> self.z3 have been simplified using a soft simplification function
-        (self.Z3Simplified) - (Bool) True <=> self.z3 have been simplified using the hard simplification function 
         (self.cleaned) - (Bool) True <=> The condition have been cleaned ( call to self.clean() function ) 
-        (self.checked) - (Bool) True <=> self.z3 have been utterly checked for True or False using Z3 solver
 
     """
     
@@ -148,23 +123,17 @@ class Cond:
         self.cond = condObject.cond
         self.left = condObject.left
         self.right = condObject.right
-        self.z3 = condObject.z3
         self.customSimplified = condObject.customSimplified
         self.customSimplifiedValue = condObject.customSimplifiedValue
-        self.Z3Simplified = condObject.Z3Simplified
         self.cleaned = condObject.cleaned
-        self.checked = condObject.checked
     
-    def __init__(self, cond, left, right, z3 = None, cleaned = False, checked = False ):
+    def __init__(self, cond, left, right, cleaned = False, checked = False ):
         self.cond = cond
         self.left = left
         self.right = right
-        self.z3 = z3
         self.customSimplified = False
         self.customSimplifiedValue = None
-        self.Z3Simplified = False
         self.cleaned = cleaned 
-        self.checked = checked 
 
                 
     def __eq__(self, other ):
@@ -213,9 +182,8 @@ class Cond:
         Replaces every occurence of a register by a given expression
         Parameters :
             var - (SSAReg) that will be replaced 
-            expr - (z3) that will replace 'var' 
+            expr - (Expr) that will replace 'var' 
         """
-        # newZ3 = substitute( self.z3, (z3from, z3to) )
         if( self.cond == CT.NOT ):
             return Cond( CT.NOT, None, self.right.replaceReg( var, expr ), self.cleaned)        
         elif( isArithmeticComp(self.cond)):
@@ -241,40 +209,6 @@ class Cond:
             return res        
         else:
             return Cond( self.cond, self.left.flattenITE(), self.right.flattenITE() )
-        
-    def toZ3( self ): 
-        """
-        Returns the translation in Z3 of the condition 
-        """
-        if( self.z3 != None ):
-            return self.z3
-            
-        if( self.cond == CT.NOT ):
-            self.z3 = Not( self.right.toZ3() )
-        elif (self.cond == CT.EQUAL):
-            self.z3 = (self.left.toZ3() == (self.right.toZ3()))
-        elif (self.cond == CT.NOTEQUAL):
-            self.z3 = Not(self.left.toZ3() == (self.right.toZ3()))
-        elif( self.cond == CT.GT ):
-            self.z3 = (self.left.toZ3() > (self.right.toZ3()))
-        elif( self.cond == CT.GE ):
-            self.z3 = (self.left.toZ3() >= (self.right.toZ3()))
-        elif( self.cond == CT.LT ):
-            self.z3 = (self.left.toZ3() < (self.right.toZ3()))
-        elif( self.cond == CT.LE ):
-            self.z3 = (self.left.toZ3() <= (self.right.toZ3()))
-        elif (self.cond == CT.AND):
-            self.z3 = And(( self.left.toZ3(), self.right.toZ3()))
-        elif (self.cond == CT.OR):
-            self.z3 = Or( self.left.toZ3(), self.right.toZ3())
-        elif ( self.cond == CT.TRUE ):
-            self.z3 = BoolSort().cast(True) 
-        elif( self.cond == CT.FALSE ):
-            self.z3 = BoolSort().cast(False) 
-        else:
-            raise CondException("Condition type %s cannot be converted into Z3 format " % self.cond)
-        return self.z3     
-            
             
     def clean(self):
         """
@@ -296,7 +230,6 @@ class Cond:
                     # We cut the left member
                     self.cond = self.right.cond
                     self.left = self.right.left
-                    self.z3 = self.right.z3
                     self.right = self.right.right
                     res = CE.UNKNW
             elif( right == CE.TRUE ):
@@ -306,7 +239,6 @@ class Cond:
                 else:
                     self.cond = self.left.cond
                     self.right = self.left.right
-                    self.z3 = self.left.z3
                     self.left = self.left.left
                     res = CE.UNKNW
         # OR Simplification 
@@ -323,7 +255,6 @@ class Cond:
                 else:
                     self.cond = self.right.cond
                     self.left = self.right.left 
-                    self.z3 = self.right.z3
                     self.right = self.right.right
                     res = CE.UNKNW
             elif( right == CE.FALSE ):
@@ -333,7 +264,6 @@ class Cond:
                 else:
                     self.cond = self.left.cond
                     self.right = self.left.right
-                    self.z3 = self.left.z3
                     self.left = self.left.left 
                     res =  CE.UNKNW 
                 
@@ -499,104 +429,36 @@ class Cond:
         else:
             raise CondException("Condition type " + str(self.cond) + " not supported by customSimplify() yet")
         
-    def simplifyZ3(self):
-        """
-        Simplifies oneself's z3 representation 
-        
-        THIS FUNCTION SHOULD NOT BE USED YET 
-        
-        /!\ The IR ( i.e Cond AST ) stays the same, even if the self.z3 is modified
-        /!\ After calling this function, the self.z3 object will no more correspond to a direct 
-        /!\     translation of the AST representation into a z3 expression  
-        
-        Parameters:
-            /!\ Notice that a 'hard simplification' is way more expensive than a 'soft simplification' but can
-            return better results 
-        """
-
-        if( self.Z3Simplified ):         
-            return self.z3
-        
-        condZ3 = self.toZ3()
-        self.z3 = hardSimplify(condZ3)
-        if( self.z3 == BoolSort().cast(True)):
-            self.setTrue()
-        elif( self.z3 == BoolSort().cast(False)):
-            self.setFalse()
-        self.Z3Simplified = True
-        return self.z3 
                 
-    def isTrue(self, hard=False):
+    def isTrue(self):
         """
         Checks if a condition is always true 
-        If hard = False : Returns True if the condition is simplified to "True" using customSimplify(). Some actual true conditions can be missed 
-        If hard = True : Returns True if the condition is always verified by checking for its negation to be unsat with Z3 check() function
         """
-        global debug_solver_count
-        
         if( self.cond == CT.TRUE ):
             return True
         elif( self.cond == CT.FALSE ):
             return False
         
-        if( hard == False ):
-            res = self.customSimplify()
-            return ( res == CE.TRUE )
-        else:
-            condZ3 = self.simplifyZ3()
-            self.checked = True
-            v = Solver()
-            v.add(Not(condZ3))
-            signal.signal(signal.SIGALRM, TimeOutRaiser)
-            #signal.setitimer(signal.ITIMER_REAL, 1)
-            try:        
-                res = str(v.check())
-            except Exception as e:
-                log("z3 Failed to check the following condition: " + str(Not(condZ3)))
-                res = "sat"
-            debug_solver_count = debug_solver_count + 1
-            if( str(res) == "unsat" ):
-                self.setTrue()
-                return True
-            else:
-                return False
+        if( not self.cleaned ):
+			self.clean()
+			
+        res = self.customSimplify()
+        return ( res == CE.TRUE )
         
-    def isFalse( self, hard=False):
+    def isFalse( self):
         """
         Checks if a condition is always false
-        If hard = False : Returns True if the condition is simplified to "False" using  customSimplify(). Some actual false conditions can be missed 
-        If hard = True : Returns True if the condition is never verified by checking for it to be unsat with Z3 check() function
-        """
-        global debug_solver_count
-        
+        """  
         if( self.cond == CT.TRUE ):
             return False
         elif( self.cond == CT.FALSE ):
             return True
         
-        if( hard == False ):
-            res = self.customSimplify()
-            return ( res == CE.FALSE )
-
-        else:
-            condZ3 = self.simplifyZ3()
-            self.checked = True
-            v = Solver()
-            v.add(condZ3)
-            signal.signal(signal.SIGALRM, TimeOutRaiser)
-            #signal.setitimer(signal.ITIMER_REAL, 1)
-            try:        
-                res = str(v.check())
-            except Exception as e:
-                res = "sat"
-            
-            debug_solver_count = debug_solver_count + 1
-            if( str(res) == "unsat" ):
-                self.setFalse()
-                return True
-            else:
-                return False
-                
+        if( not self.cleaned ):
+			self.clean()
+			
+        res = self.customSimplify()
+        return ( res == CE.FALSE )
                 
     def setTrue(self):
         """
@@ -604,8 +466,7 @@ class Cond:
         """
         self.cond = CT.TRUE
         self.left = self.right = None
-        self.z3 = BoolSort().cast(True)
-        self.cleaned = self.Z3Simplified = self.customSimplified = self.checked = True
+        self.cleaned = self.customSimplified = True
         self.customSimplifiedValue = CE.TRUE
         
         
@@ -615,21 +476,20 @@ class Cond:
         """
         self.cond = CT.FALSE
         self.left = self.right = None
-        self.z3 = BoolSort().cast(False)
         self.customSimplifiedValue = CE.FALSE
-        self.cleaned = self.Z3Simplified = self.customSimplified = self.checked = True
+        self.cleaned = self.customSimplified = True
     
 def CTrue():
     """
     Returns a TRUE condition 
     """
-    return Cond(CT.TRUE, None, None, z3=BoolSort().cast(True), cleaned=True, checked=True )
+    return Cond(CT.TRUE, None, None, cleaned=True, checked=True )
     
 def CFalse():
     """
     Returns a FALSE condition 
     """
-    return Cond(CT.FALSE, None, None, z3=BoolSort().cast(False), cleaned=True, checked=True)
+    return Cond(CT.FALSE, None, None, cleaned=True, checked=True)
     
 
             

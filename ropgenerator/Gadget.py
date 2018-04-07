@@ -2,10 +2,9 @@
 # Implements the data structure to represent gadgets
 # And building functions for creating them from BARF IR 
 
-from ropgenerator.Expr import ConstExpr, SSAExpr, MEMExpr, Op, SSAReg, Cat, Extr, Convert, strToReg, ITE, REGSIZE, memorySMT
-from ropgenerator.Cond import Cond, CT, CTrue, CFalse, simplify
+from ropgenerator.Expr import ConstExpr, SSAExpr, MEMExpr, Op, SSAReg, Cat, Extr, Convert, strToReg, ITE, REGSIZE
+from ropgenerator.Cond import Cond, CT, CTrue, CFalse
 from ropgenerator.Graph import Graph, Arc, GadgetDependencies, CurrentAnalysis, MEMNode, SSANode, ConstNode, ITENode
-from z3 import Array, BitVecSort
 import ropgenerator.Analysis as Analysis 
 from ropgenerator.Logs import log
 from ropgenerator.Constraints import Constraint, ConstraintType
@@ -86,7 +85,6 @@ class Gadget:
             # Some strings representations 
             self.asmStr = "; ".join(str(i) for i in ins)
             self.hexStr = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in raw)
-            # Initializing the memory in Z3 for this gadget 
             self.addr = addr # int
             # Get the string for the address, depends on the architecture size 
             self.addrStr = '0x'+format(addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
@@ -117,7 +115,6 @@ class Gadget:
         """
         self.asmStr = same_gadget.asmStr
         self.hexStr = same_gadget.hexStr
-        # Initializing the memory in Z3 for this gadget
         self.addr = new_addr # int
         # Get the string for the address, depends on the architecture size 
         self.addrStr = '0x'+format(new_addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
