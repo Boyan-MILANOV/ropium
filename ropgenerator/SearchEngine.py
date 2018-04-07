@@ -6,7 +6,7 @@ import ropgenerator.Database as Database
 import ropgenerator.Analysis as Analysis
 import re
 from ropgenerator.Gadget import GadgetType
-from ropgenerator.Config import LIMIT 
+import ropgenerator.Config as Config
 import ropgenerator.SearchHelper as SearchHelper
 from ropgenerator.Constraints import Constraint, ConstraintType
 from ropgenerator.Colors import string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold
@@ -51,25 +51,24 @@ class search_engine:
     def __init__(self):
         self.truc = None
  
-    def find(self, gtype, arg1, arg2, constraint, n=1, basic=True, chainable=True):
+    def find(self, gtype, arg1, arg2, constraint, n=1, basic=True, chainable=True, unusable=[]):
         """
         Searches for gadgets 
         basic = False means that we don't call _basic_strategy
         chainable = True means that we want only chainable gadgets 
         """
-        
         res = []        
         if( not chainable ):
-            return self._basic_strategy(gtype, arg1, arg2, constraint, n=n)
+            return self._basic_strategy(gtype, arg1, arg2, constraint.remove_all(ConstraintType.CHAINABLE_RET), n=n)
         # Adjusting the constraint
         constraint_with_chainable = constraint.add(ConstraintType.CHAINABLE_RET, [])
         # Searching with basic strategies for chainable
         if( basic ):
             res = self._basic_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n)
         # If not enough chains found, chaining with advanced strategy 
-        if(len(res) <= n):
-            res += self._chaining_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n-len(res))
-        return res
+        if(len(res) < n):
+            res += self._chaining_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n-len(res), unusable=unusable)
+        return sorted(res, key = lambda x:len(x)) 
  
     def _basic_strategy(self, gtype, arg1, arg2, constraint, n=1):
         """
@@ -85,110 +84,73 @@ class search_engine:
         gadgets =  Database.gadgetLookUp.find(gtype, arg1, arg2, constraint, n)
         return SearchHelper.pad_gadgets(gadgets, constraint)
             
-    def _chaining_strategy(self, gtype, arg1, arg2, constraint, n=1, unusable=[], depth=DEFAULT_DEPTH):
+    def _chaining_strategy(self, gtype, arg1, arg2, constraint, n=1, unusable=[]):
         """
         Search for gadgets with advanced chaining methods
         Returns a list of chains ( a chain is a list of gadgets )
         """
-        # DEBUG temporarily return [] because not implemented 
-        return []
         
-        if( depth <= 0 ):
-            return []
         res = []  
-        if( gtype == GadgetType.REGtoREG ): 
-            res += self._REGtoREG_transitivity(arg1, arg2, constraint, n=n)
-            res += self._REGtoREG_adjust_jmp_reg(arg1, arg2, constraint, n=n, unusable=unusable, depth=depth)
-            return res
-        elif( gtype == GadgetType.CSTtoREG ):
-            res += self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n,unusable=unusable)
-            return res
-        elif( gtype == GadgetType.STRPTRtoREG ):
-            res += self._STRPTRtoREG_on_stack(arg1, arg2, constraint, n=n)
+        if( (gtype == GadgetType.REGEXPRtoREG) and (arg2[1] == 0)): 
+            res += self._REGtoREG_transitivity(arg1, arg2[0], constraint, n=n, unusable=unusable)
+            res += self._REGtoREG_adjust_jmp_reg(arg1, arg2, constraint, n=n)
             return res
         else:
             return []
         
         
-    def _REGtoREG_transitivity(self, reg, reg2, constraint, n=1):
+    def _REGtoREG_transitivity(self, reg, reg2, constraint, unusable=[], n=1):
         """
         Searches for a chain that puts reg2 in reg
+        reg, reg2 - (int)
         """
-        # Direct search with the SearchHelper
-        return SearchHelper.found_REGtoREG_reg_transitivity(reg, reg2, constraint, n=n)
+        res = []
+        for inter_reg in SearchHelper.possible_REGtoREG_transitivity(reg):
+            if( (inter_reg != reg) and (inter_reg != reg2) and (not inter_reg in unusable)):
+                base_chains = self._basic_strategy(GadgetType.REGEXPRtoREG, reg, [inter_reg,0], constraint, n=n)
+                for inter_chain in self.find( GadgetType.REGEXPRtoREG, inter_reg, \
+                [reg2, 0], constraint, unusable=unusable+[reg], n=n):
+                    for base_chain in base_chains:
+                        res.append( inter_chain + base_chain )
+                        if( len(res) >= n ):
+                            return res
+        return res
+                    
    
-    def _REGtoREG_adjust_jmp_reg(self, reg, reg2, constraint, n=1, unusable=[], depth=DEFAULT_DEPTH):
+    def _REGtoREG_adjust_jmp_reg(self, reg, reg2, constraint, n=1):
         """
         Searches for chains matching gadgets finishing by jmp or call 
         And adjusts them by handling the call/jmp
         """
-        if( depth <= 0 ):
-            return []
             
         res = []
-        # Find not chainable gadgets 
+        # Find possible not chainable gadgets 
         constraint_not_chainable = constraint.remove_all(ConstraintType.CHAINABLE_RET)
-        # For all possible intermediate registers that come
-        #     from jmpReg gadgets 
-        for inter_reg in range(0,Analysis.ssaRegCount):
-            if( inter_reg in unusable or inter_reg == reg or inter_reg == reg2 ):
-                continue
-            # Get gadgets that terminate by jmp reg
-            # Here since _basc_strategy returns single gadgets
-            # as padded ROP chains we take only g[0] which is
-            # the number of the gadget, first in the ROP chain           
-            possible_gadgets = [g[0] for g in  self._REGtoREG_basic_strategy( reg, inter_reg, constraint_not_chainable, n=n-len(res)) if Database.gadgetDB[g[0]].hasJmpReg()[0] ]
-            # Then try to adjust them 
-            for g in possible_gadgets:
-                padded_g = SearchHelper.pad_gadgets([g], constraint_not_chainable)[0]
-                jmp_to_reg = Database.gadgetDB[g].hasJmpReg()[1]
-                # COMPUTE PRE CONSTRAINT 
-                preConstraint = constraint.add(ConstraintType.REGS_NOT_MODIFIED, [reg2])
-                # Get a corresponding ret gadget 
-                adjusting_jmp_reg = self._adjust_jmp_reg(jmp_to_reg, preConstraint)
-                if( not adjusting_jmp_reg ):
-                    continue
-                else:
-                    # Get the rest of the chain
-                    previous_chains = self._chaining_strategy( GadgetType.REGtoREG, inter_reg, reg2, constraint, n=n, unusable=unusable+[reg], depth=depth-1)
-                    for c in previous_chains:
-                        res.append(c+adjusting_jmp_reg[0]+padded_g)
-                        if( len(res) >= n ):
-                            return res
-        
-        # For all normal ret gadgets, try jmReg gadgets
-        for inter_reg in SearchHelper.possible_REGtoREG_reg_transitivity(reg):
-            if( inter_reg in unusable or inter_reg == reg or inter_reg == reg2 ):
-                continue
-            # Get inter_reg <- reg2
-            last_chains = SearchHelper.found_REGtoREG_reg_transitivity(reg, inter_reg, constraint, n=n-len(res))
-            possible_gadgets = [g[0] for g in  self._REGtoREG_basic_strategy( inter_reg, reg2, constraint_not_chainable, n=n-len(res))if Database.gadgetDB[g[0]].hasJmpReg()[0]]
-            # Then try to adjust them 
-            for g in possible_gadgets:
-                padded_g = SearchHelper.pad_gadgets([g], constraint_not_chainable)[0]
-                jmp_to_reg = Database.gadgetDB[g].hasJmpReg()[1]
-                # COMPUTE PRE CONSTRAINT 
-                preConstraint = constraint.add(ConstraintType.REGS_NOT_MODIFIED, [reg2])
-                # Get a corresponding ret gadget 
-                adjusting_jmp_reg = self._adjust_jmp_reg(jmp_to_reg, preConstraint)
-                if( not adjusting_jmp_reg ):
-                    continue
-                else:                   
-                    for c in last_chains:
-                        res.append( adjusting_jmp_reg[0] + padded_g + c )
-                        if( len(res) >= n ):
-                            return res
-        
-        # TODO for all 'normal ret' gadgets, recursive call
-        # with unusable options and constraints about what can be modified or not ;-) 
-        return res
+        possible_gadgets = [g[0] for g in self._basic_strategy(GadgetType.REGEXPRtoREG, reg, [reg2,0], \
+            constraint_not_chainable, n=n, chainable=False) if Database.gadgetDB[g[0]].hasJmpReg()[0] \
+            and Database.gadgetDB[g[0]].isValidSpInc()]
+        for gadget in possible_gadgets:
+            # Pad the gadget 
+            padded_gadget = SearchHelper.pad_gadgets([g], constraint_not_chainable, force_padding=True)[0]
+            # Get the register we are jumping to 
+            jmp_to_reg = Database.gadgetDB[g].hasJmpReg()[1]
+            # COMPUTE PRE CONSTRAINT (don't modify reg2)
+            preConstraint = constraint.add(ConstraintType.REGS_NOT_MODIFIED, [reg2])
+            # Get chains that adjust the register to be pointing to ret 
+            adjusting_jmp_reg_chains = self._put_RET_in_reg(jmp_to_reg, preConstraint)
+            # Combine the two to get the chain adjusted chain :) 
+            for adjust_chain in adjusting_jmp_reg_chains:
+                res.append( adjust_chain + padded_gadget )
+                if( len(res) >= n ):
+                    return res
+        return res 
         
     
-    def _adjust_jmp_reg(self, reg, constraint, n=1):
+    def _put_RET_in_reg(self, reg, constraint, n=1):
         """
         Finds chains that puts in 'reg' the address of a ret gadget
         """
-        ret_adjust_gadgets = [c[0] for c in self._RET_offset(0, constraint, n=100) if len(c) == 1]
+        ret_adjust_gadgets = [c[0] for c in self._RET_offset(0, constraint, n=n) if len(c) == 1]
         if( not ret_adjust_gadgets ):
             return []
         res = []
@@ -203,23 +165,14 @@ class search_engine:
             if( len(res) >= n ):
                 return res
         return res
-             
-        
-    def _CSTtoREG_basic_strategy(self, reg, cst, constraint, n=1):
+    
+    def _RET_offset(self, offset, constraint, n=1):
         """
-        Searches for a gadget that puts directly the constant cst into register reg 
+        Searches for gadgets that do ip <- mem(sp + offset) 
         """
-        db = Database.gadgetLookUp[GadgetType.CSTtoREG]
-        if( not cst in db[reg] ):
-            return []
-        res = []
-        for gadget_num in db[reg][cst]:
-            if( len(res) >= n ):
-                break
-            elif( constraint.validate(Database.gadgetDB[gadget_num])):
-                res.append(gadget_num)
-        return SearchHelper.pad_gadgets(res[:n], constraint)
-        
+        ip_num = Analysis.regNamesTable[Analysis.ArchInfo.ip]
+        sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
+        return self._basic_strategy(GadgetType.REGEXPRtoREG, ip_num, [sp_num,offset], constraint=constraint, n=n)
     
     def _CSTtoREG_pop_from_stack(self, reg, cst, constraint, n=1, unusable=[]):
         """
@@ -229,27 +182,7 @@ class search_engine:
         # Direct pop from the stack 
         res = [g for g in SearchHelper.found_CSTtoREG_pop_from_stack(reg, cst, constraint, n=n)  \
                 if Database.gadgetDB[g[0]].spInc > Analysis.ArchInfo.bits/8]
-        # Pop in another register and use register transitivity
-        if( len(res) <= n ):
-            for other_reg in SearchHelper.possible_REGtoREG_reg_transitivity(reg):
-                if( other_reg != reg and not other_reg in unusable):
-                    # Get other s.t reg <- other_reg 
-                    reg_to_reg_chains = SearchHelper.found_REGtoREG_reg_transitivity(reg, other_reg, constraint, n=n)
-                    # If we have reg <- other_reg 
-                    # We try to pop the constant in other_reg
-                    if( reg_to_reg_chains ):
-                        other_reg_CSTtoREG = self._CSTtoREG_basic_strategy(other_reg, cst, constraint, n=n)
-                        if( len(other_reg_CSTtoREG) < n ):
-                            # TODO,  HERE SHOULD ADD SOME CONSTRAINT 
-                            other_reg_CSTtoREG += [ g for g in self._CSTtoREG_pop_from_stack(other_reg, cst, constraint, n=n, unusable=unusable+[reg]) if Database.gadgetDB[g[0]].spInc > Analysis.ArchInfo.bits/8]
-                        # Merge: 
-                        # First cst to other_reg 
-                        # then other_reg in reg
-                        for other_pop in other_reg_CSTtoREG:
-                            for reg_to_reg in reg_to_reg_chains:
-                                res.append( other_pop + reg_to_reg )
-                                if( len(res) >= n ):
-                                    return res
+        
         return res
         
     def _STRPTRtoREG_on_stack(self, reg, string, constraint, n=1):
@@ -284,91 +217,6 @@ class search_engine:
         return res
     
     
-    
-    
-            
-        
-    def _MEMtoREG_basic_strategy(self, reg, addr, constraint, n=1):
-        """
-        Searches for a gadget that puts mem(addr) into reg
-        reg - int, number of the register to affect
-        addr - int, number of the register used as an address 
-        """
-        db = Database.gadgetLookUp[GadgetType.MEMtoREG]
-        if( not addr in db[reg] ):
-            return []
-        res = []
-        for gadget_num in db[reg][addr]:
-            if( len(res) >= n ):
-                break
-            elif( constraint.validate(Database.gadgetDB[gadget_num])):
-                res.append( gadget_num )
-        return SearchHelper.pad_gadgets(res[:n], constraint)
-    
-    def _EXPRtoREG_basic_strategy(self, reg, expr, constraint, n=1):
-        """
-        Searches for gadgets that put the expression 'expr' into register reg 
-        expr - Expr
-        reg - int
-        """
-        db = Database.gadgetLookUp[GadgetType.EXPRtoREG]
-        if( not reg in db ):
-            return []
-        return SearchHelper.pad_gadgets(db[reg].lookUpEXPRtoREG(expr, constraint, n), constraint)
-        
-    def _MEMEXPRtoREG_basic_strategy(self, reg, addr, constraint, n=1):
-        """
-        Searches for gadgets that put the expression mem(addr) into register reg
-        addr - Expr
-        reg - int
-        
-        """
-        db = Database.gadgetLookUp[GadgetType.MEMEXPRtoREG]
-        if( not reg in db ):
-            return []
-        # Search for addr directly, because we store only reg<-addr instead of reg<-mem(addr)
-        return SearchHelper.pad_gadgets(db[reg].lookUpEXPRtoREG(addr, constraint, n), constraint)
-        
-        
-    def _CSTtoMEM_basic_strategy(self, addr_expr, cst, constraint, n=1):
-        """
-        Searches for gadgets that write the constant cst att mem(addr_expr)
-        addr_expr - Expr
-        cst - int 
-        """
-        return SearchHelper.pad_gadgets( Database.gadgetLookUp[GadgetType.CSTtoMEM].lookUpCSTtoMEM(addr_expr, cst, constraint, n), constraint)
-
-    def _REGtoMEM_basic_strategy(self, addr_expr, reg, constraint, n=1):
-        """
-        Searches for gadgets that write reg in the memory at address addr_expr
-        addr_expr - Expr
-        reg - int, number of the register 
-        """
-        return SearchHelper.pad_gadgets( Database.gadgetLookUp[GadgetType.REGtoMEM].lookUpREGtoMEM(addr_expr, reg, constraint, n), constraint)
-
-    def _MEMEXPRtoMEM_basic_strategy(self, addr, expr, constraint, n=1):
-        """
-        Searches for gadgets that write mem(expr) at mem(addr)
-        addr - Expr
-        expr - Expr 
-        """
-        return SearchHelper.pad_gadgets(Database.gadgetLookUp[GadgetType.MEMEXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n), constraint)
-        
-    def _EXPRtoMEM_basic_strategy(self, addr, expr, constraint, n=1):
-        """
-        Searches for gadgets that write expr at mem(addr)
-        addr - Expr
-        expr - Expr 
-        """
-        return SearchHelper.pad_gadgets(Database.gadgetLookUp[GadgetType.EXPRtoMEM].lookUpEXPRtoMEM(addr, expr, constraint, n), constraint)
-
-
-    def _RET_offset(self, offset, constraint, n=1):
-        """
-        Searches for gadgets that do ip <- mem(sp + offset) 
-        """
-        ip_num = Analysis.regNamesTable[Analysis.ArchInfo.ip]
-        return SearchHelper.found_REG_pop_from_stack(ip_num, offset, constraint, n=n)
         
 
 # The module-wide search engine 
@@ -409,13 +257,13 @@ def find_gadgets(args):
         constraint = parsed_args[4]
         chains = []
         # Search with basic strategy
-        chains = search.find(gtype, left, right, constraint, n=LIMIT)
+        chains = search.find(gtype, left, right, constraint, n=Config.LIMIT)
         # Display results 
         if( chains ):
             print(string_bold("\n\tBuilt matching ROP Chain(s):\n"))
             show_chains(chains)
         else:
-            possible_gadgets = search.find(gtype, left, right, constraint, n=LIMIT, chainable=False)
+            possible_gadgets = search.find(gtype, left, right, constraint, n=Config.LIMIT, chainable=False)
             if( possible_gadgets ):
                 print(string_bold("\n\tFound possibly matching Gadget(s):\n"))
                 show_chains(possible_gadgets)

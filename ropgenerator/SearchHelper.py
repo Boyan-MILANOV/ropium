@@ -141,17 +141,20 @@ def filter_chains(chain_list, constraint, n):
     return res
 
 
-def pad_gadgets(gadget_num_list, constraint):
+def pad_gadgets(gadget_num_list, constraint, force_padding=False):
     """
     Takes a list of gadgets and returns a list of chains
     Each chain of the result corresponds to the padded gadget
+
+    [!] force_padding = True means we will pad even if the gadget has not a
+        valid ret or spinc 
     """
     res = []
     padding_int = get_valid_padding(constraint)
     padding_unit = set_padding_unit(padding_int)
     for gadget_num in gadget_num_list:
         gadget = Database.gadgetDB[gadget_num]
-        if( (not gadget.hasNormalRet()) or (not gadget.isValidSpInc())):
+        if( (not force_padding) and ((not gadget.hasNormalRet()) or (not gadget.isValidSpInc()))):
             res.append([gadget_num])
         elif( gadget.ret == RetType.RET ):
             nb_padding_units = (Database.gadgetDB[gadget_num].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8)
@@ -164,94 +167,30 @@ def pad_gadgets(gadget_num_list, constraint):
     return sorted(res, key = lambda x:len(x)) 
 
 #############################################
-# Chains for REGtoREG transitivity strategy #
+# Helper for REGtoREG transitivity strategy #
 #############################################
 
-record_REGtoREG_reg_transitivity = dict()
-built_REGtoREG_reg_transitivity = False
+record_REGtoREG_transitivity = dict()
+built_REGtoREG_transitivity = False
 
-
-def build_REGtoREG_reg_transitivity():
-    """
-    Builds chains for operation REG <- REG 
-    Parameters:
-        iterations - (int) Number of iterations for the transitive closure algorithm  
-    """
-    # Transitive closure 
-    #Initialisation 
-    global built_REGtoREG_reg_transitivity
-    global record_REGtoREG_reg_transitivity
-    global PADDING_BYTE
-    global PADDING_UNIT
-    global PADDING_GADGET  
-    global MAX_PADDING 
+def build_REGtoREG_transitivity():
+    global record_REGtoREG_transitivity
+    global built_REGtoREG_transitivity
     
-    if( built_REGtoREG_reg_transitivity ):
-        return 
-    
-    iterations=4
-    
-    # Choose a padding unit 
-    padding_uid = set_padding_unit()
-    
-    # Initialize printing info
-    info_colored(string_bold("Performing additionnal analysis")+": chain gadgets by transitivity\n") 
-    # Transitive closure 
-    # During algorithm the chains are stored as triples:
-    #     ( chain, used_regs, nb_instr )
-    #     where used_regs is the list of registers we already considered for the chain rY <- rX <- .... <- rZ
-    #    nb_instr is the total number of instructions (in REIL) composing the gadgets of the chain 
-    db = Database.gadgetLookUp[GadgetType.REGtoREG]
-    for reg1 in range(0,Analysis.ssaRegCount):
-        record_REGtoREG_reg_transitivity[reg1] = dict()
-        for reg2 in range(0,Analysis.ssaRegCount):
-            record_REGtoREG_reg_transitivity[reg1][reg2] = []
-            for gadget_num in db[reg1][reg2]:
-                if( Database.gadgetDB[gadget_num].isValidSpInc() and Database.gadgetDB[gadget_num].hasNormalRet()  ):
-                    padding_units = (Database.gadgetDB[gadget_num].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8)
-                    if( padding_units <= MAX_PADDING ):
-                        padding_chain = [padding_uid for i in range(0,padding_units)] 
-                        nbInstr = Database.gadgetDB[gadget_num].nbInstr
-                        add_REGtoREG_reg_transitivity(reg1, reg2, [gadget_num]+padding_chain, [reg2], nbInstr)
-                        
-                else:
-                    pass
-                
-    modified = True
-    while( modified and (iterations > 0)):
-        modified = False
-        iterations = iterations - 1
-        for reg1 in range(0,Analysis.ssaRegCount):
-            for reg2 in range(0,Analysis.ssaRegCount):
-                for reg3 in range(0,Analysis.ssaRegCount):
-                    if( reg3 != reg1 and reg1 != reg2 and reg2 != reg3 ):
-                        for chain2_3 in record_REGtoREG_reg_transitivity[reg2][reg3]:
-                            for chain1_2 in record_REGtoREG_reg_transitivity[reg1][reg2]:
-                                # Check for path redundency and looping 
-                                if( not reg1 in chain2_3[1] and not [reg for reg in chain2_3[1] if reg in chain1_2[1]]):     
-                                    new_chain = chain2_3[0] + chain1_2[0]
-                                    new_regs_chain = chain2_3[1] + [reg2] + chain1_2[1]
-                                    new_nbInstr = chain2_3[2] + chain1_2[2]
-                                    added = add_REGtoREG_reg_transitivity(reg1, reg3, new_chain, new_regs_chain, new_nbInstr)
-                                    modified = modified or added
-                                    
-                                else:
-                                    pass
-                                    
-                                    
-                                    
-    # Remove the reg paths 
-    for reg1 in range(0,Analysis.ssaRegCount):
-        for reg2 in range(0,Analysis.ssaRegCount):
-            record_REGtoREG_reg_transitivity[reg1][reg2] = [c[0] for c in record_REGtoREG_reg_transitivity[reg1][reg2]]        
-            
-                                        
-    built_REGtoREG_reg_transitivity = True
-            
-
+    db = Database.gadgetLookUp.types[GadgetType.REGEXPRtoREG]
+    for reg in range(0, Analysis.ssaRegCount):
+        record_REGtoREG_transitivity[reg] = dict()
+        # Scanning the database
+        for reg2 in db[reg].expr.keys():
+            for cst in db[reg].expr[reg2].keys():
+                if( cst == 0 ):
+                    record_REGtoREG_transitivity[reg][reg2] = True
+                    break
+    built_REGtoREG_transitivity = True
 
 def add_REGtoREG_reg_transitivity(reg1, reg2, chain , regs_chain, nbInstr):
     """
+    DEBUG !!!!!!!!!! Used as legacy if needed 
     Adds gadgets that put reg2 into reg1 
     Addition is made in increasing order ( order is number of gadgets in the chain, and if equal then the number of instructions of the chain ) to get the best chains (shorter) first 
     
@@ -298,39 +237,21 @@ def add_REGtoREG_reg_transitivity(reg1, reg2, chain , regs_chain, nbInstr):
         return True
     else:
         return False
-    
-def found_REGtoREG_reg_transitivity(reg1, reg2, constraint, n=1):
-    """
-    Returns the n first chains found for reg1 <- reg2 
-    """
-    global record_REGtoREG_reg_transitivity
-    global built_REGtoREG_reg_transitivity
-    
-    if( not built_REGtoREG_reg_transitivity ):
-        build_REGtoREG_reg_transitivity()
-    
-    if( not reg1 in record_REGtoREG_reg_transitivity ):
-        return []
-    if( reg2 in record_REGtoREG_reg_transitivity[reg1] ):
-        return filter_chains(record_REGtoREG_reg_transitivity[reg1][reg2], constraint, n)
-    else:
-        return []    
  
-def possible_REGtoREG_reg_transitivity(reg):
+def possible_REGtoREG_transitivity(reg):
     """
     Returns all the registers reg2 such that reg <- reg2 is possible
     I.e, record_REGtoREG_reg_transitivity[reg][reg2] exists 
     """       
-    global record_REGtoREG_reg_transitivity
-    if( not reg in record_REGtoREG_reg_transitivity):
-        return []
-    else:
-        res = []
-        for key in record_REGtoREG_reg_transitivity[reg].keys():
-            if( len(record_REGtoREG_reg_transitivity[reg][key]) > 0 ):
-                res.append(key)
-        return list(set(res))
-        
+    global record_REGtoREG_transitivity
+    global built_REGtoREG_transitivity
+    
+    if( not built_REGtoREG_transitivity ):
+        build_REGtoREG_transitivity()
+
+    return list(record_REGtoREG_transitivity[reg].keys())
+      
+
 ##########################################
 # Chains for REG pop from stack strategy #
 ##########################################
@@ -737,15 +658,15 @@ def possible_REGINCtoREG( reg, reg2 ):
 #####################
 
 def build_all():
-    build_REGtoREG_reg_transitivity()
+    build_REGtoREG_transitivity()
     build_REG_pop_from_stack()
     build_REG_write_to_memory()
     build_REGINCtoREG()
 
 def reinit():
     global PADDING_UNITS
-    global record_REGtoREG_reg_transitivity
-    global built_REGtoREG_reg_transitivity
+    global record_REGtoREG_transitivity
+    global built_REGtoREG_transitivity
     global record_REG_pop_from_stack
     global built_REG_pop_from_stack
     global record_REG_write_to_memory
@@ -754,8 +675,8 @@ def reinit():
     global built_REGINCtoREG
 
     PADDING_UNITS = []
-    record_REGtoREG_reg_transitivity = dict()
-    built_REGtoREG_reg_transitivity = False
+    record_REGtoREG__transitivity = dict()
+    built_REGtoREG_transitivity = False
     record_REG_pop_from_stack = dict()
     built_REG_pop_from_stack = False
     record_REG_write_to_memory = dict()
