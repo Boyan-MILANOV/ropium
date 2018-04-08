@@ -9,7 +9,7 @@ import ropgenerator.Analysis as Analysis
 from ropgenerator.Logs import log
 from ropgenerator.Constraints import Constraint, ConstraintType
 from enum import Enum
-
+    
 from barf.core.reil import *
     
 class GadgetException( Exception ):
@@ -21,14 +21,14 @@ class GadgetException( Exception ):
         
         
 class GadgetType(Enum):
-	
-	CSTtoREG = "CSTtoREG"    # reg = cst
-	CSTtoMEM = "CSTtoMEM"    # mem( reg + CST ) = cst
-	REGEXPRtoREG="REGEXPRtoREG" # reg = reg + CST
-	MEMEXPRtoREG="MEMEXPRtoREG" # reg = mem(reg + CST)
-	REGEXPRtoMEM="REGEXPRtoMEM" # mem(reg + CST) = reg + CST
-	MEMEXPRtoMEM="MEMEXPRtoMEM" # mem(reg + CST) = mem(reg + CST)
-	STRPTRtoREG = "STRPTRtoREG" # reg = pointer to "string" 
+    
+    CSTtoREG = "CSTtoREG"    # reg = cst
+    CSTtoMEM = "CSTtoMEM"    # mem( reg + CST ) = cst
+    REGEXPRtoREG="REGEXPRtoREG" # reg = reg + CST
+    MEMEXPRtoREG="MEMEXPRtoREG" # reg = mem(reg + CST)
+    REGEXPRtoMEM="REGEXPRtoMEM" # mem(reg + CST) = reg + CST
+    MEMEXPRtoMEM="MEMEXPRtoMEM" # mem(reg + CST) = mem(reg + CST)
+    STRPTRtoREG = "STRPTRtoREG" # reg = pointer to "string" 
     
 class RetType(Enum):
     UNKNOWN = "UNKNOWN"
@@ -82,6 +82,7 @@ class Gadget:
             
             self.duplicate = None # If the gadget is a copy of another gadget, then self.duplicate = pointer to the original gadget ! 
             # Some strings representations 
+            self.ins = ins # List of instructions 
             self.asmStr = "; ".join(str(i) for i in ins)
             self.hexStr = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in raw)
             self.addr = addr # int
@@ -112,6 +113,7 @@ class Gadget:
         This function is used to avoid computing dependencies twice for 
         identical gadgets that have different addresses 
         """
+        self.ins = same_gadget.ins
         self.asmStr = same_gadget.asmStr
         self.hexStr = same_gadget.hexStr
         self.addr = new_addr # int
@@ -582,9 +584,12 @@ class Gadget:
                     self.spInc = None
                     return
         
-    def isValidSpInc(self):
-        return self.spInc != None and self.spInc >= 0 and self.spInc <= SPINC_LIMIT
-        
+    def isValidSpInc(self, lower=0):
+        """
+        lower can be specified to accept gadgets with negative or minimal spinc
+        """
+        return self.spInc != None and self.spInc >= lower and self.spInc <= SPINC_LIMIT
+    
     def calculateRet(self):
         """
         Computes the return address, checks if it is valid or not... 
@@ -618,8 +623,13 @@ class Gadget:
                     else:
                         self.ret = RetType.UNKNOWN
                 elif( isinstance(dep[0], SSAExpr )):
-                    self.retValue = dep[0].reg.num
-                    self.ret = RetType.JMP_REG
+                    # Try to detect gadgets ending by 'call' 
+                    if( self.ins[-1]._mnemonic[:4] == "call"):
+                        self.ret = RetType.CALL_REG
+                        self.retValue = dep[0].reg.num
+                    else:
+                        self.retValue = dep[0].reg.num
+                        self.ret = RetType.JMP_REG
                 return 
         self.ret = RetType.UNKNOWN
         

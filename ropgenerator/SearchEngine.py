@@ -28,7 +28,7 @@ CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>\n
 CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
 CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+"\t: bad bytes for payload.\n\t\t\t\tExpected format is a list of bytes \n\t\t\t\tseparated by comas (e.g '-b 0A,0B,2F')"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+"\t: registers that shouldn't be modified.\n\t\t\t\tExpected format is a list of registers \n\t\t\t\tseparated by comas (e.g '-k edi,eax')"
-CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D rax=rcx+rax+4"
+CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D rax=rcx+4"
 
 
 
@@ -70,7 +70,7 @@ class search_engine:
             res += self._chaining_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n-len(res), unusable=unusable)
         return sorted(res, key = lambda x:len(x)) 
  
-    def _basic_strategy(self, gtype, arg1, arg2, constraint, n=1):
+    def _basic_strategy(self, gtype, arg1, arg2, constraint, n=1, no_padding=False):
         """
         Search for gadgets basic method ( without chaining ) 
         Returns a list of possible gadgets of maximum size n
@@ -82,7 +82,10 @@ class search_engine:
             see the parse_user_request function :) 
         """
         gadgets =  Database.gadgetLookUp.find(gtype, arg1, arg2, constraint, n)
-        return SearchHelper.pad_gadgets(gadgets, constraint)
+        if( no_padding ):
+            return [[g] for g in gadgets]
+        else:
+            return SearchHelper.pad_gadgets(gadgets, constraint)
             
     def _chaining_strategy(self, gtype, arg1, arg2, constraint, n=1, unusable=[]):
         """
@@ -106,7 +109,8 @@ class search_engine:
         res = []
         for inter_reg in SearchHelper.possible_REGtoREG_transitivity(reg):
             if( (inter_reg != reg) and (inter_reg != reg2) and (not inter_reg in unusable)):
-                base_chains = self._basic_strategy(GadgetType.REGEXPRtoREG, reg, [inter_reg,0], constraint, n=n)
+                base_chains = self.find(GadgetType.REGEXPRtoREG, reg, [inter_reg,0], \
+                constraint=constraint, unusable=unusable+[reg2],n=n)
                 for inter_chain in self.find( GadgetType.REGEXPRtoREG, inter_reg, \
                 [reg2, 0], constraint, unusable=unusable+[reg], n=n):
                     for base_chain in base_chains:
@@ -121,22 +125,34 @@ class search_engine:
         Searches for chains matching gadgets finishing by jmp or call 
         And adjusts them by handling the call/jmp
         """
+        ACCEPTABLE_SPINC = -4 *Analysis.ArchInfo.bits/8 # We accept to correct gadgets with spinc down to this value  
         res = []
         # Find possible not chainable gadgets 
         constraint_not_chainable = constraint.remove_all(ConstraintType.CHAINABLE_RET)
         possible_gadgets = [g[0] for g in self._basic_strategy(GadgetType.REGEXPRtoREG, reg, [reg2,0], \
-            constraint_not_chainable, n=n) if Database.gadgetDB[g[0]].hasJmpReg()[0] \
-            and Database.gadgetDB[g[0]].isValidSpInc()]
+            constraint_not_chainable, n=n) if ((Database.gadgetDB[g[0]].hasJmpReg()[0] \
+                                                or Database.gadgetDB[g[0]].hasCallReg()[0]) \
+                                            and Database.gadgetDB[g[0]].isValidSpInc(ACCEPTABLE_SPINC))]
 
         for gadget in possible_gadgets:
             # Pad the gadget 
             padded_gadget = SearchHelper.pad_gadgets([gadget], constraint_not_chainable, force_padding=True)[0]
             # Get the register we are jumping to 
-            jmp_to_reg = Database.gadgetDB[gadget].hasJmpReg()[1]
+            jmp_to_reg = Database.gadgetDB[gadget].retValue
             # COMPUTE PRE CONSTRAINT (don't modify reg2)
             preConstraint = constraint.add(ConstraintType.REGS_NOT_MODIFIED, [reg2])
-            # Get chains that adjust the register to be pointing to ret 
-            adjusting_jmp_reg_chains = self._put_RET_in_reg(jmp_to_reg, preConstraint)
+            # COMPUTE CONSTRAINT FOR THE RET GADGET (don't modify reg after we assigned it)
+            retConstraint = constraint.add(ConstraintType.REGS_NOT_MODIFIED, [reg])
+            # Get chains that adjust the register to be pointing to ret
+            if( Database.gadgetDB[gadget].spInc < 0 ):
+                    correction = -1 * Database.gadgetDB[gadget].spInc
+            else: 
+                    correction = 0
+            if( Database.gadgetDB[gadget].hasJmpReg() ):
+                offset = correction 
+            else:
+                offset = correction + Analysis.ArchInfo.bits/8 
+            adjusting_jmp_reg_chains = self._put_RET_in_reg(jmp_to_reg, offset, preConstraint, RET_gadget_constraint = retConstraint)
             # Combine the two to get the chain adjusted chain :) 
             for adjust_chain in adjusting_jmp_reg_chains:
                 res.append( adjust_chain + padded_gadget )
@@ -146,11 +162,15 @@ class search_engine:
         return res 
         
     
-    def _put_RET_in_reg(self, reg, constraint, n=1):
+    def _put_RET_in_reg(self, reg, offset, constraint, n=1, RET_gadget_constraint=None):
         """
-        Finds chains that puts in 'reg' the address of a ret gadget
+        Finds chains that puts in 'reg' the address of a ip <- mem(sp+CST) gadget
         """
-        ret_adjust_gadgets = [c[0] for c in self._RET_offset(0, constraint, n=n) if len(c) == 1]
+        if( RET_gadget_constraint != None ):
+            adjust_gadget_constraint = RET_gadget_constraint
+        else:
+            adjust_gadget_constraint = constraint
+        ret_adjust_gadgets = [c[0] for c in self._RET_offset(offset, adjust_gadget_constraint, n=n) if len(c) == 1]
         if( not ret_adjust_gadgets ):
             return []
         res = []
@@ -172,7 +192,7 @@ class search_engine:
         """
         ip_num = Analysis.regNamesTable[Analysis.ArchInfo.ip]
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
-        res = self.find(GadgetType.MEMEXPRtoREG, ip_num, [sp_num,offset], constraint=constraint, n=n)
+        res = self._basic_strategy(GadgetType.MEMEXPRtoREG, ip_num, [sp_num,offset], constraint=constraint, n=n, no_padding=True)
         return res
     
     def _CSTtoREG_pop_from_stack(self, reg, cst, constraint, n=1):

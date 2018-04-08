@@ -127,6 +127,7 @@ def getIR(opCodeStr, address):
     #string gadget, using the size of the ins disassembled
     while(index < len(opCodeStr)):
         asm = disassembler.disassemble(opCodeStr[index:],index+address)
+        print("DEBUG, asm is " + str(asm))
         if asm is None:
             bad_instructions = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in opCodeStr[index:])
             all_instructions = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in opCodeStr)
