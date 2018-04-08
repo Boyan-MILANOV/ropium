@@ -90,7 +90,7 @@ class search_engine:
         Returns a list of chains ( a chain is a list of gadgets )
         """
         res = []  
-        if( (gtype == GadgetType.REGEXPRtoREG) and (arg2[1] == 0)): 
+        if( (gtype == GadgetType.REGEXPRtoREG) and (arg2[1] == 0)):
             res += self._REGtoREG_transitivity(arg1, arg2[0], constraint, n=n, unusable=unusable)
             res += self._REGtoREG_adjust_jmp_reg(arg1, arg2[0], constraint, n=n)
         elif( gtype == GadgetType.CSTtoREG ):
@@ -127,6 +127,7 @@ class search_engine:
         possible_gadgets = [g[0] for g in self._basic_strategy(GadgetType.REGEXPRtoREG, reg, [reg2,0], \
             constraint_not_chainable, n=n) if Database.gadgetDB[g[0]].hasJmpReg()[0] \
             and Database.gadgetDB[g[0]].isValidSpInc()]
+
         for gadget in possible_gadgets:
             # Pad the gadget 
             padded_gadget = SearchHelper.pad_gadgets([gadget], constraint_not_chainable, force_padding=True)[0]
@@ -141,6 +142,7 @@ class search_engine:
                 res.append( adjust_chain + padded_gadget )
                 if( len(res) >= n ):
                     return res
+        
         return res 
         
     

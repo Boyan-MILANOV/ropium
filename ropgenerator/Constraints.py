@@ -98,6 +98,9 @@ class Constraint:
             ssaReg = Expr.SSAReg(reg, gadget.graph.lastMod[reg])
             if( ssaReg in gadget.dep.regDep ):
                 regdeps = gadget.dep.regDep[ssaReg]
+                # TODO: Check if some bug with empty regdeps in 32 bits ? 
+                if( not regdeps ):
+                    return False
                 if( regdeps[0][1].isTrue() and isinstance(regdeps[0][0], Expr.SSAExpr)):
                     if( not (regdeps[0][0].reg.num == reg and regdeps[0][0].reg.ind == 0 )):
                         return False
