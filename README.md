@@ -10,7 +10,7 @@ ROPGenerator uses the tool ROPgadget (https://github.com/JonathanSalwan/ROPgadge
 
 ROPGenerator is written in python. The tool has python2-only dependencies so it runs under python2 so far.  
 
-**Please note** that the current ROPGenerator version is still a beta under active development, therefore it might be a little unstable on some systems. 
+**Please note** that the current ROPGenerator version is still a beta under active development, therefore it might not work perfectly on some systems. 
 
 Why using ROPGenerator ? 
 ----------------------------
@@ -22,24 +22,17 @@ Installation
 ============
 Install ROPGenerator
 --------------------
-You can download the source (prefer this method if you want the latest and more stable version of the tool) and run 
+You can download the source and run 
 
 	$ sudo python setup.py install
 	$ sudo ROPGenerator
 
-Or install **ROPGenerator** with pip 
-
-	$ sudo pip install ropgenerator
-	$ sudo ROPGenerator
-	
-
-
     
 Install Dependencies
 --------------------
-**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **z3-solver**, **enum**, and **barf**:
+**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **enum**, and **barf**:
 
-- **enum**, **z3-solver**, **barf v0.4.0**, and **prompt_toolkit** packages will be added automaticaly during installation
+- **enum**, **barf v0.4.0**, and **prompt_toolkit** packages will be added automaticaly during installation
 
 - **ROPgadget** will also be installed automatically if you don't have it already. However, the currently available package on pypi is not up-to-date. Therefore, it will be installed as "**ROPgadget4ROPGenerator**", a recent fork of ROPgadget.
 
