@@ -188,56 +188,6 @@ def build_REGtoREG_transitivity():
                     break
     built_REGtoREG_transitivity = True
 
-def add_REGtoREG_reg_transitivity(reg1, reg2, chain , regs_chain, nbInstr):
-    """
-    DEBUG !!!!!!!!!! Used as legacy if needed 
-    Adds gadgets that put reg2 into reg1 
-    Addition is made in increasing order ( order is number of gadgets in the chain, and if equal then the number of instructions of the chain ) to get the best chains (shorter) first 
-    
-    Parameters:
-        chain = ROP chain ( list of gadgets, e.g [4,365,3,4] )
-        regs_chain = the list of the registers appearing in the path of chain
-        nbInstr = nb of REIL instructions of chain 
-        reg1, reg2 = int
-    
-    Returns true if added the chain, or False if the chain was already present 
-    """
-    # DURING SEARCH, chains or not only lists of gadgets but triples (gadget_list, list of used intermediate resigters, number of instructions) to avoid looping through the same gadgets over and over again  
-    
-    global record_REGtoREG_reg_transitivity
-    global MAX_CHAINS
-    
-    if( not chain ):
-        return False
-    if( not reg1 in record_REGtoREG_reg_transitivity ):
-        record_REGtoREG_reg_transitivity[reg1] = dict()
-    if( not reg2 in record_REGtoREG_reg_transitivity[reg1] ):
-        record_REGtoREG_reg_transitivity[reg1][reg2] = []
-    
-    # Adding the chain in sorted 
-    for i in range(0, len(record_REGtoREG_reg_transitivity[reg1][reg2])):
-        if( i >= MAX_CHAINS ):
-            return False
-        nbInstr_recorded_chain = record_REGtoREG_reg_transitivity[reg1][reg2][i][2]
-        if( chain == record_REGtoREG_reg_transitivity[reg1][reg2][i][0] ):
-            return False
-        elif( len(chain) < len(record_REGtoREG_reg_transitivity[reg1][reg2][i][0])):
-            record_REGtoREG_reg_transitivity[reg1][reg2].insert(i, (chain, regs_chain, nbInstr))
-            if( len(record_REGtoREG_reg_transitivity[reg1][reg2]) >= MAX_CHAINS ):
-                del record_REGtoREG_reg_transitivity[reg1][reg2][-1]
-            return True
-        elif( len(chain) <= len(record_REGtoREG_reg_transitivity[reg1][reg2][i][0]) and nbInstr < nbInstr_recorded_chain):
-            record_REGtoREG_reg_transitivity[reg1][reg2].insert(i, (chain, regs_chain, nbInstr))
-            if( len(record_REGtoREG_reg_transitivity[reg1][reg2]) >= MAX_CHAINS ):
-                del record_REGtoREG_reg_transitivity[reg1][reg2][-1]
-            return True
-    # If longer than all, add in the end 
-    if( len(record_REGtoREG_reg_transitivity[reg1][reg2]) < MAX_CHAINS ):
-        record_REGtoREG_reg_transitivity[reg1][reg2].append((chain, regs_chain, nbInstr))
-        return True
-    else:
-        return False
- 
 def possible_REGtoREG_transitivity(reg):
     """
     Returns all the registers reg2 such that reg <- reg2 is possible

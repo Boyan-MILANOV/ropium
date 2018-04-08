@@ -29,7 +29,7 @@ class Constraint:
     A constraint is a set of single constraints stored in a dict()
     Dictionnary keys are ConstraintType
     Dictionnary values depend on the ConstraintType 'ctype' 
-        ctype = REGS_NOT_MODIFIED, REGS_VALID_POINTER, then a list of reg UID
+        ctype = REGS_NOT_MODIFIED, REGS_VALID_POINTER, then a list of couples (reg UID, CST)
         ctype = BAD_BYTES, then a list of strings representing bad bytes (['00', 'FF', '0A'])
         ctype = CHAINABLE_RET then an empty list 
         /!\ hex letters must be in lower case ! 
