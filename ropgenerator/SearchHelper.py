@@ -171,8 +171,21 @@ def pad_gadgets(gadget_num_list, constraint, force_padding=False):
 #############################################
 
 record_REGtoREG_transitivity = dict()
+record_REGtoREG_impossible = dict()
 built_REGtoREG_transitivity = False
 
+def add_impossible_REGtoREG(reg, reg2):
+    global record_REGtoREG_impossible
+    record_REGtoREG_impossible[reg][reg2]=True
+
+def init_impossible():
+    global record_REGtoREG_impossible
+    for reg in range(0, Analysis.ssaRegCount):
+        record_REGtoREG_impossible[reg] = dict() 
+
+def is_impossible_REGtoREG(reg, reg2):
+    return reg2 in record_REGtoREG_impossible[reg]
+    
 def build_REGtoREG_transitivity():
     global record_REGtoREG_transitivity
     global built_REGtoREG_transitivity
@@ -180,6 +193,7 @@ def build_REGtoREG_transitivity():
     db = Database.gadgetLookUp.types[GadgetType.REGEXPRtoREG]
     for reg in range(0, Analysis.ssaRegCount):
         record_REGtoREG_transitivity[reg] = dict()
+        record_REGtoREG_impossible[reg] = dict()
         # Scanning the database
         for reg2 in db[reg].expr.keys():
             for cst in db[reg].expr[reg2].keys():
@@ -199,7 +213,7 @@ def possible_REGtoREG_transitivity(reg):
     if( not built_REGtoREG_transitivity ):
         build_REGtoREG_transitivity()
 
-    return list(record_REGtoREG_transitivity[reg].keys())
+    return [r for r in record_REGtoREG_transitivity[reg].keys() if r not in record_REGtoREG_impossible[reg]]
       
 
 ###########################################

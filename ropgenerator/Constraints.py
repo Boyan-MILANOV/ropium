@@ -34,12 +34,13 @@ class Constraint:
         ctype = CHAINABLE_RET then an empty list 
         /!\ hex letters must be in lower case ! 
     """   
-    def __init__(self):
+    def __init__(self, context=0):
         self.constraints = dict()
+        self.context = context
     
     def __str__(self):
         res = ''
-        res += "Constraint:\n"
+        res += "Constraint ({}):\n".format(self.context)
         for ctype, clist in self.constraints.iteritems():
             res += '\t'+str(ctype)+': '+str(clist)+'\n'
         return res
@@ -51,6 +52,7 @@ class Constraint:
         """
         new_constraint = Constraint()
         new_constraint.constraints = dict(self.constraints)
+        new_constraint.context = self.context + 1
         if( not constraint_type in new_constraint.constraints):
             new_constraint.constraints[constraint_type] = constraint_list
         else:

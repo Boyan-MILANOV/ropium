@@ -38,6 +38,9 @@ regNamesTable = {}
 # Keys are integers, values are str. This is the invert of regNamesTable
 revertRegNamesTable = {}
 
+def r2n(reg):
+    return revertRegNamesTable[reg]
+    
 
 def printRegTranslation():
     """

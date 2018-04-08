@@ -51,12 +51,15 @@ class search_engine:
     def __init__(self):
         self.truc = None
  
-    def find(self, gtype, arg1, arg2, constraint, n=1, basic=True, chainable=True, unusable=[]):
+    def find(self, gtype, arg1, arg2, constraint, n=1, basic=True, chainable=True, unusable=[], init=False):
         """
         Searches for gadgets 
         basic = False means that we don't call _basic_strategy
         chainable = True means that we want only chainable gadgets 
+        init = True means the search just started and we have to do some initialization in SearchHelper
         """
+        if( init ):
+            SearchHelper.init_impossible()
         res = []        
         if( not chainable ):
             return self._basic_strategy(gtype, arg1, arg2, constraint.remove_all(ConstraintType.CHAINABLE_RET), n=n)
@@ -96,6 +99,9 @@ class search_engine:
         if( (gtype == GadgetType.REGEXPRtoREG) and (arg2[1] == 0)):
             res += self._REGtoREG_transitivity(arg1, arg2[0], constraint, n=n, unusable=unusable)
             res += self._REGtoREG_adjust_jmp_reg(arg1, arg2[0], constraint, n=n)
+            # reg <- reg2 is not possible 
+            if( len(res) == 0 ):
+                SearchHelper.add_impossible_REGtoREG(arg1, arg2[0])
         elif( gtype == GadgetType.CSTtoREG ):
             res += self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n)
         return res
@@ -292,13 +298,13 @@ def find_gadgets(args):
         constraint = parsed_args[4]
         chains = []
         # Search with basic strategy
-        chains = search.find(gtype, left, right, constraint, n=Config.LIMIT)
+        chains = search.find(gtype, left, right, constraint, n=Config.LIMIT, init=True)
         # Display results 
         if( chains ):
             print(string_bold("\n\tBuilt matching ROP Chain(s):\n"))
             show_chains(chains)
         else:
-            possible_gadgets = search.find(gtype, left, right, constraint, n=Config.LIMIT, chainable=False)
+            possible_gadgets = search.find(gtype, left, right, constraint, n=Config.LIMIT, chainable=False, init=True)
             if( possible_gadgets ):
                 print(string_bold("\n\tFound possibly matching Gadget(s):\n"))
                 show_chains(possible_gadgets)
