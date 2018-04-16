@@ -30,9 +30,9 @@ You can download the source and run
     
 Install Dependencies
 --------------------
-**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **enum**, and **barf**:
+**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **enum**, **python-magic**, and **barf**:
 
-- **enum**, **barf v0.4.0**, and **prompt_toolkit** packages will be added automaticaly during installation
+- **python-magic**, **enum**, **barf v0.4.0**, and **prompt_toolkit** packages will be added automaticaly during installation
 
 - **ROPgadget** will also be installed automatically if you don't have it already. However, the currently available package on pypi is not up-to-date. Therefore, it will be installed as "**ROPgadget4ROPGenerator**", a recent fork of ROPgadget.
 

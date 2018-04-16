@@ -11,8 +11,8 @@ CMD_CONFIG_HELP += "\n\tROPGenerator 'config' command\n\t(Configure ROPGenerator
 CMD_CONFIG_HELP += "\n\t------------------------------"
 CMD_CONFIG_HELP += END_COLOR_ANSI
 CMD_CONFIG_HELP += "\n\n\t"+string_bold("Usage")+":\tconfig show\n\t\tconfig <parameter>=<value> [<parameter>=<value> ...]"
-CMD_CONFIG_HELP += "\n\n\t"+string_bold("Parameters")+":\n\t\t"+string_special("arch")+":\t\tarchitecture (available " + ','.join(Analysis.supportedArchs) + ')\n\t\t'+string_special("ropgadget")+':\tcommand to run ROPgadget tool (typically\n\t\t\t\t"ROPgadget" or "/path/to/ROPgadget.py")\n\t\t'+string_special("limit")+':\t\tnumber of matching gadgets to find for a query'
-CMD_CONFIG_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tconfig arch=X86\n\t\tconfig arch=X86_64 ropgadget=/usr/ROPgadget.py limit=4"
+CMD_CONFIG_HELP += "\n\n\t"+string_bold("Parameters")+":\n\t\t"+string_special("ropgadget")+':\tcommand to run ROPgadget tool (typically\n\t\t\t\t"ROPgadget" or "/path/to/ROPgadget.py")\n\t\t'+string_special("limit")+':\t\tnumber of matching gadgets to find for a query'
+CMD_CONFIG_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tconfig ropgadget=ROPgadget\n\t\tconfig ropgadget=/usr/ROPgadget.py limit=4"
 
 
 
@@ -39,7 +39,6 @@ def print_config():
     
     
     print(string_bold("\n\tROPGenerator's current configuration:\n"))
-    print(string_bold("\tarch:\t\t") + ARCH)
     print(string_bold("\tropgadget:\t") + PATH_ROPGADGET)
     print(string_bold("\tlimit:\t\t") + str(LIMIT))
     print("")    
@@ -71,14 +70,16 @@ def update_config(args):
                 print("\tIgnored unknown parameter '"+left+"'. Type 'config help' for help")
 
 
-def set_arch(arch):
+def set_arch(arch, quiet=False):
     global ARCH
     if( arch in Analysis.supportedArchs ):
         ARCH = arch
         Analysis.setArch(arch)
-        print("\tNow working under architecture: " + arch)
+        if( not quiet ):
+            print("\tNow working under architecture: " + arch)
     else:
-        print("\tArchitecture '" + arch + "' is not supported. Available architectures are: " + ','.join(Analysis.supportedArchs)) 
+        if( not quiet) :
+            print("\tArchitecture '" + arch + "' is not supported. Available architectures are: " + ','.join(Analysis.supportedArchs)) 
     
 def set_ropgadget(path):
     global DEFAULT_PATH_ROPGADGET

@@ -3,8 +3,35 @@ import os
 import sys
 import ropgenerator.Config as Config
 from ropgenerator.Colors import error_colored
+from enum import Enum
+from magic import from_file
 
 opcodes_file = Config.ROPGENERATOR_DIRECTORY + "generated_opcodes"
+
+# Types of binaries
+class binaryType(Enum):
+    ELF32="ELF 32 bits"
+    ELF64="ELF 64 bits"
+    
+
+def check_binaryType(filename):
+    """
+    Checks the binary type of the file
+    Precondition: the file exists ! 
+    """
+    ELF32_strings = ["ELF 32-bit"]
+    ELF64_strings = ["ELF 64-bit", "x86-64"]
+    
+    output = from_file(os.path.realpath(filename))
+    if( [sub for sub in ELF32_strings if sub in output]):
+        print("\tELF 32-bit detected")
+        return "X86"
+    elif( [sub for sub in ELF64_strings if sub in output]):
+        print("\tELF 64-bit detected")
+        return "X86_64"
+    else:
+        print("\tUnknown binary type")
+        return None
 
 def generate(filename):
     """
@@ -16,6 +43,13 @@ def generate(filename):
         print("Error. Could not find file '{}'".format(filename))
         return False
          
+    binType = check_binaryType(filename)
+    if( not binType):
+        error_colored("Could not determine architecture for binary: " + filename+"\n")
+        return False
+    else:
+        Config.set_arch(binType, quiet=True)
+    
     ropgadget = Config.PATH_ROPGADGET
     print("\tExecuting ROPgadget as: " + ropgadget )
     try:

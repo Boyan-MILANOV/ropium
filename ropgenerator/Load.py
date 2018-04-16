@@ -18,6 +18,7 @@ CMD_LOAD_HELP += "\n\n\t"+string_bold("Usage")+":\tload [OPTIONS] <filename>"
 CMD_LOAD_HELP += "\n\n\t"+string_bold("Options")+": No options available for the moment"
 CMD_LOAD_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tload /bin/ls\t\t(load gadgets from /bin/ls program)\n\t\tload ../test/vuln_prog\t(load gadgets from own binary)"
 
+
 def print_help():
     print(CMD_LOAD_HELP)
     
