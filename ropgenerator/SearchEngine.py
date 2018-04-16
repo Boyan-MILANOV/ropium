@@ -44,7 +44,7 @@ PYTHON_OUTPUT = False # Output the gadgets in python ( like p += <gadget hex>  #
 # SEARCH ENGINE FOR GADGETS #
 ############################
 
-DEFAULT_DEPTH = 4
+DEFAULT_DEPTH = 3
 class search_engine:
     global DEFAULT_DEPTH
 
@@ -104,6 +104,8 @@ class search_engine:
                 SearchHelper.add_impossible_REGtoREG(arg1, arg2[0])
         elif( gtype == GadgetType.CSTtoREG ):
             res += self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n)
+        elif( gtype == GadgetType.STRPTRtoREG ):
+            res += self._STRPTRtoREG_on_stack(arg1, arg2, constraint=constraint, n=n)
         return res
         
         
@@ -112,6 +114,9 @@ class search_engine:
         Searches for a chain that puts reg2 in reg
         reg, reg2 - (int)
         """
+        if( len(unusable) > DEFAULT_DEPTH ):
+            return []
+            
         res = []
         for inter_reg in SearchHelper.possible_REGtoREG_transitivity(reg):
             if( (inter_reg != reg) and (inter_reg != reg2) and (not inter_reg in unusable)):
@@ -246,15 +251,13 @@ class search_engine:
             string_bytes_needed = string_len + (4 - (string_len%4))
         
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
-        possible_offsets = [ off for off in sorted(SearchHelper.possible_REGINCtoREG(reg, sp_num )) if off >= 0 ]
+        # Get the posible offsets 
+        possible_offsets = [off for off in Database.gadgetLookUp.types[GadgetType.REGEXPRtoREG][reg].expr[sp_num].keys() if off>=0]
         print("DEBUG, possible offsets:")
         print(possible_offsets)
         res = []
         for offset in possible_offsets:
-            for possible_gadget in SearchHelper.found_REGINCtoREG(reg, sp_num, offset, constraint, n=n):
-                if( Database.gadgetDB[possible_gadget].spInc - Analysis.ArchInfo.bits/8 - offset >= string_bytes_needed):
-                    # TODO ADD THE PADDING !!! 
-                    res += possible_gadget
+            res += self.find(GadgetType.REGEXPRtoREG, reg, (sp_num, offset), constraint=constraint, n=1000)
         return res
     
     
