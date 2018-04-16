@@ -28,7 +28,7 @@ def check_binaryType(filename):
         return "X86"
     elif( [sub for sub in ELF64_strings if sub in output]):
         print("\tELF 64-bit detected")
-        return "X86_64"
+        return "X86-64"
     else:
         print("\tUnknown binary type")
         return None

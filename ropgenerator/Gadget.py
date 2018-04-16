@@ -692,10 +692,6 @@ class Gadget:
             self.preConstraint = constraint
     
     def hasValidPreConstraint(self):
-        """
-        Generates a constraint that must be verified before the gadget
-        is executed so that it doesn't crash
-        """
         return self.validPreConstraint
             
         

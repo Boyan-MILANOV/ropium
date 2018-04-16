@@ -19,7 +19,7 @@ CMD_CONFIG_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tconfig ropgadget=ROP
 
 
 # ROPGENERATOR CONIGURATION DEFAULT 
-DEFAULT_ARCH = "X86_64"
+DEFAULT_ARCH = "X86-64"
 DEFAULT_PATH_ROPGADGET = "ROPgadget4ROPGenerator"
 DEFAULT_LIMIT = 3
 

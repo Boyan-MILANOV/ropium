@@ -62,9 +62,9 @@ def printRegTranslation():
 # CONFIGURATION FUNCTIONS #
 ###########################
 
-supportedArchs = ["X86", "X86_64"]
+supportedArchs = ["X86", "X86-64"]
 archs32bits = ["X86"]
-archs64bits = ["X86_64"]
+archs64bits = ["X86-64"]
 
 def setArch(arch):
     """
@@ -79,7 +79,7 @@ def setArch(arch):
             ArchInfo.ip = "eip"
             ArchInfo.sp = "esp"
             ArchInfo.currentArchInfo = X86ArchitectureInformation(ARCH_X86_MODE_32)
-        elif arch == "X86_64":
+        elif arch == "X86-64":
             ArchInfo.bits = 64
             REGSIZE.size = 64
             ArchInfo.ip = "rip"
@@ -117,7 +117,7 @@ def getIR(opCodeStr, address):
         arch_mode =  ARCH_X86_MODE_32
         disassembler = X86Disassembler(architecture_mode=arch_mode)
         ir_translator = X86Translator(architecture_mode=arch_mode)
-    elif arch == "X86_64":
+    elif arch == "X86-64":
         arch_mode =  ARCH_X86_MODE_64
         disassembler = X86Disassembler(architecture_mode=arch_mode)
         ir_translator = X86Translator(architecture_mode=arch_mode)
@@ -130,7 +130,6 @@ def getIR(opCodeStr, address):
     #string gadget, using the size of the ins disassembled
     while(index < len(opCodeStr)):
         asm = disassembler.disassemble(opCodeStr[index:],index+address)
-        print("DEBUG, asm is " + str(asm))
         if asm is None:
             bad_instructions = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in opCodeStr[index:])
             all_instructions = "\\x"+ "\\x".join("{:02x}".format(ord(c)) for c in opCodeStr)

@@ -6,7 +6,6 @@ expressions using abstract values for registers and memory.
 
 from ropgenerator.Cond import Cond, CT, CTrue, CFalse
 from ropgenerator.Logs import log
-INTEGRITY_CHECK = False 
 
 #########################
 # Module wide variables #
