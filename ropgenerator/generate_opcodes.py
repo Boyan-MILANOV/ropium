@@ -2,7 +2,7 @@ import subprocess
 import os
 import sys
 import ropgenerator.Config as Config
-from ropgenerator.Colors import error_colored
+from ropgenerator.Colors import notify, error_colored
 from enum import Enum
 from magic import from_file
 
@@ -24,13 +24,13 @@ def check_binaryType(filename):
     
     output = from_file(os.path.realpath(filename))
     if( [sub for sub in ELF32_strings if sub in output]):
-        print("\tELF 32-bit detected")
+        notify("ELF 32-bit detected")
         return "X86"
     elif( [sub for sub in ELF64_strings if sub in output]):
-        print("\tELF 64-bit detected")
+        notify("ELF 64-bit detected")
         return "X86-64"
     else:
-        print("\tUnknown binary type")
+        notify("Unknown binary type")
         return None
 
 def generate(filename):
@@ -51,7 +51,7 @@ def generate(filename):
         Config.set_arch(binType, quiet=True)
     
     ropgadget = Config.PATH_ROPGADGET
-    print("\tExecuting ROPgadget as: " + ropgadget )
+    notify("Executing ROPgadget as: " + ropgadget )
     try:
         p = subprocess.Popen([ropgadget,"--binary",filename,"--dump", "--all"],stdout=subprocess.PIPE)
     except Exception as e:
@@ -78,6 +78,6 @@ def generate(filename):
             count += 1 
     f.close()
         
-    print "\tFinished : %d gadgets generated" % (count)
+    notify("Finished : %d gadgets generated" % (count))
     
     return ( count > 0)

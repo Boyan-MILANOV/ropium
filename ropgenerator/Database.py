@@ -7,7 +7,7 @@ from ropgenerator.Gadget import Gadget, GadgetException, GadgetType, analyzed_ra
 from datetime import datetime
 from ropgenerator.Cond import Cond, CT
 from ropgenerator.Expr import SSAExpr
-from ropgenerator.Colors import string_special, string_bold, write_colored, info_colored, error_colored
+from ropgenerator.Colors import notify, charging_bar, string_special, string_bold, write_colored, info_colored, error_colored
 from ropgenerator.Config import ROPGENERATOR_DIRECTORY
 from ropgenerator.generate_opcodes import opcodes_file
 
@@ -66,14 +66,8 @@ def generated_gadgets_to_DB():
     i = 0
     success = 0
     warnings = 0
-    chargingBarSize = 30
-    chargingBarStr = " "*chargingBarSize
     info_colored(string_bold("Working under architecture: ") + Analysis.ArchInfo.currentArch + '\n')
-    info_colored(string_bold("Creating gadget database\n"))
-    sys.stdout.write("\tProgression [")
-    sys.stdout.write(chargingBarStr)
-    sys.stdout.write("]\r\tProgression [")
-    sys.stdout.flush()    
+    info_colored(string_bold("Creating gadget database\n"))  
     warnings_file = ROPGENERATOR_DIRECTORY + "warnings-logs"
     f = open(warnings_file, "w") 
     original_sigint_handler = signal.getsignal(signal.SIGINT)
@@ -85,9 +79,7 @@ def generated_gadgets_to_DB():
         asm = g[1]
         addr = g[0]
         try:
-            if( i % (len(asmGadgets)/30) == 0 and i > 0 or i == len(asmGadgets)):
-                sys.stdout.write("|")
-                sys.stdout.flush()
+            charging_bar(len(asmGadgets)-1, i, 30)
             #print("Gadget : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\n")
             sys.stdout = sys.stderr = junk_file
             signal.alarm(1)
@@ -119,16 +111,16 @@ def generated_gadgets_to_DB():
         gadget.calculateRet()
         gadget.calculatePreConstraint()
         
-     # Getting time   
+    # Getting time   
     cTime = datetime.now() - startTime
-    # Printing summary information 
-    sys.stdout.write("\r"+" "*70+'\r')   
+    # Printing summary information    
     if( sigint ):
+        print("\n")
         error_colored("SIGINT ended the analysis prematurely, gadget database might be incomplete\n")
         sigint = False
-    print "\tGadgets analyzed : " + str(i)
-    print "\tSuccessfully translated : " + str(success)
-    print "\tComputation time : " + str(cTime)
+    notify("Gadgets analyzed : " + str(i))
+    notify("Successfully translated : " + str(success))
+    notify("Computation time : " + str(cTime))
     if( warnings > 0 ):
         pass
         #print("\tUnexpected exceptions : " + str(warnings) + " (logs in '{}')".format(warnings_file))
@@ -141,18 +133,11 @@ def simplifyGadgets():
     chargingBarSize = 30
     chargingBarStr = " "*chargingBarSize
     i = 0
-    info_colored(string_bold("Simplifying gadgets\n"))
-    sys.stdout.write("\tProgression [")
-    sys.stdout.write(chargingBarStr)
-    sys.stdout.write("]\r\tProgression [")
-    sys.stdout.flush()
+    info_colored(string_bold("Processing gadgets\n"))
     for gadget in gadgetDB:
-        if( i % (len(gadgetDB)/30) == 0 and i > 0 or i == len(gadgetDB)):
-                sys.stdout.write("|")
-                sys.stdout.flush()
+        charging_bar(len(gadgetDB)-1, i, 30) 
         gadget.getDependencies().simplifyConditions()
         i = i + 1
-    sys.stdout.write("\r"+" "*70+"\r")
   
 
 #################################################
@@ -343,16 +328,10 @@ class gadgetsLookUp:
         # Initialize the printed charging bar
         chargingBarSize = 30 
         chargingBarStr = " "*chargingBarSize
-        info_colored(string_bold("Updating gadget tables\n"))
-        sys.stdout.write("\tProgression [")
-        sys.stdout.write(chargingBarStr)
-        sys.stdout.write("]\r\tProgression [")
-        sys.stdout.flush()   
+        info_colored(string_bold("Sorting gadgets semantics\n")) 
         # Update the gadgetLookUp table
         for i in range(0, len(gadgetDB)):
-            if( i % (len(gadgetDB)/30) == 0 and i > 0 or i == len(gadgetDB)):
-                    sys.stdout.write("|")
-                    sys.stdout.flush()
+            charging_bar(len(gadgetDB)-1, i, 30)
             gadget = gadgetDB[i]
             # For XXXtoREG
             for reg, deps in gadget.getDependencies().regDep.iteritems():
