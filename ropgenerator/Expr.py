@@ -382,6 +382,9 @@ class Op(Expr):
         self.size = args[0].size 
         if( op != "Not" and len(args) < 2 ):
             raise ExprException("Error, binop with only one arg : %s"%str(args))
+        # For optimization
+        self.got_regs = False
+        self.regs = []
         
     def __str__(self):
         return "%s%d(%s)" % ( self.op, self.size, ','.join(str(a) for a in self.args))
@@ -409,7 +412,10 @@ class Op(Expr):
         return True 
         
     def getRegisters(self, ignoreMemAcc=False):
-        return list(set(self.args[0].getRegisters(ignoreMemAcc) + self.args[1].getRegisters(ignoreMemAcc)))
+        if( not self.got_regs ):
+            self.regs = list(set(self.args[0].getRegisters(ignoreMemAcc) + self.args[1].getRegisters(ignoreMemAcc)))
+            self.got_regs = True
+        return self.regs
         
     def getMemAcc(self):
         return list(set(self.args[0].getMemAcc() + self.args[1].getMemAcc()))

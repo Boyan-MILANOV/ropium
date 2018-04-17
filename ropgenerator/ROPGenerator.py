@@ -12,7 +12,7 @@ from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.contrib.completers import WordCompleter
 import sys
-
+import cProfile, pstats
 
 ASCII_art = string_bold("""
    ___  ____  ___  _____                     __          
@@ -37,6 +37,9 @@ command_completer = WordCompleter(command_list)
 command_history = InMemoryHistory()
 
 def main():
+    #pr = cProfile.Profile()
+    #pr.enable()
+    
     #try:
     # Launching ROPGenerator 
     write_colored(ASCII_art)
@@ -110,6 +113,9 @@ def main():
     #   error_colored("ROPGenerator failed unexpectedly\n")
     #    print(e)
     
+    #pr.disable()
+    #s = pstats.Stats(pr).sort_stats('tottime')
+    #s.print_stats(0.02)
     exit(0)
 # Run it !
 main()
