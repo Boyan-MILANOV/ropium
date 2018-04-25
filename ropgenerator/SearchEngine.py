@@ -60,11 +60,11 @@ class search_engine:
         """
         if( init ):
             SearchHelper.init_impossible()
-        res = []        
+        res = []
+        # Adjusting the constraint
+        constraint_with_chainable = constraint.add(ConstraintType.CHAINABLE_RET, []) 
         if( not chainable ):
             return self._basic_strategy(gtype, arg1, arg2, constraint.remove_all(ConstraintType.CHAINABLE_RET), n=n)
-        # Adjusting the constraint
-        constraint_with_chainable = constraint.add(ConstraintType.CHAINABLE_RET, [])
         # Searching with basic strategies for chainable
         if( basic ):
             res = self._basic_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n)
@@ -259,6 +259,15 @@ class search_engine:
         for offset in possible_offsets:
             res += self.find(GadgetType.REGEXPRtoREG, reg, (sp_num, offset), constraint=constraint, n=1000)
         return res
+        
+    def _STRPTRtoREG_static_memory(self, reg, string, constraint, n=1):
+        """
+        Searches for gadgets that put the address of a string "string"
+        into register reg
+        reg - int
+        string - str
+        -> This method tries to use strcpy 
+        """
     
     
         

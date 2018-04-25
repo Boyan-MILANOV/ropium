@@ -25,7 +25,7 @@ def timeout_handler(signum, frame):
     global old_stderr
     
     signal.alarm(0)
-    raise Exception("Too much to compute gadget dependencies")
+    raise Exception("Too much time to compute gadget dependencies")
 signal.signal(signal.SIGALRM, timeout_handler)
 
 
@@ -108,10 +108,10 @@ def generated_gadgets_to_DB():
     # This variable should be written before calculating spInc or simplifying conditions !!!
     Expr.nb_regs = Analysis.ssaRegCount-1   
     # Second pass analysis once all gadgets are collected
-    for gadget in gadgetDB:
-        gadget.calculateSpInc()
-        gadget.calculateRet()
-        gadget.calculatePreConstraint()
+    #for gadget in gadgetDB:
+    #    gadget.calculateSpInc()
+    #    gadget.calculateRet()
+    #    gadget.calculatePreConstraint()
         
     # Getting time   
     cTime = datetime.now() - startTime
@@ -140,7 +140,11 @@ def simplifyGadgets():
         charging_bar(len(gadgetDB)-1, i, 30) 
         gadget.getDependencies().simplifyConditions()
         i = i + 1
-  
+        
+    for gadget in gadgetDB:
+        gadget.calculateSpInc()
+        gadget.calculateRet()
+        gadget.calculatePreConstraint()
 
 #################################################
 # VARIOUS DATA STRUCTURES TO STORE GADGETS      # 

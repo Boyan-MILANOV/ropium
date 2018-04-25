@@ -588,7 +588,7 @@ class Gadget:
         """
         lower can be specified to accept gadgets with negative or minimal spinc
         """
-        return self.spInc != None and self.spInc >= lower and self.spInc <= SPINC_LIMIT
+        return (self.spInc != None) and (self.spInc >= lower) and (self.spInc <= SPINC_LIMIT)
     
     def calculateRet(self):
         """
