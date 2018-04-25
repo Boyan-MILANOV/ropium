@@ -6,6 +6,7 @@ expressions using abstract values for registers and memory.
 
 from ropgenerator.Cond import Cond, CT, CTrue, CFalse
 from ropgenerator.Logs import log
+from copy import deepcopy
 
 #########################
 # Module wide variables #
@@ -52,6 +53,7 @@ class SSAReg:
         
     def __hash__(self): 
         return (self.num+1)*5000 - self.ind
+        
 
 def strToReg(string):
     """
@@ -173,7 +175,6 @@ class ConstExpr(Expr):
     """
     
     def __init__(self, value, size):
-        Expr.__init__(self)
         if(isinstance(value, int ) or isinstance(value, long)):
             self.value = value
         else:
@@ -223,16 +224,19 @@ class ConstExpr(Expr):
         res.append(self.value)
         return res
         
+    def deepcopy(self):
+        return ConstExpr(self.value, self.size)
+        
 class SSAExpr(Expr):
     """
     Represents an expression made out of a single register ( like R5_3 )
         (self.reg) (SSARegister)
         (self.size) (int)
     """
-    def __init__(self, reg):
-        Expr.__init__(self)
+    def __init__(self, reg, simplified=True):
         self.reg = reg
         self.size = REGSIZE.size
+        self.simplified = simplified
     
     def __str__(self):
         return str(self.reg)
@@ -297,6 +301,9 @@ class SSAExpr(Expr):
         res +=  [0 for r in range(self.reg.num+1, nb_regs+1)]
         return res
 
+    def deepcopy(self):
+        return SSAExpr(SSAReg(self.reg.num, self.reg.ind))
+
 class MEMExpr(Expr):
     """
     Memory access in an expression.
@@ -305,10 +312,10 @@ class MEMExpr(Expr):
     Example : MEM[R3_2 + 0x4]  
     """
     
-    def __init__(self, addr, size):
-        Expr.__init__(self)
+    def __init__(self, addr, size, simplified=False):
         self.addr = addr
-        self.size = size 
+        self.size = size
+        self.simplified = simplified
 
     def __str__(self):
         return "MEM%d[%s]" %(self.size, str(self.addr))
@@ -355,7 +362,10 @@ class MEMExpr(Expr):
         return [[MEMExpr( f[0], self.size), f[1]] for f in flat]
         
     def simplify(self):
-        return MEMExpr( self.addr.simplify(), self.size )
+        if( self.simplified):
+            return self.deepcopy()
+        else:
+            return MEMExpr( self.addr.simplify(), self.size, simplified=True )
         
     def isRegIncrement(self, reg_num):
         if( reg_num == -1 ):
@@ -365,7 +375,10 @@ class MEMExpr(Expr):
         
     def toArray(self):
         return []
-        
+     
+    def deepcopy(self):
+        return MEMExpr(self.addr.deepcopy(), self.size, self.simplified)
+
 class Op(Expr):
     """
     Describes an operation ( with one or many arguments ) on expressions 
@@ -373,18 +386,18 @@ class Op(Expr):
     The size of the operation is deduced from the size of it's arguments 
     """
     
-    def __init__(self, op, args):
+    def __init__(self, op, args, simplified=False):
         """
         """
-        Expr.__init__(self)
         self.op = op
         self.args = args
         self.size = args[0].size 
         if( op != "Not" and len(args) < 2 ):
             raise ExprException("Error, binop with only one arg : %s"%str(args))
-        # For optimization
+        # For optimization
         self.got_regs = False
         self.regs = []
+        self.simplified = simplified
         
     def __str__(self):
         return "%s%d(%s)" % ( self.op, self.size, ','.join(str(a) for a in self.args))
@@ -446,6 +459,10 @@ class Op(Expr):
             raise ExprException(" flattenITE can not be used with an operator on more than 2 arguments (%d here) " % len(self.args))
         
     def simplify(self):
+        # Check if we already simplified it 
+        if( self.simplified ):
+            return deepcopy(self)
+        
         simpArgs = [arg.simplify() for arg in self.args]
         op = self.op 
         left = simpArgs[0]
@@ -524,7 +541,8 @@ class Op(Expr):
                 res = left
             elif( left == right ):
                 res = ConstExpr(0, left.size)
-            
+        
+        res.simplified = True
         return res
             
     def isRegIncrement(self, reg_num):
@@ -554,7 +572,7 @@ class Op(Expr):
         else:
             factor = -1
         
-        # Search for a particular register
+        # Search for a particular register
         if( reg_num != -1 ):           
             if( isinstance(left, SSAExpr)):
                 if( isinstance( right, ConstExpr) and left.reg.num == reg_num):
@@ -568,7 +586,7 @@ class Op(Expr):
                     return (False, None)
             else:
                 return (False, None)
-        # Or search for any register increment 
+        # Or search for any register increment 
         else:           
             if( isinstance(left, SSAExpr)):
                 if( isinstance( right, ConstExpr)):
@@ -630,7 +648,10 @@ class Op(Expr):
                 return res
         else:
             return []
-        
+
+    def deepcopy(self):
+        return Op(self.op, [arg.deepcopy() for arg in self.args], self.simplified)
+
 class ITE(Expr):
     """
     Describes an IF-THEN-ELSE construction 
@@ -645,7 +666,6 @@ class ITE(Expr):
         """
         cond, iftrue, iffalse : temporary values 
         """
-        Expr.__init__(self)
         self.cond = cond
         self.args = [iftrue, iffalse]
         self.size = iftrue.size
@@ -712,16 +732,16 @@ class Convert(Expr):
     Is considered as an unary operator 
     """
     
-    def __init__(self, to, expr, signed=False):
+    def __init__(self, to, expr, signed=False, simplified=False):
         """
         to - (int) the size the expression must be converted into 
         signed - (bool) specifies if the widening conversions must keep the sign ( default : False )
         """
-        Expr.__init__(self)
         self.op = "to"
         self.args = [expr]
         self.size = to
         self.signed = signed 
+        self.simplified = simplified
         
     def __str__(self):
         if( self.signed ):
@@ -760,6 +780,9 @@ class Convert(Expr):
         return [[Convert(self.size, f[0], self.signed), f[1]] for f in flat ]
         
     def simplify(self):
+        if( self.simplified):
+            return self.deepcopy()
+            
         simpExpr = self.args[0].simplify()
         if( isinstance( simpExpr, Convert ) and self.signed == simpExpr.signed ):
             res = Convert( self.size, simpExpr.args[0], self.signed ) 
@@ -769,6 +792,8 @@ class Convert(Expr):
             res = res.args[0]
         if( isinstance(res, Convert) and isinstance(res.args[0], ConstExpr) and not res.signed ):
             res = ConstExpr(res.args[0].value, res.size)
+
+        res.simplified = True
         return res 
         
     def isRegIncrement(self, reg_num):
@@ -779,23 +804,26 @@ class Convert(Expr):
     
     def toArray(self):
         return []
-        
+      
+    def deepcopy(self):
+        return Convert(self.size, self.args[0].deepcopy(), self.signed, simplified=self.simplified)
+
 class Cat(Expr):
     """
     Represents the concatenation of several expressions
     """
-    def __init__(self, args):
+    def __init__(self, args, simplified=False):
         """
         args - array of the expressions to concatenate. The first one is stored on the left, i.e bits de poids fort 
         The values of the array are couples ( expression, offset )
         """
-        Expr.__init__(self)
         self.args = []
         self.size = 0
         for a in args:
             if( a != None ):
                 self.args.append( [a, self.size] )
-                self.size += a.size 
+                self.size += a.size
+        self.simplified = simplified
         
     def __str__(self):
         return "Cat%d(%s)" % ( self.size, ','.join(str(a[0]) for a in self.args))
@@ -854,8 +882,11 @@ class Cat(Expr):
         return res 
         
     def simplify(self):
+        if( self.simplified):
+            return self.deepcopy()
+            
         newArgs = [a[0].simplify() for a in self.args]
-        return Cat(newArgs)
+        return Cat(newArgs, simplified=True)
     
     def isRegIncrement(self, reg_num):
         if( reg_num == -1 ):
@@ -865,23 +896,26 @@ class Cat(Expr):
         
     def toArray(self):
         return []
+     
+    def deepcopy(self):
+        return Cat([arg[0].deepcopy() for arg in self.args],simplified=self.simplified) 
         
 class Extr(Expr):
     """
     Represent the extraction of some bits of an expression 
     """
-    def __init__(self, high, low, expr):
+    def __init__(self, high, low, expr, simplified=False):
         """
         (high) (int) higher bit to be taken 
         (low) (int) lower bit to be taken 
         """
         if( high < 0 or low < 0 or high > expr.size-1 or high < low ):
             raise ExprException("Invalid extract in Extr(%d,%d,%s)"%(high, low, str(expr)))
-        Expr.__init__(self)
         self.size = high - low + 1 
         self.high = high
         self.low = low
         self.args = [expr]
+        self.simplified = simplified
         
     def __str__(self):
         return "Extract%d(%d,%d,%s)" % (self.size, self.high, self.low,','.join(str(a) for a in self.args))
@@ -918,6 +952,9 @@ class Extr(Expr):
         return [[Extr(self.high, self.low, f[0]), f[1]] for f in flat ]
         
     def simplify(self):
+        if( self.simplified):
+            return self.deepcopy()
+            
         if( self.low == 0 and self.high == self.args[0].size -1 ):
             return self.args[0].simplify()
         simpExpr = self.args[0].simplify()
@@ -939,6 +976,7 @@ class Extr(Expr):
                 return res    
             if(  self.high == simpExpr.size -1 and self.low == shiftVal ):
                 res = simpExpr.args[0]
+        res.simplified = True
         return res 
     
     def isRegIncrement(self, reg_num):
@@ -954,6 +992,9 @@ class Extr(Expr):
     def toArray(self):
         return []
 
+    def deepcopy(self):
+        return Extr(self.high, self.low, self.args[0].deepcopy(), simplified=self.simplified)
+        
 ####################################
 # FUCTIONS FOR PARSING EXPRESSIONS #
 #################################### 

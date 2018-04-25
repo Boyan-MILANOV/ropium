@@ -326,8 +326,8 @@ class Cond:
             Simplifies arrays for a1 == a2
             """
             found_diff = False  
-            # Check for all registers but not the constant value 
-            for i in range(0,len(a1)):
+            # Check for all registers but not the constant value
+            for i in range(0,len(a1)-1):
                 if(a1[i] != a2[i]):
                     # If two differences in the arrays then we don't know .... 
                     if(found_diff):
@@ -363,6 +363,9 @@ class Cond:
         if( self.customSimplified ):
             return self.customSimplifiedValue
                 
+        if( not self.cleaned ):
+            self.clean()
+                    
         if( isLogicalConst(self.cond)):
             return ( self.cond == CT.TRUE )
         elif( isArithmeticComp(self.cond)):

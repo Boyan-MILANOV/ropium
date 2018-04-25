@@ -8,7 +8,7 @@ from magic import from_file
 
 opcodes_file = Config.ROPGENERATOR_DIRECTORY + "generated_opcodes"
 
-# Types of binaries
+# Types of binaries
 class binaryType(Enum):
     ELF32="ELF 32 bits"
     ELF64="ELF 64 bits"

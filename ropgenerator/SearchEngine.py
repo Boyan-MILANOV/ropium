@@ -251,7 +251,7 @@ class search_engine:
             string_bytes_needed = string_len + (4 - (string_len%4))
         
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
-        # Get the posible offsets 
+        # Get the posible offsets 
         possible_offsets = [off for off in Database.gadgetLookUp.types[GadgetType.REGEXPRtoREG][reg].expr[sp_num].keys() if off>=0]
         print("DEBUG, possible offsets:")
         print(possible_offsets)

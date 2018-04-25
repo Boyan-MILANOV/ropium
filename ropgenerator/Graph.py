@@ -185,11 +185,12 @@ class GadgetDependencies:
         # Cleaning and simplifying  
         for reg in self.regDep.keys():
             for dep in self.regDep[reg]:
-                dep[0] = dep[0].simplify()
+                #dep[0] = dep[0].simplify()
                 dep[1].clean()
+                
         for addr, deps in self.memDep.iteritems():
             for dep in deps:
-                dep[0] = dep[0].simplify()
+                #dep[0] = dep[0].simplify()
                 dep[1].clean()
                     
         
@@ -205,12 +206,14 @@ class GadgetDependencies:
             newDeps = [] 
             for dep in self.regDep[reg]:
                 if( dep[1].isTrue() ):
+                    dep[0] = dep[0].simplify()
                     newDeps.append( dep )
             self.regDep[reg] = newDeps
         for expr in self.memDep.keys():
             newDeps = [] 
             for dep in self.memDep[expr]:
                 if( dep[1].isTrue() ):
+                    dep[0] = dep[0].simplify()
                     newDeps.append( dep )
             self.memDep[expr] = newDeps
       

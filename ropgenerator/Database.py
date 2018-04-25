@@ -61,6 +61,8 @@ def generated_gadgets_to_DB():
         instr = instr.decode("hex")
         asmGadgets.append((addr, instr))
     f.close()
+    # Sort gadgets 
+    asmGadgets.sort(key=lambda x:x[1])    
     # Analyze them
     junk_file = open("/dev/null", "w") 
     i = 0
@@ -404,7 +406,7 @@ class gadgetsLookUp:
                         break
                         
                         
-        # Clean the charging bar
+        # Clean the charging bar
         sys.stdout.write("\r"+" "*70+"\r") 
 
     def find(self, gtype, arg1, arg2, constraint, n=1):

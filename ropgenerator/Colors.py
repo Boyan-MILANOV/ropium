@@ -44,7 +44,7 @@ def notify(text):
     """  
     sys.stdout.write('\t'+ROPGENERATOR_COLOR_ANSI + '% ' + END_COLOR_ANSI + text+'\n')
     
-# Custom charging bar :) 
+# Custom charging bar :) 
 last_percent = -1 
 def charging_bar( nb_iter, curr_iter, bar_len, msg="", char=u"\u2588"):
     """

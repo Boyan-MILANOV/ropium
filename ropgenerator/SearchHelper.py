@@ -242,7 +242,7 @@ def pad_CSTtoREG_pop_from_stack(gadget_list, offset, cst, constraint):
 # Chains for reg write on stack  #
 ##################################
 
-# !!!!!!!!!! NOT WORKING YET 
+# !!!!!!!!!! NOT WORKING YET 
 
 # record_REG_write_to_memory[reg] is a dict() --> D 
 # D[reg2] where reg2 is a register is a dict() --> D2
@@ -258,7 +258,7 @@ def build_REG_write_to_memory():
     if( built_REG_write_to_memory ):
         return
     
-    # Initialization for printing charging bar 
+    # Initialization for printing charging bar 
     chargingBarSize = Analysis.ssaRegCount
     chargingBarStr = " "*chargingBarSize
     info_colored(string_bold("Performing additionnal analysis")+": writing registers on stack\n")
@@ -367,7 +367,7 @@ def found_REG_write_to_memory(reg, reg2, offset, constraint, n=1):
 # Chains for reg <- reg +- offset  #
 ####################################
 
-# record_REG_increment is a dict 
+# record_REG_increment is a dict 
 # D[reg1][reg2][offset] = list of gadgets that do reg1 <- reg2 + offset 
 record_REGINCtoREG = dict()
 built_REGINCtoREG = False    
@@ -379,7 +379,7 @@ def build_REGINCtoREG():
     if( built_REGINCtoREG ):
             return 
       
-    # Initialization for printing charging bar 
+    # Initialization for printing charging bar 
     chargingBarSize = Analysis.ssaRegCount
     chargingBarStr = " "*chargingBarSize
     info_colored(string_bold("Performing additionnal analysis")+": filtering register increments\n")
