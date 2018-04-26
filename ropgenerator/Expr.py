@@ -725,6 +725,9 @@ class ITE(Expr):
         
     def toArray(self):
         return []
+        
+    def deepcopy(self):
+        return ITE(self.cond, self.args[0], self.args[1])
             
 class Convert(Expr):
     """

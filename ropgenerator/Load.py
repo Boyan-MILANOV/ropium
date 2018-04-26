@@ -6,6 +6,7 @@ import ropgenerator.Analysis as Analysis
 import ropgenerator.generate_opcodes as generate_opcodes
 import ropgenerator.SearchHelper as SearchHelper
 import ropgenerator.Gadget as Gadget
+import ropgenerator.BinaryScanner as BS
 from ropgenerator.Colors import string_bold, info_colored, BOLD_COLOR_ANSI, END_COLOR_ANSI
 
 # Help for the load command
@@ -45,7 +46,9 @@ def load(args):
         Database.generated_gadgets_to_DB()
         Database.simplifyGadgets()
         Database.gadgetLookUp.fill()
+        BS.binary_name = filename
         #DEBUG SearchHelper.build_all()
+        
     
     
     

@@ -10,6 +10,7 @@ import ropgenerator.Config as Config
 import ropgenerator.SearchHelper as SearchHelper
 from ropgenerator.Constraints import Constraint, ConstraintType
 from ropgenerator.Colors import string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold
+import ropgenerator.BinaryScanner as BinaryScanner
 
 # Definition of options names
 OPTION_BAD_BYTES = '--bad-bytes'
@@ -63,6 +64,10 @@ class search_engine:
         res = []
         # Adjusting the constraint
         constraint_with_chainable = constraint.add(ConstraintType.CHAINABLE_RET, []) 
+        # DEBUG
+        return self._basic_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n)
+        # END DEBUG 
+        
         if( not chainable ):
             return self._basic_strategy(gtype, arg1, arg2, constraint.remove_all(ConstraintType.CHAINABLE_RET), n=n)
         # Searching with basic strategies for chainable
@@ -106,6 +111,7 @@ class search_engine:
             res += self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.STRPTRtoREG ):
             res += self._STRPTRtoREG_on_stack(arg1, arg2, constraint=constraint, n=n)
+            res += self._STRPTRtoREG_static_memory(arg1, arg2, constraint=constraint, n=n)
         return res
         
         
@@ -268,7 +274,8 @@ class search_engine:
         string - str
         -> This method tries to use strcpy 
         """
-    
+        BinaryScanner.find_function(string)
+        return []
     
         
 
