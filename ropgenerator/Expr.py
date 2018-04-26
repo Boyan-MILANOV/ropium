@@ -223,6 +223,10 @@ class ConstExpr(Expr):
         res.append(self.value)
         return res
         
+    def deepcopy(self):
+        return ConstExpr(self.value, self.size)
+        
+        
 class SSAExpr(Expr):
     """
     Represents an expression made out of a single register ( like R5_3 )
@@ -296,6 +300,10 @@ class SSAExpr(Expr):
         res += [1]
         res +=  [0 for r in range(self.reg.num+1, nb_regs+1)]
         return res
+        
+    def deepcopy(self):
+        return SSAExpr(SSAReg(self.reg.num, self.reg.ind))
+        
 
 class MEMExpr(Expr):
     """
@@ -365,6 +373,9 @@ class MEMExpr(Expr):
         
     def toArray(self):
         return []
+      
+    def deepcopy(self):
+        return MEMExpr(self.addr.deepcopy(), self.size, self.simplified) 
         
 class Op(Expr):
     """
@@ -630,6 +641,9 @@ class Op(Expr):
                 return res
         else:
             return []
+    
+    def deepcopy(self):
+        return Op(self.op, [arg.deepcopy() for arg in self.args], self.simplified)
         
 class ITE(Expr):
     """
@@ -705,7 +719,11 @@ class ITE(Expr):
         
     def toArray(self):
         return []
-            
+        
+    def deepcopy(self):
+        return ITE(self.cond, self.args[0].deepcopy(), self.args[1].deepcopy())
+
+
 class Convert(Expr):
     """
     Used to make widening and narrowing conversions of expressions 
@@ -779,6 +797,9 @@ class Convert(Expr):
     
     def toArray(self):
         return []
+        
+    def deepcopy(self):
+        return Convert(self.size, self.args[0].deepcopy(), self.signed, simplified=self.simplified)
         
 class Cat(Expr):
     """
@@ -865,6 +886,10 @@ class Cat(Expr):
         
     def toArray(self):
         return []
+        
+    def deepcopy(self):
+        return Cat([arg[0].deepcopy() for arg in self.args],simplified=self.simplified) 
+        
         
 class Extr(Expr):
     """
@@ -953,6 +978,10 @@ class Extr(Expr):
         
     def toArray(self):
         return []
+        
+    def deepcopy(self):
+        return Extr(self.high, self.low, self.args[0].deepcopy(), simplified=self.simplified)
+
 
 ####################################
 # FUCTIONS FOR PARSING EXPRESSIONS #
