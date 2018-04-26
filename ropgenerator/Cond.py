@@ -349,7 +349,7 @@ class Cond:
             
         
         def simplifyArrayInequality(a1,a2,comp):
-            for i in range(0,len(a1)-1):
+            for i in range(0,len(a1)):
                 if(a1[i] != a2[i]):
                     # If one difference in the arrays then we don't know .... 
                     return CE.UNKNW
@@ -362,6 +362,9 @@ class Cond:
         
         if( self.customSimplified ):
             return self.customSimplifiedValue
+        
+        if( not self.cleaned ):
+            self.clean()
                 
         if( isLogicalConst(self.cond)):
             return ( self.cond == CT.TRUE )
