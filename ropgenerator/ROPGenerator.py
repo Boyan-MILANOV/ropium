@@ -36,10 +36,12 @@ command_list = [CMD_HELP, CMD_LOAD, CMD_REGISTERS, CMD_FIND, CMD_CONFIG, CMD_EXI
 command_completer = WordCompleter(command_list)
 command_history = InMemoryHistory()
 
-def main():
-    #pr = cProfile.Profile()
-    #pr.enable()
+def main(time_mesure=False):
     
+    if( time_mesure ):
+        pr = cProfile.Profile()
+        pr.enable()
+        
     #try:
     # Launching ROPGenerator 
     write_colored(ASCII_art)
@@ -113,10 +115,13 @@ def main():
     #   error_colored("ROPGenerator failed unexpectedly\n")
     #    print(e)
     
-    #pr.disable()
-    #s = pstats.Stats(pr).sort_stats('tottime')
-    #s.print_stats(0.02)
+    if( time_mesure ):
+        pr.disable()
+        s = pstats.Stats(pr).sort_stats('tottime')
+        s.print_stats(0.02)
+        
     exit(0)
+    
 # Run it !
 main()
         
