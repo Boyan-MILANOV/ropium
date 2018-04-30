@@ -8,6 +8,7 @@ import re
 from ropgenerator.Gadget import GadgetType
 import ropgenerator.Config as Config
 import ropgenerator.SearchHelper as SearchHelper
+import ropgenerator.BinaryScanner as BinaryScanner
 from ropgenerator.Constraints import Constraint, ConstraintType
 from ropgenerator.Colors import string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold
 
@@ -106,6 +107,7 @@ class search_engine:
             res += self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n)
         elif( gtype == GadgetType.STRPTRtoREG ):
             res += self._STRPTRtoREG_on_stack(arg1, arg2, constraint=constraint, n=n)
+            res += self._STRPTRtoREG_static_memory(arg1, arg2, constraint=constraint, n=n)
         return res
         
         
@@ -216,7 +218,9 @@ class search_engine:
         for offset in sorted([off for off in Database.gadgetLookUp.types[GadgetType.MEMEXPRtoREG][reg].expr[sp_num].keys()\
         if off >= 0 ]):
             possible_gadgets = [g for g in Database.gadgetLookUp.types[GadgetType.MEMEXPRtoREG][reg].expr[sp_num][offset]\
-            if Database.gadgetDB[g].isValidSpInc() and Database.gadgetDB[g].hasNormalRet()]
+            if Database.gadgetDB[g].isValidSpInc() \
+                and Database.gadgetDB[g].spInc >= Analysis.ArchInfo.bits/8 \
+                and Database.gadgetDB[g].hasNormalRet()]
             for chain in SearchHelper.pad_CSTtoREG_pop_from_stack(possible_gadgets, offset, cst, constraint=constraint):
                 # At this point 'gadget' does reg <- mem(sp+offset)
                 res.append(chain)
@@ -253,14 +257,22 @@ class search_engine:
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
         # Get the posible offsets 
         possible_offsets = [off for off in Database.gadgetLookUp.types[GadgetType.REGEXPRtoREG][reg].expr[sp_num].keys() if off>=0]
-        print("DEBUG, possible offsets:")
-        print(possible_offsets)
+        #print("DEBUG, possible offsets:")
+        #print(possible_offsets)
         res = []
         for offset in possible_offsets:
             res += self.find(GadgetType.REGEXPRtoREG, reg, (sp_num, offset), constraint=constraint, n=1000)
         return res
     
-    
+    def _STRPTRtoREG_static_memory(self, reg, string, constraint, n=1):
+        """
+        Searches for gadgets that put the address of a string "string"
+        into register reg
+        reg - int
+        string - str
+        """
+        BinaryScanner.find_function(string)
+        return []
         
 
 # The module-wide search engine 

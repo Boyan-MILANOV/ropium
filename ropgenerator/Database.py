@@ -107,11 +107,6 @@ def generated_gadgets_to_DB():
     signal.signal(signal.SIGINT, original_sigint_handler)       
     # This variable should be written before calculating spInc or simplifying conditions !!!
     Expr.nb_regs = Analysis.ssaRegCount-1   
-    # Second pass analysis once all gadgets are collected
-    for gadget in gadgetDB:
-        gadget.calculateSpInc()
-        gadget.calculateRet()
-        gadget.calculatePreConstraint()
         
     # Getting time   
     cTime = datetime.now() - startTime
@@ -140,6 +135,12 @@ def simplifyGadgets():
         charging_bar(len(gadgetDB)-1, i, 30) 
         gadget.getDependencies().simplifyConditions()
         i = i + 1
+        
+    # Second pass analysis once all gadgets are collected
+    for gadget in gadgetDB:
+        gadget.calculateSpInc()
+        gadget.calculateRet()
+        gadget.calculatePreConstraint()
   
 
 #################################################
