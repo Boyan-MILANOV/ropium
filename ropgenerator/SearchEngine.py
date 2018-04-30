@@ -62,15 +62,11 @@ class search_engine:
         if( init ):
             SearchHelper.init_impossible()
         res = []
-        # Adjusting the constraint
-        constraint_with_chainable = constraint.add(ConstraintType.CHAINABLE_RET, []) 
-        # DEBUG
-        return self._basic_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n)
-        # END DEBUG 
-        
         if( not chainable ):
             return self._basic_strategy(gtype, arg1, arg2, constraint.remove_all(ConstraintType.CHAINABLE_RET), n=n)
         # Searching with basic strategies for chainable
+        # Adjusting the constraint
+        constraint_with_chainable = constraint.add(ConstraintType.CHAINABLE_RET, []) 
         if( basic ):
             res = self._basic_strategy(gtype, arg1, arg2, constraint_with_chainable, n=n)
         # If not enough chains found, chaining with advanced strategy 

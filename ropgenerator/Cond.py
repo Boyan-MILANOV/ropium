@@ -327,7 +327,7 @@ class Cond:
             """
             found_diff = False  
             # Check for all registers but not the constant value
-            for i in range(0,len(a1)-1):
+            for i in range(0,len(a1)):
                 if(a1[i] != a2[i]):
                     # If two differences in the arrays then we don't know .... 
                     if(found_diff):
