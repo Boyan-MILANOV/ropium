@@ -2,7 +2,7 @@
 # Used to store some logs on ropgenerator activity 
 import os 
 
-log_file = "/etc/ROPGenerator/ROPGenerator-logs"
+log_file = "/usr/ROPGenerator/ROPGenerator-logs"
 log_file_d = open(log_file, "w")
 
 if(log_file_d == None ):
