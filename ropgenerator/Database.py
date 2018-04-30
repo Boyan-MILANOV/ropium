@@ -61,6 +61,8 @@ def generated_gadgets_to_DB():
         instr = instr.decode("hex")
         asmGadgets.append((addr, instr))
     f.close()
+    # Sort the gadgets according to their instructions 
+    asmGadgets.sort(key=lambda x:x[1])
     # Analyze them
     junk_file = open("/dev/null", "w") 
     i = 0
