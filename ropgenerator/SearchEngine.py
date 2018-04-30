@@ -304,6 +304,8 @@ class search_engine:
         if (n < 1 ):
             return []
         
+        custom_stack = 0x50000 # Fake custom stack default value
+        BinaryScanner.find_bytes(string)
         BinaryScanner.find_function(string)
         return []
         

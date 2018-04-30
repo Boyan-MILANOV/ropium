@@ -47,7 +47,7 @@ def load(args):
         Database.generated_gadgets_to_DB()
         Database.simplifyGadgets()
         Database.gadgetLookUp.fill()
-        BinaryScanner.binary_name = filename
+        BinaryScanner.set_binary(filename)
         #DEBUG SearchHelper.build_all()
     
     
