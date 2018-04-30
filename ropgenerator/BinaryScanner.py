@@ -59,20 +59,30 @@ def find_bytes(byte_string, addr_not_null=False):
     """
     
     def _find_substr(m, string):
+        if( not string ):
+            return [-1,0]
+        # Initialize
         offset = -1
         index = len(string)
-        substring = string + '\x00'
+        last_is_null = (string[-1] == '\x00')
+        if( not last_is_null ):
+            substring = string + '\x00'
+        else:
+            substring = string
+        # Search biggest substring 
         while( offset == -1 ):
-            print("DEBUG, looking for " + substring)
-            if( len(substring) <= 1 ):
+            if( len(substring) <= 0 ):
                 return [-1,0]
             offset = m.find(substring)
             if( offset != -1 ):
-                print("DEBUG Found att offset " + str(offset))
+                print("DEBUG Found att offset " + str(offset) + " index " + str(index))
                 return [offset, index]
             else:
-                substring = substring[:-2] + '\x00'
-                index = len(substring)-1
+                substring = substring[:-2]
+                last_is_null = (substring[-1] == '\x00')
+                if( not last_is_null ):
+                    substring = substring + '\x00'
+            index = index -1
         
     global binary_name
     global binary_pwn
