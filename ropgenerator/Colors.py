@@ -5,6 +5,7 @@ ROPGENERATOR_COLOR_ANSI = '\033[92m'    # Default color
 ERROR_COLOR_ANSI = '\033[91m' 
 BOLD_COLOR_ANSI = '\033[1m'
 SPECIAL_COLOR_ANSI = '\033[93m'
+PAYLOAD_COLOR_ANSI = '\033[96m'
 END_COLOR_ANSI = '\033[0m'
 
 
@@ -38,6 +39,12 @@ def string_special(text):
     """
     return SPECIAL_COLOR_ANSI+text+END_COLOR_ANSI
     
+def string_payload(text):
+    """
+    Returns a string with special color for payload
+    """
+    return ROPGENERATOR_COLOR_ANSI+text+END_COLOR_ANSI
+
 def notify(text):
     """
     prints a string with a tab and special colored char in front 

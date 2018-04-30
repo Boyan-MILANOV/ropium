@@ -10,7 +10,7 @@ import ropgenerator.Config as Config
 import ropgenerator.SearchHelper as SearchHelper
 import ropgenerator.BinaryScanner as BinaryScanner
 from ropgenerator.Constraints import Constraint, ConstraintType
-from ropgenerator.Colors import string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold
+from ropgenerator.Colors import string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold, string_payload
 
 # Definition of options names
 OPTION_BAD_BYTES = '--bad-bytes'
@@ -201,7 +201,7 @@ class search_engine:
             # This is used to have a better printing of the chains
             # Instead of indicating the constant as (Custom Padding)
             # we will write 'address of gadget ....'
-            SearchHelper.addr_to_gadgetStr[addr]=Database.gadgetDB[g].asmStr
+            SearchHelper.addr_to_gadgetStr[addr]='@ddress of: '+string_bold(Database.gadgetDB[g].asmStr)
             if( len(res) >= n ):
                 return res
         return res
@@ -285,7 +285,7 @@ class search_engine:
             string_bytes_needed = string_len + (4 - (string_len%4))
         
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
-        # Get the posible offsets 
+        # Get the posible offsets 
         possible_offsets = [off for off in Database.gadgetLookUp.types[GadgetType.REGEXPRtoREG][reg].expr[sp_num].keys() if off>=0]
         #print("DEBUG, possible offsets:")
         #print(possible_offsets)
@@ -304,10 +304,41 @@ class search_engine:
         if (n < 1 ):
             return []
         
-        custom_stack = 0x50000 # Fake custom stack default value
-        BinaryScanner.find_bytes(string)
-        BinaryScanner.find_function(string)
-        return []
+        custom_stack = 0x50000 # Fake custom stack default value
+        # We decompose the string in substrings to be copied
+        substrings_addr = BinaryScanner.find_bytes(string)
+        if( not substrings_addr ):
+            return []
+        # We find a copy function 
+        (function_addr, function_name ) = BinaryScanner.find_function('memcpy')
+        if( not function_addr ):
+            return []
+        function_padding = SearchHelper.set_padding_unit(value=function_addr, msg=string_payload(function_name))
+        # Get address of a pop-pop-ret gadget 
+        ppr_addrs = self._RET_offset(2*Analysis.ArchInfo.bits/8, constraint, n=1)
+        if( not ppr_addrs ):
+            return []
+        ppr_addr = Database.gadgetDB[ppr_addrs[0][0]].addr # Get the first gadget then its address
+        ppr_asmStr =  Database.gadgetDB[ppr_addrs[0][0]].asmStr
+        ppr_padding = SearchHelper.set_padding_unit(value=ppr_addr, msg=string_bold(ppr_asmStr))
+        
+        # Chain to build the string loader ! 
+        res = []
+        stack_offset = 0
+        for (substring_addr,substring_str) in substrings_addr:
+            # Get padding for the memory where to copy
+            stack_padding = SearchHelper.set_padding_unit(value=custom_stack, msg='@ddress of: ' +string_bold('Custom Stack + ' + str(stack_offset)))
+            # Get padding for the bytes we will copy
+            substring_padding = SearchHelper.set_padding_unit(value=substring_addr)
+            SearchHelper.addr_to_gadgetStr[substring_addr] = "@ddress of: " +string_bold(string_payload("'"+substring_str+"'"))
+            # Add it to chain 
+            res += [function_padding, ppr_padding, stack_padding, substring_padding]
+            
+            # Adjust
+            custom_stack = custom_stack + len(substring_str)
+            stack_offset = stack_offset + len(substring_str)
+            
+        return [res]
         
 
 # The module-wide search engine 
@@ -391,12 +422,12 @@ def show_chains( chain_list ):
                     if( gadget_num == SearchHelper.DEFAULT_PADDING_UNIT_INDEX ):
                         padding_str += " (Padding)"
                     elif( SearchHelper.get_padding_unit(gadget_num) in SearchHelper.addr_to_gadgetStr ):
-                        padding_str += " (@ddress of: "+SearchHelper.addr_to_gadgetStr[SearchHelper.get_padding_unit(gadget_num)]+")"
+                        padding_str += " ("+SearchHelper.addr_to_gadgetStr[SearchHelper.get_padding_unit(gadget_num)]+")"
                     else:
                         padding_str += " (Custom Padding)"
                     print("\t"+padding_str)
                 else:
-                    print("\t"+string_special(Database.gadgetDB[gadget_num].addrStr) + " (" + Database.gadgetDB[gadget_num].asmStr + ")")
+                    print("\t"+string_special(Database.gadgetDB[gadget_num].addrStr) + " (" + string_bold(Database.gadgetDB[gadget_num].asmStr) + ")")
     elif( PYTHON_OUTPUT ):
         print("\t\tPython output not supported yet :'(")
     

@@ -20,7 +20,7 @@ def find_function(function):
     global binary_name
     global binary_pwn
     
-    # using pwntools
+    # using pwntools
     try:
         function_offset = binary_pwn.plt[function]
         function_symbol = function+'@PLT'
@@ -30,10 +30,10 @@ def find_function(function):
         print(res)
     except:
         print("[*] DEBUG find_function found nothing ") 
-        res = []
+        res = [None, None]
     return res
     
-    # Using custom search 
+    # Using custom search 
     output = subprocess.check_output(['readelf', '-r', binary_name])
     offset = output.find(function+'@')
     if( offset == -1 ):
@@ -89,11 +89,11 @@ def find_bytes(byte_string, addr_not_null=False):
     while( substring ):
         (offset, index ) = _find_substr(m, substring)
         if( index == 0 ):
-            # We didn't find any match, return empty list 
+            # We didn't find any match, return empty list 
             return []
         else:
-            # We add the best substring we found 
-            res.append(base_addr+offset)
+            # We add the best substring we found 
+            res.append([base_addr+offset,substring[:index]])
             substring = substring[index:]
     return res
         
