@@ -99,15 +99,16 @@ class search_engine:
         res = []  
         if( (gtype == GadgetType.REGEXPRtoREG) and (arg2[1] == 0)):
             res += self._REGtoREG_transitivity(arg1, arg2[0], constraint, n=n, unusable=unusable)
-            res += self._REGtoREG_adjust_jmp_reg(arg1, arg2[0], constraint, n=n)
+            res += self._REGtoREG_adjust_jmp_reg(arg1, arg2[0], constraint, n=n-len(res))
             # reg <- reg2 is not possible 
             if( len(res) == 0 ):
                 SearchHelper.add_impossible_REGtoREG(arg1, arg2[0])
         elif( gtype == GadgetType.CSTtoREG ):
             res += self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n)
+            res += self._CSTtoREG_transitivity(arg1, arg2, constraint, n=n-len(res))
         elif( gtype == GadgetType.STRPTRtoREG ):
             res += self._STRPTRtoREG_on_stack(arg1, arg2, constraint=constraint, n=n)
-            res += self._STRPTRtoREG_static_memory(arg1, arg2, constraint=constraint, n=n)
+            res += self._STRPTRtoREG_static_memory(arg1, arg2, constraint=constraint, n=n-len(res))
         return res
         
         
@@ -116,7 +117,7 @@ class search_engine:
         Searches for a chain that puts reg2 in reg
         reg, reg2 - (int)
         """
-        if( len(unusable) > DEFAULT_DEPTH ):
+        if( len(unusable) > DEFAULT_DEPTH or n < 1):
             return []
             
         res = []
@@ -138,6 +139,9 @@ class search_engine:
         Searches for chains matching gadgets finishing by jmp or call 
         And adjusts them by handling the call/jmp
         """
+        if (n < 1 ):
+            return []
+        
         ACCEPTABLE_SPINC = -4 *Analysis.ArchInfo.bits/8 # We accept to correct gadgets with spinc down to this value  
         res = []
         # Find possible not chainable gadgets 
@@ -179,6 +183,9 @@ class search_engine:
         """
         Finds chains that puts in 'reg' the address of a ip <- mem(sp+CST) gadget
         """
+        if (n < 1 ):
+            return []
+        
         if( RET_gadget_constraint != None ):
             adjust_gadget_constraint = RET_gadget_constraint
         else:
@@ -203,6 +210,9 @@ class search_engine:
         """
         Searches for gadgets that do ip <- mem(sp + offset) 
         """
+        if (n < 1 ):
+            return []
+        
         ip_num = Analysis.regNamesTable[Analysis.ArchInfo.ip]
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
         res = self._basic_strategy(GadgetType.MEMEXPRtoREG, ip_num, [sp_num,offset], constraint=constraint, n=n, no_padding=True)
@@ -212,6 +222,9 @@ class search_engine:
         """
         Returns a payload that puts cst into register reg by poping it from the stack
         """ 
+        if (n < 1 ):
+            return []
+        
         res = []
         # Direct pop from the stack
         sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp] 
@@ -228,12 +241,26 @@ class search_engine:
                     return res
         return res
         
-    def _CSTtoREG_transitivity(self):
+    def _CSTtoREG_transitivity(self, reg, cst, constraint, n=1):
         """
-        Returns a payload that puts cst into register reg by poping it from the stack
+        Returns a payload that puts cst into register reg by poping it into another register
+            then using register transitivity  
         unusable: list of reg UID that can not be used in the chaining strategy 
         """ 
-        return []
+        if (n < 1 ):
+            return []
+        
+        res = []
+        for inter in SearchHelper.possible_REGtoREG_transitivity(reg):
+            pop_chains = self._CSTtoREG_pop_from_stack(inter, cst, constraint, n)
+            transitivity_chains = self.find(GadgetType.REGEXPRtoREG, reg, [inter,0], constraint, n)
+            for pop in pop_chains:
+                for trans in transitivity_chains:
+                    res.append(pop+trans)
+                    if( len(res) >= n ):
+                        return res
+        return res
+        
         
     def _STRPTRtoREG_on_stack(self, reg, string, constraint, n=1):
         """
@@ -248,6 +275,9 @@ class search_engine:
         # where the string can fit between XX and YY ...
         
         # First find all s.t reg <- sp+XX
+        if (n < 1 ):
+            return []
+        
         string_len = len(string)+1 # We need to add a \x00 in the end
         if( string_len % 4 == 0 ):
             string_bytes_needed = string_len
@@ -271,6 +301,9 @@ class search_engine:
         reg - int
         string - str
         """
+        if (n < 1 ):
+            return []
+        
         BinaryScanner.find_function(string)
         return []
         
