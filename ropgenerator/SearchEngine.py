@@ -277,14 +277,19 @@ class search_engine:
         # First find all s.t reg <- sp+XX
         if (n < 1 ):
             return []
-        
+            
+        sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
+        # Can't adjust the stack pointer with the stack pointer... :/  
+        if( reg == sp_num ):
+            return []
+        # Adjusting length 
         string_len = len(string)+1 # We need to add a \x00 in the end
         if( string_len % 4 == 0 ):
             string_bytes_needed = string_len
         else:
             string_bytes_needed = string_len + (4 - (string_len%4))
         
-        sp_num = Analysis.regNamesTable[Analysis.ArchInfo.sp]
+        
         # Get the posible offsets 
         possible_offsets = [off for off in Database.gadgetLookUp.types[GadgetType.REGEXPRtoREG][reg].expr[sp_num].keys() if off>=0]
         #print("DEBUG, possible offsets:")

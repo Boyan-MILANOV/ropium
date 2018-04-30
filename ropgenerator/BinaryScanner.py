@@ -75,7 +75,6 @@ def find_bytes(byte_string, addr_not_null=False):
                 return [-1,0]
             offset = m.find(substring)
             if( offset != -1 ):
-                print("DEBUG Found att offset " + str(offset) + " index " + str(index))
                 return [offset, index]
             else:
                 substring = substring[:-2]
