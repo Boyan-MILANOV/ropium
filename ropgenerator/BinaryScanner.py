@@ -97,3 +97,12 @@ def find_bytes(byte_string, addr_not_null=False):
             substring = substring[index:]
     return res
         
+def bss_address():
+    """
+    Return the base address of the .bss section
+    """
+    global binary_pwn
+    try:
+        return binary_pwn.bss()
+    except:
+        return None

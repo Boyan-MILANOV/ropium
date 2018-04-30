@@ -294,7 +294,7 @@ class search_engine:
             res += self.find(GadgetType.REGEXPRtoREG, reg, (sp_num, offset), constraint=constraint, n=1000)
         return res
     
-    def _STRPTRtoREG_static_memory(self, reg, string, constraint, n=1):
+    def _STRPTRtoREG_static_memory(self, reg, string, constraint, n=1, custom_stack=None):
         """
         Searches for gadgets that put the address of a string "string"
         into register reg
@@ -304,13 +304,29 @@ class search_engine:
         if (n < 1 ):
             return []
         
-        custom_stack = 0x50000 # Fake custom stack default value
+        # Get the custom stack address (.bss by default)
+        if( not custom_stack ):
+            custom_stack = BinaryScanner.bss_address()
+            stack_str = '.bss'
+        else:
+            stack_str = "Custom stack"
+        if( not custom_stack ):
+            print("[*] DEBUG, couldn't find a custom stack address :'( ")
+            return []
+        
+        # First check if this custom stack address can be poped in the register
+        stack_to_reg_chains = self.find(GadgetType.CSTtoREG, reg, custom_stack, constraint, n=1)
+        if( not stack_to_reg_chains ):
+            return []
+        else:
+            stack_to_reg_chain = stack_to_reg_chains[0]
+        
         # We decompose the string in substrings to be copied
         substrings_addr = BinaryScanner.find_bytes(string)
         if( not substrings_addr ):
             return []
         # We find a copy function 
-        (function_addr, function_name ) = BinaryScanner.find_function('memcpy')
+        (function_addr, function_name ) = BinaryScanner.find_function('strcpy')
         if( not function_addr ):
             return []
         function_padding = SearchHelper.set_padding_unit(value=function_addr, msg=string_payload(function_name))
@@ -327,7 +343,7 @@ class search_engine:
         stack_offset = 0
         for (substring_addr,substring_str) in substrings_addr:
             # Get padding for the memory where to copy
-            stack_padding = SearchHelper.set_padding_unit(value=custom_stack, msg='@ddress of: ' +string_bold('Custom Stack + ' + str(stack_offset)))
+            stack_padding = SearchHelper.set_padding_unit(value=custom_stack, msg='@ddress of: ' +string_bold(stack_str+' + ' + str(stack_offset)))
             # Get padding for the bytes we will copy
             substring_padding = SearchHelper.set_padding_unit(value=substring_addr)
             SearchHelper.addr_to_gadgetStr[substring_addr] = "@ddress of: " +string_bold(string_payload("'"+substring_str+"'"))
@@ -338,6 +354,7 @@ class search_engine:
             custom_stack = custom_stack + len(substring_str)
             stack_offset = stack_offset + len(substring_str)
             
+        res += stack_to_reg_chain
         return [res]
         
 
