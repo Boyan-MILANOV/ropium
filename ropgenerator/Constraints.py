@@ -124,6 +124,9 @@ class Constraint:
         return True
       
     def _validate_CHAINABLE_RET(self, gadget):
+        print("DEBUG CHainable: " + gadget.asmStr )
+        print("DEBUG normal ret :" + str(gadget.hasNormalRet()))
+        print("DEBUG is valid sp : " + str(gadget.isValidSpInc()))
         return (gadget.hasNormalRet() and gadget.isValidSpInc())
     
     def get(self, ctype):

@@ -686,7 +686,7 @@ class Gadget:
                     self.validPreConstraint = False
                     return
             # Go through dependencies that include MEMExpr
-                # Todo  
+                # Todo  
             
             self.validPreConstraint = True
             self.preConstraint = constraint

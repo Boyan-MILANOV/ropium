@@ -393,7 +393,7 @@ class Op(Expr):
         self.size = args[0].size 
         if( op != "Not" and len(args) < 2 ):
             raise ExprException("Error, binop with only one arg : %s"%str(args))
-        # For optimization
+        # For optimization
         self.got_regs = False
         self.regs = []
         
@@ -565,7 +565,7 @@ class Op(Expr):
         else:
             factor = -1
         
-        # Search for a particular register
+        # Search for a particular register
         if( reg_num != -1 ):           
             if( isinstance(left, SSAExpr)):
                 if( isinstance( right, ConstExpr) and left.reg.num == reg_num):
@@ -579,7 +579,7 @@ class Op(Expr):
                     return (False, None)
             else:
                 return (False, None)
-        # Or search for any register increment 
+        # Or search for any register increment 
         else:           
             if( isinstance(left, SSAExpr)):
                 if( isinstance( right, ConstExpr)):

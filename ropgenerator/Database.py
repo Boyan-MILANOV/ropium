@@ -404,7 +404,7 @@ class gadgetsLookUp:
                         break
                         
                         
-        # Clean the charging bar
+        # Clean the charging bar
         sys.stdout.write("\r"+" "*70+"\r") 
 
     def find(self, gtype, arg1, arg2, constraint, n=1):
