@@ -45,6 +45,9 @@ def string_payload(text):
     """
     return ROPGENERATOR_COLOR_ANSI+text+END_COLOR_ANSI
 
+def string_ropg(text):
+    return ROPGENERATOR_COLOR_ANSI+text+END_COLOR_ANSI
+
 def notify(text):
     """
     prints a string with a tab and special colored char in front 

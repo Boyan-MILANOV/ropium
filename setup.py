@@ -26,7 +26,7 @@ setup(name='ropgenerator',
       'Topic :: Security',
       'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
       ],
-      packages=['ropgenerator'],
+      packages=['ropgenerator', 'ropgenerator/payload'],
       scripts=['ROPGenerator'],
       install_requires=['python-magic','ROPGadget4ROPGenerator', 'prompt_toolkit', 'barf==0.4.0', 'enum', 'capstone==3.0.5rc2'],   
       keywords='rop generator chain gadget semantic automatic exploit ropchain',  
@@ -34,7 +34,7 @@ setup(name='ropgenerator',
       cmdclass={
         'clean': CleanCommand,
       },
-      data_files=[("/etc/ROPGenerator", [])]
+      data_files=[("/usr/ROPGenerator", [])]
     )
-      
-     
+
+

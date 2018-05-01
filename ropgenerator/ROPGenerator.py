@@ -6,6 +6,7 @@ import ropgenerator.Analysis as Analysis
 import ropgenerator.SearchEngine as SearchEngine
 import ropgenerator.Load as Load
 import ropgenerator.Config as Config
+import ropgenerator.payload.Payload as Payload 
 
 
 from prompt_toolkit import prompt
@@ -29,6 +30,7 @@ CMD_HELP = "help"
 CMD_LOAD = "load"
 CMD_REGISTERS = "registers"
 CMD_FIND = "find" 
+CMD_PAYLOAD = "payload"
 CMD_CONFIG = "config"
 CMD_EXIT = "exit"
 
@@ -65,6 +67,7 @@ def main(time_mesure=False):
             print(string_bold("\t-----------------------------------------------------------\n"))
             print('\t' + string_bold(CMD_HELP) + ': \t\tprint available commands')
             print('\t' + string_bold(CMD_LOAD) + ': \t\tload usable gadgets from a binary file')
+            print('\t' + string_bold(CMD_PAYLOAD) + ': \tcreate a payload for your exploit')
             print('\t' + string_bold(CMD_FIND) + ': \t\tfind gadgets that execute specific operations')
             print('\t' + string_bold(CMD_REGISTERS) + ': \tprint available registers for the current architecture')
             print('\t' + string_bold(CMD_CONFIG) + ': \tconfigure ROPGenerator')
@@ -78,6 +81,14 @@ def main(time_mesure=False):
                     SearchEngine.find_gadgets(args[1:])
             else:
                 print("Missing arguments. Type 'find help' for help")
+        elif( command == CMD_PAYLOAD ):
+            if( argslen > 1 ):
+                if( args[1] == CMD_HELP):
+                    Payload.print_help()
+                else:
+                    Payload.payload(args[1:])
+            else:
+                print("Missing arguments. Type 'payload help' for help")
         elif( command == CMD_LOAD ):
             if( argslen > 1 ):
                 if( args[1] == CMD_HELP):
@@ -101,6 +112,7 @@ def main(time_mesure=False):
         elif( command == CMD_EXIT ):
             quit = True
             Config.save_config()
+            Payload.save_payloads()
         else:
             print("Unknown command '" + command+"'. Type 'help' for available commands")
         # New line
