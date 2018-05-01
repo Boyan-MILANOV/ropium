@@ -21,9 +21,9 @@ OPTION_KEEP_REGS_SHORT = '-k'
 
 # Help for the search command
 CMD_FIND_HELP = BOLD_COLOR_ANSI
-CMD_FIND_HELP +=    "\n\t-----------------------------------------------"
-CMD_FIND_HELP += "\n\tROPGenerator 'find' command\n\t(Find gadgets that execute specific operations)"
-CMD_FIND_HELP += "\n\t-----------------------------------------------"
+CMD_FIND_HELP +=    "\n\t---------------------------------------------------------"
+CMD_FIND_HELP += "\n\tROPGenerator 'find' command\n\t(Find gadgets/ropchains that execute specific operations)"
+CMD_FIND_HELP += "\n\t---------------------------------------------------------"
 CMD_FIND_HELP += END_COLOR_ANSI
 CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>\n\t\tfind [OPTIONS] <reg>=mem(<expr>)\n\t\tfind [OPTIONS] mem(<expr>)=<expr>"
 CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"

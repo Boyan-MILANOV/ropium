@@ -68,7 +68,7 @@ def main(time_mesure=False):
             print('\t' + string_bold(CMD_HELP) + ': \t\tprint available commands')
             print('\t' + string_bold(CMD_LOAD) + ': \t\tload usable gadgets from a binary file')
             print('\t' + string_bold(CMD_PAYLOAD) + ': \tcreate a payload for your exploit')
-            print('\t' + string_bold(CMD_FIND) + ': \t\tfind gadgets that execute specific operations')
+            print('\t' + string_bold(CMD_FIND) + ': \t\tfind gadgets/ropchains that execute specific operations')
             print('\t' + string_bold(CMD_REGISTERS) + ': \tprint available registers for the current architecture')
             print('\t' + string_bold(CMD_CONFIG) + ': \tconfigure ROPGenerator')
             print('\t' + string_bold(CMD_EXIT) + ': \t\texit ROPGenerator')
