@@ -20,11 +20,10 @@ OPTION_BAD_BYTES_SHORT = '-b'
 OPTION_KEEP_REGS_SHORT = '-k' 
 
 # Help for the search command
-CMD_FIND_HELP = BOLD_COLOR_ANSI
-CMD_FIND_HELP +=    "\n\t---------------------------------------------------------"
-CMD_FIND_HELP += "\n\tROPGenerator 'find' command\n\t(Find gadgets/ropchains that execute specific operations)"
-CMD_FIND_HELP += "\n\t---------------------------------------------------------"
-CMD_FIND_HELP += END_COLOR_ANSI
+CMD_FIND_HELP = string_bold("\n\t---------------------------------------------------------")
+CMD_FIND_HELP += string_bold("\n\tROPGenerator 'find' command\n\t")
+CMD_FIND_HELP += string_special("(Find gadgets/ropchains that execute specific operations)")
+CMD_FIND_HELP += string_bold("\n\t---------------------------------------------------------")
 CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>\n\t\tfind [OPTIONS] <reg>=mem(<expr>)\n\t\tfind [OPTIONS] mem(<expr>)=<expr>"
 CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
 CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+"\t: bad bytes for payload.\n\t\t\t\tExpected format is a list of bytes \n\t\t\t\tseparated by comas (e.g '-b 0A,0B,2F')"

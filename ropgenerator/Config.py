@@ -5,11 +5,10 @@ from ropgenerator.Colors import string_special, string_bold,info_colored, error_
 import os 
 
 # Help for the config command
-CMD_CONFIG_HELP = BOLD_COLOR_ANSI
-CMD_CONFIG_HELP +=  "\n\t------------------------------"
-CMD_CONFIG_HELP += "\n\tROPGenerator 'config' command\n\t(Configure ROPGenerator)"
-CMD_CONFIG_HELP += "\n\t------------------------------"
-CMD_CONFIG_HELP += END_COLOR_ANSI
+CMD_CONFIG_HELP =  string_bold("\n\t------------------------------")
+CMD_CONFIG_HELP += string_bold("\n\tROPGenerator 'config' command\n\t")
+CMD_CONFIG_HELP += string_special("(Configure ROPGenerator)")
+CMD_CONFIG_HELP += string_bold("\n\t------------------------------")
 CMD_CONFIG_HELP += "\n\n\t"+string_bold("Usage")+":\tconfig show\n\t\tconfig <parameter>=<value> [<parameter>=<value> ...]"
 CMD_CONFIG_HELP += "\n\n\t"+string_bold("Parameters")+":\n\t\t"+string_special("ropgadget")+':\tcommand to run ROPgadget tool (typically\n\t\t\t\t"ROPgadget" or "/path/to/ROPgadget.py")\n\t\t'+string_special("limit")+':\t\tnumber of matching gadgets to find for a query'
 CMD_CONFIG_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tconfig ropgadget=ROPgadget\n\t\tconfig ropgadget=/usr/ROPgadget.py limit=4"

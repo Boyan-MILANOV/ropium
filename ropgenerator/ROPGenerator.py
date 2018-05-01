@@ -62,12 +62,12 @@ def main(time_mesure=False):
         if( command == None):
             pass
         elif( command == CMD_HELP ):
-            print(string_bold("\t-----------------------------------------------------------\n\tROPGenerator commands"))
+            print(string_bold("\n\t-----------------------------------------------------------\n\tROPGenerator commands"))
             print(string_special("\t(For more information about a command type '<command> help')"))
             print(string_bold("\t-----------------------------------------------------------\n"))
             print('\t' + string_bold(CMD_HELP) + ': \t\tprint available commands')
             print('\t' + string_bold(CMD_LOAD) + ': \t\tload usable gadgets from a binary file')
-            print('\t' + string_bold(CMD_PAYLOAD) + ': \tcreate a payload for your exploit')
+            print('\t' + string_bold(CMD_PAYLOAD) + ': \tmanage payloads to use in your exploit')
             print('\t' + string_bold(CMD_FIND) + ': \t\tfind gadgets/ropchains that execute specific operations')
             print('\t' + string_bold(CMD_REGISTERS) + ': \tprint available registers for the current architecture')
             print('\t' + string_bold(CMD_CONFIG) + ': \tconfigure ROPGenerator')
@@ -80,7 +80,8 @@ def main(time_mesure=False):
                     SearchEngine.set_user_input(user_input[len(CMD_FIND):])
                     SearchEngine.find_gadgets(args[1:])
             else:
-                print("Missing arguments. Type 'find help' for help")
+                SearchEngine.print_help()
+                #print("Missing arguments. Type 'find help' for help")
         elif( command == CMD_PAYLOAD ):
             if( argslen > 1 ):
                 if( args[1] == CMD_HELP):
@@ -88,7 +89,8 @@ def main(time_mesure=False):
                 else:
                     Payload.payload(args[1:])
             else:
-                print("Missing arguments. Type 'payload help' for help")
+                Payload.print_help()
+                #print("Missing arguments. Type 'payload help' for help")
         elif( command == CMD_LOAD ):
             if( argslen > 1 ):
                 if( args[1] == CMD_HELP):
@@ -96,7 +98,8 @@ def main(time_mesure=False):
                 else:
                     Load.load(args[1:])
             else:
-                print("Missing arguments. Type 'load help' for help")
+                Load.print_help()
+                #print("Missing arguments. Type 'load help' for help")
     
         elif( command == CMD_REGISTERS ):
             pretty_print_registers()
@@ -107,7 +110,8 @@ def main(time_mesure=False):
                 else:
                     Config.update_config(args[1:])
             else:
-                print("Missing arguments. Type 'config help' for help")
+                Config.print_help()
+                #print("Missing arguments. Type 'config help' for help")
             
         elif( command == CMD_EXIT ):
             quit = True

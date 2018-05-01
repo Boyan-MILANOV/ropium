@@ -7,15 +7,14 @@ import ropgenerator.generate_opcodes as generate_opcodes
 import ropgenerator.SearchHelper as SearchHelper
 import ropgenerator.Gadget as Gadget
 import ropgenerator.BinaryScanner as BinaryScanner
-from ropgenerator.Colors import string_bold, info_colored, BOLD_COLOR_ANSI, END_COLOR_ANSI
+from ropgenerator.Colors import string_bold, info_colored, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_special
 
 
 # Help for the load command
-CMD_LOAD_HELP = BOLD_COLOR_ANSI
-CMD_LOAD_HELP += "\n\t---------------------------------"
-CMD_LOAD_HELP += "\n\tROPGenerator 'load' command\n\t(Load gadgets from a binary file)"
-CMD_LOAD_HELP += "\n\t---------------------------------" 
-CMD_LOAD_HELP += END_COLOR_ANSI
+CMD_LOAD_HELP = string_bold("\n\t---------------------------------")
+CMD_LOAD_HELP += string_bold("\n\tROPGenerator 'load' command\n\t")
+CMD_LOAD_HELP += string_special("(Load gadgets from a binary file)")
+CMD_LOAD_HELP += string_bold("\n\t---------------------------------")
 CMD_LOAD_HELP += "\n\n\t"+string_bold("Usage")+":\tload [OPTIONS] <filename>"
 CMD_LOAD_HELP += "\n\n\t"+string_bold("Options")+": No options available for the moment"
 CMD_LOAD_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tload /bin/ls\t\t(load gadgets from /bin/ls program)\n\t\tload ../test/vuln_prog\t(load gadgets from own binary)"
