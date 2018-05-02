@@ -126,3 +126,6 @@ def remove_payload():
             ok = remove_shellcode(arch_input, choice)
         except:
             ok = False
+
+    print("")
+    notify('Payload removed')

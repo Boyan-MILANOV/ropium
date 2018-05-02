@@ -7,7 +7,7 @@ import ropgenerator.SearchEngine as SearchEngine
 import ropgenerator.Load as Load
 import ropgenerator.Config as Config
 import ropgenerator.payload.Payload as Payload 
-
+import ropgenerator.Context as Context
 
 from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
@@ -31,6 +31,7 @@ CMD_LOAD = "load"
 CMD_REGISTERS = "registers"
 CMD_FIND = "find" 
 CMD_PAYLOAD = "payload"
+CMD_CONTEXT = "context"
 CMD_CONFIG = "config"
 CMD_EXIT = "exit"
 
@@ -112,7 +113,15 @@ def main(time_mesure=False):
             else:
                 Config.print_help()
                 #print("Missing arguments. Type 'config help' for help")
-            
+        elif( command == CMD_CONTEXT ):    
+            if( argslen > 1 ):
+                if( args[1] == CMD_HELP ):
+                    Context.print_help()
+                else:
+                    Context.context(args[1:])
+            else:
+                Context.print_help()
+                 
         elif( command == CMD_EXIT ):
             quit = True
             Config.save_config()

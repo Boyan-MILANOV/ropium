@@ -14,9 +14,6 @@ CMD_CONFIG_HELP += "\n\n\t"+string_bold("Parameters")+":\n\t\t"+string_special("
 CMD_CONFIG_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tconfig ropgadget=ROPgadget\n\t\tconfig ropgadget=/usr/ROPgadget.py limit=4"
 
 
-
-
-
 # ROPGENERATOR CONIGURATION DEFAULT 
 DEFAULT_ARCH = "X86-64"
 DEFAULT_PATH_ROPGADGET = "ROPgadget4ROPGenerator"
