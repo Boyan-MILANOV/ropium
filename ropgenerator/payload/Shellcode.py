@@ -148,6 +148,21 @@ def select_shellcode(arch, number):
     selected_shellcode[arch] = number
     return True
     
+# Remove a shellcode for arch
+def remove_shellcode(arch, number):
+    global custom_shellcodes
+    global native_shellcodes
+    if( number > len(custom_shellcodes[arch])):
+        print(string_special("\tYou can not remove ROPGenerator's embedded payloads\n"))
+        return False
+    elif( number < 1 ):
+        print(string_special("\tInvalid payload number\n"))
+        return False
+    del custom_shellcodes[arch][number-1]
+    if( selected_shellcode[arch] > 0 ):
+        selected_shellcode[arch] = selected_shellcode[arch] - 1
+    return True
+    
 #####################
 # NATIVE SHELLCODES #
 #####################

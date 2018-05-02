@@ -1,7 +1,7 @@
 # ROPGenerator - PAYLOAD module 
 # Building PAYLOADs 
 from ropgenerator.Colors import BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold, info_colored, string_special, ROPGENERATOR_COLOR_ANSI, notify
-from ropgenerator.payload.Shellcode import show_shellcodes, save_shellcodes, add_shellcode, select_shellcode, show_selected
+from ropgenerator.payload.Shellcode import remove_shellcode, show_shellcodes, save_shellcodes, add_shellcode, select_shellcode, show_selected
 from prompt_toolkit import prompt
 import ropgenerator.Analysis as Analysis
 import sys
@@ -16,7 +16,8 @@ CMD_PAYLOAD_HELP += "\n\n\t"+string_bold("Usage")+\
 ":\tpayload current \t(" + string_special('show currently selected payload') + ")" +\
 "\n\t\tpayload list [<arch>]\t(" + string_special('list available payloads') + ")" +\
 "\n\t\tpayload select \t\t(" + string_special('select a payload for your exploit') + ")" +\
-"\n\t\tpayload add\t\t("+ string_special('add a payload to your exploit') + ")"
+"\n\t\tpayload add\t\t("+ string_special('add a payload to your exploit') + ")"+\
+"\n\t\tpayload remove\t\t("+string_special('remove a previously added payload') + ")"
 CMD_PAYLOAD_HELP += "\n\n\t"+string_bold("Supported architectures")+": "+','.join([string_special(arch) for arch in Analysis.supportedArchs])
 
 def print_help():
@@ -32,6 +33,8 @@ def payload(args):
         add_payload()
     elif( args[0] == 'select'):
         select_payload()
+    elif( args[0] == 'remove' ):
+        remove_payload()
     else:
         print("Error. Subcommand '{}' is not supported yet".format(args[0]))
     return 
@@ -101,3 +104,25 @@ def select_payload():
             print(string_special("\tError. Invalid payload number\n"))
     show_selected()
     
+def remove_payload():
+    print(string_bold('\n\t--------------------\n\tRemoving a payload\n\t--------------------\n'))
+    
+    arch_input = ''
+    while( not arch_input in Analysis.supportedArchs ):
+        sys.stdout.write('\t'+ROPGENERATOR_COLOR_ANSI+'> '+END_COLOR_ANSI+'Enter the payload architecture ({}):\n\t'.format\
+            (','.join([string_special(s) for s in Analysis.supportedArchs])))
+        arch_input = prompt(u"")
+    
+    show_shellcodes(arch_input)
+    print("")
+    
+    choice = ''
+    ok = False
+    while( not ok ):
+        sys.stdout.write('\t'+ROPGENERATOR_COLOR_ANSI+'> '+END_COLOR_ANSI+'Select a payload to remove:\n\t')
+        choice_input = prompt(u"")
+        try:
+            choice = int(choice_input)
+            ok = remove_shellcode(arch_input, choice)
+        except:
+            ok = False
