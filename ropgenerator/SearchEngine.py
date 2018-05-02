@@ -232,7 +232,8 @@ class search_engine:
             possible_gadgets = [g for g in Database.gadgetLookUp.types[GadgetType.MEMEXPRtoREG][reg].expr[sp_num][offset]\
             if Database.gadgetDB[g].isValidSpInc() \
                 and Database.gadgetDB[g].spInc >= Analysis.ArchInfo.bits/8 \
-                and Database.gadgetDB[g].hasNormalRet()]
+                and Database.gadgetDB[g].hasNormalRet()\
+                and Database.gadgetDB[g].spInc - Analysis.ArchInfo.bits/8 > offset ]
             for chain in SearchHelper.pad_CSTtoREG_pop_from_stack(possible_gadgets, offset, cst, constraint=constraint):
                 # At this point 'gadget' does reg <- mem(sp+offset)
                 res.append(chain)
@@ -251,6 +252,8 @@ class search_engine:
         
         res = []
         for inter in SearchHelper.possible_REGtoREG_transitivity(reg):
+            if( inter == reg ):
+                continue
             pop_chains = self._CSTtoREG_pop_from_stack(inter, cst, constraint, n)
             transitivity_chains = self.find(GadgetType.REGEXPRtoREG, reg, [inter,0], constraint, n)
             for pop in pop_chains:
