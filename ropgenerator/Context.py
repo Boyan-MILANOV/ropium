@@ -62,12 +62,13 @@ def set_context(args):
             (left,right)=arg.split('=')
             if( not left or not right ):
                 print("Error. Invalid parameter {}".format(arg))
+                return 
         except:
             print("Error. Invalid parameter {}".format(arg))
             return
         if( left in [ASLR, PIE, NX] ):
             if( right not in ['yes', 'no']):
-                print("Error. Invalid {} value: ".format(left, right))
+                print("Error. Invalid {} value: {}".format(left, right))
                 return 
             values[left]= s2b(right)
         elif( left == BAD_BYTES ):
