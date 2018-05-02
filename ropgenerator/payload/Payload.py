@@ -81,7 +81,7 @@ def select_payload():
         print("")
         notify('Detected architecture from loaded binary: ' + string_special(arch_input))
     else:
-        print(string_bold('\tOops! You should load a binary before selecting a payload'))
+        print(string_bold('\n\tOops! You should load a binary before selecting a payload'))
         return 
     
     show_shellcodes(arch_input)
