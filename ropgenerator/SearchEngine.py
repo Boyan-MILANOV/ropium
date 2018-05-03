@@ -24,7 +24,9 @@ CMD_FIND_HELP = string_bold("\n\t-----------------------------------------------
 CMD_FIND_HELP += string_bold("\n\tROPGenerator 'find' command\n\t")
 CMD_FIND_HELP += string_special("(Find gadgets/ropchains that execute specific operations)")
 CMD_FIND_HELP += string_bold("\n\t---------------------------------------------------------")
-CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>\n\t\tfind [OPTIONS] <reg>=mem(<expr>)\n\t\tfind [OPTIONS] mem(<expr>)=<expr>"
+CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>\n\t\tfind [OPTIONS] <reg>=mem(<expr>)\n\t\tfind [OPTIONS] mem(<expr>)=<expr>"+\
+"\n\t\tfind [OPTIONS] int80"+\
+"\n\t\tfind [OPTIONS] syscall"
 CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
 CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+"\t: bad bytes for payload.\n\t\t\t\tExpected format is a list of bytes \n\t\t\t\tseparated by comas (e.g '-b 0A,0B,2F')"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+"\t: registers that shouldn't be modified.\n\t\t\t\tExpected format is a list of registers \n\t\t\t\tseparated by comas (e.g '-k edi,eax')"
@@ -84,6 +86,13 @@ class search_engine:
         arg1, arg2 - depends on gtype : 
             see the parse_user_request function :) 
         """
+        # Check for special gadgets
+        if( gtype == GadgetType.INT80 ):
+            return self.int80(constraint, n)
+        elif( gtype == GadgetType.SYSCALL ):
+            return self.syscall(constraint,n)
+        
+        # Regular gadgets 
         gadgets =  Database.gadgetLookUp.find(gtype, arg1, arg2, constraint, n)
         if( no_padding ):
             return [[g] for g in gadgets]
@@ -364,6 +373,11 @@ class search_engine:
         res += stack_to_reg_chain
         return [res]
         
+    def int80(self, constraint, n=1):
+        return Database.gadgetLookUp.int80(constraint, n)
+        
+    def syscall(self, constraint, n=1):
+        return Database.gadgetLookUp.syscall(constraint, n)
 
 # The module-wide search engine 
 search = search_engine()
@@ -538,6 +552,13 @@ def parse_user_request(req):
     Or if not supported or invalid arguments, returns a tuple (False, msg)
     """
     global user_input
+    # Check for int80 and syscall
+    if( req == 'int80' ):
+        return (True, GadgetType.INT80, None, None)
+    elif( req == 'syscall' ):
+        return (True, GadgetType.SYSCALL, None, None)
+    
+    # Check for Regular query 
     args = [x for x in req.split('=',1) if x]
     if( len(args) != 2):
         # Test if request with '->'  

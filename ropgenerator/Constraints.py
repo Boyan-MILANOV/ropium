@@ -3,7 +3,8 @@
 
 from enum import Enum
 from ropgenerator.Logs import log
-import Expr
+import ropgenerator.Expr as Expr
+
 
 class ConstraintException( Exception ):
     def __init__( self, msg ):
@@ -11,7 +12,6 @@ class ConstraintException( Exception ):
         log(self.msg)
     def __str__(self):
         return self.msg
-
 
 class ConstraintType(Enum):
     """
@@ -69,12 +69,21 @@ class Constraint:
         new_constraint.constraints.pop(constraint_type, None)
         return new_constraint
     
-    def validate(self, gadget):
+    def validate(self, gadget, only_bad_bytes=False):
         """
         Returns True iff 'gadget' verifies all the constraints 
         Parameters:
             gadget - Gadget instance
+            only_bad_bytes = True <=> We only check the bad_bytes constraint 
         """
+        if( only_bad_bytes ):
+            if( ConstraintType.BAD_BYTES in self.constraints ):
+                return self._validate_BAD_BYTES(gadget, \
+                    self.constraints[ConstraintType.BAD_BYTES])
+            else:
+                return True
+        
+        
         for ctype, clist in self.constraints.iteritems():
             if( ctype == ConstraintType.REGS_NOT_MODIFIED ):
                 if( not self._validate_REGS_NOT_MODIFIED(gadget, clist)):

@@ -3,7 +3,7 @@
 
 import sys
 import ropgenerator.Analysis as Analysis
-from ropgenerator.Gadget import Gadget, GadgetException, GadgetType, analyzed_raw_to_gadget
+from ropgenerator.Gadget import Gadget, GadgetException, GadgetType, GadgetSort, analyzed_raw_to_gadget
 from datetime import datetime
 from ropgenerator.Cond import Cond, CT
 from ropgenerator.Expr import SSAExpr
@@ -61,7 +61,7 @@ def generated_gadgets_to_DB():
         instr = instr.decode("hex")
         asmGadgets.append((addr, instr))
     f.close()
-    # Sort the gadgets according to their instructions 
+    # Sort the gadgets according to their instructions 
     asmGadgets.sort(key=lambda x:x[1])
     # Analyze them
     junk_file = open("/dev/null", "w") 
@@ -317,6 +317,8 @@ class gadgetsLookUp:
         self.types[GadgetType.MEMEXPRtoREG] = dict()
         self.types[GadgetType.MEMEXPRtoMEM] = None
         self.types[GadgetType.REGEXPRtoMEM] = None
+        self.list_int80 = []
+        self.list_syscall = []
 
     def fill(self):
         # Initialize the data structures ! 
@@ -336,6 +338,13 @@ class gadgetsLookUp:
         for i in range(0, len(gadgetDB)):
             charging_bar(len(gadgetDB)-1, i, 30)
             gadget = gadgetDB[i]
+            # Check for special gadgets (int 0x80 and syscall
+            if( gadget.sort == GadgetSort.INT80 ):
+                self.list_int80.append(i)
+                continue
+            elif( gadget.sort == GadgetSort.SYSCALL ):
+                self.list_syscall.append(i)
+                continue
             # For XXXtoREG
             for reg, deps in gadget.getDependencies().regDep.iteritems():
                 for dep in deps:
@@ -425,6 +434,25 @@ class gadgetsLookUp:
             return self.types[gtype].find(arg1[0], arg1[1], arg2[0], arg2[1], constraint=constraint, n=n)
         else:
             return []
+            
+    def int80(self, constraint, n=1):
+        res = []
+        for gadget in self.list_int80:
+            if( constraint.validate(gadgetDB[gadget], only_bad_bytes=True)):
+                res.append([gadget])
+                if( len(res) >= n ):
+                    return res
+        return res
+        
+    def syscall(self, constraint, n=1):
+        res = []
+        for gadget in self.list_syscall:
+            if( constraint.validate(gadgetDB[gadget], only_bad_bytes=Trues)):
+                res.append([gadget])
+                if( len(res) >= n ):
+                    return res
+        return res
+    
         
 ## Module wide gadgetsLookUp instance 
 gadgetLookUp = gadgetsLookUp()

@@ -29,12 +29,19 @@ class GadgetType(Enum):
     REGEXPRtoMEM="REGEXPRtoMEM" # mem(reg + CST) = reg + CST
     MEMEXPRtoMEM="MEMEXPRtoMEM" # mem(reg + CST) = mem(reg + CST)
     STRPTRtoREG = "STRPTRtoREG" # reg = pointer to "string" 
+    INT80 = "INT 0x80" # Interruption 0x80
+    SYSCALL = "SYSCALL" # Syscall
     
 class RetType(Enum):
     UNKNOWN = "UNKNOWN"
     RET = "RET"
     CALL_REG = "CALL_REG"
-    JMP_REG = "JMP_REG"   
+    JMP_REG = "JMP_REG" 
+    
+class GadgetSort(Enum):
+    REGULAR="REGULAR"
+    INT80="INT 0x80"
+    SYSCALL="SYSCALL"
       
 # Limit for sp increment by a single gadget
 SPINC_LIMIT = 400
@@ -75,11 +82,33 @@ class Gadget:
         if( raw in analyzed_raw_to_gadget ):
             self._copy_gadget( num, addr, analyzed_raw_to_gadget[raw] )
         else:
+            # Check for 'int 0x80' gadgets
+            if( raw == '\xcd\x80' ): 
+                self.num = num
+                self.sort = GadgetSort.INT80
+                self.asmStr = 'int 0x80'
+                self.hexStr = '\\xcd\\x80'
+                self.addr = addr
+                self.addrStr = '0x'+format(addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
+                self.dep = GadgetDependencies()
+                return 
+            # Check for 'syscall' gadgets 
+            elif( raw == '\x0f\x05' ):
+                self.num = num
+                self.sort = GadgetSort.SYSCALL
+                self.asmStr = 'syscall'
+                self.hexStr = '\\x0f\\x05'
+                self.addr = addr
+                self.addrStr = '0x'+format(addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
+                self.dep = GadgetDependencies()
+                return 
+            # Build regular gadget 
             try:
                 (irsb,ins) = Analysis.getIR( raw, addr )
             except Analysis.AnalysisException as e:
                 raise GadgetException(str(e))
             
+            self.sort = GadgetSort.REGULAR
             self.duplicate = None # If the gadget is a copy of another gadget, then self.duplicate = pointer to the original gadget ! 
             # Some strings representations 
             self.ins = ins # List of instructions 
@@ -113,6 +142,7 @@ class Gadget:
         This function is used to avoid computing dependencies twice for 
         identical gadgets that have different addresses 
         """
+        self.sort = same_gadget.sort
         self.ins = same_gadget.ins
         self.asmStr = same_gadget.asmStr
         self.hexStr = same_gadget.hexStr
@@ -559,6 +589,8 @@ class Gadget:
         """
         Compute how much the stack pointer has advanced after this gadget is executed 
         """
+        if( self.sort != GadgetSort.REGULAR ):
+            return 
         
         if( self.duplicate ):
             self.spInc = self.duplicate.spInc
@@ -588,6 +620,9 @@ class Gadget:
         """
         lower can be specified to accept gadgets with negative or minimal spinc
         """
+        if( self.sort != GadgetSort.REGULAR ):
+            return False
+        
         return self.spInc != None and self.spInc >= lower and self.spInc <= SPINC_LIMIT
     
     def calculateRet(self):
@@ -596,6 +631,8 @@ class Gadget:
         /!\ MUST be called after calculateSpInc()
         
         """
+        if( self.sort != GadgetSort.REGULAR ):
+            return 
         
         if( self.duplicate ):
             self.ret = self.duplicate.ret
@@ -634,15 +671,24 @@ class Gadget:
         self.ret = RetType.UNKNOWN
         
     def hasNormalRet(self):
+        if( self.sort != GadgetSort.REGULAR ):
+            False
+        
         return self.ret == RetType.RET
         
     def hasJmpReg(self):
+        if( self.sort != GadgetSort.REGULAR ):
+            return False
+        
         if( self.ret == RetType.JMP_REG ):
             return (True, self.retValue)
         else:
             return (False, None) 
         
     def hasCallReg(self):
+        if( self.sort != GadgetSort.REGULAR ):
+            return False
+        
         if( self.ret == RetType.CALL_REG ):
             return (True, self.retValue)
         else:
@@ -652,6 +698,7 @@ class Gadget:
         """
         Get the dependencies of the gadget 
         """
+        
         if( self.dep != None ):
             return self.dep
         else:
@@ -671,6 +718,9 @@ class Gadget:
         otherwise
             - self.validPreConstraint <- False
         """
+        if( self.sort != GadgetSort.REGULAR ):
+            return 
+        
         if( self.duplicate ):
             self.preConstraint = self.duplicate.preConstraint
             self.validPreConstraint = self.duplicate.validPreConstraint
