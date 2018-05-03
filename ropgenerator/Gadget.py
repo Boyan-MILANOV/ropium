@@ -29,8 +29,8 @@ class GadgetType(Enum):
     REGEXPRtoMEM="REGEXPRtoMEM" # mem(reg + CST) = reg + CST
     MEMEXPRtoMEM="MEMEXPRtoMEM" # mem(reg + CST) = mem(reg + CST)
     STRPTRtoREG = "STRPTRtoREG" # reg = pointer to "string" 
-    INT80 = "INT 0x80" # Interruption 0x80
-    SYSCALL = "SYSCALL" # Syscall
+    INT80 = "INT 0x80" # Interruption 0x80
+    SYSCALL = "SYSCALL" # Syscall
     
 class RetType(Enum):
     UNKNOWN = "UNKNOWN"
@@ -92,7 +92,7 @@ class Gadget:
                 self.addrStr = '0x'+format(addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
                 self.dep = GadgetDependencies()
                 return 
-            # Check for 'syscall' gadgets 
+            # Check for 'syscall' gadgets 
             elif( raw == '\x0f\x05' ):
                 self.num = num
                 self.sort = GadgetSort.SYSCALL

@@ -8,6 +8,7 @@ import ropgenerator.Load as Load
 import ropgenerator.Config as Config
 import ropgenerator.payload.Payload as Payload 
 import ropgenerator.Context as Context
+import ropgenerator.exploit.Exploit as Exploit
 
 from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
@@ -33,6 +34,7 @@ CMD_FIND = "find"
 CMD_PAYLOAD = "payload"
 CMD_CONTEXT = "context"
 CMD_CONFIG = "config"
+CMD_EXPLOIT = "exploit"
 CMD_EXIT = "exit"
 
 command_list = [CMD_HELP, CMD_LOAD, CMD_REGISTERS, CMD_FIND, CMD_CONFIG, CMD_EXIT]
@@ -83,6 +85,9 @@ def main(time_mesure=False):
             else:
                 SearchEngine.print_help()
                 #print("Missing arguments. Type 'find help' for help")
+        elif( command == CMD_EXPLOIT ):
+            Exploit.exploit(args[1:])
+        
         elif( command == CMD_PAYLOAD ):
             if( argslen > 1 ):
                 if( args[1] == CMD_HELP):

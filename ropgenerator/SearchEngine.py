@@ -86,13 +86,13 @@ class search_engine:
         arg1, arg2 - depends on gtype : 
             see the parse_user_request function :) 
         """
-        # Check for special gadgets
+        # Check for special gadgets
         if( gtype == GadgetType.INT80 ):
             return self.int80(constraint, n)
         elif( gtype == GadgetType.SYSCALL ):
             return self.syscall(constraint,n)
         
-        # Regular gadgets 
+        # Regular gadgets 
         gadgets =  Database.gadgetLookUp.find(gtype, arg1, arg2, constraint, n)
         if( no_padding ):
             return [[g] for g in gadgets]
@@ -310,14 +310,11 @@ class search_engine:
             res += self.find(GadgetType.REGEXPRtoREG, reg, (sp_num, offset), constraint=constraint, n=1000)
         return res
     
-    def _STRPTRtoREG_static_memory(self, reg, string, constraint, n=1, custom_stack=None):
+    def str_to_mem(self, addr, addr_string, string, constraint):
         """
-        Searches for gadgets that put the address of a string "string"
-        into register reg
-        reg - int
-        string - str
+        Write a string in memory 
         """
-        def _strcpy_strategy(reg, string, constraint, custom_stack, stack_str):
+        def _strcpy_strategy(string, constraint, custom_stack, stack_str):
             """
             STRCPY STRATEGY
             Returns a single ropchain 
@@ -356,10 +353,9 @@ class search_engine:
                 custom_stack = custom_stack + len(substring_str)
                 stack_offset = stack_offset + len(substring_str)
 
-            res += stack_to_reg_chain
             return res
         
-        def _memcpy_strategy(reg, string, constraint, custom_stack, stack_str):
+        def _memcpy_strategy(string, constraint, custom_stack, stack_str):
             """
             MEMCPY STRATEGY
             Returns a single chain
@@ -392,7 +388,7 @@ class search_engine:
                 # Get padding for the bytes we will copy
                 substring_padding = SearchHelper.set_padding_unit(value=substring_addr)
                 SearchHelper.addr_to_gadgetStr[substring_addr] = "@ddress of: " +string_bold(string_payload("'"+substring_str+"'"))
-                # Get padding for the number of bytes to copy 
+                # Get padding for the number of bytes to copy 
                 size_padding = SearchHelper.set_padding_unit(value=len(substring_str))
                 # Add it to chain 
                 res += [function_padding, pppr_padding, stack_padding, substring_padding, size_padding]
@@ -401,9 +397,23 @@ class search_engine:
                 custom_stack = custom_stack + len(substring_str)
                 stack_offset = stack_offset + len(substring_str)
                 
-            res += stack_to_reg_chain
             return res
         
+        # Function body 
+        # Try the different strategies
+        chain = _memcpy_strategy(string, constraint, addr, addr_string)
+        if( not chain ):
+            chain = _strcpy_strategy(string, constraint, addr, addr_string)
+        return chain
+        
+        
+    def _STRPTRtoREG_static_memory(self, reg, string, constraint, n=1, custom_stack=None, stack_str='Custom stack'):    
+        """
+        Searches for gadgets that put the address of a string "string"
+        into register reg
+        reg - int
+        string - str
+        """
         ########################
         # STRPTRtoREG function #
         ########################
@@ -415,8 +425,6 @@ class search_engine:
         if( not custom_stack ):
             custom_stack = BinaryScanner.bss_address()
             stack_str = '.bss'
-        else:
-            stack_str = "Custom stack"
         if( not custom_stack ):
             print("[*] DEBUG, couldn't find a custom stack address :'( ")
             return []
@@ -428,21 +436,33 @@ class search_engine:
         else:
             stack_to_reg_chain = stack_to_reg_chains[0]
         
-        # Then try the different strategies
-        chain = _memcpy_strategy(reg, string, constraint, custom_stack, stack_str)
-        if( not chain ):
-            chain = _strcpy_strategy(reg, string, constraint, custom_stack, stack_str)
-        if( not chain ):
-            return []
-        # Wrap the chain in a list because search.find() returns a list of chains ;)
-        return [chain]
+        # Then put the string in memory 
+        str_to_mem_chain = self.str_to_mem(custom_stack, stack_str, string, constraint)
         
+        # Wrap the chain in a list because search.find() returns a list of chains ;)
+        return [str_to_mem_chain+stack_to_reg_chain]
         
     def int80(self, constraint, n=1):
         return Database.gadgetLookUp.int80(constraint, n)
         
     def syscall(self, constraint, n=1):
         return Database.gadgetLookUp.syscall(constraint, n)
+    
+    def jmp_addr(self, addr, constraint):
+        """
+        returns one chain s.t ip = addr
+        """
+        res = []
+        ip = Analysis.regNamesTable[Analysis.ArchInfo.ip]
+        for inter in SearchHelper.possible_REGtoREG_transitivity(ip):
+            if( inter == ip ):
+                continue
+            pop_chains = self._CSTtoREG_pop_from_stack(inter, addr, constraint, n=1)
+            transitivity_chains = self.find(GadgetType.REGEXPRtoREG, ip, [inter,0], constraint, n=1, chainable=False)
+            for pop in pop_chains:
+                for trans in transitivity_chains:
+                    return pop+trans
+        return []
 
 # The module-wide search engine 
 search = search_engine()
@@ -617,13 +637,13 @@ def parse_user_request(req):
     Or if not supported or invalid arguments, returns a tuple (False, msg)
     """
     global user_input
-    # Check for int80 and syscall
+    # Check for int80 and syscall
     if( req == 'int80' ):
         return (True, GadgetType.INT80, None, None)
     elif( req == 'syscall' ):
         return (True, GadgetType.SYSCALL, None, None)
     
-    # Check for Regular query 
+    # Check for Regular query 
     args = [x for x in req.split('=',1) if x]
     if( len(args) != 2):
         # Test if request with '->'  

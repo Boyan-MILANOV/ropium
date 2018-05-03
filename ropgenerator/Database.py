@@ -338,7 +338,7 @@ class gadgetsLookUp:
         for i in range(0, len(gadgetDB)):
             charging_bar(len(gadgetDB)-1, i, 30)
             gadget = gadgetDB[i]
-            # Check for special gadgets (int 0x80 and syscall
+            # Check for special gadgets (int 0x80 and syscall
             if( gadget.sort == GadgetSort.INT80 ):
                 self.list_int80.append(i)
                 continue

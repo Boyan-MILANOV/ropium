@@ -22,7 +22,7 @@ custom_shellcodes = dict()
 # FUNCTIONS #
 #############
 
-# Read shellcodes from a file 
+# Read shellcodes from a file 
 def read_shellcodes(filename):
     res = [] 
     try:
@@ -148,7 +148,7 @@ def select_shellcode(arch, number):
     selected_shellcode[arch] = number
     return True
     
-# Remove a shellcode for arch
+# Remove a shellcode for arch
 def remove_shellcode(arch, number):
     global custom_shellcodes
     global native_shellcodes
