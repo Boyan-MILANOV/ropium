@@ -6,6 +6,7 @@ ERROR_COLOR_ANSI = '\033[91m'
 BOLD_COLOR_ANSI = '\033[1m'
 SPECIAL_COLOR_ANSI = '\033[93m'
 PAYLOAD_COLOR_ANSI = '\033[96m'
+EXPLOIT_COLOR_ANSI = '\033[95m'
 END_COLOR_ANSI = '\033[0m'
 
 
@@ -47,6 +48,9 @@ def string_payload(text):
 
 def string_ropg(text):
     return ROPGENERATOR_COLOR_ANSI+text+END_COLOR_ANSI
+
+def string_exploit(text):
+    return EXPLOIT_COLOR_ANSI + text + END_COLOR_ANSI
 
 def notify(text):
     """

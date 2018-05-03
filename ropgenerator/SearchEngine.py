@@ -401,9 +401,9 @@ class search_engine:
         
         # Function body 
         # Try the different strategies
-        chain = _memcpy_strategy(string, constraint, addr, addr_string)
+        chain = _strcpy_strategy(string, constraint, addr, addr_string)
         if( not chain ):
-            chain = _strcpy_strategy(string, constraint, addr, addr_string)
+            chain = _memcpy_strategy(string, constraint, addr, addr_string)
         return chain
         
         
