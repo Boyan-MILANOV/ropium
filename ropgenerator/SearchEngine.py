@@ -53,7 +53,7 @@ class search_engine:
     def __init__(self):
         self.truc = None
  
-    def find(self, gtype, arg1, arg2, constraint, n=1, basic=True, chainable=True, unusable=[], init=False):
+    def find(self, gtype, arg1, arg2, constraint, n=1, basic=True, chainable=True, unusable=[], init=True):
         """
         Searches for gadgets 
         basic = False means that we don't call _basic_strategy
@@ -132,9 +132,9 @@ class search_engine:
         for inter_reg in SearchHelper.possible_REGtoREG_transitivity(reg):
             if( (inter_reg != reg) and (inter_reg != reg2) and (not inter_reg in unusable)):
                 base_chains = self.find(GadgetType.REGEXPRtoREG, reg, [inter_reg,0], \
-                constraint=constraint, unusable=unusable+[reg2],n=n)
+                constraint=constraint, unusable=unusable+[reg2],n=n, init=False)
                 for inter_chain in self.find( GadgetType.REGEXPRtoREG, inter_reg, \
-                [reg2, 0], constraint, unusable=unusable+[reg], n=n):
+                [reg2, 0], constraint, unusable=unusable+[reg], n=n, init=False):
                     for base_chain in base_chains:
                         res.append( inter_chain + base_chain )
                         if( len(res) >= n ):
@@ -155,7 +155,7 @@ class search_engine:
         # Find possible not chainable gadgets 
         constraint_not_chainable = constraint.remove_all(ConstraintType.CHAINABLE_RET)
         possible_gadgets = [g[0] for g in self._basic_strategy(GadgetType.REGEXPRtoREG, reg, [reg2,0], \
-            constraint_not_chainable, n=n) if ((Database.gadgetDB[g[0]].hasJmpReg()[0] \
+            constraint_not_chainable, n=1000) if ((Database.gadgetDB[g[0]].hasJmpReg()[0] \
                                                 or Database.gadgetDB[g[0]].hasCallReg()[0]) \
                                             and Database.gadgetDB[g[0]].isValidSpInc(ACCEPTABLE_SPINC))]
 
