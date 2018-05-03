@@ -200,7 +200,9 @@ def build_REGtoREG_transitivity():
         for reg2 in db[reg].expr.keys():
             for cst in db[reg].expr[reg2].keys():
                 if( cst == 0 ):
-                    record_REGtoREG_transitivity[reg][reg2] = True
+                    if( Database.gadgetDB[db[reg].expr[reg2][cst][0]].isValidSpInc()):
+                        record_REGtoREG_transitivity[reg][reg2] = \
+                                    Database.gadgetDB[db[reg].expr[reg2][cst][0]].spInc
                     break
     built_REGtoREG_transitivity = True
 
@@ -215,8 +217,10 @@ def possible_REGtoREG_transitivity(reg):
     if( not built_REGtoREG_transitivity ):
         build_REGtoREG_transitivity()
 
-    return [r for r in record_REGtoREG_transitivity[reg].keys() if r not in record_REGtoREG_impossible[reg]]
-      
+    possible = [[reg2,spInc] for reg2,spInc in record_REGtoREG_transitivity[reg].iteritems()\
+            if reg2 not in record_REGtoREG_impossible[reg]]
+    possible.sort(key=lambda x:x[1])
+    return [x[0] for x in possible]
 
 ###########################################
 # Helpers for REG pop from stack strategy #
