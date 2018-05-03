@@ -48,17 +48,36 @@ def find_function(function):
     print(res)
     return res
     
-def find_bytes(byte_string, addr_not_null=False):
+def find_bytes(byte_string, addr_not_null=False, add_null=True ):
     """
     Find a string in a file + additionnal null byte at the end
     If addr_not_null set to True, discard addresses with null bytes 
+    If add_null = True then add terminaison null bytes in the end of the substrings 
     
     Example: 
         byte_string = 'abc' then result is the address of a string 'abc\x00'
         or a list of addresses s.t elements form 'abc' like 'ab\x00' 'c\x00' 
     """
     
-    def _find_substr(m, string):
+    def _find_substr(m,string):
+        if( not string ):
+            return [-1,0]
+        # Initialize
+        offset = -1
+        index = len(string)
+        substring = string
+        # Search biggest substring 
+        while( offset == -1 ):
+            if( len(substring) <= 0 ):
+                return [-1,0]
+            offset = m.find(substring)
+            if( offset != -1 ):
+                return [offset, index]
+            else:
+                substring = substring[:-1]
+            index = index -1
+    
+    def _find_substr_add_null(m, string):
         if( not string ):
             return [-1,0]
         # Initialize
@@ -96,7 +115,10 @@ def find_bytes(byte_string, addr_not_null=False):
     
     res = []
     while( substring ):
-        (offset, index ) = _find_substr(m, substring)
+        if( add_null ):
+            (offset, index ) = _find_substr_add_null(m, substring)
+        else:
+            (offset, index ) = _find_substr(m, substring)
         if( index == 0 ):
             # We didn't find any match, return empty list 
             return []

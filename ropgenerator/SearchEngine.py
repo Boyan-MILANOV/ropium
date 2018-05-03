@@ -317,6 +317,97 @@ class search_engine:
         reg - int
         string - str
         """
+        def _strcpy_strategy(reg, string, constraint, custom_stack, stack_str):
+            """
+            STRCPY STRATEGY
+            Returns a single ropchain 
+            """
+            (function_addr, function_name ) = BinaryScanner.find_function('strcpy')
+            if( not function_addr ):
+                return []
+            function_padding = SearchHelper.set_padding_unit(value=function_addr, msg=string_payload(function_name))
+            
+            # We decompose the string in substrings to be copied
+            substrings_addr = BinaryScanner.find_bytes(string, add_null=True)
+            if( not substrings_addr ):
+                return []
+                
+            # Get address of a pop-pop-ret gadget 
+            ppr_addrs = self._RET_offset(2*Analysis.ArchInfo.bits/8, constraint, n=1)
+            if( not ppr_addrs ):
+                return []
+            ppr_addr = Database.gadgetDB[ppr_addrs[0][0]].addr # Get the first gadget then its address
+            ppr_asmStr =  Database.gadgetDB[ppr_addrs[0][0]].asmStr
+            ppr_padding = SearchHelper.set_padding_unit(value=ppr_addr, msg=string_bold(ppr_asmStr))
+            
+            # Chain to build the string loader ! 
+            res = []
+            stack_offset = 0
+            for (substring_addr,substring_str) in substrings_addr:
+                # Get padding for the memory where to copy
+                stack_padding = SearchHelper.set_padding_unit(value=custom_stack, msg='@ddress of: ' +string_bold(stack_str+' + ' + str(stack_offset)))
+                # Get padding for the bytes we will copy
+                substring_padding = SearchHelper.set_padding_unit(value=substring_addr)
+                SearchHelper.addr_to_gadgetStr[substring_addr] = "@ddress of: " +string_bold(string_payload("'"+substring_str+"'"))
+                # Add it to chain 
+                res += [function_padding, ppr_padding, stack_padding, substring_padding]
+                
+                # Adjust
+                custom_stack = custom_stack + len(substring_str)
+                stack_offset = stack_offset + len(substring_str)
+
+            res += stack_to_reg_chain
+            return res
+        
+        def _memcpy_strategy(reg, string, constraint, custom_stack, stack_str):
+            """
+            MEMCPY STRATEGY
+            Returns a single chain
+            """
+            (function_addr, function_name ) = BinaryScanner.find_function('memcpy')
+            if( not function_addr ):
+                return []
+            function_padding = SearchHelper.set_padding_unit(value=function_addr, msg=string_payload(function_name))
+            
+            # We decompose the string in substrings to be copied
+            substrings_addr = BinaryScanner.find_bytes(string, add_null=False)
+            if( not substrings_addr ):
+                return []
+        
+        
+            # Get address of a pop-pop-pop-ret gadget 
+            pppr_addrs = self._RET_offset(3*Analysis.ArchInfo.bits/8, constraint, n=1)
+            if( not pppr_addrs ):
+                return []
+            pppr_addr = Database.gadgetDB[pppr_addrs[0][0]].addr # Get the first gadget then its address
+            pppr_asmStr =  Database.gadgetDB[pppr_addrs[0][0]].asmStr
+            pppr_padding = SearchHelper.set_padding_unit(value=pppr_addr, msg=string_bold(pppr_asmStr))
+            
+            # Chain to build the string loader ! 
+            res = []
+            stack_offset = 0
+            for (substring_addr,substring_str) in substrings_addr:
+                # Get padding for the memory where to copy
+                stack_padding = SearchHelper.set_padding_unit(value=custom_stack, msg='@ddress of: ' +string_bold(stack_str+' + ' + str(stack_offset)))
+                # Get padding for the bytes we will copy
+                substring_padding = SearchHelper.set_padding_unit(value=substring_addr)
+                SearchHelper.addr_to_gadgetStr[substring_addr] = "@ddress of: " +string_bold(string_payload("'"+substring_str+"'"))
+                # Get padding for the number of bytes to copy 
+                size_padding = SearchHelper.set_padding_unit(value=len(substring_str))
+                # Add it to chain 
+                res += [function_padding, pppr_padding, stack_padding, substring_padding, size_padding]
+                
+                # Adjust
+                custom_stack = custom_stack + len(substring_str)
+                stack_offset = stack_offset + len(substring_str)
+                
+            res += stack_to_reg_chain
+            return res
+        
+        ########################
+        # STRPTRtoREG function #
+        ########################
+        
         if (n < 1 ):
             return []
         
@@ -337,41 +428,15 @@ class search_engine:
         else:
             stack_to_reg_chain = stack_to_reg_chains[0]
         
-        # We decompose the string in substrings to be copied
-        substrings_addr = BinaryScanner.find_bytes(string)
-        if( not substrings_addr ):
+        # Then try the different strategies
+        chain = _memcpy_strategy(reg, string, constraint, custom_stack, stack_str)
+        if( not chain ):
+            chain = _strcpy_strategy(reg, string, constraint, custom_stack, stack_str)
+        if( not chain ):
             return []
-        # We find a copy function 
-        (function_addr, function_name ) = BinaryScanner.find_function('strcpy')
-        if( not function_addr ):
-            return []
-        function_padding = SearchHelper.set_padding_unit(value=function_addr, msg=string_payload(function_name))
-        # Get address of a pop-pop-ret gadget 
-        ppr_addrs = self._RET_offset(2*Analysis.ArchInfo.bits/8, constraint, n=1)
-        if( not ppr_addrs ):
-            return []
-        ppr_addr = Database.gadgetDB[ppr_addrs[0][0]].addr # Get the first gadget then its address
-        ppr_asmStr =  Database.gadgetDB[ppr_addrs[0][0]].asmStr
-        ppr_padding = SearchHelper.set_padding_unit(value=ppr_addr, msg=string_bold(ppr_asmStr))
+        # Wrap the chain in a list because search.find() returns a list of chains ;)
+        return [chain]
         
-        # Chain to build the string loader ! 
-        res = []
-        stack_offset = 0
-        for (substring_addr,substring_str) in substrings_addr:
-            # Get padding for the memory where to copy
-            stack_padding = SearchHelper.set_padding_unit(value=custom_stack, msg='@ddress of: ' +string_bold(stack_str+' + ' + str(stack_offset)))
-            # Get padding for the bytes we will copy
-            substring_padding = SearchHelper.set_padding_unit(value=substring_addr)
-            SearchHelper.addr_to_gadgetStr[substring_addr] = "@ddress of: " +string_bold(string_payload("'"+substring_str+"'"))
-            # Add it to chain 
-            res += [function_padding, ppr_padding, stack_padding, substring_padding]
-            
-            # Adjust
-            custom_stack = custom_stack + len(substring_str)
-            stack_offset = stack_offset + len(substring_str)
-            
-        res += stack_to_reg_chain
-        return [res]
         
     def int80(self, constraint, n=1):
         return Database.gadgetLookUp.int80(constraint, n)
