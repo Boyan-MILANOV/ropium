@@ -310,9 +310,10 @@ class search_engine:
             res += self.find(GadgetType.REGEXPRtoREG, reg, (sp_num, offset), constraint=constraint, n=1000)
         return res
     
-    def str_to_mem(self, addr, addr_string, string, constraint):
+    def str_to_mem(self, addr, addr_string, string, constraint, hex_info=False):
         """
         Write a string in memory 
+        hex_info = True <=> We print the string in hex 
         """
         def _strcpy_strategy(string, constraint, custom_stack, stack_str):
             """
@@ -345,7 +346,11 @@ class search_engine:
                 stack_padding = SearchHelper.set_padding_unit(value=custom_stack, msg='@ddress of: ' +string_bold(stack_str+' + ' + str(stack_offset)))
                 # Get padding for the bytes we will copy
                 substring_padding = SearchHelper.set_padding_unit(value=substring_addr)
-                SearchHelper.addr_to_gadgetStr[substring_addr] = "@ddress of: " +string_bold(string_payload("'"+substring_str+"'"))
+                if( hex_info ):
+                    substring_info = '\\x'+'\\x'.join(["%02x"%ord(c) for c in substring_str])
+                else:
+                    substring_info = substring_str
+                SearchHelper.addr_to_gadgetStr[substring_addr] = "@ddress of: " +string_bold(string_payload("'"+substring_info+"'"))
                 # Add it to chain 
                 res += [function_padding, ppr_padding, stack_padding, substring_padding]
                 

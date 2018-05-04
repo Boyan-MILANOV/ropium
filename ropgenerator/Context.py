@@ -43,6 +43,9 @@ def s2b(string):
     else:
         return False
 
+def bad_bytes():
+    return values[BAD_BYTES]
+
 def show_context():
     
     print(string_bold("\n\tROPGenerator's current context:\n"))
