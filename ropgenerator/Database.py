@@ -447,7 +447,7 @@ class gadgetsLookUp:
     def syscall(self, constraint, n=1):
         res = []
         for gadget in self.list_syscall:
-            if( constraint.validate(gadgetDB[gadget], only_bad_bytes=Trues)):
+            if( constraint.validate(gadgetDB[gadget], only_bad_bytes=True)):
                 res.append([gadget])
                 if( len(res) >= n ):
                     return res
