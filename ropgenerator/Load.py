@@ -34,7 +34,7 @@ def load(args):
             msg += "')"
         info_colored(msg+'\n')
     else:
-        print("Missing argument. Type 'load help' for help")
+        print(string_bold("\n\tMissing argument.\n\tType 'load help' for help"))
 
     # Cleaning the data structures
     Gadget.reinit()

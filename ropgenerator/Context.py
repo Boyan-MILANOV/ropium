@@ -68,21 +68,21 @@ def set_context(args):
         try:
             (left,right)=arg.split('=')
             if( not left or not right ):
-                print("Error. Invalid parameter {}".format(arg))
+                print(string_bold("\n\tError. Invalid parameter {}".format(arg)))
                 return 
         except:
-            print("Error. Invalid parameter {}".format(arg))
+            print(string_bold("\n\tError. Invalid parameter {}".format(arg)))
             return
         if( left in [ASLR, NX] ):
             if( right not in ['yes', 'no']):
-                print("Error. Invalid {} value: {}".format(left, right))
+                print(string_bold("\n\tError. Invalid {} value: {}".format(left, right)))
                 return 
             values[left]= s2b(right)
         elif( left == BAD_BYTES ):
-            print("Error. Bad bytes not supported yet for context. Comming soon ;) ".format(left, right))
+            print(string_bold("\n\tError. Bad bytes not supported yet for context. Comming soon ;) ".format(left, right)))
             return
         else:
-            print("Error. Unknown parameter: {}".format(left))
+            print(string_bold("\n\tError. Unknown parameter: {}".format(left)))
             return 
 
 def context(args):

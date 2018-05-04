@@ -10,7 +10,7 @@ import ropgenerator.Config as Config
 import ropgenerator.SearchHelper as SearchHelper
 import ropgenerator.BinaryScanner as BinaryScanner
 from ropgenerator.Constraints import Constraint, ConstraintType
-from ropgenerator.Colors import string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold, string_payload
+from ropgenerator.Colors import info, string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold, string_payload
 
 # Definition of options names
 OPTION_BAD_BYTES = '--bad-bytes'
@@ -322,6 +322,7 @@ class search_engine:
             """
             (function_addr, function_name ) = BinaryScanner.find_function('strcpy')
             if( not function_addr ):
+                info('Could not find strcpy function')
                 return []
             function_padding = SearchHelper.set_padding_unit(value=function_addr, msg=string_payload(function_name))
             
@@ -367,6 +368,7 @@ class search_engine:
             """
             (function_addr, function_name ) = BinaryScanner.find_function('memcpy')
             if( not function_addr ):
+                info('Could not find memcpy function')
                 return []
             function_padding = SearchHelper.set_padding_unit(value=function_addr, msg=string_payload(function_name))
             
@@ -492,7 +494,8 @@ def find_gadgets(args):
     """
     
     if( len(Database.gadgetDB) == 0 ):
-        print("You have to load gadgets before running the 'find' command (type 'load help' for more details)")
+        print(string_bold("\n\tYou have to load gadgets before running the 'find' command"+\
+            "\n\tType 'load help' for more details"))
         return     
     parsed_args = parse_args(args)
     # If parsing returned an error, print it and return 
@@ -581,13 +584,13 @@ def parse_args(args):
         # Look for options
         if( arg[0] == '-' and arg[1] != '>' ):
             if( seenExpr ):
-                return (False, "Error. Options must come before the search request")       
+                return (False, string_bold("\n\tError. Options must come before the search request"))       
             # bad bytes option 
             if( arg == OPTION_BAD_BYTES or arg == OPTION_BAD_BYTES_SHORT):
                 if( seenBadBytes ):
-                    return (False, "Error. '" + OPTION_BAD_BYTES + "' option should be used only once.")
+                    return (False, string_bold("\n\tError. '" + OPTION_BAD_BYTES + "' option should be used only once."))
                 if( i+1 >= len(args)):
-                    return (False, "Error. Missing bad bytes after option '"+arg+"'")
+                    return (False, string_bold("\n\tError. Missing bad bytes after option '"+arg+"'"))
                 seenBadBytes = True
                 (success, bad_bytes_list) = parse_bad_bytes(args[i+1])
                 if( not success ):
@@ -596,9 +599,9 @@ def parse_args(args):
                 constraint = constraint.add( ConstraintType.BAD_BYTES, bad_bytes_list)
             elif( arg == OPTION_KEEP_REGS or arg == OPTION_KEEP_REGS_SHORT):
                 if( seenKeepRegs ):
-                    return (False, "Error. '" + OPTION_KEEP_REGS + "' option should be used only once.")
+                    return (False, string_bold("\n\tError. '" + OPTION_KEEP_REGS + "' option should be used only once."))
                 if( i+1 >= len(args)):
-                    return (False, "Error. Missing registers after option '"+arg+"'")
+                    return (False, string_bold("\n\tError. Missing registers after option '"+arg+"'"))
                 seenKeepRegs = True
                 (success, keep_regs_list) = parse_keep_regs(args[i+1])
                 if( not success ):
@@ -607,11 +610,11 @@ def parse_args(args):
                 constraint = constraint.add( ConstraintType.REGS_NOT_MODIFIED, keep_regs_list)
             # Otherwise Ignore
             else:
-                return (False, "Error. Unknown option: '{}' ".format(arg))
+                return (False, string_bold("\n\tError. Unknown option: '{}' ".format(arg)))
         # If not option it should be a request expr=expr
         else:    
             if( seenExpr ):
-                return (False, "Error. Unexpected extra expression: '" + ' '.join(args[i:]) + "'. Only one at a time please")
+                return (False, string_bold("\n\tError. Unexpected extra expression: '") + ' '.join(args[i:]) + "'. Only one at a time please")
             else:
                 seenExpr = True
                 set_user_input(' '.join(args[i:]))
@@ -622,7 +625,7 @@ def parse_args(args):
                     i = len(args)
         i = i + 1
     if( not seenExpr ):
-        return (False, "Error. Missing specification of gadget to find")
+        return (False, string_bold("\n\tError. Missing specification of gadget to find"))
     else:
         return parsed_expr+(constraint,)
         
@@ -654,24 +657,24 @@ def parse_user_request(req):
         # Test if request with '->'  
         args = [x for x in user_input.split('->',1) if x]
         if( len(args) != 2 ):    
-            return (False, "Invalid request: " + user_input )
+            return (False, string_bold("\n\tInvalid semantic request: ") + user_input )
         else:
             left = args[0].strip()
             right = ''
             if( left not in Analysis.regNamesTable ):
-                return (False, "Left operand '{}' should be a register".format(left))
+                return (False, string_bold("\n\tLeft operand '{}' should be a register".format(left)))
             # Parsing right side
             i = 0
             args[1] = args[1].encode('ascii', 'replace').decode('ascii', 'ignore')
             while( i < len(args[1]) and args[1][i] in [' ', '\t'] ):
                 i = i + 1
             if( i == len(args[1]) or args[1][i] != '"'):
-                 return (False, '\nInvalid right operand: {} \nIt should be an ASCII string between quotes\nE.g: find rax -> "Example operand string"'.format(args[1]))   
+                 return (False, string_bold('\n\tInvalid right operand: {} \n\tIt should be an ASCII string between quotes\n\tE.g: find rax -> "Example operand string"'.format(args[1])))   
             saved_args1 = args[1]
             args[1] = args[1][i+1:]
             index = args[1].find('"')
             if( index == -1 or len(args[1].split('"')[1].strip()) > 0 ):
-                return (False, '\nInvalid right operand: {} \nIt should be an ASCII string between quotes\nE.g: find rbx -> "Example operand string"'.format(saved_args1))
+                return (False, string_bold('\n\tInvalid right operand: {} \n\tIt should be an ASCII string between quotes\n\tE.g: find rbx -> "Example operand string"'.format(saved_args1)))
             args[1] =  args[1][:-1]
             
             right = args[1]
@@ -684,10 +687,10 @@ def parse_user_request(req):
     if( left in Analysis.regNamesTable):
         (success, right_expr) = Expr.parseStrToExpr(right, Analysis.regNamesTable)
         if( not success ):
-            return (False, "Error. Operand '"+right+"' is incorrect: " + right_expr)
+            return (False, string_bold("\n\tError. Operand '"+right+"' is incorrect: " + right_expr))
         right_expr = right_expr.simplify()
         if( not is_supported_expr(right_expr)):
-            return (False, "Error. Right expression '"+right+"' is not supported :(")
+            return (False, string_bold("\n\tError. Right expression '"+right+"' is not supported :("))
         # Test if CSTtoREG
         if( isinstance(right_expr, Expr.ConstExpr)):
             return (True, GadgetType.CSTtoREG, Analysis.regNamesTable[left], right_expr.value)
@@ -703,17 +706,17 @@ def parse_user_request(req):
     elif( left[:4] == 'mem(' ):
         (success,addr) = Expr.parseStrToExpr(left[4:-1], Analysis.regNamesTable)
         if( not success ):
-            return (False, "Error. {}".format(addr))
+            return (False, string_bold("\n\tError. {}".format(addr)))
         addr = addr.simplify()
         if( not is_supported_expr(addr)):
-            return (False, "Error. Address '"+addr+"' is not supported :(")
+            return (False, string_bold("\n\tError. Address '"+addr+"' is not supported :("))
             
         (success, right_expr) = Expr.parseStrToExpr(right, Analysis.regNamesTable)
         if( not success ):
-            return (False, "Error. {}".format(right_expr))
+            return (False, string_bold("\n\tError. {}".format(right_expr)))
         right_expr = right_expr.simplify()
         if( not is_supported_expr(right_expr)):
-            return (False, "Error. Right expression '"+right+"' is not supported :(")
+            return (False, string_bold("\n\tError. Right expression '"+right+"' is not supported :("))
             
         (isInc, addr_reg, addr_cst) = addr.isRegIncrement(-1)
         
@@ -729,7 +732,7 @@ def parse_user_request(req):
             (isInc, num, inc) = right_expr.isRegIncrement(-1)
             return (True, GadgetType.REGEXPRtoMEM, [addr_reg, addr_cst], [num,inc])
     else:
-        return ( False, "Operand '" +left+"' is invalid or not yet supported by ROPGenerator :(")
+        return ( False, string_bold("\n\tOperand '" +left+"' is invalid or not yet supported by ROPGenerator :("))
     
 def parse_bad_bytes(string):
     """
@@ -746,11 +749,11 @@ def parse_bad_bytes(string):
     user_bad_bytes = [b.lower() for b in string.split(',')]
     for user_bad_byte in user_bad_bytes:
         if( not user_bad_byte ):
-            return (False, "Error. Missing bad byte after ','")
+            return (False, string_bold("\n\tError. Missing bad byte after ','"))
         elif( len(user_bad_byte) != 2 ):
-            return (False, "Error. '{}' is not a valid byte".format(user_bad_byte))
+            return (False, string_bold("\n\tError. '{}' is not a valid byte".format(user_bad_byte)))
         elif( not ((user_bad_byte[i] in hex_chars) and (user_bad_byte[i+1] in hex_chars))):
-            return (False, "Error. '{}' is not a valid byte".format(user_bad_byte))
+            return (False, string_bold("\n\tError. '{}' is not a valid byte".format(user_bad_byte)))
         else:
             bad_bytes.append(user_bad_byte)
     return (True, bad_bytes)
@@ -769,7 +772,7 @@ def parse_keep_regs(string):
         if( reg in Analysis.regNamesTable ):
             keep_regs.add(Analysis.regNamesTable[reg])
         else:
-            return (False, "Error. '{}' is not a valid register".format(reg))
+            return (False, string_bold("\n\tError. '{}' is not a valid register".format(reg)))
     return (True, list(keep_regs))
 
 

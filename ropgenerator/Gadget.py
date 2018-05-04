@@ -102,6 +102,7 @@ class Gadget:
                 self.addrStr = '0x'+format(addr, '0'+str(Analysis.ArchInfo.bits/4)+'x')
                 self.dep = GadgetDependencies()
                 return 
+            
             # Build regular gadget 
             try:
                 (irsb,ins) = Analysis.getIR( raw, addr )

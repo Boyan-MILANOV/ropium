@@ -476,5 +476,6 @@ def pretty_print_registers():
 #############################
 def reinit():
     global gadgetDB
+    global gadgetLookUp
     gadgetDB = []
     gadgetLookUp = gadgetsLookUp()

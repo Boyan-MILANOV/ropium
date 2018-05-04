@@ -82,7 +82,14 @@ def charging_bar( nb_iter, curr_iter, bar_len, msg="", char=u"\u2588"):
     sys.stdout.flush()
 
 # To print info while building exploits 
-VERBOSE = True    
+VERBOSE = False   
+def verbose_mode(mode):
+    """
+    mode = True or False
+    """
+    global VERBOSE
+    VERBOSE = mode
+ 
 def info(msg):
     if( VERBOSE ):
         print('\t\t> '+msg)

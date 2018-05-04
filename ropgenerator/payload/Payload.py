@@ -36,7 +36,7 @@ def payload(args):
     elif( args[0] == 'remove' ):
         remove_payload()
     else:
-        print("Error. Subcommand '{}' is not supported yet".format(args[0]))
+        print(string_bold("\n\tError. Unknown sub-command '{}'".format(args[0])))
     return 
 
 def save_payloads():

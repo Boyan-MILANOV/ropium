@@ -106,7 +106,8 @@ def show_shellcodes(arch):
     global selected_shellcode
     
     if( arch not in Analysis.supportedArchs ):
-        print("Error. Architecture {} is not supported".format(arch))
+        print(string_bold("\n\tError. Architecture {} is not supported".format(arch)))
+        return 
         
     print(string_bold('\n\t------------------------------------'))
     print(string_bold("\tAvailable payloads for arch " + string_special(arch)))
@@ -117,7 +118,7 @@ def show_shellcodes(arch):
     print(string_bold('\t------------------------------------'))
     
     if( (not native_shellcodes[arch])and(not custom_shellcodes[arch])):
-        print("\n\tNo shellcodes available for architecture " + arch)
+        print("\n\tNo payloads available for architecture " + arch)
     i = 0
     for shellcode in custom_shellcodes[arch] + native_shellcodes[arch] :
         i = i + 1

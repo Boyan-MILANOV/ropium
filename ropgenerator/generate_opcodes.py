@@ -2,7 +2,7 @@ import subprocess
 import os
 import sys
 import ropgenerator.Config as Config
-from ropgenerator.Colors import notify, error_colored
+from ropgenerator.Colors import notify, error_colored, string_bold
 from enum import Enum
 from magic import from_file
 
@@ -40,7 +40,7 @@ def generate(filename):
     global opcodes_file
     
     if( not os.path.isfile(filename)):
-        print("Error. Could not find file '{}'".format(filename))
+        print(string_bold("\n\tError. Could not find file '{}'".format(filename)))
         return False
          
     binType = check_binaryType(filename)
