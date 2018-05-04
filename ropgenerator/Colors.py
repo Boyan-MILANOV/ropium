@@ -58,7 +58,7 @@ def notify(text):
     """  
     sys.stdout.write('\t'+ROPGENERATOR_COLOR_ANSI + '% ' + END_COLOR_ANSI + text+'\n')
     
-# Custom charging bar :) 
+# Custom charging bar :) 
 last_percent = -1 
 def charging_bar( nb_iter, curr_iter, bar_len, msg="", char=u"\u2588"):
     """
@@ -80,3 +80,10 @@ def charging_bar( nb_iter, curr_iter, bar_len, msg="", char=u"\u2588"):
         bar += '{:03d}%'.format(100*curr_iter/nb_iter)
         sys.stdout.write(bar)
     sys.stdout.flush()
+
+# To print info while building exploits 
+VERBOSE = True    
+def info(msg):
+    if( VERBOSE ):
+        print('\t\t> '+msg)
+

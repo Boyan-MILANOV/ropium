@@ -1,19 +1,17 @@
 # ROPGenerator - Context module 
 # Manage the context for exploit development
-from ropgenerator.Colors import string_special, string_bold
+from ropgenerator.Colors import string_special, string_bold, notify, info_colored
 
-# Context parameters
+# Context parameters
 ASLR='ASLR'
 NX='NX'
 BAD_BYTES='BAD-BYTES'
-PIE='PIE'
 
-# Default values 
+# Default values 
 values = dict()
 values[ASLR]=True
 values[NX]=True
 values[BAD_BYTES]=[]
-values[PIE]=False
 
 # Help for the context command
 CMD_CONTEXT_HELP =  string_bold("\n\t-----------------------------------")
@@ -25,7 +23,6 @@ CMD_CONTEXT_HELP += "\n\n\t"+string_bold("Parameters")+\
 ":\n\t\t"+string_bold('Name'+"\t\tValues")+\
 "\n\t\t"+string_special(ASLR)+":\t\t'yes'/'no'"+\
 "\n\t\t"+string_special(NX)+":\t\t'yes'/'no'"+\
-"\n\t\t"+string_special(PIE)+":\t\t'yes'/'no'"+\
 "\n\t\t"+string_special(BAD_BYTES)+':\tlist of bad bytes'
 CMD_CONTEXT_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tcontext ASLR=yes\n\t\tcontext ASLR=no NX=yes"
 
@@ -51,10 +48,17 @@ def show_context():
     print(string_bold("\n\tROPGenerator's current context:\n"))
     print(string_bold("\t{}:\t\t".format(ASLR)) + b2s(values[ASLR]))
     print(string_bold("\t{}:\t\t".format(NX)) + b2s(values[NX]))
-    print(string_bold("\t{}:\t\t".format(PIE)) + b2s(values[PIE]))
     print(string_bold("\t{}:\t\t".format(BAD_BYTES)) + \
         ','.join([string_special(b) for b in values[BAD_BYTES]]))
     print("")
+    
+def check_context():
+    info_colored(string_bold('Checking exploit context\n'))
+    notify('NX stack: ' + b2s(values[NX]))
+    notify('ASLR: ' + b2s(values[NX]))
+    notify('Forbidden bytes in exploit: ' +\
+            ','.join([string_special(b) for b in values[BAD_BYTES]]))
+    
     
 def set_context(args):
     for arg in args:
@@ -66,7 +70,7 @@ def set_context(args):
         except:
             print("Error. Invalid parameter {}".format(arg))
             return
-        if( left in [ASLR, PIE, NX] ):
+        if( left in [ASLR, NX] ):
             if( right not in ['yes', 'no']):
                 print("Error. Invalid {} value: {}".format(left, right))
                 return 

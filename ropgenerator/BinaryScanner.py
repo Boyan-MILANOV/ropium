@@ -26,10 +26,10 @@ def find_function(function):
         function_symbol = function+'@PLT'
         res = (function_offset, function_symbol) 
         #DEBUG
-        print("[*] DEBUG hidden functionnality for function search:") 
-        print(res)
+        #print("[*] DEBUG hidden functionnality for function search:") 
+        #print(res)
     except:
-        print("[*] DEBUG find_function found nothing ") 
+        #print("[*] DEBUG find_function found nothing ") 
         res = [None, None]
     return res
     
@@ -44,8 +44,6 @@ def find_function(function):
     function_symbol = function_line_split[4]
     res = (function_offset, function_symbol) 
     #DEBUG
-    print("[*] DEBUG hidden functionnality for function search:") 
-    print(res)
     return res
     
 def find_bytes(byte_string, addr_not_null=False, add_null=True ):
