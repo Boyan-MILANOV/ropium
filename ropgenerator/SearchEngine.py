@@ -11,6 +11,7 @@ import ropgenerator.SearchHelper as SearchHelper
 import ropgenerator.BinaryScanner as BinaryScanner
 from ropgenerator.Constraints import Constraint, ConstraintType
 from ropgenerator.Colors import info, string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold, string_payload
+from struct import unpack
 
 # Definition of options names
 OPTION_BAD_BYTES = '--bad-bytes'
@@ -405,10 +406,76 @@ class search_engine:
                 stack_offset = stack_offset + len(substring_str)
                 
             return res
+            
+        def _store_reg_strategy(string, constraint, custom_stack, stack_str):
+            """
+            mov [REG],REG strategy 
+            """
+            
+            # First find 3 chains such that:
+            # 1) REG1 <- constant
+            # 2) REG2 <- address
+            # 3) mov [REG2], REG1
+            
+            nb_bytes = Analysis.ArchInfo.bits/8
+            db = Database.gadgetLookUp
+            # Trick to avoid error of formatting
+            if( type(string) == type(u'')):
+                substring = "%r"%string
+                substring = substring[2:-1]
+            else:
+                substring = string
+            # Get endianness and size 
+            if( Analysis.ArchInfo.bits == 32 ):
+                endianness_fmt = '<I'
+            elif( Analysis.ArchInfo.bits == 64 ):
+                endianness_fmt = '<Q'
+            padding_char = chr(SearchHelper.get_valid_padding_byte(constraint))
+            # Try to find mem[REG2+CST2] <- REG1+CST1
+            for reg2 in db.types[GadgetType.REGEXPRtoMEM].addr.keys():
+                for cst2 in db.types[GadgetType.REGEXPRtoMEM].addr[reg2].keys():
+                    for reg1 in db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr.keys():
+                        for cst1 in db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr[reg1].keys():
+                            for store_gadget in [ g for g in db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr[reg1][cst1]]: 
+                                                   # if constraint.validate(Database.gadgetDB[g])]:
+                                # Then try to copy the string part by part
+                                print("DEBUG Trying to write with gadget: " + Database.gadgetDB[store_gadget].asmStr)
+                                info("Trying to write with gadget: " + Database.gadgetDB[store_gadget].asmStr)
+                                res = []
+                                failed = False
+                                current_stack_pos = custom_stack
+                                while(substring and not failed):
+                                    # Get first bytes of the substring
+                                    first_bytes = substring[:nb_bytes]
+                                    if ( len(first_bytes) < nb_bytes ):
+                                        # If end of the string too soon, we pad a bit ;)
+                                        first_bytes += padding_char*(nb_bytes-len(first_bytes))
+                                    #print("DEBUG, first bytes " + first_bytes )
+                                    #print("DEBUG, len " + str(len(first_bytes))) 
+                                    first_bytes_int = unpack(endianness_fmt, first_bytes)[0]
+                                    substring = substring[nb_bytes:]
+                                    # Set the values we want for our registers
+                                    reg2_value = current_stack_pos - cst2
+                                    reg1_value = first_bytes_int - cst1
+                                    # Pop them 
+                                    pop_regs = pop_multiple([[reg1,reg1_value],[reg2, reg2_value]], constraint)
+                                    if( not pop_regs ):
+                                        info('Could not pop correct values in registers for the store')
+                                        failed = True
+                                    else:
+                                        res += pop_regs + [store_gadget]
+                                        current_stack_pos = current_stack_pos + nb_bytes
+                                if( not failed ):
+                                    info("Success")
+                                    return res
+            return []
+        
         
         # Function body 
         # Try the different strategies
-        chain = _strcpy_strategy(string, constraint, addr, addr_string)
+        chain = _store_reg_strategy(string, constraint, addr, addr_string)
+        if( not chain ):
+            chain = _strcpy_strategy(string, constraint, addr, addr_string)
         if( not chain ):
             chain = _memcpy_strategy(string, constraint, addr, addr_string)
         return chain
@@ -419,7 +486,7 @@ class search_engine:
         Searches for gadgets that put the address of a string "string"
         into register reg
         reg - int
-        string - str
+        string - RAW STRING ! (NOT UNICODE!!)
         """
         ########################
         # STRPTRtoREG function #
@@ -473,9 +540,6 @@ class search_engine:
 
 # The module-wide search engine 
 search = search_engine()
-
-
-
 
 ###########################
 # COMMAND TO FIND GADGETS #
@@ -794,3 +858,30 @@ def is_supported_expr(expr):
     else:
         (isInc, reg, inc) = expr.isRegIncrement(-1)
         return isInc
+
+
+#######################################
+# ADDITIONAL COMPLEX SEARCH FUNCTIONS #
+#######################################
+
+def pop_multiple(args, constraint=None):
+    """
+    args is a list of pairs (reg, value)
+    reg is a reg UID
+    value is an int
+    Creates a chain that pops values into regs
+    """
+    if( constraint is None ):
+        constr = Constraint()
+    else:
+        constr = constraint
+    res = []
+    for arg in args:
+        pop = search.find(GadgetType.CSTtoREG, arg[0], arg[1], constr)
+        if( not pop ):
+            return []
+        else:
+            res += pop[0]
+            constr = constr.add(ConstraintType.REGS_NOT_MODIFIED, \
+                    [arg[0]])
+    return res

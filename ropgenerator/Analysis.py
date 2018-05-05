@@ -39,8 +39,12 @@ regNamesTable = {}
 revertRegNamesTable = {}
 
 def r2n(reg):
+    global revertRegNamesTable
     return revertRegNamesTable[reg]
     
+def n2r(name):
+	global regNamesTable
+	return regNamesTable[name]
 
 def printRegTranslation():
     """

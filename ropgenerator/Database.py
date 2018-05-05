@@ -10,6 +10,7 @@ from ropgenerator.Expr import SSAExpr
 from ropgenerator.Colors import notify, charging_bar, string_special, string_bold, write_colored, info_colored, error_colored
 from ropgenerator.Config import ROPGENERATOR_DIRECTORY
 from ropgenerator.generate_opcodes import opcodes_file
+from ropgenerator.BinaryScanner import find_syscalls
 
 import ropgenerator.Expr as Expr
 import signal
@@ -101,6 +102,13 @@ def generated_gadgets_to_DB():
                 f.write("Unexpected error in : " + '\\x'.join(["%02x" % ord(c) for c in asm]) + "\nException type: " + str(type(e)) + "\nException message: " + str(e) + '\n\n')
 
         i = i + 1
+        
+    # Trick to find syscalls 
+    for addr in find_syscalls():
+        gadget = Gadget(i, addr, '\x0f\x05')
+        gadgetDB.append(gadget)
+        i = i+1
+        
     # Restoring the state
     f.close()
     junk_file.close()
@@ -200,11 +208,11 @@ class exprLookUp:
     Class used to store dependencies of type EXPRto...
     """
     def __init__(self):
-		# Keys are registers uids, values are dictionnaries of constants
-		# expr[reg][cst] = list of gadgets that put expressions reg + cst in .... 
-		self.expr = dict()
-		for reg in range(0,Analysis.ssaRegCount):
-			self.expr[reg] = {}
+        # Keys are registers uids, values are dictionnaries of constants
+        # expr[reg][cst] = list of gadgets that put expressions reg + cst in .... 
+        self.expr = dict()
+        for reg in range(0,Analysis.ssaRegCount):
+            self.expr[reg] = {}
 
     def add_gadget( self, reg, cst, gadget_num ):
         """
@@ -253,10 +261,10 @@ class cstToMemLookUp:
     Class used to store dependencies to the memory 
     """
     def __init__(self):
-		# Keys are registers uids, values are dictionnaries of constants
-		self.addr = dict()
-		for reg in range(0,Analysis.ssaRegCount):
-			self.addr[reg] = dict()
+        # Keys are registers uids, values are dictionnaries of constants
+        self.addr = dict()
+        for reg in range(0,Analysis.ssaRegCount):
+            self.addr[reg] = dict()
         
     def add_gadget( self, addr_reg, addr_cst, cst, gadget_num ):
         """
@@ -281,10 +289,10 @@ class exprToMemLookUp:
     Class used to store dependencies to the memory 
     """
     def __init__(self):
-		# Keys are registers uids, values are dictionnaries of constants
-		self.addr = dict()
-		for reg in range(0,Analysis.ssaRegCount):
-			self.addr[reg] = dict()
+        # Keys are registers uids, values are dictionnaries of constants
+        self.addr = dict()
+        for reg in range(0,Analysis.ssaRegCount):
+            self.addr[reg] = dict()
         
     def add_gadget( self, addr_reg, addr_cst, reg, cst, gadget_num ):
         """

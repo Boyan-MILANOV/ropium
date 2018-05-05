@@ -2,27 +2,31 @@
 # Scanning binaries to find symbols
 import subprocess
 from pwnlib.elf.elf import ELF
-import mmap 
+from elftools.elf.elffile import ELFFile 
+import mmap
+import re
+from ropgenerator.Gadget import Gadget
 
 binary_name = None
-binary_pwn = None
+binary_ELF = None
 
 def set_binary(filename):
     global binary_name
-    global binary_pwn
+    global binary_ELF
+    global binary_ELF
     binary_name = filename
-    binary_pwn = ELF(binary_name)
+    binary_ELF = ELF(binary_name)
     
 def find_function(function):
     """
     Looks for the function 'function' in the PLT of a binary 
     """
     global binary_name
-    global binary_pwn
+    global binary_ELF
     
     # using pwntools
     try:
-        function_offset = binary_pwn.plt[function]
+        function_offset = binary_ELF.plt[function]
         function_symbol = function+'@PLT'
         res = (function_offset, function_symbol) 
         #DEBUG
@@ -101,17 +105,17 @@ def find_bytes(byte_string, addr_not_null=False, add_null=True ):
             index = index -1
         
     global binary_name
-    global binary_pwn
-    
-    f = open(binary_name)
-    m = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
-    substring = str(byte_string)
+    global binary_ELF
+   
     if( addr_not_null ):
         print("[!] DEBUG, in find_bytes(): addr_not_null not supported yet")
         return []
-    base_addr = binary_pwn.address
+        
+    text_addr = binary_ELF.get_section_by_name('.text').header.sh_addr
+    m = binary_ELF.get_section_by_name('.text').data()
     
     res = []
+    substring = str(byte_string)
     while( substring ):
         if( add_null ):
             (offset, index ) = _find_substr_add_null(m, substring)
@@ -122,7 +126,7 @@ def find_bytes(byte_string, addr_not_null=False, add_null=True ):
             return []
         else:
             # We add the best substring we found 
-            res.append([base_addr+offset,substring[:index]])
+            res.append([text_addr+offset,substring[:index]])
             substring = substring[index:]
     return res
         
@@ -130,8 +134,21 @@ def bss_address():
     """
     Return the base address of the .bss section
     """
-    global binary_pwn
+    global binary_ELF
     try:
-        return binary_pwn.bss()
+        return binary_ELF.bss()
     except:
         return None
+        
+def find_syscalls():
+    """
+    Find all syscall instructions in the binary .text
+    """
+    global binary_ELF
+    
+    text_addr = binary_ELF.get_section_by_name('.text').header.sh_addr
+    text_data = binary_ELF.get_section_by_name('.text').data()
+    
+    addresses = [text_addr + pos.start() for pos in re.finditer('\x0f\x05', text_data)]
+    return addresses
+    

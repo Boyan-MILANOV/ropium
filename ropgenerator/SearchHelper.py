@@ -62,6 +62,21 @@ def set_padding_unit(value=None, msg=None):
     else:
         return DEFAULT_PADDING_UNIT_INDEX
 
+def get_valid_padding_byte ( constraint ):
+    """
+    Returns a byte that is not in constraint BAD_BYTES
+    """
+    bad_bytes_list = constraint.get(ConstraintType.BAD_BYTES)
+    # Getting a valid padding byte 
+    hex_chars = 'fedcba9876543210'
+    found = False
+    for c1 in hex_chars:
+        for c2 in hex_chars:
+            c = c1+c2
+            if( not c in bad_bytes_list ):
+                return int(c,16)
+    return None
+        
 def get_valid_padding( constraint ):
     """
     Creates a padding value that satisfies the BAD_BYTES constraint(s)

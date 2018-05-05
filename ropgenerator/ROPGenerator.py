@@ -152,10 +152,11 @@ def main(time_mesure=False):
         
     except KeyboardInterrupt:
         pass
-    except:
+    except Exception as e:
         print("")
         error_colored("ROPGenerator failed unexpectedly\n")
-    
+        print(e)
+        
     if( time_mesure ):
         pr.disable()
         s = pstats.Stats(pr).sort_stats('tottime')

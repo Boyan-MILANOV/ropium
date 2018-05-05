@@ -43,10 +43,10 @@ def load(args):
     SearchHelper.reinit()
 
     if( generate_opcodes.generate(filename)):
+        BinaryScanner.set_binary(filename)
         Database.generated_gadgets_to_DB()
         Database.simplifyGadgets()
         Database.gadgetLookUp.fill()
-        BinaryScanner.set_binary(filename)
         #DEBUG SearchHelper.build_all()
     
     
