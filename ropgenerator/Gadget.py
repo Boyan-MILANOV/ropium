@@ -677,6 +677,28 @@ class Gadget:
         
         return self.ret == RetType.RET
         
+    def hasPossibleNormalRet(self):
+        """
+        Checks if the gadget can return normaly under certain conditions ! 
+        Returns a pair
+        (True, condition)
+        (False, None)
+        """
+        if( self.sort != GadgetSort.REGULAR ):
+            False
+        # Check
+        ip = SSAReg(Analysis.regNamesTable[Analysis.ArchInfo.ip], self.graph.lastMod[Analysis.regNamesTable[Analysis.ArchInfo.ip]])
+        sp_num = Analysis.n2r(Analysis.ArchInfo.sp)
+        for dep in self.dep.regDep.get(ip,[]):
+            dep[0] = dep[0].simplify()
+            if( isinstance(dep[0], MEMExpr)):
+                addr = dep[0].addr
+                (isInc, inc) = addr.isRegIncrement(sp_num)    
+                # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
+                if( isInc and self.spInc and inc == (self.spInc - (Analysis.ArchInfo.bits/8)) ):
+                    return (True, dep[1])
+        return (False, None)
+        
     def hasJmpReg(self):
         if( self.sort != GadgetSort.REGULAR ):
             return False

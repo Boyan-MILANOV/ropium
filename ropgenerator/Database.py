@@ -162,7 +162,7 @@ class cstLookUp:
     """
     def __init__(self):
         self.values = dict()
-        self.cond = dict() # Conditionnal gadgets 
+        self.cond = dict() # Conditionnal gadgets 
         
     def add_gadget( self,cst, gadget_num, condition=None ):
         """
@@ -178,23 +178,23 @@ class cstLookUp:
                 lmax = len(self.cond[cst])-1
                 while( True):
                     lmoy = (lmax + lmin)/2
-                    if( lmax == lmin or gadgetDB[self.cond[cst][lmoy]].nbInstr == gadgetDB[gadget_num].nbInstr ):
+                    if( lmax == lmin or gadgetDB[self.cond[cst][lmoy][0]].nbInstr == gadgetDB[gadget_num].nbInstr ):
                         self.cond[cst].insert(lmoy, (gadget_num,condition))
                         return 
                     elif( lmin == lmax ):
-                        if ( gadgetDB[self.cond[cst][lmin]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
+                        if ( gadgetDB[self.cond[cst][lmin][0]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
                             self.cond[cst].insert(lmin, (gadget_num,condition))
                         else:
                             self.cond[cst].insert(lmin+1, (gadget_num,condition))
                         return 
                     else:
-                        if( gadgetDB[self.cond[cst][lmoy]].nbInstr > gadgetDB[gadget_num].nbInstr ):
+                        if( gadgetDB[self.cond[cst][lmoy][0]].nbInstr > gadgetDB[gadget_num].nbInstr ):
                             lmax = lmoy
                         else:
                             lmin = lmoy+1
 
         else:
-            ## Add absolute gadget without any condition 
+            ## Add absolute gadget without any condition 
             if not cst in self.values:
                 self.values[cst] = [gadget_num]
             else:
@@ -244,11 +244,13 @@ class exprLookUp:
     """
     Class used to store dependencies of type EXPRto...
     """
-    def __init__(self):
+    def __init__(self, reg = -1):
         # Keys are registers uids, values are dictionnaries of constants
         # expr[reg][cst] = list of gadgets that put expressions reg + cst in .... 
         self.expr = dict()
         self.cond = dict()
+        self.reg = reg
+        
         for reg in range(0,Analysis.ssaRegCount):
             self.expr[reg] = {}
             self.cond[reg] = {}
@@ -257,8 +259,9 @@ class exprLookUp:
         """
         Adds a gadget in a list of gadgets in increasing order ( order is gadget.nbInstr value )
         """
+        
         if( condition ):
-            ## Add conditionnal gadget with its condition 
+            ## Add conditionnal gadget with its condition 
             if not cst in self.cond[reg]:
                 self.cond[reg][cst] = [(gadget_num,condition)]
             else:
@@ -267,22 +270,22 @@ class exprLookUp:
                 lmax = len(self.cond[reg][cst])-1
                 while( True):
                     lmoy = (lmax + lmin)/2
-                    if( gadgetDB[self.cond[reg][cst][lmoy]].nbInstr == gadgetDB[gadget_num].nbInstr ):
+                    if( gadgetDB[self.cond[reg][cst][lmoy][0]].nbInstr == gadgetDB[gadget_num].nbInstr ):
                         self.cond[reg][cst].insert(lmoy, (gadget_num,condition))
                         return 
                     elif( lmin == lmax ):
-                        if ( gadgetDB[self.cond[reg][cst][lmin]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
+                        if ( gadgetDB[self.cond[reg][cst][lmin][0]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
                             self.cond[reg][cst].insert(lmin, (gadget_num,condition))
                         else:
                             self.cond[reg][cst].insert(lmin+1, (gadget_num,condition))
                         return 
                     else:
-                        if( gadgetDB[self.cond[reg][cst][lmoy]].nbInstr > gadgetDB[gadget_num].nbInstr ):
+                        if( gadgetDB[self.cond[reg][cst][lmoy][0]].nbInstr > gadgetDB[gadget_num].nbInstr ):
                             lmax = lmoy
                         else:
                             lmin = lmoy+1
         else:
-            # Add absolute gadget without condition 
+            # Add absolute gadget without condition 
             if not cst in self.expr[reg]:
                 self.expr[reg][cst] = [gadget_num]
             else:
@@ -314,7 +317,7 @@ class exprLookUp:
         """
         if( conditionnal ):
             res = []
-            for (gadget_num,condition) in self.expr[reg].get(cst, []):
+            for (gadget_num,condition) in self.cond[reg].get(cst, []):
                 if( constraint.validate(gadgetDB[gadget_num], conditionnal)):
                     res.append((gadget_num,condition))
                 if( len(res) >= n ):
@@ -344,6 +347,7 @@ class cstToMemLookUp:
         """
         Adds a gadget in a list of gadgets in increasing order ( order is gadget.nbInstr value )
         """
+            
         if not addr_cst in self.addr[addr_reg]:
             self.addr[addr_reg][addr_cst] = cstLookUp()
         self.addr[addr_reg][addr_cst].add_gadget(cst, gadget_num, condition=condition)
@@ -374,7 +378,7 @@ class exprToMemLookUp:
         Adds a gadget in a list of gadgets in increasing order ( order is gadget.nbInstr value )
         """
         if not addr_cst in self.addr[addr_reg]:
-            self.addr[addr_reg][addr_cst] = exprLookUp()
+            self.addr[addr_reg][addr_cst] = exprLookUp(addr_reg)
         self.addr[addr_reg][addr_cst].add_gadget(reg, cst, gadget_num,condition=condition)
             
     def find( self, addr_reg, addr_cst, reg, cst, constraint, n=1, conditionnal=False ):
@@ -417,8 +421,8 @@ class gadgetsLookUp:
         self.types[GadgetType.MEMEXPRtoMEM] = exprToMemLookUp()
         for reg_num in Analysis.revertRegNamesTable.keys():
             self.types[GadgetType.CSTtoREG][reg_num] = cstLookUp()
-            self.types[GadgetType.REGEXPRtoREG][reg_num] = exprLookUp()
-            self.types[GadgetType.MEMEXPRtoREG][reg_num] = exprLookUp()
+            self.types[GadgetType.REGEXPRtoREG][reg_num] = exprLookUp(reg_num)
+            self.types[GadgetType.MEMEXPRtoREG][reg_num] = exprLookUp(reg_num)
 
         # Initialize the printed charging bar
         chargingBarSize = 30 

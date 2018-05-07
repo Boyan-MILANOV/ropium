@@ -204,8 +204,9 @@ class GadgetDependencies:
         for reg in self.regDep.keys():
             newDeps = [] 
             for dep in self.regDep[reg]:
-                if( dep[1].isTrue() ):
+                if( dep[1].isTrue()):    
                     dep[0] = dep[0].simplify()
+                if( not dep[1].isFalse()):
                     newDeps.append( dep )
             self.regDep[reg] = newDeps
         for expr in self.memDep.keys():
@@ -213,6 +214,7 @@ class GadgetDependencies:
             for dep in self.memDep[expr]:
                 if( dep[1].isTrue() ):
                     dep[0] = dep[0].simplify()
+                if( not dep[1].isFalse()):
                     newDeps.append( dep )
             self.memDep[expr] = newDeps
       

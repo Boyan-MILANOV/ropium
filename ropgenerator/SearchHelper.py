@@ -29,7 +29,7 @@ MAX_CHAINS = 1000 # The maximum number of chains we store for one operation
 DEFAULT_PADDING_UNIT_INDEX = -1
 
 addr_to_gadgetStr = dict()
-
+num_to_str = dict()
 
 def is_padding(gadget_num):
     return (int(gadget_num) < 0)
@@ -171,16 +171,18 @@ def pad_gadgets(gadget_num_list, constraint, force_padding=False):
     padding_unit = set_padding_unit(padding_int)
     for gadget_num in gadget_num_list:
         gadget = Database.gadgetDB[gadget_num]
-        if( (not force_padding) and ((not gadget.hasNormalRet()) or (not gadget.isValidSpInc()))):
-            res.append([gadget_num])
-        elif( gadget.ret == RetType.RET ):
+        if( gadget.ret == RetType.RET ):
             nb_padding_units = (Database.gadgetDB[gadget_num].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8)
             res.append( [gadget_num] + [padding_unit]*nb_padding_units)
         elif( gadget.ret == RetType.JMP_REG ):
             nb_padding_units = Database.gadgetDB[gadget_num].spInc/(Analysis.ArchInfo.bits/8)
             res.append( [gadget_num] + [padding_unit]*nb_padding_units)
-        else:
+        elif( force_padding and gadget.isValidSpInc() ):
+            nb_padding_units = (Database.gadgetDB[gadget_num].spInc - Analysis.ArchInfo.bits/8)/(Analysis.ArchInfo.bits/8)
+            res.append( [gadget_num] + [padding_unit]*nb_padding_units)
+        elif( force_padding ):
             res.append([gadget_num])
+
     return sorted(res, key = lambda x:len(x)) 
 
 #############################################

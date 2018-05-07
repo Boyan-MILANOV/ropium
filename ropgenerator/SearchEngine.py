@@ -9,9 +9,10 @@ from ropgenerator.Gadget import GadgetType
 import ropgenerator.Config as Config
 import ropgenerator.SearchHelper as SearchHelper
 import ropgenerator.BinaryScanner as BinaryScanner
-from ropgenerator.Constraints import Constraint, ConstraintType
+from ropgenerator.Constraints import Constraint, ConstraintType, Assertion, AssertionType
 from ropgenerator.Colors import info, string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold, string_payload
 from struct import unpack
+from itertools import permutations
 
 # Definition of options names
 OPTION_BAD_BYTES = '--bad-bytes'
@@ -54,7 +55,7 @@ class search_engine:
     def __init__(self):
         self.truc = None
  
-    def find(self, gtype, arg1, arg2, constraint, n=1, basic=True, chainable=True, unusable=[], init=True):
+    def find(self, gtype, arg1, arg2, constraint, n=1, basic=True, chainable=True, unusable=[], init=True, conditionnal=False):
         """
         Searches for gadgets 
         basic = False means that we don't call _basic_strategy
@@ -64,8 +65,15 @@ class search_engine:
         if( init ):
             SearchHelper.init_impossible()
         res = []        
+        # (1) First check if conditionnal gadgets requested
+        if( conditionnal ):
+            return Database.gadgetLookUp.find(gtype, arg1, arg2, constraint, n, conditionnal=True)
+        
+        # (2) Then not chainable simple gadgets 
         if( not chainable ):
             return self._basic_strategy(gtype, arg1, arg2, constraint.remove_all(ConstraintType.CHAINABLE_RET), n=n)
+        
+        # (3) Then normal rop chain search
         # Adjusting the constraint
         constraint_with_chainable = constraint.add(ConstraintType.CHAINABLE_RET, [])
         # Searching with basic strategies for chainable
@@ -416,9 +424,9 @@ class search_engine:
             # 1) REG1 <- constant
             # 2) REG2 <- address
             # 3) mov [REG2], REG1
-            
             nb_bytes = Analysis.ArchInfo.bits/8
             db = Database.gadgetLookUp
+            sp_num = Analysis.n2r(Analysis.ArchInfo.sp)
             # Trick to avoid error of formatting
             if( type(string) == type(u'')):
                 substring = "%r"%string
@@ -433,13 +441,17 @@ class search_engine:
             padding_char = chr(SearchHelper.get_valid_padding_byte(constraint))
             # Try to find mem[REG2+CST2] <- REG1+CST1
             for reg2 in db.types[GadgetType.REGEXPRtoMEM].addr.keys():
+                if( reg2 == sp_num ):
+                    # Can not use sp for that 
+                    continue
+                assertion = Assertion().add(AssertionType.REGS_NO_OVERLAP, [[sp_num, reg2]])
                 for cst2 in db.types[GadgetType.REGEXPRtoMEM].addr[reg2].keys():
                     for reg1 in db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr.keys():
                         for cst1 in db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr[reg1].keys():
-                            for store_gadget in [ g for g in db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr[reg1][cst1]]: 
-                                                   # if constraint.validate(Database.gadgetDB[g])]:
+                            #print(db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr[reg1][cst1])
+                            for store_gadget in [ g for g in db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr[reg1][cst1]\
+                                                    if constraint.validate(Database.gadgetDB[g],ret_assert=assertion)]:
                                 # Then try to copy the string part by part
-                                print("DEBUG Trying to write with gadget: " + Database.gadgetDB[store_gadget].asmStr)
                                 info("Trying to write with gadget: " + Database.gadgetDB[store_gadget].asmStr)
                                 res = []
                                 failed = False
@@ -463,7 +475,7 @@ class search_engine:
                                         info('Could not pop correct values in registers for the store')
                                         failed = True
                                     else:
-                                        res += pop_regs + [store_gadget]
+                                        res += pop_regs + SearchHelper.pad_gadgets([store_gadget],constraint,force_padding=True)[0]
                                         current_stack_pos = current_stack_pos + nb_bytes
                                 if( not failed ):
                                     info("Success")
@@ -580,7 +592,8 @@ def find_gadgets(args):
             print(string_bold("\n\tBuilt matching ROP Chain(s):\n"))
             show_chains(chains)
         else:
-            possible_gadgets = search.find(gtype, left, right, constraint, n=Config.LIMIT, chainable=False, init=True)
+            possible_gadgets = search.find(gtype, left, right, constraint, n=Config.LIMIT, chainable=False, init=True, conditionnal=True)
+            possible_gadgets += search.find(gtype, left, right, constraint, n=Config.LIMIT-len(possible_gadgets), chainable=False, init=True)
             if( possible_gadgets ):
                 print(string_bold("\n\tFound possibly matching Gadget(s):\n"))
                 show_chains(possible_gadgets)
@@ -875,13 +888,17 @@ def pop_multiple(args, constraint=None):
         constr = Constraint()
     else:
         constr = constraint
-    res = []
-    for arg in args:
-        pop = search.find(GadgetType.CSTtoREG, arg[0], arg[1], constr)
-        if( not pop ):
-            return []
-        else:
-            res += pop[0]
-            constr = constr.add(ConstraintType.REGS_NOT_MODIFIED, \
-                    [arg[0]])
+    perms = permutations(args)
+    for perm in perms:
+        res = []
+        for arg in perm:
+            pop = search.find(GadgetType.CSTtoREG, arg[0], arg[1], constr)
+            if( not pop ):
+                break
+            else:
+                res += pop[0]
+                constr = constr.add(ConstraintType.REGS_NOT_MODIFIED, \
+                        [arg[0]])
+        if( pop ):
+            break
     return res
