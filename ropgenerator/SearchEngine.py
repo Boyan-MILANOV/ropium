@@ -427,6 +427,7 @@ class search_engine:
             nb_bytes = Analysis.ArchInfo.bits/8
             db = Database.gadgetLookUp
             sp_num = Analysis.n2r(Analysis.ArchInfo.sp)
+            ip_num = Analysis.n2r(Analysis.ArchInfo.ip)
             # Trick to avoid error of formatting
             if( type(string) == type(u'')):
                 substring = "%r"%string
@@ -441,17 +442,21 @@ class search_engine:
             padding_char = chr(SearchHelper.get_valid_padding_byte(constraint))
             # Try to find mem[REG2+CST2] <- REG1+CST1
             for reg2 in db.types[GadgetType.REGEXPRtoMEM].addr.keys():
-                if( reg2 == sp_num ):
-                    # Can not use sp for that 
+                if( reg2 == sp_num or reg2 == ip_num ):
+                    # Can not use sp or ip for that 
                     continue
                 assertion = Assertion().add(AssertionType.REGS_NO_OVERLAP, [[sp_num, reg2]])
                 for cst2 in db.types[GadgetType.REGEXPRtoMEM].addr[reg2].keys():
                     for reg1 in db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr.keys():
+                        if( reg1 == sp_num or reg1 == ip_num ):
+                            # Can not use sp_num or ip for that ! 
+                            continue
                         for cst1 in db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr[reg1].keys():
                             #print(db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr[reg1][cst1])
                             for store_gadget in [ g for g in db.types[GadgetType.REGEXPRtoMEM].addr[reg2][cst2].expr[reg1][cst1]\
                                                     if constraint.validate(Database.gadgetDB[g],ret_assert=assertion)]:
                                 # Then try to copy the string part by part
+                                #print("DEBUG, gadget:" + Database.gadgetDB[store_gadget].asmStr)
                                 info("Trying to write with gadget: " + Database.gadgetDB[store_gadget].asmStr)
                                 res = []
                                 failed = False
