@@ -21,6 +21,15 @@ OPTION_KEEP_REGS = '--keep-regs'
 OPTION_BAD_BYTES_SHORT = '-b'
 OPTION_KEEP_REGS_SHORT = '-k' 
 
+OPTION_OUTPUT = '--output-format'
+OPTION_OUTPUT_SHORT = '-f'
+# Options for output
+OUTPUT_CONSOLE = 'console'
+OUTPUT_PYTHON = 'python'
+OUTPUT_RAW = 'raw'
+OUTPUT = None # The one choosen 
+
+
 # Help for the search command
 CMD_FIND_HELP = string_bold("\n\t---------------------------------------------------------")
 CMD_FIND_HELP += string_bold("\n\tROPGenerator 'find' command\n\t")
@@ -30,19 +39,13 @@ CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>\n
 "\n\t\tfind [OPTIONS] int80"+\
 "\n\t\tfind [OPTIONS] syscall"
 CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
-CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+"\t: bad bytes for payload.\n\t\t\t\tExpected format is a list of bytes \n\t\t\t\tseparated by comas (e.g '-b 0A,0B,2F')"
-CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+"\t: registers that shouldn't be modified.\n\t\t\t\tExpected format is a list of registers \n\t\t\t\tseparated by comas (e.g '-k edi,eax')"
-CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D rax=rcx+4"
-
-
+CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+":\tbad bytes for payload.\n\t\t\t\tExpected format is a list of bytes \n\t\t\t\tseparated by comas (e.g '-b 0A,0B,2F')"
+CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+":\tregisters that shouldn't be modified.\n\t\t\t\tExpected format is a list of registers \n\t\t\t\tseparated by comas (e.g '-k edi,eax')"
+CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_OUTPUT_SHORT)+","+string_special(OPTION_OUTPUT)+": output format for ropchains.\n\t\t\t\tExpected format is one of the following\n\t\t\t\t"+string_special(OUTPUT_CONSOLE)+','+string_special(OUTPUT_PYTHON)
+CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D "+ OPTION_OUTPUT + ' ' + OUTPUT_PYTHON + "  rax=rcx+4" 
 
 def print_help():
     print(CMD_FIND_HELP)
-
-# The different options
-RAW_OUTPUT = True # Output the gadgets addresses raw
-PYTHON_OUTPUT = False # Output the gadgets in python ( like p += <gadget hex>  # commentary )
-
 
 ##############################
 # SEARCH ENGINE FOR GADGETS #
@@ -605,28 +608,16 @@ def find_gadgets(args):
             else:
                 print(string_bold("\n\tNo matching Gadgets or ROP Chains found"))
                 
-               
-def show_gadgets(gadget_list, check_length=False):
-    """
-    Pretty prints a list of gadgets 
-    Parameters:
-        gadget_list - list of gadget UID 
-        check_length = True <=> Factorizes the print if a lot of padding for a single gadget 
-    """
-    if( RAW_OUTPUT ):
-        for gadget_num in gadget_list:
-            print("\t"+Database.gadgetDB[gadget_num].addrStr + " (" + Database.gadgetDB[gadget_num].asmStr + ")  ") 
-    elif( PYTHON_OUTPUT ):
-        print("\t\tPython output not supported yet :'(")
         
-def show_chains( chain_list ):
+def show_chains( chain_list, output='raw' ):
     """
     Pretty prints a list of ROP chains 
     Parameters:
         chain_list - list of chains (a chain is a list of gadget UID and/or padding units)
+        output - one of 'raw' 'python'
     """
-    
-    if( RAW_OUTPUT ):
+    global OUTPUT
+    if( OUTPUT == OUTPUT_CONSOLE ):
         for chain in chain_list:
             print(string_bold("\t-------------------"))
             for gadget_num in chain:
@@ -641,10 +632,34 @@ def show_chains( chain_list ):
                     print("\t"+padding_str)
                 else:
                     print("\t"+string_special(Database.gadgetDB[gadget_num].addrStr) + " (" + string_bold(Database.gadgetDB[gadget_num].asmStr) + ")")
-    elif( PYTHON_OUTPUT ):
-        print("\t\tPython output not supported yet :'(")
+    elif( OUTPUT == OUTPUT_PYTHON ):
+        # Getting endianness to pack values 
+        if( Analysis.ArchInfo.bits == 32 ):
+            endianness_str = '<I'
+        else:
+            endianness_str = '<Q'
+        pack_str = "P += pack("+endianness_str+","
+        for chain in chain_list:
+            print(string_bold("\t-------------------"))
+            print("\tfrom struct import pack")
+            print("\tp = ''")
+            for gadget_num in chain:
+                if( SearchHelper.is_padding(gadget_num)):
+                    padding_str = pack_str
+                    padding_str += string_special('0x'+format(SearchHelper.get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x'))+")"
+                    if( gadget_num == SearchHelper.DEFAULT_PADDING_UNIT_INDEX ):
+                        padding_str += " # Padding"
+                    elif( SearchHelper.get_padding_unit(gadget_num) in SearchHelper.addr_to_gadgetStr ):
+                        padding_str += " # "+SearchHelper.addr_to_gadgetStr[SearchHelper.get_padding_unit(gadget_num)]
+                    else:
+                        padding_str += " # Custom Padding"
+                    print("\t"+padding_str)
+                else:
+                    print("\t"+pack_str+string_special(Database.gadgetDB[gadget_num].addrStr) + ") # " + string_bold(Database.gadgetDB[gadget_num].asmStr))
     
-
+    elif( OUTPUT == OUTPUT_RAW ):
+        print("\tRaw output not supported yet :'( ")
+         
 def parse_args(args):
     """
     Parse the user supplied arguments to the 'find' function
@@ -654,13 +669,15 @@ def parse_args(args):
     ---> See parse_user_request() specification for the list of possible tuples
          and values/types of x and y     
     """
-    global OPTION_BAD_BYTES
+    global OUTPUT
     
     seenExpr = False
     seenBadBytes = False
     seenKeepRegs = False
+    seenOutput = False
     i = 0 # Argument counter 
     constraint = Constraint()
+    OUTPUT = OUTPUT_CONSOLE
     while( i < len(args)):
         arg = args[i]
         # Look for options
@@ -690,6 +707,18 @@ def parse_args(args):
                     return (False, keep_regs_list)
                 i = i+1
                 constraint = constraint.add( ConstraintType.REGS_NOT_MODIFIED, keep_regs_list)
+            elif( arg == OPTION_OUTPUT or arg == OPTION_OUTPUT_SHORT ):
+                if( seenOutput ):
+                    return (False, string_bold("\n\tError. '" + OPTION_OUTPUT + "' option should be used only once."))
+                if( i+1 >= len(args)):
+                    return (False, string_bold("\n\tError. Missing output format after option '"+arg+"'"))
+                if( args[i+1] in [OUTPUT_CONSOLE, OUTPUT_PYTHON]):
+                    OUTPUT = args[i+1]
+                    seenOutput = True
+                    i = i +1
+                else:
+                    return (False, string_bold("\n\tError. '" + args[i+1] + "' output format is not supported"))
+                    
             # Otherwise Ignore
             else:
                 return (False, string_bold("\n\tError. Unknown option: '{}' ".format(arg)))
