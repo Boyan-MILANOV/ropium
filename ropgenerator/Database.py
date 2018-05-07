@@ -162,46 +162,83 @@ class cstLookUp:
     """
     def __init__(self):
         self.values = dict()
+        self.cond = dict() # Conditionnal gadgets 
         
-    def add_gadget( self,cst, gadget_num ):
+    def add_gadget( self,cst, gadget_num, condition=None ):
         """
         Adds a gadget in a list of gadgets in increasing order ( order is gadget.nbInstr value )
         """
-        if not cst in self.values:
-            self.values[cst] = [gadget_num]
-        else:
-            # Try dichotomy search 
-            lmin = 0
-            lmax = len(self.values[cst])-1
-            while( True):
-                lmoy = (lmax + lmin)/2
-                if( lmax == lmin or gadgetDB[self.values[cst][lmoy]].nbInstr == gadgetDB[gadget_num].nbInstr ):
-                    self.values[cst].insert(lmoy, gadget_num)
-                    return 
-                elif( lmin == lmax ):
-                    if ( gadgetDB[self.values[cst][lmin]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
-                        self.values[cst].insert(lmin, gadget_num)
+        if( condition ):
+            ## Add conditionnal gadget + its condition 
+            if not cst in self.cond:
+                self.cond[cst] = [(gadget_num,condition)]
+            else:
+                # Try dichotomy search 
+                lmin = 0
+                lmax = len(self.cond[cst])-1
+                while( True):
+                    lmoy = (lmax + lmin)/2
+                    if( lmax == lmin or gadgetDB[self.cond[cst][lmoy]].nbInstr == gadgetDB[gadget_num].nbInstr ):
+                        self.cond[cst].insert(lmoy, (gadget_num,condition))
+                        return 
+                    elif( lmin == lmax ):
+                        if ( gadgetDB[self.cond[cst][lmin]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
+                            self.cond[cst].insert(lmin, (gadget_num,condition))
+                        else:
+                            self.cond[cst].insert(lmin+1, (gadget_num,condition))
+                        return 
                     else:
-                        self.values[cst].insert(lmin+1, gadget_num)
-                    return 
-                else:
-                    if( gadgetDB[self.values[cst][lmoy]].nbInstr > gadgetDB[gadget_num].nbInstr ):
-                        lmax = lmoy
-                    else:
-                        lmin = lmoy+1
+                        if( gadgetDB[self.cond[cst][lmoy]].nbInstr > gadgetDB[gadget_num].nbInstr ):
+                            lmax = lmoy
+                        else:
+                            lmin = lmoy+1
 
-    def find(self, cst, constraint, n=1):
+        else:
+            ## Add absolute gadget without any condition 
+            if not cst in self.values:
+                self.values[cst] = [gadget_num]
+            else:
+                # Try dichotomy search 
+                lmin = 0
+                lmax = len(self.values[cst])-1
+                while( True):
+                    lmoy = (lmax + lmin)/2
+                    if( lmax == lmin or gadgetDB[self.values[cst][lmoy]].nbInstr == gadgetDB[gadget_num].nbInstr ):
+                        self.values[cst].insert(lmoy, gadget_num)
+                        return 
+                    elif( lmin == lmax ):
+                        if ( gadgetDB[self.values[cst][lmin]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
+                            self.values[cst].insert(lmin, gadget_num)
+                        else:
+                            self.values[cst].insert(lmin+1, gadget_num)
+                        return 
+                    else:
+                        if( gadgetDB[self.values[cst][lmoy]].nbInstr > gadgetDB[gadget_num].nbInstr ):
+                            lmax = lmoy
+                        else:
+                            lmin = lmoy+1
+
+    def find(self, cst, constraint, n=1, conditionnal=False):
         """
         Return at most n gadgets 
         cst - int 
         """
-        res = []
-        for gadget_num in self.values.get(cst, []):
-            if( constraint.validate(gadgetDB[gadget_num])):
-                res.append(gadget_num)
-            if( len(res) >= n ):
-                break
-        return res
+        if( conditionnal ):
+            res = []
+            for (gadget_num,condition) in self.cond.get(cst, []):
+                if( constraint.validate(gadgetDB[gadget_num], conditionnal)):
+                    res.append((gadget_num,condition))
+                if( len(res) >= n ):
+                    break
+            return res
+        else:
+            res = []
+            for gadget_num in self.values.get(cst, []):
+                if( constraint.validate(gadgetDB[gadget_num], conditionnal)):
+                    res.append(gadget_num)
+                if( len(res) >= n ):
+                    break
+            return res
 
 class exprLookUp:
     """
@@ -211,49 +248,86 @@ class exprLookUp:
         # Keys are registers uids, values are dictionnaries of constants
         # expr[reg][cst] = list of gadgets that put expressions reg + cst in .... 
         self.expr = dict()
+        self.cond = dict()
         for reg in range(0,Analysis.ssaRegCount):
             self.expr[reg] = {}
+            self.cond[reg] = {}
 
-    def add_gadget( self, reg, cst, gadget_num ):
+    def add_gadget( self, reg, cst, gadget_num, condition=None ):
         """
         Adds a gadget in a list of gadgets in increasing order ( order is gadget.nbInstr value )
         """
-        if not cst in self.expr[reg]:
-            self.expr[reg][cst] = [gadget_num]
+        if( condition ):
+            ## Add conditionnal gadget with its condition 
+            if not cst in self.cond[reg]:
+                self.cond[reg][cst] = [(gadget_num,condition)]
+            else:
+                # Try dichotomy search 
+                lmin = 0
+                lmax = len(self.cond[reg][cst])-1
+                while( True):
+                    lmoy = (lmax + lmin)/2
+                    if( gadgetDB[self.cond[reg][cst][lmoy]].nbInstr == gadgetDB[gadget_num].nbInstr ):
+                        self.cond[reg][cst].insert(lmoy, (gadget_num,condition))
+                        return 
+                    elif( lmin == lmax ):
+                        if ( gadgetDB[self.cond[reg][cst][lmin]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
+                            self.cond[reg][cst].insert(lmin, (gadget_num,condition))
+                        else:
+                            self.cond[reg][cst].insert(lmin+1, (gadget_num,condition))
+                        return 
+                    else:
+                        if( gadgetDB[self.cond[reg][cst][lmoy]].nbInstr > gadgetDB[gadget_num].nbInstr ):
+                            lmax = lmoy
+                        else:
+                            lmin = lmoy+1
         else:
-            # Try dichotomy search 
-            lmin = 0
-            lmax = len(self.expr[reg][cst])-1
-            while( True):
-                lmoy = (lmax + lmin)/2
-                if( gadgetDB[self.expr[reg][cst][lmoy]].nbInstr == gadgetDB[gadget_num].nbInstr ):
-                    self.expr[reg][cst].insert(lmoy, gadget_num)
-                    return 
-                elif( lmin == lmax ):
-                    if ( gadgetDB[self.expr[reg][cst][lmin]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
-                        self.expr[reg][cst].insert(lmin, gadget_num)
+            # Add absolute gadget without condition 
+            if not cst in self.expr[reg]:
+                self.expr[reg][cst] = [gadget_num]
+            else:
+                # Try dichotomy search 
+                lmin = 0
+                lmax = len(self.expr[reg][cst])-1
+                while( True):
+                    lmoy = (lmax + lmin)/2
+                    if( gadgetDB[self.expr[reg][cst][lmoy]].nbInstr == gadgetDB[gadget_num].nbInstr ):
+                        self.expr[reg][cst].insert(lmoy, gadget_num)
+                        return 
+                    elif( lmin == lmax ):
+                        if ( gadgetDB[self.expr[reg][cst][lmin]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
+                            self.expr[reg][cst].insert(lmin, gadget_num)
+                        else:
+                            self.expr[reg][cst].insert(lmin+1, gadget_num)
+                        return 
                     else:
-                        self.expr[reg][cst].insert(lmin+1, gadget_num)
-                    return 
-                else:
-                    if( gadgetDB[self.expr[reg][cst][lmoy]].nbInstr > gadgetDB[gadget_num].nbInstr ):
-                        lmax = lmoy
-                    else:
-                        lmin = lmoy+1
+                        if( gadgetDB[self.expr[reg][cst][lmoy]].nbInstr > gadgetDB[gadget_num].nbInstr ):
+                            lmax = lmoy
+                        else:
+                            lmin = lmoy+1
     
-    def find(self, reg, cst, constraint, n=1):
+    def find(self, reg, cst, constraint, n=1, conditionnal=False):
         """
         Return at most n gadgets 
         reg - int
         cst - int 
         """
-        res = []
-        for gadget_num in self.expr[reg].get(cst, []):
-            if( constraint.validate(gadgetDB[gadget_num])):
-                res.append(gadget_num)
-            if( len(res) >= n ):
-                break
-        return res
+        if( conditionnal ):
+            res = []
+            for (gadget_num,condition) in self.expr[reg].get(cst, []):
+                if( constraint.validate(gadgetDB[gadget_num], conditionnal)):
+                    res.append((gadget_num,condition))
+                if( len(res) >= n ):
+                    break
+            return res
+        else:
+            res = []
+            for gadget_num in self.expr[reg].get(cst, []):
+                if( constraint.validate(gadgetDB[gadget_num],conditionnal)):
+                    res.append(gadget_num)
+                if( len(res) >= n ):
+                    break
+            return res
 
 
 class cstToMemLookUp:
@@ -266,15 +340,15 @@ class cstToMemLookUp:
         for reg in range(0,Analysis.ssaRegCount):
             self.addr[reg] = dict()
         
-    def add_gadget( self, addr_reg, addr_cst, cst, gadget_num ):
+    def add_gadget( self, addr_reg, addr_cst, cst, gadget_num, condition=None ):
         """
         Adds a gadget in a list of gadgets in increasing order ( order is gadget.nbInstr value )
         """
         if not addr_cst in self.addr[addr_reg]:
             self.addr[addr_reg][addr_cst] = cstLookUp()
-        self.addr[addr_reg][addr_cst].add_gadget(cst, gadget_num)
+        self.addr[addr_reg][addr_cst].add_gadget(cst, gadget_num, condition=condition)
             
-    def find( self, addr_reg, addr_cst, cst, constraint, n = 1 ):
+    def find( self, addr_reg, addr_cst, cst, constraint, n = 1,conditionnal=False ):
         """
         Return at most n gadgets 
         addr_reg - int
@@ -282,7 +356,8 @@ class cstToMemLookUp:
         """
         if( not addr_cst in self.addr[addr_reg] ):
             return []
-        return self.addr[addr_reg][addr_cst].find(cst, constraint=constraint, n=n)
+        return self.addr[addr_reg][addr_cst].find(cst, \
+                    constraint=constraint, n=n,conditionnal=conditionnal)
 
 class exprToMemLookUp:
     """
@@ -294,15 +369,15 @@ class exprToMemLookUp:
         for reg in range(0,Analysis.ssaRegCount):
             self.addr[reg] = dict()
         
-    def add_gadget( self, addr_reg, addr_cst, reg, cst, gadget_num ):
+    def add_gadget( self, addr_reg, addr_cst, reg, cst, gadget_num,condition=None ):
         """
         Adds a gadget in a list of gadgets in increasing order ( order is gadget.nbInstr value )
         """
         if not addr_cst in self.addr[addr_reg]:
             self.addr[addr_reg][addr_cst] = exprLookUp()
-        self.addr[addr_reg][addr_cst].add_gadget(reg, cst, gadget_num)
+        self.addr[addr_reg][addr_cst].add_gadget(reg, cst, gadget_num,condition=condition)
             
-    def find( self, addr_reg, addr_cst, reg, cst, constraint, n = 1 ):
+    def find( self, addr_reg, addr_cst, reg, cst, constraint, n=1, conditionnal=False ):
         """
         Return at most n gadgets 
         addr_reg - int
@@ -310,7 +385,8 @@ class exprToMemLookUp:
         """
         if( not addr_cst in self.addr[addr_reg] ):
             return []
-        return self.addr[addr_reg][addr_cst].find(reg, cst, constraint=constraint, n=n)
+        return self.addr[addr_reg][addr_cst].find(reg, cst,\
+                    constraint=constraint, n=n, conditionnal=conditionnal)
 
 
 class gadgetsLookUp:
@@ -329,6 +405,12 @@ class gadgetsLookUp:
         self.list_syscall = []
 
     def fill(self):
+        def filter_cond(condition):
+            if( condition.isTrue() ):
+                return None
+            else:
+                return condition
+        
         # Initialize the data structures ! 
         self.types[GadgetType.CSTtoMEM] = cstToMemLookUp()
         self.types[GadgetType.REGEXPRtoMEM] = exprToMemLookUp()
@@ -357,26 +439,26 @@ class gadgetsLookUp:
             for reg, deps in gadget.getDependencies().regDep.iteritems():
                 for dep in deps:
                     # For REGEXPRtoREG
-                    if( isinstance(dep[0], Expr.SSAExpr) and dep[1].isTrue()):
-                        self.types[GadgetType.REGEXPRtoREG][reg.num].add_gadget(dep[0].reg.num, 0, i)
-                    elif( isinstance(dep[0], Expr.Op) and dep[1].isTrue()):
+                    if( isinstance(dep[0], Expr.SSAExpr)):
+                        self.types[GadgetType.REGEXPRtoREG][reg.num].add_gadget(dep[0].reg.num, 0, i,condition=filter_cond(dep[1]))
+                    elif( isinstance(dep[0], Expr.Op)):
                         (isInc, num, inc ) = dep[0].isRegIncrement(-1)
                         if( isInc ):
-                            self.types[GadgetType.REGEXPRtoREG][reg.num].add_gadget(num, inc, i)
+                            self.types[GadgetType.REGEXPRtoREG][reg.num].add_gadget(num, inc, i,condition=filter_cond(dep[1]))
                     # For CSTtoREG
-                    elif( isinstance(dep[0], Expr.ConstExpr) and dep[1].isTrue()):
-                        self.types[GadgetType.CSTtoREG][reg.num].add_gadget(dep[0].value, i)
+                    elif( isinstance(dep[0], Expr.ConstExpr)):
+                        self.types[GadgetType.CSTtoREG][reg.num].add_gadget(dep[0].value, i,condition=filter_cond(dep[1]))
                     # For MEMEXPRtoREG
-                    elif( isinstance(dep[0], Expr.MEMExpr) and dep[1].isTrue() ):
+                    elif( isinstance(dep[0], Expr.MEMExpr)):
                         if( isinstance(dep[0].addr, Expr.SSAExpr)):
-                            self.types[GadgetType.MEMEXPRtoREG][reg.num].add_gadget(dep[0].addr.reg.num, 0, i)
+                            self.types[GadgetType.MEMEXPRtoREG][reg.num].add_gadget(dep[0].addr.reg.num, 0, i,condition=filter_cond(dep[1]))
                         elif( isinstance( dep[0].addr, Expr.Op)):
                             (isInc, num, inc ) = dep[0].addr.isRegIncrement(-1)
                             if( isInc ):
-                                self.types[GadgetType.MEMEXPRtoREG][reg.num].add_gadget(num, inc, i)
+                                self.types[GadgetType.MEMEXPRtoREG][reg.num].add_gadget(num, inc, i,condition=filter_cond(dep[1]))
                     # If we found a true dependency, no need to check others 
-                    if( dep[1].isTrue()):
-                        break
+                    #if( dep[1].isTrue()):
+                    #    break
                     
             # For XXXtoMEM 
             for addr, deps in gadget.getDependencies().memDep.iteritems():
@@ -400,46 +482,51 @@ class gadgetsLookUp:
                         raise Exception("Invalid dependency in fillGadgetLookUp(): " + str(dep[0]))
                     
                     # For REGEXPRtoMEM
-                    if( isinstance(dep[0], Expr.SSAExpr) and dep[1].isTrue()):
+                    if( isinstance(dep[0], Expr.SSAExpr)):
                         
-                        self.types[GadgetType.REGEXPRtoMEM].add_gadget(addr_reg, addr_cst, dep[0].reg.num, 0, i)
-                    elif( isinstance(dep[0], Expr.Op) and dep[1].isTrue()):
+                        self.types[GadgetType.REGEXPRtoMEM].add_gadget(addr_reg, \
+                            addr_cst, dep[0].reg.num, 0, i,condition=filter_cond(dep[1]))
+                    elif( isinstance(dep[0], Expr.Op)):
                         (isInc, num, inc ) = dep[0].isRegIncrement(-1)
                         if( isInc ):
-                            self.types[GadgetType.REGEXPRtoMEM].add_gadget(addr_reg, addr_cst, num, inc, i)
+                            self.types[GadgetType.REGEXPRtoMEM].add_gadget(addr_reg,\
+                             addr_cst, num, inc, i,condition=filter_cond(dep[1]))
                         
                     # For CSTtoMEM
-                    elif( isinstance(dep[0], Expr.ConstExpr) and dep[1].isTrue()):
-                        self.types[GadgetType.CSTtoMEM].add_gadget(addr_reg, addr_cst, dep[0].value, i)
+                    elif( isinstance(dep[0], Expr.ConstExpr)):
+                        self.types[GadgetType.CSTtoMEM].add_gadget(addr_reg, \
+                        addr_cst, dep[0].value, i,condition=filter_cond(dep[1]))
                     # For MEMEXPRtoMEM
-                    elif( isinstance(dep[0], Expr.MEMExpr) and dep[1].isTrue() ):
+                    elif( isinstance(dep[0], Expr.MEMExpr)):
                         if( isinstance(dep[0].addr, Expr.SSAExpr)):
-                            self.types[GadgetType.MEMEXPRtoMEM].add_gadget(addr_reg, addr_cst, dep[0].addr.reg.num, 0, i)
+                            self.types[GadgetType.MEMEXPRtoMEM].add_gadget(addr_reg,\
+                             addr_cst, dep[0].addr.reg.num, 0, i,condition=filter_cond(dep[1]))
                         elif( isinstance( dep[0].addr, Expr.Op)):
                             (isInc, num, inc ) = dep[0].addr.isRegIncrement(-1)
                             if( isInc ):
-                                self.types[GadgetType.MEMEXPRtoMEM].add_gadget(addr_reg, addr_cst, num, inc, i)
+                                self.types[GadgetType.MEMEXPRtoMEM].add_gadget(addr_reg,\
+                                 addr_cst, num, inc, i,condition=filter_cond(dep[1]))
                     # If we found a true dependency, no need to check others 
-                    if( dep[1].isTrue()):
-                        break
+                    #if( dep[1].isTrue()):
+                    #    break
                         
                         
         # Clean the charging bar
         sys.stdout.write("\r"+" "*70+"\r") 
 
-    def find(self, gtype, arg1, arg2, constraint, n=1):
+    def find(self, gtype, arg1, arg2, constraint, n=1,conditionnal=False):
         if( gtype == GadgetType.CSTtoREG ):
-            return self.types[gtype][arg1].find(arg2, constraint=constraint, n=n)
+            return self.types[gtype][arg1].find(arg2, constraint=constraint, n=n, conditionnal=conditionnal)
         elif( gtype == GadgetType.REGEXPRtoREG ):
-            return self.types[gtype][arg1].find(arg2[0], arg2[1], constraint=constraint, n=n)
+            return self.types[gtype][arg1].find(arg2[0], arg2[1], constraint=constraint, n=n, conditionnal=conditionnal)
         elif( gtype == GadgetType.MEMEXPRtoREG ):
-            return self.types[gtype][arg1].find(arg2[0], arg2[1], constraint=constraint, n=n)
+            return self.types[gtype][arg1].find(arg2[0], arg2[1], constraint=constraint, n=n, conditionnal=conditionnal)
         elif( gtype == GadgetType.CSTtoMEM ):
-            return self.types[gtype].find(arg1[0], arg1[1], arg2, constraint=constraint, n=n)
+            return self.types[gtype].find(arg1[0], arg1[1], arg2, constraint=constraint, n=n, conditionnal=conditionnal)
         elif( gtype == GadgetType.REGEXPRtoMEM ):
-            return self.types[gtype].find(arg1[0], arg1[1], arg2[0], arg2[1], constraint=constraint, n=n)
+            return self.types[gtype].find(arg1[0], arg1[1], arg2[0], arg2[1], constraint=constraint, n=n, conditionnal=conditionnal)
         elif( gtype == GadgetType.MEMEXPRtoMEM ):
-            return self.types[gtype].find(arg1[0], arg1[1], arg2[0], arg2[1], constraint=constraint, n=n)
+            return self.types[gtype].find(arg1[0], arg1[1], arg2[0], arg2[1], constraint=constraint, n=n, conditionnal=conditionnal)
         else:
             return []
             

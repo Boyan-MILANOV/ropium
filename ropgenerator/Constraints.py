@@ -69,12 +69,13 @@ class Constraint:
         new_constraint.constraints.pop(constraint_type, None)
         return new_constraint
     
-    def validate(self, gadget, only_bad_bytes=False):
+    def validate(self, gadget, only_bad_bytes=False, conditionnal=False):
         """
         Returns True iff 'gadget' verifies all the constraints 
         Parameters:
             gadget - Gadget instance
             only_bad_bytes = True <=> We only check the bad_bytes constraint 
+            conditionnal = validating a conditionnal gadget, so different handling of the constraints
         """
         if( only_bad_bytes ):
             if( ConstraintType.BAD_BYTES in self.constraints ):
