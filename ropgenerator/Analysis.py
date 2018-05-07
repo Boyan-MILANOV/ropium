@@ -90,8 +90,7 @@ def setArch(arch):
             ArchInfo.sp = "rsp"
             ArchInfo.currentArchInfo = X86ArchitectureInformation(ARCH_X86_MODE_64)
     else:
-        raise AnalysisException("Architecture %s is not supported.\
-         Sorry ! " % arch)    
+        raise AnalysisException("Architecture {} is not supported. Sorry ! ".format(str(arch)))    
     
 def helpArch():
     """

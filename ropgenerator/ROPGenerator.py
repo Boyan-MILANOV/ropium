@@ -9,6 +9,7 @@ import ropgenerator.Config as Config
 import ropgenerator.payload.Payload as Payload 
 import ropgenerator.Context as Context
 import ropgenerator.exploit.Exploit as Exploit
+import ropgenerator.Logs as Logs
 
 from prompt_toolkit import prompt
 from prompt_toolkit.history import InMemoryHistory
@@ -51,6 +52,7 @@ def main(time_mesure=False):
     # Launching ROPGenerator 
     write_colored(ASCII_art)
     Config.load_config()
+    Logs.init()
     quit = False
     while( not quit ):
         try:

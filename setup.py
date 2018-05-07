@@ -34,7 +34,7 @@ setup(name='ropgenerator',
       cmdclass={
         'clean': CleanCommand,
       },
-      data_files=[("/usr/ROPGenerator", [])]
+      data_files=[(os.path.expanduser('~')+"/ROPGenerator/", [])]
     )
 
 

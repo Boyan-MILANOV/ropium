@@ -22,7 +22,7 @@ DEFAULT_LIMIT = 3
 ARCH = DEFAULT_ARCH
 PATH_ROPGADGET = DEFAULT_PATH_ROPGADGET
 LIMIT = DEFAULT_LIMIT
-ROPGENERATOR_DIRECTORY = "/usr/ROPGenerator/"
+ROPGENERATOR_DIRECTORY = os.path.expanduser('~')+"/ROPGenerator/"
 ROPGENERATOR_CONFIG_FILE = ROPGENERATOR_DIRECTORY + "ROPGenerator-conf"
 
 def print_help():
@@ -115,6 +115,13 @@ def save_config():
 def load_config():
     global ARCH
     global PATH_ROPGADGET
+    global LIMIT 
+    # Check if the ROPGenerator director exists 
+    if( not os.path.isdir(ROPGENERATOR_DIRECTORY) ):
+        try:
+            os.system('mkdir '+ROPGENERATOR_DIRECTORY)
+        except:
+            pass
     try:
         f = open(ROPGENERATOR_CONFIG_FILE, "r" )
         ARCH = f.readline()[:-1]
@@ -123,8 +130,7 @@ def load_config():
         f.close()
         #info_colored("Loaded configuration\n")
     except:
-        if( os.path.isfile(ROPGENERATOR_CONFIG_FILE)):
-            info_colored("Couldn't load custom configuration, using the default one\n")
+        info_colored("Couldn't load custom configuration, using the default one\n")
         default_config()
     Analysis.setArch(ARCH)
     
