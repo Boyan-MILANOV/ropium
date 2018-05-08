@@ -70,7 +70,7 @@ class search_engine:
         res = []        
         # (1) First check if conditionnal gadgets requested
         if( conditionnal ):
-            return Database.gadgetLookUp.find(gtype, arg1, arg2, constraint, n, conditionnal=True)
+            return [[g] for (g,cond) in Database.gadgetLookUp.find(gtype, arg1, arg2, constraint, n, conditionnal=True)]
         
         # (2) Then not chainable simple gadgets 
         if( not chainable ):
