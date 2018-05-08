@@ -17,6 +17,7 @@ Why using ROPGenerator ?
 - **Nice Command Line Interface** : Enjoy a nice and smooth CLI with easy-to-use commands 
 - **Semantic gadget search** : Find your gadgets quickly by only specifying the desired semantics
 - **Gadget chaining engine** : No suitable single gadget ? ROPGenerator will build ROP chains for you 
+- **Fully automated exploit building** : ROPGenerator can build entire exploits... all by itself !   
 
 Installation
 ============
@@ -24,20 +25,23 @@ Install ROPGenerator
 --------------------
 You can download the source and run 
 
-	$ sudo python setup.py install
-	$ sudo ROPGenerator
+	$ python setup.py install
+	$ ROPGenerator
 
     
 Install Dependencies
 --------------------
-**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **enum**, **python-magic**, and **barf**:
-
-- **python-magic**, **enum**, **barf v0.4.0**, and **prompt_toolkit** packages will be added automaticaly during installation
-
+**ROPGenerator** depends on **ROPgadget**, **prompt_toolkit**, **enum**, **python-magic**, **pwntools** and **barf v0.4.0**:
+- **python-magic**, **enum**, **pwntools** **barf v0.4.0**, and **prompt_toolkit** packages will be added automaticaly during installation
 - **ROPgadget** will also be installed automatically if you don't have it already. However, the currently available package on pypi is not up-to-date. Therefore, it will be installed as "**ROPgadget4ROPGenerator**", a recent fork of ROPgadget.
 
-
 Getting started
+===============
+ROPGenerator is very easy to use ! 
+For a quick starting guide, check [**ROPGenerator's Wiki**](https://github.com/Boyan-MILANOV/ropgenerator/wiki)
+
+
+Screenshots
 ===============
 Launch **ROPGenerator** 
 
@@ -46,10 +50,6 @@ Launch **ROPGenerator**
 Get help
 
 ![Alt text](/screenshots/help.png?raw=true)
-			
-If you are using ROPGenerator for the first time, quickly configure the tool
-
-![Alt text](/screenshots/config.png?raw=true)
  			
 Load gadgets from a binary
 
@@ -61,3 +61,4 @@ Easily look for gadgets !
 ![Alt text](/screenshots/search2.png?raw=true)
 ![Alt text](/screenshots/search3.png?raw=true)
 ![Alt text](/screenshots/search4.png?raw=true)
+
