@@ -12,7 +12,7 @@ import ropgenerator.BinaryScanner as BinaryScanner
 from ropgenerator.Constraints import Constraint, ConstraintType, Assertion, AssertionType
 from ropgenerator.Colors import info, string_special, BOLD_COLOR_ANSI, END_COLOR_ANSI, string_bold, string_payload
 from struct import unpack
-from itertools import permutations
+import itertools
 
 # Definition of options names
 OPTION_BAD_BYTES = '--bad-bytes'
@@ -125,7 +125,8 @@ class search_engine:
                 SearchHelper.add_impossible_REGtoREG(arg1, arg2[0])
         elif( gtype == GadgetType.CSTtoREG ):
             res += self._CSTtoREG_pop_from_stack(arg1, arg2, constraint, n=n)
-            res += self._CSTtoREG_transitivity(arg1, arg2, constraint, n=n-len(res))
+            res += self._CSTtoREG_zero_inc(arg1, arg2, constraint, n=n-len(res))
+            res += self._CSTtoREG_transitivity(arg1, arg2, constraint, n=n-len(res), unusable=unusable)
         elif( gtype == GadgetType.STRPTRtoREG ):
             res += self._STRPTRtoREG_on_stack(arg1, arg2, constraint=constraint, n=n)
             res += self._STRPTRtoREG_static_memory(arg1, arg2, constraint=constraint, n=n-len(res))
@@ -262,9 +263,39 @@ class search_engine:
                     return res
         return res
         
-    def _CSTtoREG_transitivity(self, reg, cst, constraint, n=1):
+    def _CSTtoREG_zero_inc(self, reg, cst, constraint, n=1):
         """
-        Returns a payload that puts cst into register reg by poping it into another register
+        Returns a ropchain that xor reg then increments it to cst
+        """
+        MIN_CST=1
+        MAX_CST=300
+        if( cst < MIN_CST or cst > MAX_CST ):
+            return []
+        # Put the register at zero
+        reg_zero_chains = self.find(GadgetType.CSTtoREG, reg, 0, constraint)
+        if( not reg_zero_chains ):
+            return []
+        else:
+            reg_zero = reg_zero_chains[0]
+        # Finding increment gadgets
+        possible_inc = SearchHelper.possible_REGINCtoREG(reg, \
+                                    reg,constraint, mini=MIN_CST, maxi=MAX_CST)
+        # Checking for the constraint
+        if( not possible_inc ):
+            return []
+        # Find the best combination
+        inc_gadgets = combine_increments(possible_inc, cst)
+        if( not inc_gadgets ):
+            return []
+        # Pad the gadgets 
+        inc_chain = list(itertools.chain.from_iterable(SearchHelper.pad_gadgets(inc_gadgets, constraint)))
+        # Concatenate the reg <- 0 then inc reg chain
+        res = [reg_zero+inc_chain]
+        return res
+    
+    def _CSTtoREG_transitivity(self, reg, cst, constraint, n=1, unusable=[]):
+        """
+        Returns a ropchain that puts cst into register reg by poping it into another register
             then using register transitivity  
         unusable: list of reg UID that can not be used in the chaining strategy 
         """ 
@@ -273,9 +304,10 @@ class search_engine:
         
         res = []
         for inter in SearchHelper.possible_REGtoREG_transitivity(reg):
-            if( inter == reg ):
+            if( inter == reg or inter in unusable):
                 continue
-            pop_chains = self._CSTtoREG_pop_from_stack(inter, cst, constraint, n)
+            pop_chains = self.find(GadgetType.CSTtoREG, inter, cst, constraint, n=n, unusable=unusable+[reg])
+            #pop_chains = self._CSTtoREG_pop_from_stack(inter, cst, constraint, n)
             transitivity_chains = self.find(GadgetType.REGEXPRtoREG, reg, [inter,0], constraint, n)
             for pop in pop_chains:
                 for trans in transitivity_chains:
@@ -283,6 +315,8 @@ class search_engine:
                     if( len(res) >= n ):
                         return res
         return res
+        
+    
         
         
     def _STRPTRtoREG_on_stack(self, reg, string, constraint, n=1):
@@ -311,7 +345,6 @@ class search_engine:
             string_bytes_needed = string_len
         else:
             string_bytes_needed = string_len + (4 - (string_len%4))
-        
         
         # Get the posible offsets 
         possible_offsets = [off for off in Database.gadgetLookUp.types[GadgetType.REGEXPRtoREG][reg].expr[sp_num].keys() if off>=0]
@@ -922,7 +955,7 @@ def pop_multiple(args, constraint=None):
         constr = Constraint()
     else:
         constr = constraint
-    perms = permutations(args)
+    perms = itertools.permutations(args)
     for perm in perms:
         res = []
         for arg in perm:
@@ -935,4 +968,48 @@ def pop_multiple(args, constraint=None):
                         [arg[0]])
         if( pop ):
             break
+    return res
+    
+def combine_increments(increments_list, goal):
+    """
+    increments_list : list of (inc,gadget)
+    goal : int
+    Returns the shortest list of gadgets such that the sum of their
+        increments equals the goal
+    """
+    MIN_GOAL = 1
+    MAX_GOAL = 300
+    INFINITY = 999999999
+    if( goal < MIN_GOAL or goal > MAX_GOAL ):
+        return []
+    inc_list = filter(lambda x:x[0]<=goal, increments_list)
+    inc_list.sort(key=lambda x:x[0])
+    n = len(inc_list)
+    if( n == 0 ):
+        return []
+    # Initialize dyn algorithm 
+    shortest = [[INFINITY]*(goal+1)]*n
+    for subgoal in range(goal+1):
+        if subgoal % inc_list[0][0] == 0:
+            shortest[0][subgoal] = subgoal // inc_list[0][0]
+    for i in range(1,n):
+        for j in range(goal+1):
+            shortest[i][j] = shortest[i-1][j]
+            if( inc_list[i][0] <= j ):
+                if( shortest[i][j-inc_list[i][0]] + 1 < shortest[i][j]):
+                    shortest[i][j] = shortest[i][j-inc_list[i][0]] + 1
+                    
+    # Select increments and gadgets
+    chosen = [0]*n
+    res = []
+    j = goal
+    i = n -1
+    while j > 0 and i >= 0:
+        if( j >= inc_list[i][0] ):
+            if( shortest[i][j-inc_list[i][0]] + 1 == shortest[i][j] ):
+                chosen[i] = chosen[i] + 1
+                res.append(inc_list[i][1])
+                j = j - inc_list[i][0]
+                continue
+        i = i - 1
     return res

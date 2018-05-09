@@ -8,7 +8,7 @@ import ropgenerator.Analysis as Analysis
 import sys
 from ropgenerator.Colors import string_bold, info_colored
 from ropgenerator.Gadget import GadgetType, RetType
-from ropgenerator.Constraints import ConstraintType
+from ropgenerator.Constraints import ConstraintType, Constraint
 
 #####################################
 #    ROP Chains format
@@ -401,15 +401,6 @@ def build_REGINCtoREG():
     
     if( built_REGINCtoREG ):
             return 
-      
-    # Initialization for printing charging bar 
-    chargingBarSize = Analysis.ssaRegCount
-    chargingBarStr = " "*chargingBarSize
-    info_colored(string_bold("Performing additionnal analysis")+": filtering register increments\n")
-    sys.stdout.write("\tProgression [")
-    sys.stdout.write(chargingBarStr)
-    sys.stdout.write("]\r\tProgression [")
-    sys.stdout.flush()   
             
     # Initializing the dictionnaries
     for reg in range(0, Analysis.ssaRegCount):
@@ -418,21 +409,13 @@ def build_REGINCtoREG():
             record_REGINCtoREG[reg][reg2] = dict()
             
     # Filling the dictionnaries :
-    
-    db = Database.gadgetLookUp[GadgetType.EXPRtoREG]
-    for reg in range(0, Analysis.ssaRegCount):
-        # Printing the charging bar 
-        sys.stdout.write("|")
-        sys.stdout.flush()
-        
-        for i in range(0, len(db[reg].expr_list)):
-            expr = db[reg].expr_list[i]
-            # We want expressions only of type REG +-/* CST
-            (isInc, reg2, inc) = expr.isRegIncrement(-1)
-            if( isInc ):
-                add_REGINCtoREG( reg, reg2, inc, [g for g in db[reg].gadget_list[i] if Database.gadgetDB[g].hasNormalRet() and Database.gadgetDB[g].isValidSpInc() ] )
+    db = Database.gadgetLookUp.types[GadgetType.REGEXPRtoREG]
+    for reg in db.keys():
+        for reg2 in db[reg].expr.keys():
+            for cst in db[reg].expr[reg2].keys():
+                add_REGINCtoREG( reg, reg2, cst, db[reg].expr[reg2][cst],gadgets_sorted=True )
                 
-    sys.stdout.write("\r"+" "*70+"\r")                               
+                            
     built_REGINCtoREG = True
     
     
@@ -512,9 +495,10 @@ def found_REGINCtoREG_no_padding(reg, reg2, inc, constraint, n=1):
     else:  
         return []
     
-def possible_REGINCtoREG( reg, reg2 ):
+def possible_REGINCtoREG( reg, reg2, constraint=Constraint(),mini=-1, maxi=300 ):
     """
-    Returns a list of increments inc such that reg <- reg2 + inc is possible
+    Returns a a list of pairs (inc, gadget)
+    The increments are contained between mini and maxi
     """
     global record_REGINCtoREG
     global build_REGINCtoREG
@@ -522,25 +506,24 @@ def possible_REGINCtoREG( reg, reg2 ):
     if( not built_REGINCtoREG ):
         build_REGINCtoREG()
     
-    res = []
+    res= []
     for key in record_REGINCtoREG[reg][reg2].keys():
+        if( key < mini or key > maxi ):
+            continue
         if( len(record_REGINCtoREG[reg][reg2][key]) > 0 ):
-            res.append( key )
-    return list(set(res))
+            for g in record_REGINCtoREG[reg][reg2][key]:
+                if( constraint.validate(Database.gadgetDB[g]) ):
+                    res.append( [key,g] )
+                    break
+    return res
     
 
 #####################
 # GLOBAL FUNCTIONS  #
 #####################
-
-def build_all():
-    build_REGtoREG_transitivity()
-    build_REG_pop_from_stack()
-    build_REG_write_to_memory()
-    build_REGINCtoREG()
-
 def reinit():
     global PADDING_UNITS
+    global addr_to_gadgetStr
     global record_REGtoREG_transitivity
     global built_REGtoREG_transitivity
     global record_REG_pop_from_stack
@@ -551,6 +534,7 @@ def reinit():
     global built_REGINCtoREG
 
     PADDING_UNITS = []
+    addr_to_gadgetStr = dict()
     record_REGtoREG__transitivity = dict()
     built_REGtoREG_transitivity = False
     record_REG_pop_from_stack = dict()
