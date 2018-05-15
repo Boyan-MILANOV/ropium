@@ -830,6 +830,7 @@ class Cat(Expr):
         return self
         
     def replaceMemAcc( self, addr, expr ):
+        return Cat([a[0].replaceMemAcc(addr, expr) for a in self.args])
         self.args = [[a[0].replaceMemAcc(addr, expr), a[1]] for a in self.args]
         return self
         

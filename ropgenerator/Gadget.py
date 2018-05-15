@@ -177,7 +177,7 @@ class Gadget:
         # We first find the corresponding full register ( like AH ---> RAX )
         aliasMapper = Analysis.ArchInfo.currentArchInfo.alias_mapper
         if( aliasMapper.get(regStr ) != None ):
-            if( aliasMapper[regStr][0] != "rflags" ):
+            if( aliasMapper[regStr][0] != "rflags" and aliasMapper[regStr][0] != "eflags" ):
                 fullReg = aliasMapper[regStr] # Couple (reg, offset)
                 regStr = fullReg[0]
         
@@ -284,8 +284,8 @@ class Gadget:
             
             # Memory store instruction         
             elif( isStoreInstr( instr.mnemonic )):
-                expr = self.barfOperandToExpr( instr.operands[0] ).simplify()
-                addr = self.barfOperandToExpr( instr.operands[2] ).simplify()
+                expr = self.barfOperandToExpr( instr.operands[0] )
+                addr = self.barfOperandToExpr( instr.operands[2] )
                 #if( isinstance( instr.operands[0], ReilImmediateOperand )):
                     #node = ConstNode( instr.operands[0].immediate, instr.operands[0].size )
                     #self.graph.nodes["MEM"].outgoingArcs.append( Arc( node, memAccCount, addr, expr.size ))
@@ -473,7 +473,7 @@ class Gadget:
                     return fullExpr
                 else:
                     (reg, offset) = barfGetAlias( op._name )
-                    if( reg == "rflags" ):
+                    if( reg == "rflags" or reg == "eflags"):
                         return Convert( op.size, fullExpr )
                     else:
                         return Extr( op.size + offset -1, offset, fullExpr )
@@ -559,7 +559,7 @@ class Gadget:
             reg = op._name
             offset = 0
         # Special treatement of the flags
-        if(reg == "rflags"):
+        if(reg == "rflags" or reg == "eflags"):
             return Convert( REGSIZE.size, expr)
         # Else we translate :
         else:
