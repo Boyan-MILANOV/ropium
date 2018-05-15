@@ -56,9 +56,11 @@ def set_padding_unit(value=None, msg=None):
         return DEFAULT_PADDING_UNIT_INDEX       
     if( value != None ):
         PADDING_UNITS.append(value)
+        padding_number = -1*len(PADDING_UNITS)
         if( msg ):
             addr_to_gadgetStr[value] = msg
-        return -1*len(PADDING_UNITS)
+            num_to_str[padding_number] = msg
+        return padding_number
     else:
         return DEFAULT_PADDING_UNIT_INDEX
 

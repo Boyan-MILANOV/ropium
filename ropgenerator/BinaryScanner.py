@@ -99,7 +99,9 @@ def find_bytes(byte_string, addr_not_null=False, add_null=True ):
                 return [offset, index]
             else:
                 substring = substring[:-2]
-                last_is_null = (substring[-1] == '\x00')
+                if( not substring ):
+                    return [-1,0]
+                last_is_null = (substring[-1] == '\x00')    
                 if( not last_is_null ):
                     substring = substring + '\x00'
             index = index -1

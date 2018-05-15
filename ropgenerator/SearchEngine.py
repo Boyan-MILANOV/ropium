@@ -388,15 +388,15 @@ class search_engine:
             res = []
             stack_offset = 0
             for (substring_addr,substring_str) in substrings_addr:
-                # Get padding for the memory where to copy
-                stack_padding = SearchHelper.set_padding_unit(value=custom_stack, msg='@ddress of: ' +string_bold(stack_str+' + ' + str(stack_offset)))
-                # Get padding for the bytes we will copy
-                substring_padding = SearchHelper.set_padding_unit(value=substring_addr)
                 if( hex_info ):
                     substring_info = '\\x'+'\\x'.join(["%02x"%ord(c) for c in substring_str])
                 else:
                     substring_info = substring_str
-                SearchHelper.addr_to_gadgetStr[substring_addr] = "@ddress of: " +string_bold(string_payload("'"+substring_info+"'"))
+                # Get padding for the memory where to copy
+                stack_padding = SearchHelper.set_padding_unit(value=custom_stack, msg='@ddress of: ' +string_bold(stack_str+' + ' + str(stack_offset)))
+                # Get padding for the bytes we will copy
+                substring_padding = SearchHelper.set_padding_unit(value=substring_addr, msg='@ddress of: ' + string_bold(string_payload("'"+substring_info+"'")))
+ 
                 # Add it to chain 
                 res += [function_padding, ppr_padding, stack_padding, substring_padding]
                 
@@ -438,8 +438,7 @@ class search_engine:
                 # Get padding for the memory where to copy
                 stack_padding = SearchHelper.set_padding_unit(value=custom_stack, msg='@ddress of: ' +string_bold(stack_str+' + ' + str(stack_offset)))
                 # Get padding for the bytes we will copy
-                substring_padding = SearchHelper.set_padding_unit(value=substring_addr)
-                SearchHelper.addr_to_gadgetStr[substring_addr] = "@ddress of: " +string_bold(string_payload("'"+substring_str+"'"))
+                substring_padding = SearchHelper.set_padding_unit(value=substring_addr, msg="@ddress of: " +string_bold(string_payload("'"+substring_str+"'")))
                 # Get padding for the number of bytes to copy 
                 size_padding = SearchHelper.set_padding_unit(value=len(substring_str))
                 # Add it to chain 
@@ -526,11 +525,11 @@ class search_engine:
         
         # Function body 
         # Try the different strategies
-        chain = _store_reg_strategy(string, constraint, addr, addr_string)
-        if( not chain ):
-            chain = _strcpy_strategy(string, constraint, addr, addr_string)
+        chain = _strcpy_strategy(string, constraint, addr, addr_string)
         if( not chain ):
             chain = _memcpy_strategy(string, constraint, addr, addr_string)
+        if( not chain ):
+            chain = _store_reg_strategy(string, constraint, addr, addr_string)
         return chain
         
         
@@ -658,6 +657,8 @@ def show_chains( chain_list, output='raw' ):
                     padding_str = string_special('0x'+format(SearchHelper.get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x'))
                     if( gadget_num == SearchHelper.DEFAULT_PADDING_UNIT_INDEX ):
                         padding_str += " (Padding)"
+                    elif( gadget_num in SearchHelper.num_to_str ):
+                        padding_str += " ("+SearchHelper.num_to_str[gadget_num]+")"
                     elif( SearchHelper.get_padding_unit(gadget_num) in SearchHelper.addr_to_gadgetStr ):
                         padding_str += " ("+SearchHelper.addr_to_gadgetStr[SearchHelper.get_padding_unit(gadget_num)]+")"
                     else:
@@ -682,6 +683,8 @@ def show_chains( chain_list, output='raw' ):
                     padding_str += string_special('0x'+format(SearchHelper.get_padding_unit(gadget_num), '0'+str(Analysis.ArchInfo.bits/4)+'x'))+")"
                     if( gadget_num == SearchHelper.DEFAULT_PADDING_UNIT_INDEX ):
                         padding_str += " # Padding"
+                    elif( gadget_num in SearchHelper.num_to_str ):
+                        padding_str += " # "+SearchHelper.num_to_str[gadget_num]   
                     elif( SearchHelper.get_padding_unit(gadget_num) in SearchHelper.addr_to_gadgetStr ):
                         padding_str += " # "+SearchHelper.addr_to_gadgetStr[SearchHelper.get_padding_unit(gadget_num)]
                     else:
