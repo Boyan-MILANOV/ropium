@@ -1,7 +1,7 @@
 # ROPGenerator - ROPGenerator module
 # Central module to run, prompts for commands and execute them ;) 
 from ropgenerator.Database import pretty_print_registers
-from ropgenerator.Colors import string_special, string_bold, write_colored, error_colored, info_colored, BOLD_COLOR_ANSI, END_COLOR_ANSI
+from ropgenerator.Colors import disable_colors,string_special, string_bold, write_colored, error_colored, info_colored, BOLD_COLOR_ANSI, END_COLOR_ANSI
 import ropgenerator.Analysis as Analysis
 import ropgenerator.SearchEngine as SearchEngine
 import ropgenerator.Load as Load
