@@ -76,7 +76,13 @@ def set_arch(arch, quiet=False):
     else:
         if( not quiet) :
             notify("Architecture '" + arch + "' not supported. Available architectures: " + ','.join(Analysis.supportedArchs)) 
-    
+
+def set_filetype(filetype):
+    global FILETYPE
+    if( filetype in Analysis.supportedFiletypes ):
+        FILETYPE = filetype
+        Analysis.setFiletype(filetype)
+
 def set_ropgadget(path):
     global DEFAULT_PATH_ROPGADGET
     global PATH_ROPGADGET

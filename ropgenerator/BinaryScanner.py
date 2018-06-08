@@ -6,6 +6,7 @@ from elftools.elf.elffile import ELFFile
 import mmap
 import re
 from ropgenerator.Gadget import Gadget
+import ropgenerator.Analysis as Analysis
 
 binary_name = None
 binary_ELF = None
@@ -15,7 +16,8 @@ def set_binary(filename):
     global binary_ELF
     global binary_ELF
     binary_name = filename
-    binary_ELF = ELF(binary_name)
+    if( Analysis.FiletypeInfo.filetype == "ELF" ):
+        binary_ELF = ELF(binary_name)
     
 def find_function(function):
     """
@@ -24,6 +26,10 @@ def find_function(function):
     global binary_name
     global binary_ELF
     
+    if( Analysis.FiletypeInfo.filetype != "ELF" ):
+        return (None, None)
+        
+        
     # using pwntools
     try:
         function_offset = binary_ELF.plt[function]
@@ -148,9 +154,12 @@ def find_syscalls():
     """
     global binary_ELF
     
-    text_addr = binary_ELF.get_section_by_name('.text').header.sh_addr
-    text_data = binary_ELF.get_section_by_name('.text').data()
-    
-    addresses = [text_addr + pos.start() for pos in re.finditer('\x0f\x05', text_data)]
-    return addresses
+    if( Analysis.FiletypeInfo.filetype == "ELF" ):
+        text_addr = binary_ELF.get_section_by_name('.text').header.sh_addr
+        text_data = binary_ELF.get_section_by_name('.text').data()
+        
+        addresses = [text_addr + pos.start() for pos in re.finditer('\x0f\x05', text_data)]
+        return addresses
+    else:
+        return []
     

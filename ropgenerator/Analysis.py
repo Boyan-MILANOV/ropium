@@ -17,6 +17,9 @@ from barf.arch.arm import *
 ############################
 # ARCHITECTURE INFORMATION #
 ############################
+class FiletypeInfo:
+    filetype = None
+
 
 class ArchInfo:
     currentArch = None
@@ -70,6 +73,8 @@ supportedArchs = ["X86", "X86-64"]
 archs32bits = ["X86"]
 archs64bits = ["X86-64"]
 
+supportedFiletypes = ["ELF", "PE"]
+
 def setArch(arch):
     """
     Sets the architecture that must be worked with
@@ -99,6 +104,12 @@ def helpArch():
     print "[-] Available architectures"
     for arch in supportedArchs:
         print "\t"+arch
+
+def setFiletype(filetype):
+    if( filetype in supportedFiletypes ):
+        FiletypeInfo.filetype = filetype
+    else:
+        raise Exception("Unknown filetype in Analysis.setFiletype")
 
 ######################################################
 # GENERAL PURPOSE & ARCHITECTURE DEPENDENT FUNCTIONS #
