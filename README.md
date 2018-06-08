@@ -62,3 +62,5 @@ Easily look for gadgets !
 ![Alt text](/screenshots/search3.png?raw=true)
 ![Alt text](/screenshots/search4.png?raw=true)
 
+Automatically generate exploits ! 
+![Alt text](/screenshots/pl.jpeg?raw=true)
