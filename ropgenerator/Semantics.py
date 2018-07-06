@@ -47,6 +47,18 @@ class Semantics:
                 res += str(p)+'\n'
         return res
     
+    def get(self, value):
+		if( isinstance(value, SSAReg)):
+			return self.registers.get(value)
+		else:
+			return self.memory.get(value)
+    
+    def set(self, value, spair_list):
+		if( isinstance(value, SSAReg)):
+			self.registers[value] = spair_list
+		else:
+			self.memory[value] = spair_list
+    
     def simplifyValues(self):
         """
         Simplifies basic operations, conditions, etc, in order to have

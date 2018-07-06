@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*- 
+# Architecture module : manage working architecture and interface with BARF 
+
 from barf.arch import ARCH_X86_MODE_32
 from barf.arch import ARCH_X86_MODE_64
 from barf.arch.x86.x86translator import FULL_TRANSLATION
