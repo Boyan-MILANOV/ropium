@@ -59,6 +59,7 @@ class Semantics:
             Compute the basic value for the register
             """
             res = []
+            tmpRes = []
             if( ssaReg.ind == 0 ):
                 semantics.simplifiedRegs[ssaReg] = True
                 return 
@@ -66,11 +67,8 @@ class Semantics:
             # For each possible value 
             for pair in semantics.registers[ssaReg]:
                 newPairs = [pair]
-                tmpNewPairs = []
                 # (1) For each sub register in expressions 
                 for subReg in pair.expr.getRegisters():
-                    if( ssaReg.num == 3):
-                        print("Replacing " + str(subReg))
                     # Simplify values for sub register
                     if( not subReg in semantics.simplifiedRegs ):
                         simplifyReg(self, subReg)
@@ -79,16 +77,13 @@ class Semantics:
                     for p in newPairs:
                         if( not subReg in p.expr.getRegisters()):
                             continue
-                        for subPair in semantics.registers[subReg]:
-                            if( ssaReg.num == 3):
-                                print("Replace {} by {} ".format(subReg, subPair.expr))
-                                print("In " + str(p.expr))
+                        for subPair in semantics.registers[subReg]:     
                             tmp.append(SPair(p.expr.replaceReg(subReg, subPair.expr),\
                                              Cond(CT.AND, subPair.cond, p.cond)))
                             
-                            
-                    tmpNewPairs += tmp
-                newPairs = tmpNewPairs
+                    newPairs = tmp
+                tmpRes += newPairs
+
                 # (2) For each sub register in conditions 
                 for subReg in pair.cond.getRegisters():
                     # Simplify values for sub register
@@ -97,12 +92,11 @@ class Semantics:
                     # And replace by its possible values 
                     tmp = []
                     for subPair in semantics.registers[subReg]:
-                        for p in newPairs:
+                        for p in tmpRes:
                             tmp.append(SPair(p.expr, Cond(CT.AND, \
                                     p.cond.replaceReg(subReg, subPair.expr), subPair.cond)))
-                    newPairs = tmp
-                # (3) Store the new results 
-                res += newPairs
+                    tmpRes = tmp
+                res = tmpRes
                 
             # Dont forget to save and mark it as simplified ;) 
             semantics.registers[ssaReg] = res 
