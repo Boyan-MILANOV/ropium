@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*- 
+# Expressions module : model for arithmetic/logical expressions 
+
 import ropgenerator.Architecture as Arch
 from enum import Enum
 
@@ -215,9 +217,13 @@ class SSAExpr(Expr):
     """
     Represents an expression made out of a single register ( like R5_3 )
     """
-    def __init__(self, num, ind):
+
+    def __init__(self, num, ind=0):
         Expr.__init__(self)
-        self.reg = SSAReg(num, ind)
+        if( isinstance(num, SSAReg)):
+            self.reg = SSAReg(num.num, num.ind)
+        else:
+            self.reg = SSAReg(num, ind)
         self.size = Arch.currentArch.bits
     
     def __str__(self):
@@ -414,7 +420,7 @@ class OpExpr(Expr):
         return True 
         
     def getRegisters(self, ignoreMemAcc=False):
-        if( not self.got_regs is None ):
+        if( self.regs is None ):
             self.regs = list(set(self.args[0].getRegisters(ignoreMemAcc) +\
                         self.args[1].getRegisters(ignoreMemAcc)))
         return self.regs
