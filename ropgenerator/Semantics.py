@@ -48,16 +48,16 @@ class Semantics:
         return res
     
     def get(self, value):
-		if( isinstance(value, SSAReg)):
-			return self.registers.get(value)
-		else:
-			return self.memory.get(value)
+        if( isinstance(value, SSAReg)):
+            return self.registers.get(value)
+        else:
+            return self.memory.get(value)
     
     def set(self, value, spair_list):
-		if( isinstance(value, SSAReg)):
-			self.registers[value] = spair_list
-		else:
-			self.memory[value] = spair_list
+        if( isinstance(value, SSAReg)):
+            self.registers[value] = spair_list
+        else:
+            self.memory[value] = spair_list
     
     def simplifyValues(self):
         """
@@ -189,7 +189,15 @@ class Semantics:
       
         self.simplified = True
         
+    def flattenITE( self ):
+        """
+        Flattens the If-Then-Else statements in dependencies 
+        """
+        for reg in self.registers.keys():
+            self.registers[reg] = [SPair(p.expr, p.cond.flattenITE()) for p in self.registers[reg]]
 
+        for addr in self.memory.keys():
+            self.memory[addr] = [SPair(p.expr, p.cond.flattenITE()) for p in self.memory[addr]]
     
             
         

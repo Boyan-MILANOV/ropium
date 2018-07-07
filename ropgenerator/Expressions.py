@@ -193,7 +193,9 @@ class ConstExpr(Expr):
         
     def __hash__(self):
         return hash(self.value)
-                  
+    
+    def flattenITE(self):
+        return [[self, CTrue()]] 
     
     def simplify(self):
         return self
@@ -260,7 +262,10 @@ class SSAExpr(Expr):
             
     def replaceITE(self, expr):
         return self
-        
+                
+    def flattenITE(self):
+        return [[self, CTrue()]]
+    
     def simplify(self):
         return SSAExpr( self.reg.num, self.reg.ind )
         
@@ -346,6 +351,10 @@ class MEMExpr(Expr):
     def replaceITE(self, expr):
         return MEMExpr( self.addr.replaceITE(expr), self.size)
         
+    def flattenITE(self):
+        flat = self.addr.flattenITE()
+        return [[MEMExpr( f[0], self.size), f[1]] for f in flat]
+    
     def simplify(self):
         return MEMExpr( self.addr.simplify(), self.size )
         
@@ -371,10 +380,12 @@ class Op(Enum):
     SUB = "Sub"
     MUL = "Mul"
     DIV = "Div"
+    MOD = "Mod"
     NOT = "Not"
     AND = "And"
     OR = "Or"
     XOR = "Xor"
+    BSH = "Bsh"
 
 
 class OpExpr(Expr):
@@ -435,6 +446,24 @@ class OpExpr(Expr):
         newArgs = [arg.replaceITE(expr) for arg in self.args]
         return Op( self.op, self.size, newArgs)
         
+    def flattenITE(self):
+        """
+        ! Works only for unary or binary operations 
+        """
+        res = []
+        if( len(self.args) == 2 ):
+            flatLeft = self.args[0].flattenITE()
+            flatRight = self.args[1].flattenITE()
+            for f in flatLeft:
+                for f2 in flatRight:
+                    res.append([ Op(self.op,[ f[0], f2[0]]), Cond(CT.AND, f[1], f2[1]) ])
+            return res
+        elif( len(self.args) == 1 ):
+            flat = self.args[0].flattenITE()
+            return [[Op(self.op, self.size, f[0]), f[1]] for f in flat]
+        else:
+            raise ExprException(" flattenITE can not be used with an operator on more than 2 arguments (%d here) " % len(self.args))
+    
     def simplify(self):
         simpArgs = [arg.simplify() for arg in self.args]
         op = self.op 
@@ -786,6 +815,19 @@ class Concat(Expr):
         self.args = [a[0].replaceITE(expr) for a in self.args]
         return self
         
+    def flattenITE(self):
+        newArgs = [a[0].flattenITE() for a in self.args]
+        listArgs = [[[],CTrue()]]
+        tmp = []
+        for listA in newArgs:
+            for a in listA:
+                for arg in listArgs:
+                    tmp.append( arg[0] + [a[0]], Cond(CT.AND,arg[1],a[1]))
+                listArgs = tmp
+        # listArgs contains now an array of couples ( list, condition )
+        res = [[Cat(a[0]), a[1]] for a in listArgs]
+        return res 
+
     def simplify(self):
         newArgs = [a[0].simplify() for a in self.args]
         return Concat(newArgs)
@@ -894,6 +936,83 @@ class Extract(Expr):
     def deepcopy(self):
         return Extract(self.high, self.low, self.args[0].deepcopy())
 
+class ITE(Expr):
+    """
+    Describes an IF-THEN-ELSE construction 
+        self.cond - (Condition) is the condition of the IF statement. The class Condition is defined in Condition.py module
+        self.args[0] - (Expr) is the value returned if the condition self.cond is evaluated to True 
+        self.args[1] - (Expr) is the value returned if the condition self.cond is evaluated to False
+        
+    Example : ITE( c1, t3, t2 )
+    """
+    
+    def __init__(self, cond, iftrue, iffalse):
+        """
+        cond, iftrue, iffalse : temporary values 
+        """
+        Expr.__init__(self)
+        self.cond = cond
+        self.args = [iftrue, iffalse]
+        self.size = iftrue.size
+        
+    def __str__(self):
+        return "ITE(%s,%s,%s)" % ( self.cond, self.args[0], self.args[1])
+        
+    def replaceReg( self, reg, expr ):
+        return ITE( self.cond.replaceReg(reg,expr), self.args[0].replaceReg(reg,expr), self.args[1].replaceReg(reg,expr))
+        
+    def replaceMemAcc( self, addr, expr ):
+        return ITE( self.cond.replaceMemAcc(addr,expr), self.iftrue.replaceMemAcc(addr,expr), self.iffalse.replaceMemAcc(addr,expr)) 
+        
+    def __eq__(self, other):
+        if( not isinstance( other, ITE )):
+            return False 
+        return ( self.cond == other.cond 
+            and self.args[0] == other.args[0] 
+            and self.args[1] == other.args[1] )
+        
+    def getRegisters(self, ignoreMemAcc=False):
+        return list(set(self.args[0].getRegisters(ignoreMemAcc) + self.args[1].getRegisters(ignoreMemAcc)))
+        
+    def getMemAcc(self):
+        return list(set(self.args[0].getMemAcc() + self.args[1].getMemAcc()))
+    
+    def getRegistersTrue(self,ignoreMemAcc=False):
+        return self.args[0].getRegisters(ignoreMemAcc)
+        
+    def getRegistersFalse(self,ignoreMemAcc=False):
+        return self.args[1].getRegisters(ignoreMemAcc)
+        
+    def getMemAccTrue(self):
+        return self.args[0].getMemAcc()
+        
+    def getMemAccFalse(self):
+        return self.args[1].getMemAcc()
+         
+    def __hash__(self):
+        return hash(str(self.cond))*( hash(self.args[0])- hash(self.args[1])) + 400
+        
+    def replaceITE(self, expr):
+        return expr
+        
+    def flattenITE(self):
+        return [[self.args[0], self.cond], [self.args[1], self.cond.invert()]]
+    
+    def simplify(self):
+        newArgs = [arg.simplify() for arg in self.args]
+        return ITE( self.cond, newArgs[0], newArgs[1] )
+        
+    def isRegIncrement(self, reg_num):
+        if( reg_num == -1 ):
+            return (False, None, None)
+        else:
+            return (False, None)
+        
+    def toArray(self):
+        return []
+        
+    def deepcopy(self):
+        return ITE(self.cond, self.args[0].deepcopy(), self.args[1].deepcopy())
 
 ####################################
 # PARSING A STRING INTO AN EXPR    #

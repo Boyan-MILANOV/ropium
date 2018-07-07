@@ -25,17 +25,17 @@ class ArchException(Exception):
 
 class Architecture: 
     def __init__(self):
-        name = None
-        archInfo = None
-        ip = None
-        sp = None
-        bits = None
-        octets = None
+        self.name = None
+        self.archInfo = None
+        self.ip = None
+        self.sp = None
+        self.bits = None
+        self.octets = None
         
         # BARF Information 
-        archMode = None
-        disassembler = None
-        irTranslator = None
+        self.archMode = None
+        self.disassembler = None
+        self.irTranslator = None
         
     def asmToREIL(self, asmStr):
         """
@@ -44,7 +44,7 @@ class Architecture:
         index = 0
         instr = []
         while( index < len(asmStr)):
-            asm = disassembler.disassemble(asmStr[index:], index)
+            asm = self.disassembler.disassemble(asmStr[index:], index)
             if( asm is None ):
                 bad = "\\x"+"\\x".join("{:02x}".format(ord(c))\
                                     for c in asmStr[index:])
@@ -54,8 +54,8 @@ class Architecture:
                 {} in gadget {}".format(self.name, bad, total))
             instr.append(asm)
             index += asm.size
-        irsb = [self.irTranslator.translate(i) for i in ins]
-        return (irsb,ins)
+        irsb = [a for i in instr for a in self.irTranslator.translate(i) ]
+        return (irsb,instr)
 
 #####################
 # Register handling #

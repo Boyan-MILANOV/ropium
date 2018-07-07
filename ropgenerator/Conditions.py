@@ -198,6 +198,23 @@ class Cond:
         else:
             return Cond(self.cond, self.left, self.right)
             
+    def flattenITE(self):
+        """
+        Returns a condition in which the If-Then-Else expressions have been flattened 
+        """
+        if( isLogicalConst(self.cond) ):
+            return Cond( self.cond, None, None )
+        elif( isArithmeticComp(self.cond) ):
+            flatLeft = self.left.flattenITE()
+            flatRight = self.right.flattenITE()
+            res = Cond( CT.FALSE, None, None )
+            for l in flatLeft:
+                for r in flatRight:
+                    res = Cond( CT.OR, res, Cond( CT.AND, Cond( CT.AND, Cond( self.cond, l[0], r[0]), l[1] ), r[1] ))
+            return res        
+        else:
+            return Cond( self.cond, self.left.flattenITE(), self.right.flattenITE() )
+    
     def clean(self):
         """
         This cleans the condition IN PLACE, by removing trivial conditions and stuff like this.  
@@ -426,8 +443,8 @@ class Cond:
             return False
         
         if( not self.cleaned ):
-			self.clean()
-			
+            self.clean()
+            
         res = self.customSimplify()
         return ( res == CE.TRUE )
         
@@ -441,8 +458,8 @@ class Cond:
             return True
         
         if( not self.cleaned ):
-			self.clean()
-			
+            self.clean()
+            
         res = self.customSimplify()
         return ( res == CE.FALSE )
         
