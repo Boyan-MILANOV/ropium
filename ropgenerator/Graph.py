@@ -7,6 +7,16 @@ import ropgenerator.Architecture as Arch
 
 from barf.core.reil import ReilMnemonic, ReilImmediateOperand, ReilRegisterOperand
 
+class GraphException(Exception):
+    """
+    Custom Exception type for this module
+    """
+    def __init__(self, msg):
+        self.msg = msg
+        
+    def __str__(self):
+        return self.msg
+
 #################################################
 # REPRESENTATION OF A GADGET IN GRAPH FORMALISM #
 #################################################
@@ -28,7 +38,6 @@ class Graph:
         self.countCondJmps = 0 # Number of conditional jumps encountered in the gadget so far
         self.condJmps = [CTrue()]
         self.condPath = [CTrue()]
-        self.semantics = None
         
     def __str__(self):
         res = ''
@@ -116,7 +125,6 @@ class Graph:
         semantics.flattenITE()
         semantics.simplifyValues()
         semantics.simplifyConditions()
-        self.semantics = semantics
         return semantics
 
 #####################################
