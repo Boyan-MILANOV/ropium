@@ -14,3 +14,6 @@ for i in ins:
 graph = REILtoGraph(irsb)
 #print(graph.nodes.keys())
 print(graph)
+
+s = graph.getSemantics()
+print(s)

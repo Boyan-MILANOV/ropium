@@ -2,6 +2,7 @@
 # Expressions module : model for arithmetic/logical expressions 
 
 import ropgenerator.Architecture as Arch
+from ropgenerator.Conditions import CTrue, Cond, CT
 from enum import Enum
 
 class ExprException(Exception):
@@ -134,7 +135,7 @@ class Expr:
         Coefficient at position i is the coefficient of register Ri_...
         Last coefficient is a constant
         If the expression can not be converted, [] is returned
-        So length of the array will be Expr.nb_regs + 1
+        So length of the array will be ssaRegCount + 1
         
         Example : [1, 0, 2, 0, ...,  -8] is R1 + 2*R3 -8
         
@@ -207,7 +208,7 @@ class ConstExpr(Expr):
             return (False, None)
         
     def toArray(self):
-        res = [0 for x in range(0,nb_regs)]
+        res = [0 for x in range(0,Arch.ssaRegCount)]
         res.append(self.value)
         return res
         
@@ -288,7 +289,7 @@ class SSAExpr(Expr):
     def toArray(self):    
         res = [0 for r in range(0,self.reg.num)]
         res += [1]
-        res +=  [0 for r in range(self.reg.num+1, nb_regs+1)]
+        res +=  [0 for r in range(self.reg.num+1, Arch.ssaRegCount+1)]
         return res
         
     def deepcopy(self):
@@ -456,11 +457,11 @@ class OpExpr(Expr):
             flatRight = self.args[1].flattenITE()
             for f in flatLeft:
                 for f2 in flatRight:
-                    res.append([ Op(self.op,[ f[0], f2[0]]), Cond(CT.AND, f[1], f2[1]) ])
+                    res.append([ OpExpr(self.op,[ f[0], f2[0]]), Cond(CT.AND, f[1], f2[1]) ])
             return res
         elif( len(self.args) == 1 ):
             flat = self.args[0].flattenITE()
-            return [[Op(self.op, self.size, f[0]), f[1]] for f in flat]
+            return [[OpExpr(self.op, self.size, f[0]), f[1]] for f in flat]
         else:
             raise ExprException(" flattenITE can not be used with an operator on more than 2 arguments (%d here) " % len(self.args))
     
@@ -632,14 +633,14 @@ class OpExpr(Expr):
             right = self.args[1].toArray()
             if( left == [] or right == []):
                 return []
-            res = [left[i]+right[i] for i in range(0, nb_regs+1) ]
+            res = [left[i]+right[i] for i in range(0, Arch.ssaRegCount+1) ]
             return res
         elif( self.op == Op.SUB ):
             left = self.args[0].toArray()
             right = self.args[1].toArray()
             if( left == [] or right == []):
                 return []
-            res = [left[i]-right[i] for i in range(0, nb_regs+1) ]
+            res = [left[i]-right[i] for i in range(0, Arch.ssaRegCount+1) ]
             return res
         elif( self.op == Op.MUL):
             if( isinstance(self.args[0], ConstExpr)):
@@ -825,7 +826,7 @@ class Concat(Expr):
                     tmp.append( arg[0] + [a[0]], Cond(CT.AND,arg[1],a[1]))
                 listArgs = tmp
         # listArgs contains now an array of couples ( list, condition )
-        res = [[Cat(a[0]), a[1]] for a in listArgs]
+        res = [[Concat(a[0]), a[1]] for a in listArgs]
         return res 
 
     def simplify(self):
@@ -905,19 +906,17 @@ class Extract(Expr):
         # SImplifications to do : 
         if( isinstance( simpExpr, Extract ) ):
             res = Extract( self.high + simpExpr.low, self.low + simpExpr.low, simpExpr.args[0] )
-        elif( isinstance( simpExpr, Op ) and simpExpr.op == "Bsh" ):
+        elif( isinstance( simpExpr, OpExpr ) and simpExpr.op == Op.BSH ):
             # Simplification that occur often because of the BARF pointers and jump mechanisms... 
             # This removes in fact "double shifts " in expressions such as 
             # Extract64( 71, 8, Bsh72( R1_0, 8 ))  
-            if( isinstance( simpExpr.args[1], Convert ) ):
-                if( isinstance( simpExpr.args[1].args[0], ConstExpr)):
-                    shiftVal = simpExpr.args[1].args[0].value
-            elif( isinstance( simpExpr.args[1], ConstExpr )):
+            if( isinstance( simpExpr.args[1], ConstExpr )):
                 shiftVal = simpExpr.args[1].value
-            else:
-                return res    
-            if(  self.high == simpExpr.size -1 and self.low == shiftVal ):
-                res = simpExpr.args[0]
+                if(  self.high == simpExpr.size -1 and self.low == shiftVal ):
+                    if( isinstance( simpExpr.args[0], Convert)):
+                        res = simpExpr.args[0].args[0]
+                    else:
+                        res = simpExpr.args[0]
         return res 
     
     def isRegIncrement(self, reg_num):

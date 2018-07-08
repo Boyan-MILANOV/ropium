@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*- 
 # Semantics module: structure to store gadget semantics
-from ropgenerator.Conditions import Cond, CT, CTrue, CFalse 
+from ropgenerator.Conditions import Cond, CT, CTrue, CFalse
+from ropgenerator.Expressions import SSAReg
 
 
 class SPair:
@@ -10,7 +11,7 @@ class SPair:
     def __init__(self, expr, cond):
         self.expr = expr
         self.cond = cond
-        
+            
     def __str__(self):
         return '\t> Value: {}\n\t> Condition: {}\n'.format(self.expr, self.cond)
 
@@ -41,7 +42,7 @@ class Semantics:
                 res += str(p)+'\n'
             
         for addr in self.memory:
-            res += '\n\t{} semantics:\n'.format(addr)
+            res += '\n\tmem[{}] semantics:\n'.format(addr)
             res += '\t-----------------\n'
             for p in self.memory[addr]:
                 res += str(p)+'\n'
@@ -99,7 +100,7 @@ class Semantics:
                 # (2) For each sub register in conditions 
                 for subReg in pair.cond.getRegisters():
                     # Simplify values for sub register
-                    if( not subReg in simplifiedRegs ):
+                    if( not subReg in semantics.simplifiedRegs ):
                         simplifyReg(subReg)
                     # And replace by its possible values 
                     tmp = []
@@ -196,6 +197,8 @@ class Semantics:
         for reg in self.registers.keys():
             self.registers[reg] = [SPair(p.expr, p.cond.flattenITE()) for p in self.registers[reg]]
 
+        # DEBUG
+        print(self.memory)
         for addr in self.memory.keys():
             self.memory[addr] = [SPair(p.expr, p.cond.flattenITE()) for p in self.memory[addr]]
     

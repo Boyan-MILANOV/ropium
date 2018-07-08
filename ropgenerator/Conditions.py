@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*- 
 # Conditions module: model for arithmetical and logical conditions 
 
-import ropgenerator.Expressions as Exp
 from enum import Enum
+import operator
 
 def CondException( Exception ):
     def __init__(self, msg):

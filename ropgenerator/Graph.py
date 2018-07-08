@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*- 
 # Graph module: implements graph representation of gadgets 
-from ropgenerator.Semantics import SPair
+from ropgenerator.Semantics import SPair, Semantics
 from ropgenerator.Expressions import SSAReg, OpExpr, Op, Extract, Concat, SSAExpr, ConstExpr, Convert, MEMExpr, ITE
 from ropgenerator.Conditions import CTrue, CFalse, Cond, CT
 import ropgenerator.Architecture as Arch
@@ -28,6 +28,7 @@ class Graph:
         self.countCondJmps = 0 # Number of conditional jumps encountered in the gadget so far
         self.condJmps = [CTrue()]
         self.condPath = [CTrue()]
+        self.semantics = None
         
     def __str__(self):
         res = ''
@@ -99,6 +100,25 @@ class Graph:
         # Returning corresponding expression
         return reg
     
+    def getSemantics( self ):
+        """
+        Retrieves semantics from the graph
+        Returns a (Semantics) instance 
+        """
+        semantics = Semantics()
+        for reg in self.nodes.keys():	
+            node = self.nodes[reg]
+            if( not( isinstance(node, MEMNode) and not isinstance(node,ITENode))):
+                node.getSemantics( semantics, self )
+            elif( isinstance(node, MEMNode)):
+                node.getMemSemantics( semantics, self)
+                    
+        semantics.flattenITE()
+        semantics.simplifyValues()
+        semantics.simplifyConditions()
+        self.semantics = semantics
+        return semantics
+
 #####################################
 # GRAPH COMPONENTS (Arcs and Nodes) #
 #####################################
@@ -215,7 +235,7 @@ class SSANode(Node):
             res = []
             # For each arc we get a list replacement value and the condition
             if( isinstance( a.dest, MEMNode )):
-                subpairs = a.dest.getSemantics( a.num, a.label, a.size, gadgetDep )
+                subpairs = a.dest.getSemantics( a.num, a.label, a.size, semantics, graph )
             else:
                 subpairs = a.dest.getSemantics( semantics, graph )
             for pair in subpairs:
@@ -273,7 +293,7 @@ class ITENode(Node):
             resTrue = []
             # For each arc we get a list replacement value and the condition
             if( isinstance( a.dest, MEMNode )):
-                subpairs = a.dest.getSemantics( a.num, a.label, a.size, gadgetDep )
+                subpairs = a.dest.getSemantics( a.num, a.label, a.size, semantics, graph)
             else:
                 subpairs = a.dest.getSemantics( semantics, graph )
             for pair in subpairs:
@@ -291,7 +311,7 @@ class ITENode(Node):
             resFalse = []
             # For each arc we get a list replacement value and the condition
             if( isinstance( a.dest, MEMNode )):
-                subpairs = a.dest.getDependedsdsncies(  a.num, a.label, a.size, gadgetDep )
+                subpairs = a.dest.getDependedsdsncies(  a.num, a.label, a.size, semantics, graph)
             else:
                 subpairs = a.dest.getSemantics( semantics, graph )
             for pair in subpairs:
@@ -317,7 +337,7 @@ class MEMNode(Node):
         self.name = "MEMNode"
     
     def __str__(self):
-        res = '\nMemory semantics\n'
+        res = '\nMemory Node\n'
         res += '----------------\n\n'
         for addr in sorted(self.storedValues.keys()):
             res += "\tmem[{}] <- {}\n".format(addr, self.storedValues[addr])
@@ -483,29 +503,106 @@ class MEMNode(Node):
                 # For each dependency of the register written in memory 
                 for p in pairs:
                     # We consider every possibility of memory overwrite ( offset between the read and write ). Some could modify 1 byte, others 2 bytes, etc... 
-                    for offset in range( 1-storeLen, readLen-1  ):
+                    for offset in range( 1-storeLenBytes, readLenBytes-1  ):
                         writeAddr = OpExpr( Op.ADD, [addr, ConstExpr( offset, addr.size )])
-                        newDict = {optWriteKey:offset}
+                        newDict = {writeKey:offset}
                         if( self.compatibleAccesses( prev[2], newDict ) and self.filterOffset( offset, storeLenBytes, readLenBytes )):
                             newValue = self.overWrite( offset, p.expr, prev[0] )
                             addrCond = Cond( CT.EQUAL, a.label, writeAddr )
-                            newCond = Cond( CT.AND, Cond(CT.AND, prev[1], addrCond ), d.cond )
+                            newCond = Cond( CT.AND, Cond(CT.AND, prev[1], addrCond ), p.cond )
                             newResTmp.append( [newValue, newCond, self.dictFusion(newDict, prev[2])])
             # We keep the previous ones if the store is made out of the bounds of the read 
             higher = OpExpr( Op.ADD, [addr, ConstExpr(readLenBytes, addr.size)] )
             lower = OpExpr( Op.SUB, [addr, ConstExpr( storeLenBytes, addr.size )])
             outCond = Cond( CT.OR, Cond( CT.GE, a.label, higher ), Cond( CT.LE, a.label, lower ))
-            newDict = {optWriteKey:[1-storeLenBytes, readLenBytes-1]}
+            newDict = {writeKey:[1-storeLenBytes, readLenBytes-1]}
             for prev in resTmp:
                 if( self.compatibleAccesses( prev[2], newDict )):
                     newResTmp.append( [prev[0], Cond( CT.AND, outCond, prev[1]), self.dictFusion(newDict, prev[2])] )
             # give resTmp its new value 
             resTmp = newResTmp
         # Extract only the values and conditions 
-        res = [[d[0], d[1]] for d in resTmp]
+        res = [SPair(d[0], d[1]) for d in resTmp]
         return res
 
-# TODO getMemSemantics ;) 
+    def getMemSemantics( self, semantics, graph ):
+        """
+        Extract semantics FOR memory locations 
+        """
+        # The three dictionnaries below MUST have the exact same keys 
+        res = dict() # Key: Expr (address of store), Value: list of dependencies 
+        previousStoreSizes = dict() # Key: Expr (address of store), Value: size of the store   
+        
+
+        tmpCond = None
+        # We go through memory-writes in chronological order 
+        for a in sorted(self.outgoingArcs):
+            # Key to manipulate the current store address 
+            addrKey = str(a.label.simplify())
+            # We get the dependency for the node that is written in memory 
+            pairs = a.dest.getSemantics(semantics, graph)
+            # Semantics for memory  
+            if( isinstance(a.dest, SSANode)):
+                pairs = [SPair(self.storedValues[a.num].replaceReg(a.dest.reg, p.expr), p.cond) for p in pairs ]    
+            
+            # Handling conditionnal jumps 
+            if( tmpCond is None ):
+                # If first memory access, then we get the condPath for the adequate level (condition that must be true so that we haven't jumper out from the gadget) 
+                tmpCond = graph.condPath[a.jmpLvl]
+            else:
+                # Else we only add the condJump corresponding to this level 
+                tmpCond = Cond( CT.AND, tmpCond, graph.condJmps[a.jmpLvl].invert() )
+            storeLen = a.size / 8 # Number of bytes written by this arc
+            previousStoreSizes[a.label] = storeLen
+            
+            # Compute de the semantics for memory 
+            # Updating dependencies for the previous memory-store
+            resTmp = dict()
+            for writeAddr, prevDep in res.iteritems():
+                # 1st Case Preparation : New store doesn't affect old store
+                # Get the size of the previous by looking at one dependency (little hack and not so clean but heh)
+                previousStoreSize = previousStoreSizes[writeAddr] 
+                higher = OpExpr( Op.ADD, [writeAddr, ConstExpr(previousStoreSize, writeAddr.size)] ) 
+                lower = OpExpr( OP.SUB, [writeAddr, ConstExpr( a.size, writeAddr.size )]) 
+                outCond = Cond( CT.OR, Cond( CT.GE, a.label, higher ), Cond( CT.LE, a.label, lower ))
+                newDict = {addrKey:[1-storeLen, previousStoreSize-1]}
+                
+                newDep = []
+                # Update each old dependency 
+                for prev in prevDep:
+                    # 1st Case Still...
+                    if( self.compatibleAccesses( prev[2], newDict )):
+                        newDep.append( [prev[0], Cond( CT.AND, outCond, prev[1]), self.dictFusion(newDict, prev[2])]) 
+                
+                    # Now 2d Case: New store overwrites old store  
+                    # ...
+                    # Offset = current store - previous store 
+                    for offset in range(1-storeLen, previousStoreSize-1):
+                        newDict = {addrKey:offset}
+                        newStorePossibleValue = OpExpr(Op.ADD, [writeAddr, ConstExpr(offset, writeAddr.size)] )
+                        addrCond = Cond( CT.EQUAL, a.label, newStorePossibleValue )
+                        if( self.compatibleAccesses( newDict, prev[2] ) and self.filterOffset( offset, previousStoreSize, storeLen )):
+                            # For each dep of the new store, we update with the case where it overwrites the previous stores 
+                            for p in pairs:
+                                newValue = self.overWrite( offset, p.expr, prev[0] )
+                                newCond = Cond( CT.AND, Cond(CT.AND, prev[1], addrCond ), p.cond )
+                                newDep.append( [newValue, newCond, self.dictFusion(newDict, prev[2])])
+                resTmp[writeAddr] = newDep
+                
+            # New dependency:
+            resTmp[a.label] = []
+            newStoreDict={addrKey:0}
+            for p in pairs:
+                resTmp[a.label].append([p.expr, p.cond, newStoreDict])
+            # Save everything 
+            res = resTmp
+                        
+        # Clean the semantics from dictionnaries 
+        for addr, dep in res.iteritems():
+            pairs = [SPair(d[0], d[1]) for d in dep ]
+            semantics.memory[addr] = pairs
+        # Return semantics for memory     
+        return semantics.memory 
 
 
 
