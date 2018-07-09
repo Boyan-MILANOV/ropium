@@ -215,7 +215,7 @@ class SSANode(Node):
         Return the semantics list (list of SPair)
         """
         # If semantics already calculated 
-        if( semantics.get(self.reg) != None ):
+        if( semantics.get(self.reg) != []):
             return semantics.get(self.reg)
                  
         # Else we compute it :
@@ -571,7 +571,7 @@ class MEMNode(Node):
                 # Get the size of the previous by looking at one dependency (little hack and not so clean but heh)
                 previousStoreSize = previousStoreSizes[writeAddr] 
                 higher = OpExpr( Op.ADD, [writeAddr, ConstExpr(previousStoreSize, writeAddr.size)] ) 
-                lower = OpExpr( OP.SUB, [writeAddr, ConstExpr( a.size, writeAddr.size )]) 
+                lower = OpExpr( Op.SUB, [writeAddr, ConstExpr( a.size, writeAddr.size )]) 
                 outCond = Cond( CT.OR, Cond( CT.GE, a.label, higher ), Cond( CT.LE, a.label, lower ))
                 newDict = {addrKey:[1-storeLen, previousStoreSize-1]}
                 

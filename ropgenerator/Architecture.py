@@ -104,5 +104,5 @@ ArchX64.disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_64)
 ArchX64.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
 
 # Some function
-currentIsIntel():
+def currentIsIntel():
     return currentArch in [ArchX64, ArchX86]

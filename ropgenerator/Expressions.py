@@ -167,7 +167,7 @@ class ConstExpr(Expr):
             self.value = value
         else:
             self.value = int(value, 16)
-        self.size = size 
+        self.size = size
 
     def __str__(self):
         return "0x%x" % (self.value)
@@ -236,7 +236,7 @@ class SSAExpr(Expr):
         if( self.reg == reg ):
             return expr
         else:
-            return SSAExpr( self.reg )
+            return self
             
     def replaceMultiReg(self, reg_dict):
         if( self in reg_dict ):
@@ -268,7 +268,7 @@ class SSAExpr(Expr):
         return [[self, CTrue()]]
     
     def simplify(self):
-        return SSAExpr( self.reg.num, self.reg.ind )
+        return self
         
     def isRegIncrement(self, reg_num):
         """
@@ -311,13 +311,17 @@ class MEMExpr(Expr):
         Expr.__init__(self)
         self.addr = addr
         self.size = size 
+        self.simplifiedValue = None
 
     def __str__(self):
         return "MEM%d[%s]" %(self.size, str(self.addr))
         
     def replaceReg( self, reg, expr ):
-        res = MEMExpr( self.addr.replaceReg( reg, expr ), self.size)
-        return res
+        new_addr = self.addr.replaceReg(reg, expr)
+        if( new_addr != self.addr ):
+            return MEMExpr( self.addr.replaceReg( reg, expr ), self.size)
+        else:
+            return self
         
     def replaceMultiReg(self, reg_dict):
         res = MEMExpr( self.addr.replaceMultiReg( reg_dict ), self.size ) 
@@ -357,7 +361,11 @@ class MEMExpr(Expr):
         return [[MEMExpr( f[0], self.size), f[1]] for f in flat]
     
     def simplify(self):
-        return MEMExpr( self.addr.simplify(), self.size )
+        if( self.simplifiedValue ):
+            return self.simplifiedValue
+        
+        self.simplifiedValue = MEMExpr(self.addr.simplify(), self.size)
+        return self.simplifiedValue
         
     def isRegIncrement(self, reg_num):
         if( reg_num == -1 ):
@@ -405,13 +413,23 @@ class OpExpr(Expr):
         self.size = args[0].size 
         # For optimization
         self.regs = None
+        self.simplifiedValue = None
         
     def __str__(self):
         return "%s%d(%s)" % ( self.op, self.size, ','.join(str(a) for a in self.args))
         
     def replaceReg( self, reg, expr ):
-        newArgs = [arg.replaceReg(reg, expr) for arg in self.args]
-        return OpExpr( self.op, newArgs)
+        newArgs = []
+        diff = False
+        for arg in self.args:
+            newArg = arg.replaceReg(reg, expr)
+            if( newArg != arg):
+                diff = True
+            newArgs.append(newArg)
+        if( diff ):
+            return OpExpr( self.op, newArgs)
+        else:
+            return self
         
     def replaceMultiReg(self, reg_dict):
         newArgs = [arg.replaceRegMultiReg( reg_dict ) for arg in self.args]
@@ -466,6 +484,11 @@ class OpExpr(Expr):
             raise ExprException(" flattenITE can not be used with an operator on more than 2 arguments (%d here) " % len(self.args))
     
     def simplify(self):
+        # Check if already simplified 
+        if( self.simplifiedValue ):
+            return self.simplifiedValue
+        
+        # If not, simplify it !
         simpArgs = [arg.simplify() for arg in self.args]
         op = self.op 
         left = simpArgs[0]
@@ -569,6 +592,7 @@ class OpExpr(Expr):
             elif( left == right ):
                 res = ConstExpr(0, left.size)
             
+        self.simplifiedValue = res
         return res
             
     def isRegIncrement(self, reg_num):
@@ -694,6 +718,8 @@ class Convert(Expr):
         self.args = [expr]
         self.size = to
         self.signed = signed 
+        # For optimisations
+        self.simplifiedValue = None
         
     def __str__(self):
         if( self.signed ):
@@ -732,6 +758,11 @@ class Convert(Expr):
         return [[Convert(self.size, f[0], self.signed), f[1]] for f in flat ]
         
     def simplify(self):
+        # Check if already simplified 
+        if( self.simplifiedValue ):
+            return self.simplifiedValue
+            
+        # if not, simplify !
         simpExpr = self.args[0].simplify()
         if( isinstance( simpExpr, Convert ) and self.signed == simpExpr.signed ):
             res = Convert( self.size, simpExpr.args[0], self.signed ) 
@@ -741,7 +772,8 @@ class Convert(Expr):
             res = res.args[0]
         if( isinstance(res, Convert) and isinstance(res.args[0], ConstExpr) and not res.signed ):
             res = ConstExpr(res.args[0].value, res.size)
-        return res 
+        self.simplifiedValue = res
+        return res
         
     def isRegIncrement(self, reg_num):
         if( reg_num == -1 ):
@@ -768,6 +800,7 @@ class Concat(Expr):
         Expr.__init__(self)
         self.args = []
         self.size = 0
+        self.simplifiedValue = None
         for a in args:
             if( a != None ):
                 self.args.append( [a, self.size] )
@@ -830,8 +863,12 @@ class Concat(Expr):
         return res 
 
     def simplify(self):
+        if( self.simplifiedValue ):
+            return self.simplifiedValue
+            
         newArgs = [a[0].simplify() for a in self.args]
-        return Concat(newArgs)
+        self.simplifiedValue = Concat(newArgs)
+        return self.simplifiedValue
     
     def isRegIncrement(self, reg_num):
         if( reg_num == -1 ):
@@ -862,6 +899,7 @@ class Extract(Expr):
         self.high = high
         self.low = low
         self.args = [expr]
+        self.simplifiedValue = None
         
     def __str__(self):
         return "Extract%d(%d,%d,%s)" % (self.size, self.high, self.low,','.join(str(a) for a in self.args))
@@ -898,6 +936,9 @@ class Extract(Expr):
         return [[Extract(self.high, self.low, f[0]), f[1]] for f in flat ]
         
     def simplify(self):
+        if( self.simplifiedValue ):
+            return self.simplifiedValue
+        
         if( self.low == 0 and self.high == self.args[0].size -1 ):
             return self.args[0].simplify()
         simpExpr = self.args[0].simplify()
@@ -917,7 +958,8 @@ class Extract(Expr):
                         res = simpExpr.args[0].args[0]
                     else:
                         res = simpExpr.args[0]
-        return res 
+        self.simplifiedValue = res 
+        return res
     
     def isRegIncrement(self, reg_num):
         """

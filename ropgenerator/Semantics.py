@@ -50,9 +50,9 @@ class Semantics:
     
     def get(self, value):
         if( isinstance(value, SSAReg)):
-            return self.registers.get(value)
+            return self.registers.get(value, [])
         else:
-            return self.memory.get(value)
+            return self.memory.get(value, [])
     
     def set(self, value, spair_list):
         if( isinstance(value, SSAReg)):
@@ -175,16 +175,18 @@ class Semantics:
             newPairs = [] 
             for p in self.registers[reg]:
                 if( p.cond.isTrue()):    
-                    p.expr = p.expr.simplify()
+                    pass
                 if( not p.cond.isFalse()):
+                    p.expr = p.expr.simplify()
                     newPairs.append( p )
             self.registers[reg] = newPairs
         for addr in self.memory.keys():
             newPairs = [] 
             for p in self.memory[addr]:
                 if( p.cond.isTrue()):    
-                    p.expr = p.expr.simplify()
+                    pass
                 if( not p.cond.isFalse()):
+                    p.expr = p.expr.simplify()
                     newPairs.append( p )
             self.memory[addr] = newPairs
       
@@ -197,8 +199,6 @@ class Semantics:
         for reg in self.registers.keys():
             self.registers[reg] = [SPair(p.expr, p.cond.flattenITE()) for p in self.registers[reg]]
 
-        # DEBUG
-        print(self.memory)
         for addr in self.memory.keys():
             self.memory[addr] = [SPair(p.expr, p.cond.flattenITE()) for p in self.memory[addr]]
     
