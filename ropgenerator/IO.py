@@ -54,13 +54,16 @@ def info_verbose(msg):
         print('\t\t> '+msg)
         
         
-def banner(msg):
+def banner(msgList):
+    
     chars = [u'\u2591', u'\u2592', u'\u2593']
-    l1 = ''.join([chars[int(((random()-0.01)*10 - 1)/3)] for _ in range(0, len(msg))])
-    l2 = ''.join([chars[int(((random()-0.01)*10 - 1)/3)] for _ in range(0, len(msg))])
-    return '\n' + ROPGENERATOR_COLOR_ANSI + '\t'+ l1 +'\n' + END_COLOR_ANSI\
-            + '\t' + string_bold(msg) + '\n'\
-            + ROPGENERATOR_COLOR_ANSI + '\t'+ l2 +'\n'
+    width = max([len(m) for m in msgList])
+    l1 = ''.join([chars[int(((random()-0.01)*10 - 1)/3)] for _ in range(0, width)])
+    l2 = ''.join([chars[int(((random()-0.01)*10 - 1)/3)] for _ in range(0, width)])
+    res = '\n\t'+ l1\
+            + '\n\n\t' + '\n\t'.join(msgList)\
+            + '\n\n\t'+ l2 +'\n'
+    return string_ropg(res) 
     
 # Coloring strings 
 
