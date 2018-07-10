@@ -1,6 +1,6 @@
 # -*- coding:utf-8 -*- 
 
-from random import random  
+import re
 import sys
 
 
@@ -55,15 +55,13 @@ def info_verbose(msg):
         
         
 def banner(msgList):
-    
+    c = '_'
+    ansi_escape = re.compile(r'\x1B\[[0-?]*[-/]*[@-~]')
     chars = [u'\u2591', u'\u2592', u'\u2593']
-    width = max([len(m) for m in msgList])
-    l1 = ''.join([chars[int(((random()-0.01)*10 - 1)/3)] for _ in range(0, width)])
-    l2 = ''.join([chars[int(((random()-0.01)*10 - 1)/3)] for _ in range(0, width)])
-    res = '\n\t'+ l1\
-            + '\n\n\t' + '\n\t'.join(msgList)\
-            + '\n\n\t'+ l2 +'\n'
-    return string_ropg(res) 
+    width = max([len(ansi_escape.sub('',m)) for m in msgList])
+    res = string_bold('\n\t'+ c*width)+'\n\n\t'+\
+        '\n\t'.join(msgList)+'\n\t'+ string_bold(c*width+'\n')
+    return res 
     
 # Coloring strings 
 

@@ -142,7 +142,7 @@ class Gadget:
         
     def memoryWrites(self):
         return self.semantics.memory.keys()
-        
+    
     def getSemantics(self, value):
         if( isinstance( value, Expr)):
             return self.semantics.get(value)
