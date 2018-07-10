@@ -38,7 +38,7 @@ command_history = InMemoryHistory()
 
 helpStr = banner([string_bold('Main Commands'),
     string_special('(For more info about a command type <cmd help>)')])
-helpStr += '\n\t' + string_bold(CMD_LOAD) + ': \t\tload usable gadgets from a binary file'
+helpStr += '\n\t' + string_bold(CMD_LOAD) + ': \t\tload gadgets from a binary file'
 helpStr += '\n\n\t' + string_bold(CMD_SEARCH) + ': \tsemantic search for Gadgets/ROPChains'
 helpStr += '\n\t' + string_bold(CMD_EXPLOIT) + ': \tautomated exploit generation'
 helpStr += '\n\n\t' + string_bold(CMD_CONFIG) + ': \tconfigure ROPGenerator'
