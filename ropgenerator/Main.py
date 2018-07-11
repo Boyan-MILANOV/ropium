@@ -7,6 +7,7 @@ from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.contrib.completers import WordCompleter
 
 from ropgenerator.IO import string_ropg, string_bold, string_special, banner 
+from ropgenerator.Database import *
 
 import sys
 

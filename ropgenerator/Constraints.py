@@ -327,9 +327,14 @@ class Assertion:
         """
         Validate a list of conditions 
         """
-        print(str(self.regsEqual.pairs))
-        
         for cond in condList:
             if( not self._validateSingleCond(cond)):
                 return False
         return True
+        
+    def filter(self, condList):
+        res = []
+        for cond in condList:
+            if( not self._validateSingleCond(cond)):
+                res.append(cond)
+        return res

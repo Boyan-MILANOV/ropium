@@ -3,6 +3,7 @@
 from enum import Enum
 from ropgenerator.Gadget import GadgetType
 from ropgenerator.Expressions import SSAExpr, ConstExpr, MEMExpr, OpExpr, Op
+from ropgenerator.Conditions import CTrue
 
 import ropgenerator.Architecture as Arch
 
@@ -72,22 +73,51 @@ class CSTList:
         self.values = []
         self.preConditions = []
         
-    def add(self, cst, gadget_num, preCond = None ):
+    def add(self, cst, gadget_num, preCond = CTrue() ):
         if( not cst in self.values ):
             self.values[cst] = []
             self.preConditions[cst] = []
         index = find_insert_index(self.values[cst], gadget_num)
         self.values[cst].insert(index, gadget_num)
         self.preConditions[cst].insert(index, gadget_num)
-            
+        
+    def find(self, cst, constraint, assertion, n=1, enablePreConds=False ):
+        res = []
+        if( not cst in self.values ):
+            return []
+        for i in range(0,self.values[cst]):
+            if( len(res) >= n ):
+                break
+            gadget = gadgets[self.values[cst][i]]
+            # Check if the constraint can be verified 
+            (status, conds) = constraint.verify(gadget)
+            if( status ):
+                # if yes, check if the assertion verifies the constraint
+                remaining = assertion.filter(conds + [p.cond])
+                if( enablePreConds ):
+                    res.append((i, remaining))
+                else:
+                    if( not remaining ):
+                        res.append(i)
+        if( enablePreConds ):
+            return sorted(res, key=lambda x:len(x[1]))
+        else:
+            return res
+                        
 class REGList:
     def __init__(self):
         self.registers = dict()
     
-    def add(self, reg, cst, gadget_num, preCond = None):
+    def add(self, reg, cst, gadget_num, preCond = CTrue()):
         if( not reg in self.registers ):
             self.registers[reg] = CSTList()
         self.registers[reg].add(cst, gadget_num, preCond)
+    
+    def find(self, reg, cst, constraint, assertion, n=1, enablePreConds=False):
+        res = []
+        if( not reg in self.registers ):
+            return []
+        return self.registers[reg].find(cst, constraint, assertion, enablePreConds, n)
         
 class MEMList:
     def __init__(self):
@@ -97,6 +127,12 @@ class MEMList:
         if( not reg in self.registers ):
             self.registers[reg] = CSTList()
         self.registers[reg].add(cst, gadget_num, preCond)
+        
+    def find(self, reg, cst, constraint, assertion, n=1, enablePreConds=False):
+        res = []
+        if( not reg in self.registers ):
+            return []
+        return self.registers[reg].find(cst, constraint, assertion, enablePreConds, n)
 
 class MEMDict:
     def __init__(self):
@@ -104,19 +140,45 @@ class MEMDict:
         for reg in range(0,Arch.ssaRegCount):
             self.registers[reg] = dict()
             
-    def addCst(self, addr_reg, addr_cst, cst, gadget_num, preCond=None):
+    def addCst(self, addr_reg, addr_cst, cst, gadget_num, preCond=CTrue()):
         if( not addr_cst in self.registers[addr_reg]):
             self.registers[addr_reg][addr_cst] = CSTList()
         self.registers[addr_reg][addr_cst].add(cst, gadget_num, preCond)
     
-    def addExpr(self, addr_reg, addr_cst, reg, cst, gadget_num, preCond=None):
+    def addExpr(self, addr_reg, addr_cst, reg, cst, gadget_num, preCond=CTrue()):
         if( not addr_cst in self.registers[addr_reg]):
             self.registers[addr_reg][addr_cst] = REGList()
         self.registers[addr_reg][addr_cst].add(reg, cst, gadget_num, preCond)
             
+    def findCst(self, addr_reg, addr_cst, cst, constraint, assertion, \
+                n=1, enablePreCond=False):
+        if( not addr_cst in self.registers[addr_reg] ):
+            return []
+        return self.registers[addr_reg][addr_cst].find(cst, constraint,\
+            assertion, enablePreCond, n)
             
-class RegularDatabase:
-    def __init__(self, gadgets):        
+    def findExpr(self, addr_reg, addr_cst, reg, cst, constraint, assertion,\
+                n=1, enablePreCond=False):
+        if( not addr_cst in self.registers[addr_reg] ):
+            return []
+        return self.registers[addr_reg][addr_cst].find(reg, cst, constraint,\
+            assertion, enablePreCond, n)
+
+
+def select_special_gadgets(gadgetList, constraint, n=1):
+    """
+    Function used by Database.find()
+    """
+    res = []
+    for i in range(0, len(gadgetList)):
+        if( constraint.verify(gadgets[gadgetList[i]])[0] ):
+            res.append( i )
+            if( len(res) >= n ):
+                break
+    return res
+
+class Database:
+    def __init__(self, gadgets):    
         # List of gadgets 
         self.gadgets = gadgets
         
@@ -151,26 +213,24 @@ class RegularDatabase:
             # For XXXtoREG
             for reg, pairs in gadget.semantics.registers.iteritems():
                 for p in pairs:
-                    if not p.cond.isTrue():
-                        break
                     # For REGtoREG
                     if( isinstance(p.expr, SSAExpr)):
-                        self.types[QueryType.REGtoREG][reg.num].add(p.expr.reg.num, 0, i)
+                        self.types[QueryType.REGtoREG][reg.num].add(p.expr.reg.num, 0, i, p.cond)
                     elif( isinstance(p.expr, OpExpr)):
                         (isInc, num, inc ) = p.expr.isRegIncrement(-1)
                         if( isInc ):
-                            self.types[QueryType.REGtoREG][reg.num].add(num, inc, i)
+                            self.types[QueryType.REGtoREG][reg.num].add(num, inc, i, p.cond)
                     # For CSTtoREG
                     elif( isinstance(p.expr, ConstExpr)):
-                        self.types[QueryType.CSTtoREG][reg.num].add_gadget(p.expr.value, i)
+                        self.types[QueryType.CSTtoREG][reg.num].add_gadget(p.expr.value, i, p.cond)
                     # For MEMtoREG
                     elif( isinstance(p.expr, MEMExpr)):
                         if( isinstance(p.expr.addr, SSAExpr)):
-                            self.types[QueryType.MEMtoREG][reg.num].add(p.expr.addr.reg.num, 0, i)
+                            self.types[QueryType.MEMtoREG][reg.num].add(p.expr.addr.reg.num, 0, i, p.cond)
                         elif( isinstance( p.expr.addr, OpExpr)):
                             (isInc, num, inc ) = p.expr.addr.isRegIncrement(-1)
                             if( isInc ):
-                                self.types[QueryType.MEMtoREG][reg.num].add(num, inc, i)
+                                self.types[QueryType.MEMtoREG][reg.num].add(num, inc, i, p.cond)
             # For XXXtoMEM 
             for addr, pairs in gadget.semantics.memory:
                 addr_reg = None
@@ -194,23 +254,69 @@ class RegularDatabase:
                     # For REGtoMEM
                     if( isinstance(p.expr, SSAExpr)):
                         self.types[QueryType.REGtoMEM].addExpr(addr_reg, \
-                            addr_cst, p.expr.reg.num, 0, i)
+                            addr_cst, p.expr.reg.num, 0, i, p.cond)
                     elif( isinstance(p.expr, OpExpr)):
                         (isInc, num, inc ) = p.expr.isRegIncrement(-1)
                         if( isInc ):
                             self.types[QueryType.REGtoMEM].addExpr(addr_reg,\
-                             addr_cst, num, inc, i)
+                             addr_cst, num, inc, i, p.cond)
                     # For CSTtoMEM
                     elif( isinstance(p.expr, ConstExpr)):
                         self.types[QueryType.CSTtoMEM].addCst(addr_reg, \
-                        addr_cst, p.expr.value, i)
+                        addr_cst, p.expr.value, i, p.cond)
                     # For MEMtoMEM
                     elif( isinstance(p.expr, MEMExpr)):
                         if( isinstance(p.expr.addr, SSAExpr)):
                             self.types[QueryType.MEMtoMEM].addExpr(addr_reg,\
-                             addr_cst, p.expr.addr.reg.num, 0, i)
+                             addr_cst, p.expr.addr.reg.num, 0, i, p.cond)
                         elif( isinstance( p.expr.addr, OpExpr)):
                             (isInc, num, inc ) = p.expr.addr.isRegIncrement(-1)
                             if( isInc ):
                                 self.types[QueryType.MEMtoMEM].addExpr(addr_reg,\
-                                 addr_cst, num, inc, i)
+                                 addr_cst, num, inc, i, p.cond)
+    
+    def find(self, qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False):
+        """
+        qtype - QueryType instance
+        arg1 - (cst) or (reg,cst)
+        arg2 - (cst) or (reg,cst)  
+        constraint - Constraint to apply
+        assertion - Additionnal assertion
+        n - int (number of gadgets to return)
+        enablePreConds - bool (search for gadgets with precondition suppport)
+        
+        Returns
+        -------
+        If enablePreConds: list of pairs (gadget_num, precondition_list)
+        Otherwise : list of gadget_num
+        
+        Warning
+        -------
+        enablePreConds is always disabled if the query type is 
+        INT80 or SYSCALL 
+        """
+        
+        if( qtype == QueryType.CSTtoREG ):
+            return self.types[QueryType.CSTtoREG][arg1].find(\
+                    arg2, constraint, assertion, n, enablePreConds)
+        elif( qtype == QueryType.REGtoREG ):
+            return self.types[QueryType.REGtoREG][arg1].find(\
+                    arg2[0], arg2[1], constraint, assertion, n, enablePreConds)
+        elif( qtype == QueryType.MEMtoREG ):
+            return self.types[QueryType.MEMtoREG][arg1].find(\
+                    arg2[0], arg2[1], constraint, assertion, n, enablePreConds) 
+        elif( qtype == QueryType.CSTtoMEM ):
+            return self.types[QueryType.CSTtoMEM].findCst(\
+                arg1[0], arg1[1], arg2, constraint, assertion, n, enablePreConds)
+        elif( qtype == QueryType.REGtoMEM ):
+            return self.types[QueryType.REGtoMEM].findExpr(\
+                arg1[0], arg1[1], arg2[0], arg2[1], constraint, assertion, n, enablePreConds)
+        elif( qtype == QueryType.MEMtoMEM ):
+            return self.types[QueryType.MEMtoMEM].findExpr(\
+                arg1[0], arg1[1], arg2[0], arg2[1], constraint, assertion, n, enablePreConds)
+        elif( qtype == QueryType.INT80 ):
+            return select_special_gadgets(self.types[QueryType.INT80], constraint, n)
+        elif( qtype == QueryType.SYSCALL ):
+            return select_special_gadgets(self.types[QueryType.SYSCALL], constraint, n)    
+        else:
+            raise Exception("Unknown query type: {}".format(qtype))

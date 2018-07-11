@@ -7,9 +7,9 @@ from ropgenerator.Expressions import *
 Arch.currentArch = Arch.ArchX86
 
 # Create expressions 
-r0 = SSAExpr(0,0)
-r1 = SSAExpr(1,0)
-r2 = OpExpr(Op.ADD, [SSAExpr(2,0), ConstExpr(3,32)])
+r0 = SSAExpr(3,0)
+r1 = SSAExpr(4,0)
+r2 = OpExpr(Op.ADD, [SSAExpr(5,0), ConstExpr(3,32)])
 
 # Create conditions 
 c0 = Cond(CT.EQUAL, r0, r1)
