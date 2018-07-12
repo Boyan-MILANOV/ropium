@@ -7,7 +7,7 @@ from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.contrib.completers import WordCompleter
 
 from ropgenerator.IO import string_ropg, string_bold, string_special, banner 
-from ropgenerator.Database import *
+from ropgenerator.Load import load
 
 import sys
 
@@ -61,6 +61,8 @@ def main():
             else:
                 command = None
 
+            if( command == CMD_LOAD ):
+                load(args[1:])
             if( command == CMD_EXIT ):
                 finish = True
             elif( command == CMD_HELP ):

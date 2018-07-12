@@ -2,7 +2,7 @@
 # Semantics module: structure to store gadget semantics
 from ropgenerator.Conditions import Cond, CT, CTrue, CFalse
 from ropgenerator.Expressions import SSAReg
-
+from ropgenerator.Architecture import r2n
 
 class SPair:
     """
@@ -36,7 +36,7 @@ class Semantics:
         res += '---------\n'
         
         for reg in self.registers:
-            res += '\n\t{} semantics:\n'.format(reg)
+            res += '\n\t{} {} semantics:\n'.format(reg, r2n(reg.num))
             res += '\t--------------\n'
             for p in self.registers[reg]:
                 res += str(p)+'\n'
@@ -101,7 +101,7 @@ class Semantics:
                 for subReg in pair.cond.getRegisters():
                     # Simplify values for sub register
                     if( not subReg in semantics.simplifiedRegs ):
-                        simplifyReg(subReg)
+                        simplifyReg(semantics, subReg)
                     # And replace by its possible values 
                     tmp = []
                     for subPair in semantics.registers[subReg]:

@@ -69,7 +69,7 @@ class Gadget:
         try: 
             self.graph = REILtoGraph(irsb)
             self.semantics = self.graph.getSemantics()
-        except Exception as e:
+        except GraphException as e:
             raise GadgetException(str(e))
         
         self.type = GadgetType.REGULAR
@@ -128,7 +128,7 @@ class Gadget:
                         elif( isinstance(p.expr, SSAExpr )):
                             self.retValue = p.expr
                             # Try to detect gadgets ending by 'call' 
-                            if( self.ins[-1]._mnemonic[:4] == "call"):
+                            if( ins[-1]._mnemonic[:4] == "call"):
                                 self.retType = RetType.CALL
                             else:
                                 self.retType = RetType.JMP

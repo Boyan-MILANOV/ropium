@@ -7,7 +7,7 @@ from barf.arch.x86.x86translator import FULL_TRANSLATION
 from barf.arch.x86.x86translator import X86Translator
 from barf.arch.x86.x86disassembler import X86Disassembler
 from barf.arch.x86.x86base import *
-
+from enum import Enum
 
 class ArchException(Exception):
     """
@@ -34,8 +34,6 @@ class Architecture:
         
         # BARF Information 
         self.archMode = None
-        self.disassembler = None
-        self.irTranslator = None
         
     def asmToREIL(self, asmStr):
         """
@@ -43,19 +41,23 @@ class Architecture:
         """
         index = 0
         instr = []
-        while( index < len(asmStr)):
-            asm = self.disassembler.disassemble(asmStr[index:], index)
-            if( asm is None ):
-                bad = "\\x"+"\\x".join("{:02x}".format(ord(c))\
-                                    for c in asmStr[index:])
-                total = "\\x"+"\\x".join("{:02x}".format(ord(c))\
-                                    for c in asmStr)
-                raise ArchException("BARF unable to translate {} instructions\
-                {} in gadget {}".format(self.name, bad, total))
-            instr.append(asm)
-            index += asm.size
-        irsb = [a for i in instr for a in self.irTranslator.translate(i) ]
-        return (irsb,instr)
+        try:
+            while( index < len(asmStr)):
+                asm = self.disassembler.disassemble(asmStr[index:], index)
+                if( asm is None ):
+                    bad = "\\x"+"\\x".join("{:02x}".format(ord(c))\
+                                        for c in asmStr[index:])
+                    total = "\\x"+"\\x".join("{:02x}".format(ord(c))\
+                                        for c in asmStr)
+                    raise ArchException("BARF unable to translate {} instructions\
+                    {} in gadget {}".format(self.name, bad, total))
+                instr.append(asm)
+                index += asm.size
+            irsb = [a for i in instr for a in self.irTranslator.translate(i) ]
+            return (irsb,instr)
+        except:
+            raise ArchException("Couldn't translate gadget: {}"\
+            .format("\\x"+"\\x".join("{:02x}".format(ord(c)) for c in asmStr)))
 
 #####################
 # Register handling #
@@ -106,3 +108,26 @@ ArchX64.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
 # Some function
 def currentIsIntel():
     return currentArch in [ArchX64, ArchX86]
+
+#####################
+# Types of binaries #
+##################### 
+class BinaryType(Enum):
+    X86_ELF="X86 ELF"
+    X64_ELF="X86-64 ELF"
+    X86_PE ="X86 Windows PE"
+    X64_PE ="X86-64 Windows PE"
+    UNKNOWN = "UNKNOWN"
+
+currentBinType = None
+
+#############################
+# Reinitialisation function #
+#############################
+def reinit():
+    global ssaRegCount, regNumToName, regNameToNum, currentArch, currentBinType
+    ssaRegCount = 0
+    regNumToName = dict()
+    regNameToNum = dict()
+    currentArch = None
+    currentBinType = None

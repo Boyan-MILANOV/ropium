@@ -1,18 +1,30 @@
 # -*- coding:utf-8 -*-
 # Database module: save and classify gadgets 
+
 from enum import Enum
-from ropgenerator.Gadget import GadgetType
+from ropgenerator.Gadget import GadgetType, Gadget, GadgetException
 from ropgenerator.Expressions import SSAExpr, ConstExpr, MEMExpr, OpExpr, Op
 from ropgenerator.Conditions import CTrue
+from ropgenerator.IO import info, error, fatal, string_bold, notify, charging_bar
+from datetime import datetime
 
 import ropgenerator.Architecture as Arch
+import signal 
 
-def DatabaseException(Exception):
+class DatabaseException(Exception):
     def __init__(self, msg):
         self.msg = msg
         
     def __str__(self):
         return self.msg
+        
+class TimeOutException(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+        
+    def __str__(self):
+        return self.msg
+        
 
 ########################################
 # Different types of supported queries #
@@ -178,7 +190,7 @@ def select_special_gadgets(gadgetList, constraint, n=1):
     return res
 
 class Database:
-    def __init__(self, gadgets):    
+    def __init__(self, gadgets=[]):    
         # List of gadgets 
         self.gadgets = gadgets
         
@@ -320,3 +332,90 @@ class Database:
             return select_special_gadgets(self.types[QueryType.SYSCALL], constraint, n)    
         else:
             raise Exception("Unknown query type: {}".format(qtype))
+
+########################
+# Module wise database #
+########################
+db = Database()
+
+#############################
+# Build the list of gadgets #
+# And fill database         #
+#############################
+sigint = False
+def build(pair_list):
+    """
+    Takes a list of pairs (addr, raw_asm) corresponding to 
+    gagets (their address and their intructions as a byte string)
+    Fills the 'gadgets' and 'db' global structures ;) 
+    """
+    def sigint_handler(signal, frame):
+        global sigint
+        sigint = True
+    
+    def timeout_handler(signum, frame):
+        global sigalarm
+        sigalarm = True
+        signal.alarm(0)
+        raise TimeOutException('Timeout')
+    
+    global gadgets, db, sigint
+    gadgets = []
+    raw_to_gadget = dict()
+    sigint = False
+    original_sigint_handler = signal.getsignal(signal.SIGINT)
+    signal.signal(signal.SIGINT, sigint_handler)
+    signal.signal(signal.SIGALRM, timeout_handler)
+    
+    info(string_bold("Creating gadget database\n"))  
+    startTime = datetime.now()
+    success = i = 0
+    # Create the gadgets list
+    for (addr, raw) in pair_list:
+        if( sigint ):
+            break
+        if( raw in raw_to_gadget):
+            gadgets[raw_to_gadget[raw]].addrList.append(addr)
+            success += 1
+        else:
+            charging_bar(len(pair_list)-1, i, 30)
+            try:
+                signal.alarm(1)
+                gadget = Gadget([addr], raw)
+                signal.alarm(0)
+                success += 1
+                gadgets.append( gadget )
+                raw_to_gadget[raw] = len(gadgets)-1
+            except (GadgetException, TimeOutException) as e :
+                signal.alarm(0)
+                if( isinstance(e, GadgetException)):
+                    pass # Maybe log it ? 
+                    
+                
+        i += 1
+    # Find syscalls
+        # TODO 
+    
+    # Getting time   
+    cTime = datetime.now() - startTime
+    signal.signal(signal.SIGINT, original_sigint_handler) 
+     
+    if( sigint ):
+        print("\n")
+        fatal("SIGINT ended the analysis prematurely, gadget database might be incomplete\n")
+        sigint = False
+    notify("Gadgets analyzed : " + str(len(pair_list)))
+    notify("Successfully translated : " + str(success))
+    notify("Computation time : " + str(cTime))
+    
+    # Create the database
+    
+
+
+#############################
+# Reinitialisation function #
+#############################
+def reinit():
+    global db, gadgets
+    gadgets = []
+    db = Database()

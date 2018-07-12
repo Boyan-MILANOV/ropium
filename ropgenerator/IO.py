@@ -33,12 +33,15 @@ def info(text):
     """
     Prints a text with a colored '[+] ' before 
     """
-    sys.stdout.write(ROPGENERATOR_COLOR_ANSI + '[+] ' + END_COLOR_ANSI + text)
+    sys.stdout.write('['+ROPGENERATOR_COLOR_ANSI+'+'+ END_COLOR_ANSI+ '] ' + text)
     
 def error(text):
     """
     Prints a text with the error color
     """
+    print(string_bold('\n\t'+text))
+    
+def fatal(text):
     sys.stdout.write(ERROR_COLOR_ANSI + '[!] ' + text + END_COLOR_ANSI)
     
 VERBOSE = False   # For verbose info support 

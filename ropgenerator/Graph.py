@@ -75,6 +75,7 @@ class Graph:
             regStr - (str) The string of the register we want to get 
         """
         # We first find the corresponding full register ( like AH ---> RAX )
+        
         aliasMapper = Arch.currentArch.archInfo.alias_mapper
         if( aliasMapper.get(regStr) != None ):
             if( aliasMapper[regStr][0] != "rflags" and aliasMapper[regStr][0] != "eflags" ):
@@ -105,7 +106,7 @@ class Graph:
             else:
                 reg = SSAReg( regNum, self.lastMod[regNum])
                 if( self.nodes.get(reg) is None ):
-                    self.nodes[reg] = SSANode( reg, SSAExpr( reg ))        
+                    self.nodes[reg] = SSANode( reg, SSAExpr( reg ), jmpLvl=0)        
         # Returning corresponding expression
         return reg
     
@@ -115,7 +116,7 @@ class Graph:
         Returns a (Semantics) instance 
         """
         semantics = Semantics()
-        for reg in self.nodes.keys():	
+        for reg in self.nodes:
             node = self.nodes[reg]
             if( not( isinstance(node, MEMNode) and not isinstance(node,ITENode))):
                 node.getSemantics( semantics, self )
@@ -182,7 +183,7 @@ class ConstNode(Node):
     def __str__(self):
         return '\nConstNode: {}\n----------------\n'.format(self.value)    
     
-    def getSemantics( self ):
+    def getSemantics( self, semantics=None, graph=None  ):
         return [SPair(ConstExpr( self.value, self.size ),CTrue())]
 
 class SSANode(Node):
@@ -254,7 +255,7 @@ class SSANode(Node):
                 else:
                     res += [SPair(p.expr.replaceReg( a.dest.reg, pair.expr ), Cond(CT.AND, p.cond,pair.cond)) for p in resPrec ]
             resPrec = res
-                
+        res = resPrec        
         if( len(res) == 0 ):
             res = [SPair(self.expr, resCond)]
         
@@ -263,7 +264,7 @@ class SSANode(Node):
         if( self.jmpLvl > 0 ):
             pairs = graph.nodes[graph.regBeforeLastJmp(self.reg, self.jmpLvl)].getSemantics( semantics, graph )
             for p in pairs:
-                res.append( [p.expr, Cond(CT.AND, p.cond, graph.condJmps[self.jmpLvl])]) 
+                res.append( SPair(p.expr, Cond(CT.AND, p.cond, graph.condJmps[self.jmpLvl]))) 
 
         semantics.set(self.reg, res)
         return res
@@ -279,7 +280,7 @@ class ITENode(Node):
     """
     def __init__(self, cond, iftrue, iffalse):
         Node.__init__(self)
-        self.outgoingArcsCond = [] 
+        self.outgoingArcsFalse = [] 
         self.cond = cond
         self.iftrue = iftrue
         self.iffalse = iffalse
@@ -293,8 +294,8 @@ class ITENode(Node):
         res += '\tIf False: {}\n'.format(self.iffalse)
         return res 
         
-    def getDependencies(self, semantics, graph ):
-        resPrec = [[self.iftrue, self.cond]]
+    def getSemantics(self, semantics, graph ):
+        resPrec = [SPair(self.iftrue, self.cond)]
         # We first compute when the condition is TRUE :
         # For each arc, we replace step by step the expressions 
         for a in self.outgoingArcs:
@@ -306,27 +307,31 @@ class ITENode(Node):
                 subpairs = a.dest.getSemantics( semantics, graph )
             for pair in subpairs:
                 if ( isinstance( a.dest, MEMNode )):
-                    resTrue += [[p.expr.replaceMemAcc(a.label, pair.expr), Cond(CT.AND, p.expr,pair.cond)] for p in resPrec]
+                    resTrue += [SPair(p.expr.replaceMemAcc(a.label, pair.expr),\
+                            Cond(CT.AND, p.expr,pair.cond)) for p in resPrec]
                 else:
-                    resTrue += [[p.expr.replaceReg( a.dest.reg, pair.expr ), Cond(CT.AND, p.cond,pair.cond)] for p in resPrec ]
+                    resTrue += [SPair(p.expr.replaceReg( a.dest.reg, pair.expr ),\
+                            Cond(CT.AND, p.cond,pair.cond)) for p in resPrec ]
             resPrec = resTrue
 
         res = resPrec
-        resPrec = [[self.iffalse, self.cond.invert()]]
+        resPrec = [SPair(self.iffalse, self.cond.invert())]
         # Then the case when the condition is FALSE
         # For each arc, we replace step by step the expressions 
         for a in self.outgoingArcsFalse:
             resFalse = []
             # For each arc we get a list replacement value and the condition
             if( isinstance( a.dest, MEMNode )):
-                subpairs = a.dest.getDependedsdsncies(  a.num, a.label, a.size, semantics, graph)
+                subpairs = a.dest.getSemantics(  a.num, a.label, a.size, semantics, graph)
             else:
                 subpairs = a.dest.getSemantics( semantics, graph )
             for pair in subpairs:
                 if ( isinstance( a.dest, MEMNode )):
-                    resFalse += [[p.expr.replaceMemAcc(a.label, pair.expr), Cond(CT.AND, p.cond,pair.cond)] for p in resPrec]
+                    resFalse += [SPair(p.expr.replaceMemAcc(a.label, pair.expr),\
+                        Cond(CT.AND, p.cond,pair.cond)) for p in resPrec]
                 else:
-                    resFalse += [[p.expr.replaceReg( a.dest.reg, pair.expr ), Cond(CT.AND, p.cond,pair.cond)] for p in resPrec]
+                    resFalse += [SPair(p.expr.replaceReg( a.dest.reg, pair.expr ),\
+                        Cond(CT.AND, p.cond,pair.cond)) for p in resPrec]
             resPrec = resFalse
         res +=  resPrec
         return res
@@ -437,23 +442,23 @@ class MEMNode(Node):
             if( offset == 0 ):
                 res = val 
             elif( offset < 0 ):
-                res = Cat( [Extr( prev.size-1, val.size-offset, prev), Extr( val.size-1,-1*offset, val)])
+                res = Concat( [Extract( prev.size-1, val.size-offset, prev), Extract( val.size-1,-1*offset, val)])
             else:
-                res = Cat( [Extr( prev.size-1-offset, offset, val ), Extr( offset-1, 0, prev )])
+                res = Concat( [Extract( prev.size-1-offset, offset, val ), Extract( offset-1, 0, prev )])
         elif( val.size < prev.size ):
             if( val.size + offset >= prev.size ):
-                res = Cat( [Extr( prev.size-1-offset, 0, val ), Extr( offset-1, 0, prev )])
+                res = Concat( [Extract( prev.size-1-offset, 0, val ), Extract( offset-1, 0, prev )])
             elif( offset > 0 ):
-                res = Cat( [Extr( prev.size-1, offset+val.size, prev ), val, Extr(offset-1, 0, prev )])
+                res = Concat( [Extract( prev.size-1, offset+val.size, prev ), val, Extract(offset-1, 0, prev )])
             else:
-                res = Cat( [Extr( prev.size-1, offset+val.size, prev ), Extr( val.size-1, -1*offset, val )])
+                res = Concat( [Extract( prev.size-1, offset+val.size, prev ), Extract( val.size-1, -1*offset, val )])
         else:
             if( offset > 0 ):
-                res = Cat( [Extr( prev.size-1-offset, 0, val ), Extr( offset-1, 0, prev )])
+                res = Concat( [Extract( prev.size-1-offset, 0, val ), Extract( offset-1, 0, prev )])
             elif( offset >= prev.size-val.size):
-                res = Extr( offset+prev.size-1, offset, val )
+                res = Extract( offset+prev.size-1, offset, val )
             else:
-                res =  Cat( [Extr( prev.size-1, offset+val.size, prev ), Extr( val.size-1, -1*offset )])
+                res =  Concat( [Extract( prev.size-1, offset+val.size, prev ), Extract( val.size-1, -1*offset )])
         offset = offset/8 
         if( res.size % 8 != 0 ):
             raise GraphException("Error, overWrite() function returning a value not multiple of 8 ( size = %d )", res.size)
@@ -670,7 +675,7 @@ def barfOperandToExpr(op, valuesTable, graph):
                 if( reg == "rflags" or reg == "eflags"):
                     return Convert( op.size, fullExpr )
                 else:
-                    return Extr( op.size + offset -1, offset, fullExpr )
+                    return Extract( op.size + offset -1, offset, fullExpr )
     else:
         raise GraphException("Operand %s neither register nor immediate", str(op))
 
@@ -754,11 +759,11 @@ def translateFullRegAssignement( expr, op , graph):
     # If normal registers, we translate :
     else:
         oldReg = SSAExpr(graph.getReg(op.name))
-        high = Extr( oldReg.size-1, offset+expr.size, oldReg )
+        high = Extract( oldReg.size-1, offset+expr.size, oldReg )
         if( offset > 0 ):
             return Concat( [high, expr, Extract( offset-1, 0, oldReg )] )
         else:
-            return Concat( [high, expr, low] )
+            return Concat( [high, expr] )
 
     
 #######################################
@@ -904,14 +909,14 @@ def REILtoGraph( irsb):
                 valuesTable[instr.operands[2]._name] = expr
             else:
                 reg = graph.getReg( instr.operands[2]._name )
-                reg.ind += 1
+                reg = SSAReg( reg.num, reg.ind + 1)
                 graph.lastMod[reg.num] += 1
                 valuesTable[str(reg)] = expr
                 # Adding node to the graph 
                 # Creation of the ite node
                 iteNode = ITENode( cond, ifzero, ifnotzero )
                 # Link the real node to the ITE node 
-                node = SSANode( reg, Convert( REGSIZE.size, expr))
+                node = SSANode( reg, Convert( Arch.currentArch.bits, expr))
                 node.outgoingArcs.append( Arc(graph, iteNode) )
                 graph.nodes[reg] = node
 
