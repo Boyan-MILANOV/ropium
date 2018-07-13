@@ -6,6 +6,7 @@ from ropgenerator.Gadget import GadgetType, Gadget, GadgetException
 from ropgenerator.Expressions import SSAExpr, ConstExpr, MEMExpr, OpExpr, Op
 from ropgenerator.Conditions import CTrue
 from ropgenerator.IO import info, error, fatal, string_bold, notify, charging_bar
+from ropgenerator.Logs import log
 from datetime import datetime
 
 import ropgenerator.Architecture as Arch
@@ -389,9 +390,8 @@ def build(pair_list):
             except (GadgetException, TimeOutException) as e :
                 signal.alarm(0)
                 if( isinstance(e, GadgetException)):
-                    pass # Maybe log it ? 
-                    
-                
+                    log("Gadget ({}) :  ".format('\\x'+'\\x'\
+                    .join("{:02x}".format(ord(c)) for c in raw)) + str(e))
         i += 1
     # Find syscalls
         # TODO 

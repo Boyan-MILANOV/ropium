@@ -4,6 +4,7 @@
 from ropgenerator.Graph import REILtoGraph, Graph, GraphException
 from ropgenerator.Semantics import Semantics 
 from ropgenerator.Expressions import SSAExpr, SSAReg, MEMExpr, Expr
+from ropgenerator.Logs import log
 import ropgenerator.Architecture as Arch
 
 from enum import Enum
@@ -85,7 +86,15 @@ class Gadget:
         # List of modified registers 
         self._modifiedRegs = []
         for reg in self.semantics.registers.keys():
-            if (reg.ind and (SSAExpr(reg) != self.semantics.registers[reg][0].expr) ):
+            # Check if there is an empty semantics 
+            if( not self.semantics.get(reg)):
+                #self.semantics.registers.pop(reg)
+                log("Gadget ({}) : empty semantics for {}"\
+                .format(self.asmStr, Arch.r2n(reg.num)))
+                self._modifiedRegs.append(reg.num)
+                continue
+                
+            if (reg.ind and (SSAExpr(reg) != self.semantics.get(reg)[0].expr) ):
                 self._modifiedRegs.append(reg.num)
         self._modifiedRegs = list(set(self._modifiedRegs))
         

@@ -8,6 +8,7 @@ from prompt_toolkit.contrib.completers import WordCompleter
 
 from ropgenerator.IO import string_ropg, string_bold, string_special, banner 
 from ropgenerator.Load import load
+from ropgenerator.Logs import init
 
 import sys
 
@@ -48,7 +49,7 @@ helpStr += '\n\t' + string_bold(CMD_EXIT) + ': \t\texit ROPGenerator'
 
 def main():
     print(string_ropg(string_bold(ASCII_art)))
-    
+    init()
     finish = False
     while( not finish ):
         try:

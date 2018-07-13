@@ -122,7 +122,7 @@ class Graph:
                 node.getSemantics( semantics, self )
             elif( isinstance(node, MEMNode)):
                 node.getMemSemantics( semantics, self)
-                    
+
         semantics.flattenITE()
         semantics.simplifyValues()
         semantics.simplifyConditions()
@@ -225,6 +225,7 @@ class SSANode(Node):
             res = [SPair(SSAExpr(self.reg), CTrue())]
             semantics.set(self.reg, res)
             return res
+            
         # TODO -> check the below bug 
         # Else we test if bad node 
         # -> this is an un-understandable but harmless bug, additionnal empty nodes are added to the graph 
@@ -236,6 +237,7 @@ class SSANode(Node):
         # We take into account the potential previous conditional jmps 
         resCond = graph.condPath[self.jmpLvl]
         resExpr = self.expr
+        
         # TODO --> what ???
         # WARNING : we suppose that each node has only one or no arc towards MEM, not more !
         resPrec = [SPair(self.expr, resCond)]
@@ -576,7 +578,7 @@ class MEMNode(Node):
                 # Get the size of the previous by looking at one dependency (little hack and not so clean but heh)
                 previousStoreSize = previousStoreSizes[writeAddr] 
                 higher = OpExpr( Op.ADD, [writeAddr, ConstExpr(previousStoreSize, writeAddr.size)] ) 
-                lower = OpExpr( Op.SUB, [writeAddr, ConstExpr( a.size, writeAddr.size )]) 
+                lower = OpExpr( Op.SUB, [writeAddr, ConstExpr( storeLen, writeAddr.size )]) 
                 outCond = Cond( CT.OR, Cond( CT.GE, a.label, higher ), Cond( CT.LE, a.label, lower ))
                 newDict = {addrKey:[1-storeLen, previousStoreSize-1]}
                 
@@ -866,7 +868,7 @@ def REILtoGraph( irsb):
                 if( instr.operands[2].size != expr.size ):
                     expr = Convert( instr.operands[2].size, expr )
                 valuesTable[instr.operands[2]._name] = expr
-            else:    
+            else: 
                 reg = graph.getReg( instr.operands[2]._name )
                 expr = barfOperandToExpr( instr.operands[0], valuesTable, graph )
                 if( instr.operands[0].size < instr.operands[2].size ):
@@ -881,6 +883,7 @@ def REILtoGraph( irsb):
                 # Adding node and arcs to the graph
                 reg = SSAReg( reg.num, reg.ind + 1 )
                 node = SSANode( reg, expr )
+            
                 for r in subRegs:
                     node.outgoingArcs.append( Arc( graph, graph.nodes[r]))
                 for mem in subMems:
@@ -1006,4 +1009,8 @@ def REILtoGraph( irsb):
             raise GraphException("REIL operation {}  not supported"\
                     .format(ReilMnemonic.to_string(instr.mnemonic)))
 
+    # Add ip and sp if not present
+    graph.getReg(Arch.currentArch.ip)
+    graph.getReg(Arch.currentArch.sp)
+    
     return graph 

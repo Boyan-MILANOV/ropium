@@ -748,7 +748,7 @@ class Convert(Expr):
         return list(set(self.args[0].getMemAcc()))
          
     def __hash__(self):
-        return hash(str(self.op))*hash(self.args[0])    
+        return hash(self.signed)*hash(self.size)*hash(self.args[0])    
         
     def replaceITE(self, expr):
         return Convert( self.size, self.args[0].replaceITE(expr), self.signed)

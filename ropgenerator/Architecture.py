@@ -45,19 +45,14 @@ class Architecture:
             while( index < len(asmStr)):
                 asm = self.disassembler.disassemble(asmStr[index:], index)
                 if( asm is None ):
-                    bad = "\\x"+"\\x".join("{:02x}".format(ord(c))\
-                                        for c in asmStr[index:])
-                    total = "\\x"+"\\x".join("{:02x}".format(ord(c))\
-                                        for c in asmStr)
-                    raise ArchException("BARF unable to translate {} instructions\
-                    {} in gadget {}".format(self.name, bad, total))
+                    bad = '\\x' + '\\x'.join("{:02x}".format(ord(c) for c in asmStr[index:]))
+                    raise ArchException("Unable to translate instructions {}".format(bad))
                 instr.append(asm)
                 index += asm.size
             irsb = [a for i in instr for a in self.irTranslator.translate(i) ]
             return (irsb,instr)
         except:
-            raise ArchException("Couldn't translate gadget: {}"\
-            .format("\\x"+"\\x".join("{:02x}".format(ord(c)) for c in asmStr)))
+            raise ArchException("Couldn't translate gadget")
 
 #####################
 # Register handling #
@@ -92,7 +87,7 @@ ArchX86.octets = 4
 ArchX86.archMode = ARCH_X86_MODE_32
 ArchX86.disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_32)
 ArchX86.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_32)
-    
+
 # X86-64
 ArchX64 = Architecture()
 ArchX64.name = "X64" 

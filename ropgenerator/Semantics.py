@@ -113,7 +113,7 @@ class Semantics:
                 
             # Dont forget to save and mark it as simplified ;) 
             semantics.registers[ssaReg] = res 
-            semantics.simplifiedRegs[ssaReg] = True       
+            semantics.simplifiedRegs[ssaReg] = True   
                     
         # Initialize replaceTable
         for reg in self.registers:
