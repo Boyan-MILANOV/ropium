@@ -9,6 +9,9 @@ from prompt_toolkit.contrib.completers import WordCompleter
 from ropgenerator.IO import string_ropg, string_bold, string_special, banner 
 from ropgenerator.Load import load
 from ropgenerator.Logs import init
+from ropgenerator.semantic.Main import semantic_mode
+from ropgenerator.exploit.Main import exploit_mode
+
 
 import sys
 
@@ -68,11 +71,14 @@ def main():
                 finish = True
             elif( command == CMD_HELP ):
                 print(helpStr)
-            
+            elif( command == CMD_SEARCH ):
+                if( not semantic_mode()):
+                    finish = True
+            elif( command == CMD_EXPLOIT ):
+                if( not exploit_mode()):
+                    finish = True
             if( command != None ):
                 print('')
-                
-            
                 
         except KeyboardInterrupt:
             pass

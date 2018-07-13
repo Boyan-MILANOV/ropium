@@ -108,7 +108,10 @@ def charging_bar( nb_iter, curr_iter, bar_len, msg="", char=u"\u2588"):
         bar = '\r\t'+ROPGENERATOR_COLOR_ANSI + '% ' + END_COLOR_ANSI
         bar += str(msg)
         bar += ' |'
-        full_part = char * (curr_iter/(nb_iter/bar_len))
+        div = (nb_iter/bar_len)
+        if( div == 0 ):
+            div = 1
+        full_part = char * (curr_iter/div)
         empty_part = " "*(bar_len-len(full_part))
         bar += full_part + empty_part + '| '
         bar += '{:03d}%'.format(100*curr_iter/nb_iter)
