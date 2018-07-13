@@ -342,7 +342,7 @@ class Database:
 ########################
 # Module wise database #
 ########################
-db = Database()
+db = None
 
 #############################
 # Build the list of gadgets #
