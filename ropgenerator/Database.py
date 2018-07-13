@@ -3,7 +3,7 @@
 
 from enum import Enum
 from ropgenerator.Gadget import GadgetType, Gadget, GadgetException
-from ropgenerator.Expressions import SSAExpr, ConstExpr, MEMExpr, OpExpr, Op
+from ropgenerator.Expressions import SSAExpr, ConstExpr, MEMExpr, OpExpr, Op, Expr
 from ropgenerator.Conditions import CTrue
 from ropgenerator.IO import info, error, fatal, string_bold, notify, charging_bar
 from ropgenerator.Logs import log
@@ -57,15 +57,18 @@ def find_insert_index(gadgetList, gadget_num):
     gadgets sorted from shorter to longer 
     Returns the index where the gadget should be inserted
     """
-     # Try dichotomy search 
+    global gadgets
+    if( not gadgetList ):
+        return 0
+    # Try dichotomy search 
     lmin = 0
-    lmax = len(gadgetlist)-1
+    lmax = len(gadgetList)-1
     while( True):
         lmoy = (lmax + lmin)/2
         if( lmax == lmin or gadgets[gadgetList[lmoy]].nbInstr == gadgets[gadget_num].nbInstr ):
             return lmoy
         elif( lmin == lmax ):
-            if ( gadgetDB[self.values[cst][lmin]].nbInstr >= gadgetDB[gadget_num].nbInstr ):
+            if ( gadgets[self.values[cst][lmin]].nbInstr >= gadgets[gadget_num].nbInstr ):
                 return lmin
             else:
                 return lmin+1 
@@ -83,8 +86,8 @@ class CSTList:
     self.preConditions[cst] = associated preConditions 
     """
     def __init__(self):
-        self.values = []
-        self.preConditions = []
+        self.values = dict()
+        self.preConditions = dict()
         
     def add(self, cst, gadget_num, preCond = CTrue() ):
         if( not cst in self.values ):
@@ -212,9 +215,11 @@ class Database:
             self.types[QueryType.REGtoREG][r] = REGList()
             self.types[QueryType.MEMtoREG][r] = MEMList()
             
+        info(string_bold("Sorting gadgets semantics\n")) 
+        
         # Fill them 
         for i in range(0, len(gadgets)):
-            #charging_bar(len(gadgetDB)-1, i, 30)
+            charging_bar(len(gadgets)-1, i, 30)
             gadget = gadgets[i]
             # Check for special gadgets (int 0x80 and syscall
             if( gadget.type == GadgetType.INT80 ):
@@ -235,7 +240,7 @@ class Database:
                             self.types[QueryType.REGtoREG][reg.num].add(num, inc, i, p.cond)
                     # For CSTtoREG
                     elif( isinstance(p.expr, ConstExpr)):
-                        self.types[QueryType.CSTtoREG][reg.num].add_gadget(p.expr.value, i, p.cond)
+                        self.types[QueryType.CSTtoREG][reg.num].add(p.expr.value, i, p.cond)
                     # For MEMtoREG
                     elif( isinstance(p.expr, MEMExpr)):
                         if( isinstance(p.expr.addr, SSAExpr)):
@@ -245,7 +250,7 @@ class Database:
                             if( isInc ):
                                 self.types[QueryType.MEMtoREG][reg.num].add(num, inc, i, p.cond)
             # For XXXtoMEM 
-            for addr, pairs in gadget.semantics.memory:
+            for addr, pairs in gadget.semantics.memory.iteritems():
                 addr_reg = None
                 addr_cst = None
                 
@@ -409,8 +414,7 @@ def build(pair_list):
     notify("Computation time : " + str(cTime))
     
     # Create the database
-    
-
+    db = Database(gadgets)
 
 #############################
 # Reinitialisation function #

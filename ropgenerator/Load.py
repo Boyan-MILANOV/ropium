@@ -9,15 +9,21 @@ from ropgenerator.IO import string_bold, info, string_special, banner, notify, e
 from magic import from_file
 from base64 import b16decode
 
+# Command options
+OPTION_ARCH = '--arch'
+OPTION_ARCH_SHORT = '-a'
+OPTION_HELP = '--help'
+OPTION_HELP_SHORT = '-h'
+
 # Help for the load command
 helpStr = banner([string_bold("'load' command"),
     string_special("(Load gadgets from a binary file)")])
 helpStr += "\n\n\t"+string_bold("Usage")+":\tload [OPTIONS] <filename>"
-helpStr += "\n\n\t"+string_bold("Options")+": No options available for the moment"
+helpStr += "\n\n\t"+string_bold("Options")+":"
+helpStr += "\n\t\t"+string_special(OPTION_ARCH_SHORT)+","+string_special(OPTION_ARCH)+\
+" <arch>"+"\tmanualy specify architecture.\n\t\t\t\t\tAvailable: 'X86', 'X64'"
 helpStr += "\n\n\t"+string_bold("Examples")+":\n\t\tload /bin/ls\t\t(load gadgets from /bin/ls program)\n\t\tload ../test/vuln_prog\t(load gadgets from own binary)"
-
-OPTION_ARCH = '--arch'
-OPTION_ARCH_SHORT = '-a'
+ 
 
 def print_help():
     print(helpStr)
@@ -98,12 +104,16 @@ def getGadgets(filename):
     return res
     
 def load(args):
-    
+    global helpStr
     # Parse arguments and filename 
     filename = None
     user_arch = None
     i = 0
     seenArch = False
+    if( not args ):
+        print(helpStr)
+        return 
+
     while i < len(args):
         if( args[i] in [OPTION_ARCH, OPTION_ARCH_SHORT] ):
             if( seenArch ):
@@ -112,7 +122,7 @@ def load(args):
                 return 
             seenArch = True
             if( i+1 == len(args)):
-                error("Missing argument after {}.\n\tType 'load help' for help"\
+                error("Missing argument after {}.\n\tType 'load -h' for help"\
                 .format(args[i]))
                 return 
             elif( args[i+1] == Arch.ArchX86.name ):
@@ -123,6 +133,9 @@ def load(args):
                 error("Unknown architecture: {}".format(args[i+1]))
                 return 
             i += 2
+        elif( args[i] in [OPTION_HELP, OPTION_HELP_SHORT] ):
+            print(helpStr)
+            return 
         else:
             filename = args[i]
             break
@@ -149,8 +162,8 @@ def load(args):
         return 
     elif( arch and user_arch and (arch != user_arch) ):
         error("Error. Conflicting architectures")
-        print("\tUser supplied: " + str(user_arch))
-        print("\tFound: " + str(arch))
+        print("\tUser supplied: " + user_arch.name)
+        print("\tFound: " + arch.name)
         return 
     elif( arch ):
         Arch.currentArch = arch
