@@ -51,7 +51,7 @@ class ROPChain:
         for element in self.chain:
             if( not isinstance(element, Gadget)):
                 element_str = string_special('0x'+format(self.paddings[element][0], '0'+str(bits/4)+'x'))
-                element_str += '(' + self.paddings[element][1] + ')'
+                element_str += ' (' + self.paddings[element][1] + ')'
             else:
                 element_str = string_special(validAddrStr(element, badBytes, bits)) +\
                         " (" + string_bold(element.asmStr) + ")"

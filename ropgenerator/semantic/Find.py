@@ -60,7 +60,7 @@ def find(args):
         constraint = parsed_args[4]
         assertion = Assertion()
         # Search 
-        res = search(qtype, arg1, arg2, constraint, assertion)
+        res = search(qtype, arg1, arg2, constraint, assertion, n=4)
         print_chains(res, "Built matching ROPChain(s)")
 
 def parse_args(args):

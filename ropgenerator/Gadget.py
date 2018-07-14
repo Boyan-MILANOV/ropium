@@ -2,8 +2,9 @@
 # Gadget module: model a whole gadget object
 
 from ropgenerator.Graph import REILtoGraph, Graph, GraphException
-from ropgenerator.Semantics import Semantics 
+from ropgenerator.Semantics import Semantics, SPair
 from ropgenerator.Expressions import SSAExpr, SSAReg, MEMExpr, Expr
+from ropgenerator.Conditions import CTrue
 from ropgenerator.Logs import log
 import ropgenerator.Architecture as Arch
 
@@ -167,6 +168,6 @@ class Gadget:
             if( num in self.graph.lastMod ):
                 reg = SSAReg(num, self.graph.lastMod[num])
                 return self.semantics.get(reg)
-            # Or return nothing 
+            # Or return the same
             else:
-                return SSAExpr(num, 0)
+                return [SPair(SSAExpr(num, 0), CTrue())]

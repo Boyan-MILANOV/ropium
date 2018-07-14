@@ -4,6 +4,7 @@ import re
 import ropgenerator.Architecture as Arch
 from ropgenerator.Gadget import RetType
 from ropgenerator.Conditions import CT
+from ropgenerator.Expressions import SSAExpr
 from enum import Enum
 
 #################################################
@@ -184,7 +185,25 @@ class Constraint:
                 return (False, [])
         return (True, resConds)
         
-    
+    def getValidPadding(self, octets):
+        """
+        Returns a padding made of a valid byte according to the 
+        BadBytes ConstraintType
+        """
+        badBytes = self.badBytes.bytes
+        # Getting a valid padding byte 
+        hex_chars = 'fedcba9876543210'
+        found = False
+        for c1 in hex_chars:
+            for c2 in hex_chars:
+                c = c1+c2
+                if( not c in badBytes ):
+                    byte = int(c,16)
+                    res = 0
+                    for i in range(0, octets):
+                        res = res*0x100 + byte
+                    return res
+        return None
 
 ###################################
 # Assertions to verify conditions #
@@ -341,3 +360,4 @@ class Assertion:
             if( not self._validateSingleCond(cond)):
                 res.append(cond)
         return res
+

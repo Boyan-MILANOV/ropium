@@ -3,6 +3,7 @@
 
 from ropgenerator.semantic.ROPChains import ROPChain
 from ropgenerator.Database import QueryType, DBSearch
+import ropgenerator.Architecture as Arch
 
 def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False):
     """
@@ -31,6 +32,13 @@ def _basic(qtype, arg1, arg2, constraint, assertion, n=1, noPadding=False):
         return [ROPChain().addGadget(g) for g in gadgets]
     else:
         res = []
+        padding = constraint.getValidPadding(Arch.currentArch.octets)
         for g in gadgets: 
-            res.append(ROPChain().addGadget(g))
+            chain = ROPChain().addGadget(g)
+            # Padding the chain if possible 
+            if( g.spInc > 0 ):
+                for i in range(0, g.spInc/Arch.currentArch.octets - 1):
+                    chain.addPadding(padding)
+            # Adding to the result 
+            res.append(chain)
     return res
