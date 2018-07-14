@@ -76,11 +76,8 @@ class BadBytes(ConstraintType):
         return BadBytes(list(set(self.bytes + bytesList)))
     
     def verify(self, gadget):
-        print("DEBUG BAD BYTES")
-        print(self.bytes)
         for addr in gadget.addrList:
             addrBytes = re.findall('..','{:08x}'.format(addr))
-            print("DEBUG, addr bytes " + str(addrBytes))
             ok = True
             for byte in self.bytes:
                 if( byte in addrBytes):

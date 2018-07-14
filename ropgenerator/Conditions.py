@@ -95,12 +95,12 @@ class CE: # Condition Evaluation
     Class used to represent the evaluation of a condition during simplification
         TRUE - the condition have been simplified into TRUE
         FALSE - the condition have been simplified into FALSE
-        UNKWN - the condition could not be evaluated as a logical constant 
+        UNKNOWN - the condition could not be evaluated as a logical constant 
         This class is used for instance by the Cond.simplify() function
     """
     TRUE = True
     FALSE = False
-    UNKNW = "UNKNW"        
+    UNKNOWN = "UNKNOWN"        
 
 
 
@@ -219,7 +219,7 @@ class Cond:
         """
         This cleans the condition IN PLACE, by removing trivial conditions and stuff like this.  
         """ 
-        res = CE.UNKNW
+        res = CE.UNKNOWN
         # AND simplification 
         if( self.cond == CT.AND ):
             left = self.left.clean()
@@ -236,7 +236,7 @@ class Cond:
                     self.cond = self.right.cond
                     self.left = self.right.left
                     self.right = self.right.right
-                    res = CE.UNKNW
+                    res = CE.UNKNOWN
             elif( right == CE.TRUE ):
                 if( left == CE.TRUE ):
                     self.setTrue()
@@ -245,7 +245,7 @@ class Cond:
                     self.cond = self.left.cond
                     self.right = self.left.right
                     self.left = self.left.left
-                    res = CE.UNKNW
+                    res = CE.UNKNOWN
         # OR Simplification 
         elif( self.cond == CT.OR ):
             left = self.left.clean()
@@ -261,7 +261,7 @@ class Cond:
                     self.cond = self.right.cond
                     self.left = self.right.left 
                     self.right = self.right.right
-                    res = CE.UNKNW
+                    res = CE.UNKNOWN
             elif( right == CE.FALSE ):
                 if( left == CE.FALSE ):
                     self.setFalse()
@@ -270,7 +270,7 @@ class Cond:
                     self.cond = self.left.cond
                     self.right = self.left.right
                     self.left = self.left.left 
-                    res =  CE.UNKNW 
+                    res =  CE.UNKNOWN 
                 
         # NOT Simplification 
         elif( self.cond == CT.NOT ):
@@ -282,7 +282,7 @@ class Cond:
                 self.setTrue()
                 res =  CE.TRUE
             else:
-                res = CE.UNKNW
+                res = CE.UNKNOWN
         
         # Arithmetic comparators simplification         
         elif( isArithmeticComp(self.cond)):
@@ -301,9 +301,9 @@ class Cond:
                     self.setFalse()
                     res = CE.FALSE
                 else:
-                    res = CE.UNKNW
+                    res = CE.UNKNOWN
             else:
-                res = CE.UNKNW
+                res = CE.UNKNOWN
         # Boolean constants simplifications 
         elif( self.cond == CT.TRUE ):
              res = CE.TRUE
@@ -324,7 +324,7 @@ class Cond:
         
         The condition is simplified IN PLACE
         
-        Returns a CE (CE.TRUE, CE.FALSE, CE.UNKNW) 
+        Returns a CE (CE.TRUE, CE.FALSE, CE.UNKNOWN) 
         """            
         def simplifyArrayEquality(a1,a2, condtype):
             """
@@ -336,7 +336,7 @@ class Cond:
                 if(a1[i] != a2[i]):
                     # If two differences in the arrays then we don't know .... 
                     if(found_diff):
-                        return CE.UNKNW
+                        return CE.UNKNOWN
                     else:
                         found_diff = True
             # If only one difference, then not equal 
@@ -355,7 +355,7 @@ class Cond:
             for i in range(0,len(a1)-1):
                 if(a1[i] != a2[i]):
                     # If one difference in the arrays then we don't know .... 
-                    return CE.UNKNW
+                    return CE.UNKNOWN
             if( comp(a1[-1], a2[-1])):
                 return CE.TRUE
             else:
@@ -382,7 +382,7 @@ class Cond:
             leftArray = self.left.toArray()
             rightArray = self.right.toArray()
             if( leftArray == [] or rightArray == [] ):
-                res = CE.UNKNW
+                res = CE.UNKNOWN
             else:
                 if( self.cond == CT.EQUAL or self.cond == CT.NOTEQUAL ):
                     res = simplifyArrayEquality( leftArray, rightArray, self.cond)
@@ -395,7 +395,7 @@ class Cond:
                 self.setFalse()
             else:
                 self.customSimplified = True
-                self.customSimplifiedValue = CE.UNKNW
+                self.customSimplifiedValue = CE.UNKNOWN
             return res        
         elif( isLogicalOp(self.cond)):
             if( self.cond == CT.AND ):
@@ -415,8 +415,10 @@ class Cond:
                 res = right 
             elif( self.cond == CT.NOT ):
                 right = self.right.customSimplify()
-                if( right == CE.UNKNW ):
-                    return CE.UNKWN
+                if( right == CE.UNKNOWN ):
+                    self.customSimplified = True
+                    self.customSimplifiedValue = CE.UNKNOWN
+                    return CE.UNKOWN
                 else:
                     if( right == CE.TRUE ):
                         res = CE.FALSE
@@ -428,7 +430,7 @@ class Cond:
                 self.setFalse()
             else:
                 self.customSimplified = True
-                self.customSimplifiedValue = CE.UNKNW
+                self.customSimplifiedValue = CE.UNKNOWN
             return res 
         else:
             raise CondException("Condition type " + str(self.cond) + " not supported by customSimplify() yet")

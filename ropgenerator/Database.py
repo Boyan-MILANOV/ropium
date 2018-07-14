@@ -230,6 +230,10 @@ class Database:
                 continue
             # For XXXtoREG
             for reg, pairs in gadget.semantics.registers.iteritems():
+                # Check if it is the final semantic for the register
+                if( reg.ind < gadget.graph.lastMod[reg.num]):
+                    # If not, skip this SSA register 
+                    continue
                 for p in pairs:
                     # For REGtoREG
                     if( isinstance(p.expr, SSAExpr)):

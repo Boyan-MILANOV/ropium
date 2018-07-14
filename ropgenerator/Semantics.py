@@ -116,14 +116,14 @@ class Semantics:
             semantics.simplifiedRegs[ssaReg] = True   
                     
         # Initialize replaceTable
-        for reg in self.registers:
+        for reg in self.registers.keys():
             if( len(self.registers[reg]) == 1):
                 self.simplifiedRegs[reg] = True
         
         # Replace interatively registers until 
         for reg in self.registers:
             simplifyReg(self, reg)
-
+        
         # Replace registers in memory accesses 
         newMemory = dict()
         for addr in self.memory:

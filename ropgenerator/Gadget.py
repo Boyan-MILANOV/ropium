@@ -72,7 +72,7 @@ class Gadget:
             self.graph = REILtoGraph(irsb)
             self.semantics = self.graph.getSemantics()
         except GraphException as e:
-            raise GadgetException(str(e))
+            raise GadgetException("(In {}) - ".format('; '.join(str(i) for i in ins)) + str(e))
         
         self.type = GadgetType.REGULAR
         # Possible addresses     

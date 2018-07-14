@@ -280,13 +280,14 @@ class ITENode(Node):
         (self.iftrue) - (Expr) is the value if cond is evaluated to True
         (self.iffalse) - (Expr) is the value if cond is evaluated to False
     """
-    def __init__(self, cond, iftrue, iffalse):
+    def __init__(self, cond, iftrue, iffalse, jmpLvl=0):
         Node.__init__(self)
         self.outgoingArcsFalse = [] 
         self.cond = cond
         self.iftrue = iftrue
         self.iffalse = iffalse
         self.name = "ITENode"
+        self.jmpLvl = jmpLvl
         
     def __str__(self):
         res = '\nITENode\n'
@@ -336,6 +337,9 @@ class ITENode(Node):
                         Cond(CT.AND, p.cond,pair.cond)) for p in resPrec]
             resPrec = resFalse
         res +=  resPrec
+        
+        # Adding conditionnal jumps
+        res = [SPair(p.expr, Cond(CT.AND, p.cond, graph.condPath[self.jmpLvl])) for p in res]
         return res
 
 class MEMNode(Node):
@@ -813,7 +817,7 @@ def REILtoGraph( irsb):
                 # Adding the node 
                 reg = SSAReg(reg.num, reg.ind + 1 )
                 graph.lastMod[reg.num] += 1
-                node = SSANode( reg, expr )
+                node = SSANode( reg, expr, jmpLvl=graph.countCondJmps )
                 # Adding arcs toward other nodes and memory 
                 for subReg in expr.getRegisters():
                     # subReg is a SSAReg on which node depends
@@ -837,7 +841,7 @@ def REILtoGraph( irsb):
                 graph.lastMod[reg.num] += 1
                 valuesTable[str(reg)] = expr
                 # Adding node towards memory
-                node = SSANode( reg, expr )
+                node = SSANode( reg, expr, jmpLvl=graph.countCondJmps)
                 for mem in expr.getMemAcc():
                     addr = mem[0]
                     size = mem[1]
@@ -882,7 +886,7 @@ def REILtoGraph( irsb):
                 
                 # Adding node and arcs to the graph
                 reg = SSAReg( reg.num, reg.ind + 1 )
-                node = SSANode( reg, expr )
+                node = SSANode( reg, expr, jmpLvl=graph.countCondJmps )
             
                 for r in subRegs:
                     node.outgoingArcs.append( Arc( graph, graph.nodes[r]))
@@ -917,9 +921,9 @@ def REILtoGraph( irsb):
                 valuesTable[str(reg)] = expr
                 # Adding node to the graph 
                 # Creation of the ite node
-                iteNode = ITENode( cond, ifzero, ifnotzero )
+                iteNode = ITENode( cond, ifzero, ifnotzero , jmpLvl=graph.countCondJmps)
                 # Link the real node to the ITE node 
-                node = SSANode( reg, Convert( Arch.currentArch.bits, expr))
+                node = SSANode( reg, Convert( Arch.currentArch.bits, expr), jmpLvl=graph.countCondJmps)
                 node.outgoingArcs.append( Arc(graph, iteNode) )
                 graph.nodes[reg] = node
 
@@ -956,7 +960,7 @@ def REILtoGraph( irsb):
             if( isinstance( instr.operands[0], ReilImmediateOperand ) and instr.operands[0].immediate != 0 ):
                 valuesTable[str(ip)] = addr
                 expr = addr
-                node = SSANode( ip, Convert(Arch.currentArch.bits, addr))
+                node = SSANode( ip, Convert(Arch.currentArch.bits, addr), jmpLvl=graph.countCondJmps)
                 for r in addr.getRegisters(ignoreMemAcc=True):
                     node.outgoingArcs.append( Arc( graph, graph.nodes[r]))
                 for mem in addr.getMemAcc():
@@ -968,6 +972,9 @@ def REILtoGraph( irsb):
                 graph.nodes[ip] = node
             # Else processing conditional jump 
             else:
+                # NOT HANDLED FOR OPTIMISATION REASONS 
+                raise GraphException("Conditionnal jumps not supported")
+                
                 # Create node and stuff
                 reg = ip
                 zero = ConstExpr(0,instr.operands[0].size )
@@ -984,7 +991,7 @@ def REILtoGraph( irsb):
                 # Creation of the ite node
                 # We consider that either the jump is taken ( to addr )
                 #   or the value stays the one of the current instruction ( instr.address >> 8 )
-                iteNode = ITENode( cond, addr, ConstExpr(instr.address >> 8, Arch.currentArch.bits) )
+                iteNode = ITENode( cond, addr, ConstExpr(instr.address >> 8, Arch.currentArch.bits) , jmpLvl=graph.countCondJmps)
                 for r in addr.getRegisters():
                     iteNode.outgoingArcs.append( Arc( graph, graph.nodes[r] ))
                 for mem in addr.getMemAcc():
@@ -993,16 +1000,16 @@ def REILtoGraph( irsb):
                     iteNode.outgoingArcs.append( Arc( graph, graph.nodes["MEM"], memAccCount, address, size))
                     memAccCount += 1
                 # Link the real node to the ITE node 
-                node = SSANode( reg, expr)
+                node = SSANode( reg, expr, jmpLvl=graph.countCondJmps)
                 node.outgoingArcs.append( Arc(graph, iteNode))
                 graph.nodes[reg] = node 
                 # And do not forget 
                 graph.lastMod[reg.num] += 1 
-                graph.countCondJmps += 1
+                graph.countCondJmps += 1 # DEBUG 1 
                 # 2 - SECOND STEP 
                 # We update the register again with the address of the next instruction 
                 reg = SSAReg( reg.num, reg.ind + 1 )
-                node = SSANode( reg, nextInstrAddr)
+                node = SSANode( reg, nextInstrAddr, jmpLvl=graph.countCondJmps)
                 graph.nodes[reg] = node
                 graph.lastMod[reg.num] += 1
         else:
