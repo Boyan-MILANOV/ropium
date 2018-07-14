@@ -16,7 +16,7 @@ setup(  name='ropgenerator',
         "Programming Language :: Python :: 2.7",
         "Topic :: Security",
         ],    
-        packages=['ropgenerator'],
+        packages=['ropgenerator', 'ropgenerator/semantic', 'ropgenerator/exploit'],
         scripts=['ROPGenerator'],
         install_requires=['python-magic', 'ROPGadget4ROPGenerator', 'prompt_toolkit',\
         'barf==0.4.0', 'enum', 'capstone==3.0.5rc2'],

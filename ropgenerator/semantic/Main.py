@@ -6,6 +6,7 @@ from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.contrib.completers import WordCompleter
 
 from ropgenerator.IO import string_ropg, string_bold, string_special, banner
+from ropgenerator.semantic.Find import find
 
 import sys
 
@@ -49,7 +50,7 @@ def semantic_mode():
                 command = None
 
             if( command == CMD_FIND ):
-                pass
+                find(args[1:])
             elif( command == CMD_EXIT ):
                 return False
             elif( command == CMD_HELP ):
