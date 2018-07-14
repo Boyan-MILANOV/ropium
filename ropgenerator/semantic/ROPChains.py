@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*- 
 # ROPChains module: representation of rop chains 
-import ROPGenerator.Database as DB
 from ropgenerator.Gadget import Gadget
+from ropgenerator.IO import string_special, string_bold
 
 class ROPChain:
     def __init__(self):
@@ -38,17 +38,18 @@ class ROPChain:
         self.nbGadgets += 1
         self.nbInstr += gadget.nbInstr
         self.nbInstrREIL += gadget.nbInstrREIL
+        return self
         
     def addPadding(self, value, comment="Padding"):
         index = len(self.paddings)
         self.chain.append(index)
         self.paddings.append((value, comment))
-        
+        return self
 
     def strConsole(self, bits, badBytes = []): 
         res = ''
         for element in self.chain:
-            if( not isinstance(element, Gadget):
+            if( not isinstance(element, Gadget)):
                 padding_str = string_special('0x'+format(self.paddings[element][0], '0'+str(bits/4)+'x'))
                 padding_str += '(' + self.paddings[element][1] + ')'
             else:
@@ -79,7 +80,7 @@ class ROPChain:
                 res += "\t"+padding_str
             else:
                 res += "\t"+pack_str+string_special(validAddrStr(element, badBytes, bits)) +\
-                        ") # " + string_bold(element.asmStr))
+                        ") # " + string_bold(element.asmStr)
         return res
 
 def validAddrStr(gadget, badBytes, bits):
@@ -88,7 +89,7 @@ def validAddrStr(gadget, badBytes, bits):
     Precondition :  there is such address ! 
     """
     for addr in gadget.addrList:
-        addrStr = format(self.paddings[element][0], '0'+str(bits/4)+'x'
+        addrStr = format(self.paddings[element][0], '0'+str(bits/4)+'x')
         ok = True
         for i in range(2, len(addrStr), 2):
             hex_addr_byte = gadget.addrStr[i:i+2]
@@ -97,4 +98,3 @@ def validAddrStr(gadget, badBytes, bits):
                 break
         if( ok):
             return "0x"+addrStr
-

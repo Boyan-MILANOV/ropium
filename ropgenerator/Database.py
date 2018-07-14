@@ -34,10 +34,10 @@ class TimeOutException(Exception):
 class QueryType(Enum): 
     CSTtoREG = "Reg <- Cst"
     REGtoREG = "Reg <- Reg +/- Cst"
-    MEMtoREG = "Reg <- Mem +/- Cst"
-    CSTtoMEM = "Mem <- Cst"
-    REGtoMEM = "Mem <- Reg +/- Cst"
-    MEMtoMEM = "Mem <- Mem +/- Cst"
+    MEMtoREG = "Reg <- MEM(Reg +/- Cst)"
+    CSTtoMEM = "MEM(Reg +/- Cst) <- Cst"
+    REGtoMEM = "MEM(Reg +/- Cst) <- Reg +/- Cst"
+    MEMtoMEM = "MEM(Reg +/- Cst) <- MEM(Reg +/- Cst)"
     SYSCALL = "syscall"
     INT80 = "int 0x80"
 
@@ -82,7 +82,7 @@ def find_insert_index(gadgetList, gadget_num):
 class CSTList:
     """
     self.values and self.preConditions are dict()
-    self.values[cst] = list of gadgets for ? <- cst
+    self.values[cst] = list of gadgets_num for ? <- cst
     self.preConditions[cst] = associated preConditions 
     """
     def __init__(self):
@@ -95,13 +95,13 @@ class CSTList:
             self.preConditions[cst] = []
         index = find_insert_index(self.values[cst], gadget_num)
         self.values[cst].insert(index, gadget_num)
-        self.preConditions[cst].insert(index, gadget_num)
+        self.preConditions[cst].insert(index, preCond)
         
-    def find(self, cst, constraint, assertion, n=1, enablePreConds=False ):
+    def find(self, cst, constraint, assertion, enablePreConds=False, n=1 ):
         res = []
         if( not cst in self.values ):
             return []
-        for i in range(0,self.values[cst]):
+        for i in range(0,len(self.values[cst])):
             if( len(res) >= n ):
                 break
             gadget = gadgets[self.values[cst][i]]
@@ -109,12 +109,12 @@ class CSTList:
             (status, conds) = constraint.verify(gadget)
             if( status ):
                 # if yes, check if the assertion verifies the constraint
-                remaining = assertion.filter(conds + [p.cond])
+                remaining = assertion.filter(conds + [self.preConditions[cst][i]])
                 if( enablePreConds ):
-                    res.append((i, remaining))
+                    res.append((gadget, remaining))
                 else:
                     if( not remaining ):
-                        res.append(i)
+                        res.append(gadget)
         if( enablePreConds ):
             return sorted(res, key=lambda x:len(x[1]))
         else:
@@ -129,7 +129,7 @@ class REGList:
             self.registers[reg] = CSTList()
         self.registers[reg].add(cst, gadget_num, preCond)
     
-    def find(self, reg, cst, constraint, assertion, n=1, enablePreConds=False):
+    def find(self, reg, cst, constraint, assertion, enablePreConds=False, n=1):
         res = []
         if( not reg in self.registers ):
             return []
@@ -144,7 +144,7 @@ class MEMList:
             self.registers[reg] = CSTList()
         self.registers[reg].add(cst, gadget_num, preCond)
         
-    def find(self, reg, cst, constraint, assertion, n=1, enablePreConds=False):
+    def find(self, reg, cst, constraint, assertion, enablePreConds=False, n=1):
         res = []
         if( not reg in self.registers ):
             return []
@@ -167,14 +167,14 @@ class MEMDict:
         self.registers[addr_reg][addr_cst].add(reg, cst, gadget_num, preCond)
             
     def findCst(self, addr_reg, addr_cst, cst, constraint, assertion, \
-                n=1, enablePreCond=False):
+                enablePreCond=False, n=1):
         if( not addr_cst in self.registers[addr_reg] ):
             return []
         return self.registers[addr_reg][addr_cst].find(cst, constraint,\
             assertion, enablePreCond, n)
             
     def findExpr(self, addr_reg, addr_cst, reg, cst, constraint, assertion,\
-                n=1, enablePreCond=False):
+                enablePreCond=False, n=1):
         if( not addr_cst in self.registers[addr_reg] ):
             return []
         return self.registers[addr_reg][addr_cst].find(reg, cst, constraint,\
@@ -293,7 +293,7 @@ class Database:
                                 self.types[QueryType.MEMtoMEM].addExpr(addr_reg,\
                                  addr_cst, num, inc, i, p.cond)
     
-    def find(self, qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False):
+    def find(self, qtype, arg1, arg2, constraint, assertion, enablePreConds=False, n=1):
         """
         qtype - QueryType instance
         arg1 - (cst) or (reg,cst)
@@ -316,22 +316,22 @@ class Database:
         
         if( qtype == QueryType.CSTtoREG ):
             return self.types[QueryType.CSTtoREG][arg1].find(\
-                    arg2, constraint, assertion, n, enablePreConds)
+                    arg2, constraint, assertion, enablePreConds, n)
         elif( qtype == QueryType.REGtoREG ):
             return self.types[QueryType.REGtoREG][arg1].find(\
-                    arg2[0], arg2[1], constraint, assertion, n, enablePreConds)
+                    arg2[0], arg2[1], constraint, assertion, enablePreConds, n)
         elif( qtype == QueryType.MEMtoREG ):
             return self.types[QueryType.MEMtoREG][arg1].find(\
-                    arg2[0], arg2[1], constraint, assertion, n, enablePreConds) 
+                    arg2[0], arg2[1], constraint, assertion, enablePreConds, n) 
         elif( qtype == QueryType.CSTtoMEM ):
             return self.types[QueryType.CSTtoMEM].findCst(\
-                arg1[0], arg1[1], arg2, constraint, assertion, n, enablePreConds)
+                arg1[0], arg1[1], arg2, constraint, assertion, enablePreConds, n)
         elif( qtype == QueryType.REGtoMEM ):
             return self.types[QueryType.REGtoMEM].findExpr(\
-                arg1[0], arg1[1], arg2[0], arg2[1], constraint, assertion, n, enablePreConds)
+                arg1[0], arg1[1], arg2[0], arg2[1], constraint, assertion, enablePreConds, n)
         elif( qtype == QueryType.MEMtoMEM ):
             return self.types[QueryType.MEMtoMEM].findExpr(\
-                arg1[0], arg1[1], arg2[0], arg2[1], constraint, assertion, n, enablePreConds)
+                arg1[0], arg1[1], arg2[0], arg2[1], constraint, assertion, enablePreConds, n)
         elif( qtype == QueryType.INT80 ):
             return select_special_gadgets(self.types[QueryType.INT80], constraint, n)
         elif( qtype == QueryType.SYSCALL ):
@@ -343,6 +343,9 @@ class Database:
 # Module wise database #
 ########################
 db = None
+# Wrapper
+def DBSearch(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False):
+    return db.find(qtype, arg1, arg2, constraint, assertion, enablePreConds, n)
 
 #############################
 # Build the list of gadgets #

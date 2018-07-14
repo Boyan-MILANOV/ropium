@@ -60,7 +60,7 @@ class Chainable(ConstraintType):
                 (isInc, inc) = addr.isRegIncrement(sp_num)    
                 # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
                 if( self.ret and isInc and inc == (self.spInc - (Arch.currentArch.octets)) ):
-                    return (True, p.cond)
+                    return (True, [p.cond])
             elif( isinstance(p.expr, SSAExpr )):
                 # Try to detect gadgets ending by 'call' 
                 if( self.call and gadget.ins[-1]._mnemonic[:4] == "call"):
@@ -78,11 +78,14 @@ class BadBytes(ConstraintType):
     
     def verify(self, gadget):
         for addr in gadget.addrList:
-            addrBytes = re.findall('..','{08:x}'.format(addr))
+            addrBytes = re.findall('..','{:08x}'.format(addr))
+            ok = True
             for byte in self.bytes:
                 if( byte in addrBytes):
-                    continue
-                # No bad bytes found, so valid address
+                    ok = False
+                    break
+            # No bad bytes found, so valid address
+            if( ok ):
                 return (True, []) 
         return (False, [])
 
@@ -317,9 +320,9 @@ class Assertion:
         elif( cond.cond in [CT.EQUAL, CT.NOTEQUAL] ):
             return self.regsEqual.validate(cond)
         elif( cond.cond == CT.AND ):
-            return (self.validate(cond.left) and self.validate(cond.right))
+            return (self._validateSingleCond(cond.left) and self._validateSingleCond(cond.right))
         elif( cond.cond == CT.OR ):
-            return (self.validate(cond.left) or self.validate(cond.right))
+            return (self._validateSingleCond(cond.left) or self._validateSingleCond(cond.right))
         else:
             return False
 

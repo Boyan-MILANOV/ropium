@@ -1,10 +1,11 @@
 # -*- coding:utf-8 -*- 
 # Find module: implement de find command - find gadgets and build ropchains :) 
 
-from ropgenerator.Constraints import Constraint, BadBytes, RegsNotModified
+from ropgenerator.Constraints import Constraint, BadBytes, RegsNotModified, Assertion
 from ropgenerator.IO import error, banner, string_bold, string_special 
 from ropgenerator.Database import QueryType
 from ropgenerator.Expressions import parseStrToExpr, ConstExpr, MEMExpr
+from ropgenerator.semantic.Engine import search
 import ropgenerator.Architecture as Arch
 
 # Definition of options names
@@ -50,9 +51,17 @@ def find(args):
         return 
     
     parsed_args = parse_args(args)
-    print(parsed_args)
-    error("Oops! Not implemented yet")
-
+    if( not parsed_args[0]):
+        error(parsed_args[1])
+    else:
+        qtype = parsed_args[1]
+        arg1 = parsed_args[2]
+        arg2 = parsed_args[3]
+        constraint = parsed_args[4]
+        assertion = Assertion()
+        print(parsed_args)
+        res = search(qtype, arg1, arg2, constraint, assertion)
+        print(res)
 
 def parse_args(args):
     """
