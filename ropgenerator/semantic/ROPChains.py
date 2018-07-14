@@ -50,23 +50,23 @@ class ROPChain:
         res = ''
         for element in self.chain:
             if( not isinstance(element, Gadget)):
-                padding_str = string_special('0x'+format(self.paddings[element][0], '0'+str(bits/4)+'x'))
-                padding_str += '(' + self.paddings[element][1] + ')'
+                element_str = string_special('0x'+format(self.paddings[element][0], '0'+str(bits/4)+'x'))
+                element_str += '(' + self.paddings[element][1] + ')'
             else:
-                padding_str += string_special(validAddrStr(element, badBytes, bits)) +\
+                element_str = string_special(validAddrStr(element, badBytes, bits)) +\
                         " (" + string_bold(element.asmStr) + ")"
             if (res != ''):
-                res += "\n\t"+padding_str
+                res += "\n\t"+element_str
             else:
-                res += "\t"+padding_str
+                res += "\t"+element_str
         return res
         
     def strPython(self, bits, badBytes = []):
         # Getting endianness to pack values 
         if( bits == 32 ):
-            endianness_str = '<I'
+            endianness_str = "'<I'"
         elif( bits == 64 ):
-            endianness_str = '<Q'
+            endianness_str = "'<Q'"
         else:
             raise Exception("{}-bits architecture not supported".format(bits))
         pack_str = "p += pack("+endianness_str+","
@@ -77,9 +77,9 @@ class ROPChain:
                 padding_str = pack_str
                 padding_str += string_special('0x'+format(self.paddings[element][0], '0'+str(bits/4)+'x'))+")"
                 padding_str += "# " + self.paddings[element][1]
-                res += "\t"+padding_str
+                res += "\n\t"+padding_str
             else:
-                res += "\t"+pack_str+string_special(validAddrStr(element, badBytes, bits)) +\
+                res += "\n\t"+pack_str+string_special(validAddrStr(element, badBytes, bits)) +\
                         ") # " + string_bold(element.asmStr)
         return res
 
@@ -89,11 +89,11 @@ def validAddrStr(gadget, badBytes, bits):
     Precondition :  there is such address ! 
     """
     for addr in gadget.addrList:
-        addrStr = format(self.paddings[element][0], '0'+str(bits/4)+'x')
+        addrStr = format(addr, '0'+str(bits/4)+'x')
         ok = True
         for i in range(2, len(addrStr), 2):
-            hex_addr_byte = gadget.addrStr[i:i+2]
-            if( hex_addr_byte in bad_bytes_list):
+            hex_addr_byte = addrStr[i:i+2]
+            if( hex_addr_byte in badBytes):
                 ok = False
                 break
         if( ok):

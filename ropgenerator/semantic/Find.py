@@ -59,9 +59,9 @@ def find(args):
         arg2 = parsed_args[3]
         constraint = parsed_args[4]
         assertion = Assertion()
-        print(parsed_args)
+        # Search 
         res = search(qtype, arg1, arg2, constraint, assertion)
-        print(res)
+        print_chains(res, "Built matching ROPChain(s)")
 
 def parse_args(args):
     """
@@ -304,3 +304,24 @@ def parse_keep_regs(string):
             return (False, "Error. '{}' is not a valid register".format(reg))
     return (True, list(keep_regs))
 
+##########################
+# Pretty print functions #
+##########################
+
+def print_chains(chainList, msg):
+    global OUTPUT
+    sep = "------------------"
+    if( chainList):
+        print(string_bold('\n\t'+msg))
+        if( OUTPUT == OUTPUT_CONSOLE ):
+            print("\n"+chainList[0].strConsole(Arch.currentArch.bits))
+        elif( OUTPUT == OUTPUT_PYTHON ):
+            print('\n' + chainList[0].strPython(Arch.currentArch.bits))
+        for chain in chainList[1:]:
+            if( OUTPUT == OUTPUT_CONSOLE ):
+                print('\t'+sep + "\n"+ chain.strConsole(Arch.currentArch.bits))
+            elif( OUTPUT == OUTPUT_PYTHON ):
+                print('\t'+sep + '\n' + chain.strPython(Arch.currentArch.bits))
+    else:
+        print(string_bold("\n\tNo matching Gadget or ROPChain found"))
+    
