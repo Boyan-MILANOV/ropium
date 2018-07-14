@@ -3,6 +3,7 @@
 
 from ropgenerator.semantic.ROPChains import ROPChain
 from ropgenerator.Database import QueryType, DBSearch
+from ropgenerator.Constraints import Chainable, RegsNotModified
 import ropgenerator.Architecture as Arch
 
 def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False):
@@ -12,7 +13,8 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False):
     chainable = True means that we want only chainable gadgets 
     init = True means the search just started and we have to do some initialization in SearchHelper
     """
-    res = _basic(qtype, arg1, arg2, constraint, assertion, n)
+    # Search basic 
+    res = _basic(qtype, arg1, arg2, constraint.add(Chainable(ret=True)), assertion, n)
     return sorted(res)
     
 def _basic(qtype, arg1, arg2, constraint, assertion, n=1, noPadding=False):

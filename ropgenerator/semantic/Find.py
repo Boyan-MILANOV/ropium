@@ -61,7 +61,7 @@ def find(args):
         assertion = Assertion()
         # Search 
         res = search(qtype, arg1, arg2, constraint, assertion, n=4)
-        print_chains(res, "Built matching ROPChain(s)")
+        print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
 
 def parse_args(args):
     """
@@ -308,20 +308,20 @@ def parse_keep_regs(string):
 # Pretty print functions #
 ##########################
 
-def print_chains(chainList, msg):
+def print_chains(chainList, msg, badBytes=[]):
     global OUTPUT
     sep = "------------------"
     if( chainList):
         print(string_bold('\n\t'+msg))
         if( OUTPUT == OUTPUT_CONSOLE ):
-            print("\n"+chainList[0].strConsole(Arch.currentArch.bits))
+            print("\n"+chainList[0].strConsole(Arch.currentArch.bits, badBytes))
         elif( OUTPUT == OUTPUT_PYTHON ):
-            print('\n' + chainList[0].strPython(Arch.currentArch.bits))
+            print('\n' + chainList[0].strPython(Arch.currentArch.bits, badBytes))
         for chain in chainList[1:]:
             if( OUTPUT == OUTPUT_CONSOLE ):
-                print('\t'+sep + "\n"+ chain.strConsole(Arch.currentArch.bits))
+                print('\t'+sep + "\n"+ chain.strConsole(Arch.currentArch.bits, badBytes))
             elif( OUTPUT == OUTPUT_PYTHON ):
-                print('\t'+sep + '\n' + chain.strPython(Arch.currentArch.bits))
+                print('\t'+sep + '\n' + chain.strPython(Arch.currentArch.bits, badBytes))
     else:
         print(string_bold("\n\tNo matching Gadget or ROPChain found"))
     

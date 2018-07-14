@@ -33,8 +33,6 @@ class Chainable(ConstraintType):
     """
     Selected gadgets depending on ow they terminate
     
-    if ret = jmp = call = False, validate any gadget
-    
     if ret = jmp = True && call = False, then select 
         only possible ret and jmp gadgets (no call), etc
     """
@@ -55,7 +53,7 @@ class Chainable(ConstraintType):
             return (True, [])
             
         # If unknown ret, check if possible 
-        for p in gadget.semantics.get(Arch.ip):
+        for p in gadget.semantics.get(Arch.currentArch.ip):
             if( isinstance(p.expr, MEMExpr)):
                 addr = p.expr.addr
                 (isInc, inc) = addr.isRegIncrement(sp_num)    
@@ -65,9 +63,9 @@ class Chainable(ConstraintType):
             elif( isinstance(p.expr, SSAExpr )):
                 # Try to detect gadgets ending by 'call' 
                 if( self.call and gadget.ins[-1]._mnemonic[:4] == "call"):
-                    return (True, [])
+                    return (True, [p.cond])
                 elif( self.jmp):
-                    return (True, [])
+                    return (True, [p.cond])
         return (False, [])
 
 class BadBytes(ConstraintType):
@@ -78,8 +76,11 @@ class BadBytes(ConstraintType):
         return BadBytes(list(set(self.bytes + bytesList)))
     
     def verify(self, gadget):
+        print("DEBUG BAD BYTES")
+        print(self.bytes)
         for addr in gadget.addrList:
             addrBytes = re.findall('..','{:08x}'.format(addr))
+            print("DEBUG, addr bytes " + str(addrBytes))
             ok = True
             for byte in self.bytes:
                 if( byte in addrBytes):
@@ -140,6 +141,8 @@ class Constraint:
             new.badBytes = self.badBytes.add(c.bytes)
         elif( isinstance(c, RegsNotModified)):
             new.regsNotModified = self.regsNotModified.add(c.regs)
+        elif( isinstance(c, Chainable)):
+            new.chainable = c
         else:
             raise Exception("Constraint: {} is invalid for add() \function"\
             .format(c))
@@ -170,7 +173,7 @@ class Constraint:
         return new 
     
     def list(self):
-        return [self.badBytes, self.regsNotModified]
+        return [self.chainable, self.badBytes, self.regsNotModified]
     
     def verify(self, gadget):
         """
@@ -204,7 +207,10 @@ class Constraint:
                         res = res*0x100 + byte
                     return res
         return None
-
+    
+    def getBadBytes(self):
+        return self.badBytes.bytes
+        
 ###################################
 # Assertions to verify conditions #
 ################################### 
