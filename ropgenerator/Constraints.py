@@ -120,7 +120,7 @@ class Constraint:
         new = Constraint()
         new.chainable = self.chainable
         new.badBytes = self.badBytes
-        new.regsNotModified = self.RegsNotModified
+        new.regsNotModified = self.regsNotModified
         return new 
          
     def add(self, c, copy=True):
@@ -132,9 +132,9 @@ class Constraint:
             new = self._copy()
         else:
             new = self
-        if( isinstance(c, Badbytes)):
-            new.badBytes = self.badBytes.add(c.regs)
-        elif( isinstance(c, RegsNotmodified)):
+        if( isinstance(c, BadBytes)):
+            new.badBytes = self.badBytes.add(c.bytes)
+        elif( isinstance(c, RegsNotModified)):
             new.regsNotModified = self.regsNotModified.add(c.regs)
         else:
             raise Exception("Constraint: {} is invalid for add() \function"\
