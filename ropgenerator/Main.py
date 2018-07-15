@@ -2,9 +2,7 @@
 # Main module: run ROPGenerator 
 
 
-from prompt_toolkit import prompt
-from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.contrib.completers import WordCompleter
+from prompt_toolkit import PromptSession, ANSI
 
 from ropgenerator.IO import string_ropg, string_bold, string_special, banner, error
 from ropgenerator.Load import load
@@ -37,10 +35,6 @@ CMD_SEARCH = "semantic-mode"
 CMD_EXPLOIT = "exploit-mode"
 
 
-command_list = [CMD_HELP, CMD_LOAD, CMD_CONFIG, CMD_EXIT, CMD_SEARCH, CMD_EXPLOIT]
-command_completer = WordCompleter(command_list)
-command_history = InMemoryHistory()
-
 helpStr = banner([string_bold('Main Commands'),
     string_special('(For more info about a command type <cmd -h>)')])
 helpStr += '\n\t' + string_bold(CMD_LOAD) + ': \t\tload gadgets from a binary file'
@@ -54,10 +48,10 @@ def main():
     print(string_ropg(string_bold(ASCII_art)))
     init()
     finish = False
+    promptSession = PromptSession(ANSI(u"("+ string_ropg(u'main') +u")> "))
     while( not finish ):
         try:
-            sys.stdout.write("("+ string_ropg('main') +")> ")
-            user_input = prompt(u"", history=command_history)
+            user_input = promptSession.prompt()
             args = user_input.split()
             argslen = len(args)
             if( argslen > 0 ):
