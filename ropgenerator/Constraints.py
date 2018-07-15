@@ -207,6 +207,9 @@ class Constraint:
     
     def getBadBytes(self):
         return self.badBytes.bytes
+       
+    def getRegsNotModified(self):
+        return self.regsNotModified.regs
         
 ###################################
 # Assertions to verify conditions #

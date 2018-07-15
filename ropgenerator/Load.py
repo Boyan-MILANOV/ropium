@@ -3,7 +3,8 @@
 
 import os
 import subprocess
-import ropgenerator.Database as Database
+from ropgenerator.Database import build, initDB
+from ropgenerator.semantic.Engine import initEngine
 import ropgenerator.Architecture as Arch
 from ropgenerator.IO import string_bold, info, string_special, banner, notify, error
 from magic import from_file
@@ -152,7 +153,7 @@ def load(args):
     info(string_bold("Extracting gadgets from file")+ " '" + filename + "'\n")
     
     # Cleaning the data structures
-    Database.reinit()
+    initDB()
     Arch.reinit()
     
     # Get architecture and OS info  
@@ -176,5 +177,7 @@ def load(args):
         return 
         
     # Build the gadget database
-    Database.build(gadgetList)
+    build(gadgetList)
+    # Init engine 
+    initEngine()
     

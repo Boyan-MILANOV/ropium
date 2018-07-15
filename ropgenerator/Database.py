@@ -135,6 +135,12 @@ class REGList:
             return []
         return self.registers[reg].find(cst, constraint, assertion, enablePreConds, n)
         
+    def check(self, reg, cst):
+        if( reg in self.registers):
+            if( self.registers[reg].get(cst)):
+                return True
+        return False
+        
 class MEMList:
     def __init__(self):
         self.registers = dict()
@@ -424,9 +430,9 @@ def build(pair_list):
     db = Database(gadgets)
 
 #############################
-# Reinitialisation function #
+#   Initialisation function #
 #############################
-def reinit():
+def initDB():
     global db, gadgets
     gadgets = []
     db = Database()

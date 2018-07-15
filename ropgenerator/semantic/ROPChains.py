@@ -15,6 +15,15 @@ class ROPChain:
         self.nbInstr = 0
         self.nbInstrREIL = 0 
         
+    def __str__(self):
+        res = ''
+        for g in self.chain:
+            if( isinstance(g, Gadget)):
+                res += '\n\t'+g.asmStr
+            else:
+                res += '\n\t'+str(g)
+        return res
+    
     def __cmp__(self, other):
         if( self.nbGadgets > other.nbGadgets):
             return 1
@@ -45,7 +54,28 @@ class ROPChain:
         self.chain.append(index)
         self.paddings.append((value, comment))
         return self
-
+        
+    def addChain(self, other, new=False):
+        if( new ):
+            new = ROPChain()
+            new.chain = list(self.chain)
+            new.paddings = list(self.paddings)
+        else:
+            new = self
+        new.nbGadgets = self.nbGadgets + other.nbGadgets
+        new.nbInstr = self.nbInstr + other.nbInstr
+        new.nbInstrREIL = self.nbInstrREIL + other.nbInstrREIL
+        # Merge chains 
+        for element in other.chain:
+            if( isinstance(element, Gadget)):
+                new.chain.append(element)
+            else:
+                # Manage paddings ;) 
+                new_padding = len(self.paddings)
+                new.paddings.append((other.paddings[element]))
+                new.chain.append(new_padding)
+        return new
+        
     def strConsole(self, bits, badBytes = []): 
         res = ''
         for element in self.chain:
