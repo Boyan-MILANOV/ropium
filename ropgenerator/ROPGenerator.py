@@ -11,9 +11,11 @@ import ropgenerator.Context as Context
 import ropgenerator.exploit.Exploit as Exploit
 import ropgenerator.Logs as Logs
 
-from prompt_toolkit import prompt
+from prompt_toolkit import PromptSession
 from prompt_toolkit.history import InMemoryHistory
-from prompt_toolkit.contrib.completers import WordCompleter
+from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.styles import Style
+
 import sys
 import cProfile, pstats
 
@@ -48,16 +50,24 @@ def main(time_mesure=False):
         pr = cProfile.Profile()
         pr.enable()
         
+    style = Style.from_dict({
+        'prompt': '#00FF00',
+    })
+
+    message = [
+        (u'class:prompt', u'>>> '),
+    ]
+
     #try:
     # Launching ROPGenerator 
     write_colored(ASCII_art)
     Config.load_config()
     Logs.init()
+    session = PromptSession()
     quit = False
     while( not quit ):
         try:
-            write_colored(">>> ")
-            user_input = prompt(u"", history=command_history)
+            user_input = session.prompt(message, style=style)
             args = user_input.split()
             argslen = len(args)
             if( argslen > 0 ):
