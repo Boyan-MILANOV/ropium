@@ -68,7 +68,8 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1):
         res += _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n)
         if( not res ):
             record.impossible_REGtoREG.add(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())
-        return res
+    
+    return res
 
 def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1):
     """
