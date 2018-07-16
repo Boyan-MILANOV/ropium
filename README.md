@@ -10,7 +10,7 @@ ROPGenerator uses the tool ROPgadget (https://github.com/JonathanSalwan/ROPgadge
 
 ROPGenerator is written in python. The tool has python2-only dependencies so it runs under python2 so far.  
 
-**Please note** that the current ROPGenerator version is still a beta under active development, therefore it might not work perfectly on some systems. 
+**Note**: ROPGenerator is still a beta and the current version of the master branch is 0.5. I am working on the 1.0 version (faster & better) in the 'v1' branch. Version 1.0 should be released and merged into the master branch wihtin few weeks :)  
 
 Why using ROPGenerator ? 
 ----------------------------
