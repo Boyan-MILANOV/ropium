@@ -104,6 +104,18 @@ ArchX64.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
 def currentIsIntel():
     return currentArch in [ArchX64, ArchX86]
 
+def bits():
+    return currentArch.bits
+
+def octets():
+    return currentArch.octets
+
+def spNum():
+    return n2r(currentArch.sp)
+    
+def ipNum():
+    return n2r(currentArch.ip)
+    
 #####################
 # Types of binaries #
 ##################### 

@@ -65,7 +65,6 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1):
     """
     Search for ropchains by chaining gadgets 
     """
-    global impossible_REGtoREG
     res = []  
     if( qtype == QueryType.CSTtoREG ):
         res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n)
@@ -81,6 +80,47 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1):
     
     return res
 
+def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n):
+    """
+    Search with basic but adjust the bad returns they have 
+    """
+    res = []
+    possible = _basic(qtype, arg1, arg2, \
+            constraint.add(Chainable(jmp=True, call=True)), assertion, n)
+    for chain in possible:
+        g = possible.chain[0]
+        ret_reg = g.retValue.reg.num
+        #Check if not modified within the gadget
+        if( ret_reg in g.modifiedRegs()):
+            continue
+        # Check if stack is preserved 
+        spInc = g.spInc
+        if( not spInc ):
+            continue
+        # Find adjustment 
+        if( g.spInc < 0 ):
+            correction = -1 * g.spInc
+        else: 
+            correction = 0
+        if( g.retType == RetType.JMP ):
+            offset = correction 
+        else:
+            offset = correction + Arch.octets() 
+        adjust_gadgets = search(QueryType.MEMtoREG, ret_reg, \
+                (Arch.spNum(),offset), constraint, assertion, n=1)
+        if( not adjust_gadgets ):
+            continue
+        else:
+            adjust_addr = validAddrStr(adjust_gadgets[0].chain[0],\
+                    constraint.getBadBytes(), Arch.octets())
+        # Put the gadget address in the register 
+        adjust = search(QueryType.CSTtoREG, ret_reg, adjust_addr, constraint, assertion, n=1)
+        if( adjust ):
+            res.append(adjust.addGadget(g))
+            if( len(res) >= n ):
+                return res
+    return res
+        
 
 def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1):
     """
