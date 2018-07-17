@@ -1,9 +1,10 @@
 # -*- coding:utf-8 -*- 
 # Engine module: chaining gadgets and building ropchains
 
-from ropgenerator.semantic.ROPChains import ROPChain
+from ropgenerator.semantic.ROPChains import ROPChain, validAddrStr
 from ropgenerator.Database import QueryType, DBSearch, DBPossibleInc, DBPossiblePopOffsets, REGList
 from ropgenerator.Constraints import Chainable, RegsNotModified, Constraint, Assertion
+from ropgenerator.Gadget import RetType
 from ropgenerator.IO import string_bold
 from itertools import product
 import ropgenerator.Architecture as Arch
@@ -13,7 +14,7 @@ import ropgenerator.Architecture as Arch
 ###################################
 
 def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False, \
-            record=None):
+            record=None, comment=None):
     """
     Searches for gadgets 
     basic = False means that we don't call _basic_strategy
@@ -28,7 +29,7 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False, 
     res = _basic(qtype, arg1, arg2, constraint.add(Chainable(ret=True)), assertion, n)
     # Search chaining 
     if( len(res) < n ):
-        res += _chain(qtype, arg1, arg2, constraint, assertion, record, n-len(res))
+        res += _chain(qtype, arg1, arg2, constraint, assertion, record, n-len(res), comment)
     # Reset the depth of the search record 
     record.decDepth()
     return sorted(res)
@@ -61,13 +62,14 @@ def _basic(qtype, arg1, arg2, constraint, assertion, n=1, noPadding=False):
             res.append(chain)
     return res
 
-def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1):
+def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, comment=None):
     """
     Search for ropchains by chaining gadgets 
     """
     res = []  
+    res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment)
     if( qtype == QueryType.CSTtoREG ):
-        res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n)
+        res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n, comment)
     elif( qtype == QueryType.REGtoREG):
         if( record.impossible_REGtoREG.check(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())\
         or record.getDepth() >= 4):
@@ -80,15 +82,15 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1):
     
     return res
 
-def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n):
+def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment):
     """
     Search with basic but adjust the bad returns they have 
     """
     res = []
     possible = _basic(qtype, arg1, arg2, \
-            constraint.add(Chainable(jmp=True, call=True)), assertion, n)
+            constraint.add(Chainable(jmp=True, call=True)), assertion, n)        
     for chain in possible:
-        g = possible.chain[0]
+        g = chain.chain[0]
         ret_reg = g.retValue.reg.num
         #Check if not modified within the gadget
         if( ret_reg in g.modifiedRegs()):
@@ -106,23 +108,25 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n):
             offset = correction 
         else:
             offset = correction + Arch.octets() 
-        adjust_gadgets = search(QueryType.MEMtoREG, ret_reg, \
+        adjust_gadgets = search(QueryType.MEMtoREG, Arch.ipNum(), \
                 (Arch.spNum(),offset), constraint, assertion, n=1)
         if( not adjust_gadgets ):
             continue
         else:
-            adjust_addr = validAddrStr(adjust_gadgets[0].chain[0],\
-                    constraint.getBadBytes(), Arch.octets())
+            adjust_addr = int(validAddrStr(adjust_gadgets[0].chain[0],\
+                    constraint.getBadBytes(), Arch.octets()),  16)
         # Put the gadget address in the register 
-        adjust = search(QueryType.CSTtoREG, ret_reg, adjust_addr, constraint, assertion, n=1)
+        adjust = search(QueryType.CSTtoREG, ret_reg, adjust_addr, \
+            constraint.add(RegsNotModified([arg2[0]])), assertion, n=1,\
+            comment="Address of "+string_bold(str(adjust_gadgets[0].chain[0])))
         if( adjust ):
-            res.append(adjust.addGadget(g))
+            res.append(adjust[0].addGadget(g))
             if( len(res) >= n ):
                 return res
     return res
         
 
-def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1):
+def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, comment=None):
     """
     Returns a payload that puts cst into register reg by poping it from the stack
     """ 
@@ -132,6 +136,9 @@ def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1):
     if( not constraint.badBytes.verifyAddress(cst)):
         return []
     
+    if( not comment ):
+        comment = "Constant: 0x" +string_bold("{:x}".format(cst))
+        
     # Direct pop from the stack
     res = []
     possible = DBPossiblePopOffsets(reg, constraint.add(Chainable(ret=True)), assertion) 
@@ -145,8 +152,7 @@ def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1):
             chain = ROPChain([gadget])
             for i in range(0, gadget.spInc-Arch.currentArch.octets, Arch.currentArch.octets):
                 if( i == offset):
-                    chain.addPadding(cst, comment="Constant value: {}"\
-                    .format(string_bold(str(cst))))
+                    chain.addPadding(cst, comment)
                 else:
                     chain.addPadding(padding)
             res.append(chain)
