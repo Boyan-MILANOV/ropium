@@ -4,7 +4,7 @@ from ropgenerator.Gadget import Gadget
 from ropgenerator.IO import string_special, string_bold
 
 class ROPChain:
-    def __init__(self):
+    def __init__(self, gadget_chain=[]):
         """
         chain - list of Gadget or int (index of the padding in self.paddings)
         paddings - list of pairs (int, string)
@@ -13,7 +13,9 @@ class ROPChain:
         self.paddings = []
         self.nbGadgets = 0
         self.nbInstr = 0
-        self.nbInstrREIL = 0 
+        self.nbInstrREIL = 0
+        for g in gadget_chain:
+            self.addGadget(g) 
         
     def __str__(self):
         res = ''

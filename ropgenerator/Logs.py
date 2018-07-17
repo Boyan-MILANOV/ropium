@@ -4,7 +4,7 @@
 log_file = ".ROPGenerator-logs"
 log_file_d = None
 
-def init():
+def initLogs():
     global log_file
     global log_file_d
     try:
@@ -22,3 +22,7 @@ def log( msg ):
 		return
 	else:
 		log_file_d.write( ">>> " + msg + "\n\n") 
+
+def closeLogs():
+    if( log_file_d ):
+        log_file_d.close()

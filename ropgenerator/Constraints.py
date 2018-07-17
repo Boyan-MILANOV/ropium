@@ -77,7 +77,8 @@ class BadBytes(ConstraintType):
     
     def verify(self, gadget):
         for addr in gadget.addrList:
-            addrBytes = re.findall('..','{:08x}'.format(addr))
+            addrBytes = re.findall('..',('{:'+'{:02d}'\
+                .format(Arch.currentArch.octets)+'x}').format(addr))
             ok = True
             for byte in self.bytes:
                 if( byte in addrBytes):
@@ -87,6 +88,20 @@ class BadBytes(ConstraintType):
             if( ok ):
                 return (True, []) 
         return (False, [])
+        
+    def verifyAddress(self, address):
+        """
+        like verify() but input is already the address 
+        address - int
+        """
+        addrBytes = re.findall('..',('{:'+'{:02d}'\
+            .format(Arch.currentArch.octets)+'x}').format(address))
+        ok = True
+        for byte in self.bytes:
+            if( byte in addrBytes):
+                return False
+        # No bad bytes found, so valid address
+        return True
 
 class RegsNotModified(ConstraintType):
     def __init__(self, regsList=[]):

@@ -165,6 +165,7 @@ def parse_query(req):
     args = [x for x in req.split('=',1) if x]
     if( len(args) != 2):
         # Test if request with '->'  
+        return (False, "\n\tInvalid semantic query: " + str(req))
         args = [x for x in user_input.split('->',1) if x]
         if( len(args) != 2 ):    
             return (False, "\n\tInvalid semantic query: " + user_input )

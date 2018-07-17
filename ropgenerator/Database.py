@@ -349,6 +349,49 @@ class Database:
         else:
             raise Exception("Unknown query type: {}".format(qtype))
 
+    def possibleInc(self, reg, constraint, assertion):
+        """
+        Returns a dict {1: [gadget1, gadget2], 8:gadget3, ...}
+        Skips the increment 0 
+        """
+        global gadgets
+        res = dict()
+        lookUp = self.types[QueryType.REGtoREG][reg].registers[reg]
+        for cst in lookUp.values:
+            if( cst == 0 ):
+                continue
+            tmp = []
+            for i in range(0,len(lookUp.values[cst])):
+                gadget = gadgets[lookUp.values[cst][i]]
+                (status, conds) = constraint.verify(gadget)
+                if( status ):
+                    # if yes, check if the assertion verifies the constraint
+                    remaining = assertion.filter(conds + [lookUp.preConditions[cst][i]])
+                    if( not remaining ):
+                        tmp.append(gadget)
+            res[cst] = tmp
+        return res
+
+    def possiblePopOffsets(self, reg, constraint, assertion):
+        global gadgets
+        res = dict()
+        lookUp = self.types[QueryType.MEMtoREG][reg]\
+                 .registers.get(Arch.n2r(Arch.currentArch.sp), None)
+        if( lookUp is None ):
+            return dict()
+        for cst in lookUp.values:
+            tmp = []
+            for i in range(0, len(lookUp.values[cst])):
+                gadget = gadgets[lookUp.values[cst][i]]
+                (status, conds) = constraint.verify(gadget)
+                if( status ):
+                    # if yes, check if the assertion verifies the constraint
+                    remaining = assertion.filter(conds + [lookUp.preConditions[cst][i]])
+                    if( not remaining ):
+                        tmp.append(gadget)
+            res[cst] = tmp
+        return res
+
 ########################
 # Module wise database #
 ########################
@@ -356,6 +399,18 @@ db = None
 # Wrapper
 def DBSearch(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False):
     return db.find(qtype, arg1, arg2, constraint, assertion, enablePreConds, n)
+
+def DBPossibleInc(reg, constraint, assertion):
+    """
+    Return a list of constants C such that reg <- reg + C is possible 
+    """
+    return db.possibleInc(reg, constraint, assertion)
+    
+def DBPossiblePopOffsets(reg, constraint, assertion):
+    """
+    Return a list of offsets X such that reg <- mem(sp+X) possible 
+    """
+    return db.possiblePopOffsets(reg, constraint,assertion)
 
 #############################
 # Build the list of gadgets #

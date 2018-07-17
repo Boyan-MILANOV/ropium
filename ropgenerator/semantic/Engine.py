@@ -2,9 +2,15 @@
 # Engine module: chaining gadgets and building ropchains
 
 from ropgenerator.semantic.ROPChains import ROPChain
-from ropgenerator.Database import QueryType, DBSearch, REGList
+from ropgenerator.Database import QueryType, DBSearch, DBPossibleInc, DBPossiblePopOffsets, REGList
 from ropgenerator.Constraints import Chainable, RegsNotModified, Constraint, Assertion
+from ropgenerator.IO import string_bold
+from itertools import product
 import ropgenerator.Architecture as Arch
+
+###################################
+# Search functions and strategies #
+###################################
 
 def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False, \
             record=None):
@@ -61,23 +67,65 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1):
     """
     global impossible_REGtoREG
     res = []  
-    if( qtype == QueryType.REGtoREG):
+    if( qtype == QueryType.CSTtoREG ):
+        res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n)
+    elif( qtype == QueryType.REGtoREG):
         if( record.impossible_REGtoREG.check(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())\
         or record.getDepth() >= 4):
             return [] 
         res += _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n)
+        #if( len(res) < n):
+            #res += _REGtoREG_increment(arg1, arg2, constraint, assertion, record, n)
         if( not res ):
             record.impossible_REGtoREG.add(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())
     
     return res
 
+
+def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1):
+    """
+    Returns a payload that puts cst into register reg by poping it from the stack
+    """ 
+    if (n < 1 ):
+        return []
+    # Check if the cst is incompatible with the constraint
+    if( not constraint.badBytes.verifyAddress(cst)):
+        return []
+    
+    # Direct pop from the stack
+    res = []
+    possible = DBPossiblePopOffsets(reg, constraint.add(Chainable(ret=True)), assertion) 
+    for offset in sorted(filter(lambda x:x>=0, possible.keys())):
+        possible_gadgets = [g for g in possible[offset]\
+            if g.spInc >= Arch.currentArch.octets \
+            and g.spInc - Arch.currentArch.octets > offset ]
+        # Pad the gadgets 
+        padding = constraint.getValidPadding(Arch.currentArch.octets)
+        for gadget in possible_gadgets:
+            chain = ROPChain([gadget])
+            for i in range(0, gadget.spInc-Arch.currentArch.octets, Arch.currentArch.octets):
+                if( i == offset):
+                    chain.addPadding(cst, comment="Constant value: {}"\
+                    .format(string_bold(str(cst))))
+                else:
+                    chain.addPadding(padding)
+            res.append(chain)
+            if( len(res) >= n ):
+                return res
+    return res
+
+
 def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1):
     """
-    Perform REG1 <- REG2 with REG1 <- REG3 <- REG2
+    Perform REG1 <- REG2+CST with REG1 <- REG3 <- REG2+CST
     """
+    # If reg1 <- reg1 + 0, return 
+    if( arg1 == arg2[0] and arg2[1] == 0 ):
+        return []
+    
     res = []
     for inter_reg in range(0, Arch.ssaRegCount):
-        if( inter_reg == arg1 or inter_reg == arg2[0] or (inter_reg in record.unusable_REGtoREG)):
+        if( inter_reg == arg1 or (inter_reg in record.unusable_REGtoREG)):
             continue
         # Find reg1 <- inter_reg without using arg2    
         record.unusable_REGtoREG.append(arg2[0])
@@ -90,13 +138,44 @@ def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1):
         # Find inter_reg <- arg2 without using arg1
         record.unusable_REGtoREG.append(arg1)
         for arg2_to_inter in search(QueryType.REGtoREG, inter_reg, arg2, \
-                constraint, assertion, n, record=record):
+                constraint, assertion, n/len(inter_to_arg1_list)+1, record=record):
             for inter_to_arg1 in inter_to_arg1_list:
                 res.append(arg2_to_inter.addChain(inter_to_arg1, new=True))
                 if( len(res) >= n ):
                     return res
         record.unusable_REGtoREG.remove(arg1)
     return res 
+
+def _REGtoREG_increment(arg1, arg2, constraint, assertion, record, n=1):
+    """
+    Perform REG1 <- REG2+CST with REG1<-REG2; REG1 += CST
+    """
+    # Find possible increments gadgets for arg1
+    possible_inc = DBPossibleInc(arg1, constraint, assertion)
+    print("possible inc " + str(possible_inc))
+    # Combine increments to get the constant 
+    combination = combine_increments(possible_inc.keys(), arg2[1])
+    print("combination : " + str(combination))
+    if( not combination ):
+        return []
+    nb = reduce(lambda x,y:x*y, [len(possible_inc[inc]) for inc in combination])
+    # Translate increments into gadgets 
+    inc_gadgets = [possible_inc[inc] for inc in combination]
+    print("inc_gadgets " + str(inc_gadgets))
+    
+    # And Create full ropchains
+    res = inc_gadgets[0]
+    for gadgets in inc_gadgets[1:]:
+        res = product(res, gadgets)
+    print("res : " + str(res))
+    res = [ROPChain(c) for c in res]
+    print("res : " + str(res))
+    if( arg1 != arg2[0] ):
+        # Get gadgets REG1 <- REG2
+        arg2_to_arg1 = search(QueryType.REGtoREG, arg1, (arg2[0],0), \
+                    constraint, assertion, record, n/nb + 1)
+        res = [chain.addChain(c, new=True) for chain in arg2_to_arg1 for c in res]
+    return res
 
 ###################################################################
 # Data structures to store some info from the different searches
@@ -176,6 +255,59 @@ class SearchRecord:
 ################################################
 
 global_impossible_REGtoREG = RecordREGtoREG()
+
+
+#########
+# Utils #
+#########
+
+def combine_increments(increments_list, goal):
+    """
+    increments_list : list of (inc)
+    goal : int
+    Returns the shortest list of gadgets such that the sum of their
+        increments equals the goal
+    """
+    print("DEBUG INC_LIST: " + str(increments_list))
+    print("DEBUG, goal: " + str(goal))
+    
+    MIN_GOAL = 1
+    MAX_GOAL = 300
+    INFINITY = 999999999
+    if( goal < MIN_GOAL or goal > MAX_GOAL ):
+        return []
+    inc_list = filter(lambda x:x<=goal, increments_list)
+    inc_list.sort(key=lambda x:x)
+    n = len(inc_list)
+    if( n == 0 ):
+        return []
+    # Initialize dyn algorithm 
+    shortest = [[INFINITY]*(goal+1)]*n
+    for subgoal in range(goal+1):
+        if subgoal % inc_list[0] == 0:
+            shortest[0][subgoal] = subgoal // inc_list[0]
+    for i in range(1,n):
+        for j in range(goal+1):
+            shortest[i][j] = shortest[i-1][j]
+            if( inc_list[i] <= j ):
+                if( shortest[i][j-inc_list[i]] + 1 < shortest[i][j]):
+                    shortest[i][j] = shortest[i][j-inc_list[i]] + 1
+                    
+    # Select increments and gadgets
+    chosen = [0]*n
+    res = []
+    j = goal
+    i = n -1
+    while j > 0 and i >= 0:
+        if( j >= inc_list[i] ):
+            if( shortest[i][j-inc_list[i]] + 1 == shortest[i][j] ):
+                chosen[i] = chosen[i] + 1
+                res.append(inc_list[i])
+                j = j - inc_list[i]
+                continue
+        i = i - 1
+    return res
+
 
 #############################
 # Initialization function   #
