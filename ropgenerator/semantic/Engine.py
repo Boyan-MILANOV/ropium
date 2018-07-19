@@ -171,7 +171,8 @@ def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1):
     
     res = []
     for inter_reg in range(0, Arch.ssaRegCount):
-        if( inter_reg == arg1 or (inter_reg in record.unusable_REGtoREG)):
+        if( inter_reg == arg1 or (inter_reg == arg2[0] and arg2[1]==0)\
+            or (inter_reg in record.unusable_REGtoREG)):
             continue
         # Find reg1 <- inter_reg without using arg2    
         record.unusable_REGtoREG.append(arg2[0])
