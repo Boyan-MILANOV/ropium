@@ -28,7 +28,7 @@ setup(name='ropgenerator',
       ],
       packages=['ropgenerator', 'ropgenerator/payload', 'ropgenerator/exploit'],
       scripts=['ROPGenerator'],
-      install_requires=['pwntools', 'python-magic','ROPGadget4ROPGenerator', 'prompt_toolkit', 'barf==0.4.0', 'enum', 'capstone==3.0.5rc2'],   
+      install_requires=['pwntools', 'python-magic', 'prompt_toolkit', 'barf==0.4.0', 'enum', 'capstone==3.0.5rc2'],   
       keywords='rop generator chain gadget semantic automatic exploit ropchain',  
       zip_safe=False, 
       cmdclass={
