@@ -32,6 +32,9 @@ class CT(Enum):
     TRUE = "TRUE"
     FALSE = "FALSE"
     NOT = "NOT"
+    VALID_PTR_WRITE = "VALID_POINTER_WRITE"
+    VALID_PTR_READ = "VALID_POINTER_READ"
+    
     
 def invert(cond):
     """
@@ -65,30 +68,24 @@ def invert(cond):
         raise CondException("Unknown condition '%s' cannot be inverted " % cond )
 
 def isArithmeticComp( cond ):
-    if( cond == CT.EQUAL or cond == CT.NOTEQUAL or\
-    cond == CT.GT or cond == CT.GE or cond == CT.LT or cond == CT.LE ):
-        return True
-    else:
-        return False
+    return ( cond == CT.EQUAL or cond == CT.NOTEQUAL or\
+    cond == CT.GT or cond == CT.GE or cond == CT.LT or cond == CT.LE )
+        
+def isPointerCond( cond ):
+    return ( cond == CT.VALID_PTR_READ or cond == CT.VALID_PTR_WRITE )
+       
         
 def isLogicalOp( cond ):
     """
     Returns true iff the condition is the application of a logical operator ( OR, AND, NOT )
     """
-    if( cond == CT.AND or cond == CT.OR or cond == CT.NOT ):
-        return True
-    else:
-        return False
+    return ( cond == CT.AND or cond == CT.OR or cond == CT.NOT )
         
 def isLogicalConst( cond ):
     """
     Returns True iff the condition is a constant TRUE or FALSE 
     """
-    if( cond == CT.TRUE or cond == CT.FALSE ):
-        return True
-    else:
-        return False 
-        
+    return ( cond == CT.TRUE or cond == CT.FALSE )
 
 class CE: # Condition Evaluation 
     """
@@ -152,6 +149,8 @@ class Cond:
     def __str__(self):
         if( self.cond == CT.NOT ):
             return "(NOT %s)" % str(self.right)
+        elif( isPointerCond(self.cond)):
+            return "({} {})".format(str(self.cond), str(self.right))
         elif( not isLogicalConst(self.cond) ):
             return "(%s %s %s)" % ( str(self.left), self.cond, str(self.right) )
         else:
@@ -162,7 +161,7 @@ class Cond:
         Returns a list of SSARegiters that occur in the condition
         Eliminate multiple occurences in the list  
         """
-        if( self.cond == CT.NOT ):
+        if( self.cond == CT.NOT or isPointerCond(self.cond)):
             return self.right.getRegisters()
         elif( not isLogicalConst(self.cond) ):
             return list(set( self.left.getRegisters() + self.right.getRegisters()))
@@ -175,6 +174,8 @@ class Cond:
         """
         if( self.cond == CT.NOT ):
             return Cond(self.cond.right)
+        elif( isPointerCond(self.cond)):
+            return CTrue()
         elif( isLogicalConst(self.cond) ):
             return Cond( invert(self.cond), None, None, cleaned = self.cleaned )
         elif ( isLogicalOp(self.cond) ):
@@ -191,6 +192,8 @@ class Cond:
         """
         if( self.cond == CT.NOT ):
             return Cond( CT.NOT, None, self.right.replaceReg( var, expr ), self.cleaned)        
+        elif( isPointerCond(self.cond)):
+            return Cond(self.cond, None, self.right.replaceReg(var, expr), self.cleaned)
         elif( isArithmeticComp(self.cond)):
             return Cond(self.cond, self.left.replaceReg( var, expr ), self.right.replaceReg( var, expr ), cleaned = self.cleaned)
         elif( isLogicalOp(self.cond) ):
@@ -212,6 +215,12 @@ class Cond:
                 for r in flatRight:
                     res = Cond( CT.OR, res, Cond( CT.AND, Cond( CT.AND, Cond( self.cond, l[0], r[0]), l[1] ), r[1] ))
             return res        
+        elif( isPointerCond(self.cond)):
+            flatRigth = self.right.flattenITE()
+            res = CFalse()
+            for r in flatRight:
+                res = Cond(CT.OR, res, Cond( CT.AND, Cond(self.cond, None, r[0]), r[1]))
+            return res
         else:
             return Cond( self.cond, self.left.flattenITE(), self.right.flattenITE() )
     

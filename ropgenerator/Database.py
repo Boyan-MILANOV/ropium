@@ -446,13 +446,13 @@ def build(pair_list):
     success = i = 0
     # Create the gadgets list
     for (addr, raw) in pair_list:
+        charging_bar(len(pair_list)-1, i, 30)
         if( sigint ):
             break
         if( raw in raw_to_gadget):
             gadgets[raw_to_gadget[raw]].addrList.append(addr)
             success += 1
         else:
-            charging_bar(len(pair_list)-1, i, 30)
             try:
                 signal.alarm(1)
                 gadget = Gadget([addr], raw)
