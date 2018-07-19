@@ -3,7 +3,7 @@
 import re
 import ropgenerator.Architecture as Arch
 from ropgenerator.Gadget import RetType
-from ropgenerator.Conditions import CT
+from ropgenerator.Conditions import CT, Cond
 from ropgenerator.Expressions import SSAExpr
 from enum import Enum
 
@@ -15,6 +15,8 @@ class CstrTypeID(Enum):
     CHAINABLE = "Chainable"
     BAD_BYTES = "Bad Bytes"
     REG_NOT_MODIFIED = "Registers Not Modified"
+    VALID_PTR_READ = "Read Memory - Valid pointer"
+    VALID_PTR_WRITE = "Write Memory - Valid pointer"
 
 class ConstraintType:
     def __init__(self): 
@@ -122,11 +124,30 @@ class RegsNotModified(ConstraintType):
                 return (False, []) # The register is modified 100% 
         return (True, preConds)
 
+class ValidPtrWrite(ConstraintType):
+    def __init__(self):
+        pass
+        
+    def verify(self, gadget):
+        return (True, [Cond(CT.VALID_PTR_WRITE, None, mem) for mem in\
+        gadget.memoryWrites()])
+    
+class ValidPtrRead(ConstraintType):
+    def __init__(self):
+        pass
+        
+    def verify(self, gadget):
+        return (True, [Cond(CT.VALID_PTR_READ, None, mem) for mem in\
+        gadget.memoryReads()])
+
+
 class Constraint:
     def __init__(self, constraintList=[]):
         self.chainable = Chainable()
         self.badBytes = BadBytes()
         self.regsNotModified = RegsNotModified()
+        self.validPtrRead = ValidPtrRead()
+        self.validPtrWrite = ValidPtrWrite()
         for c in constraintList:
             if( isinstance(c, Chainable)):
                 self.chainable = c
@@ -138,6 +159,8 @@ class Constraint:
         new.chainable = self.chainable
         new.badBytes = self.badBytes
         new.regsNotModified = self.regsNotModified
+        new.validPtrRead = self.validPtrRead
+        new.validPtrWrite = self.validPtrWrite
         return new 
          
     def add(self, c, copy=True):
@@ -182,10 +205,14 @@ class Constraint:
                 new.badBytes = BadBytes()
             elif i == CstrTypeID.REG_NOT_MODIFIED:
                 new.regsNotModified = RegsNotModified()
+            else:
+                raise Exception("Constraint: {} is invalid for remove() function"\
+            .format(str(i)))
         return new 
     
     def list(self):
-        return [self.chainable, self.badBytes, self.regsNotModified]
+        return [self.chainable, self.badBytes, self.regsNotModified, \
+            self.validPtrRead, self.validPtrWrite]
     
     def verify(self, gadget):
         """

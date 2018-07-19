@@ -85,18 +85,24 @@ class Gadget:
         self.nbInstrREIL = len(irsb)
         
         # List of modified registers 
+        # And of memory-read accesses 
         self._modifiedRegs = []
-        for reg in self.semantics.registers.keys():
+        self._memoryReads = []
+        for reg_num in list(set([reg.num for reg in self.semantics.registers.keys()])):
             # Check if there is an empty semantics 
-            if( not self.semantics.get(reg)):
+            if( not self.getSemantics(reg_num)):
                 #self.semantics.registers.pop(reg)
                 log("Gadget ({}) : empty semantics for {}"\
-                .format(self.asmStr, Arch.r2n(reg.num)))
-                self._modifiedRegs.append(reg.num)
+                .format(self.asmStr, Arch.r2n(reg_num)))
+                self._modifiedRegs.append(reg_num)
                 continue
-                
-            if (reg.ind and (SSAExpr(reg) != self.semantics.get(reg)[0].expr) ):
-                self._modifiedRegs.append(reg.num)
+            # Get modified reg
+            if ((SSAExpr(reg_num) != self.getSemantics(reg_num)[0].expr) ):
+                self._modifiedRegs.append(reg_num)
+            # Get memory reads 
+            for pair in self.getSemantics(reg_num):
+                self._memoryReads += pair.expr.getMemAcc()
+                  
         self._modifiedRegs = list(set(self._modifiedRegs))
         
         # SP Increment 
@@ -152,6 +158,9 @@ class Gadget:
         
     def memoryWrites(self):
         return self.semantics.memory.keys()
+        
+    def memoryReads(self):
+        return self._memoryReads
     
     def getSemantics(self, value):
         if( isinstance( value, Expr)):
