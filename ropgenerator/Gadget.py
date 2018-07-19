@@ -101,7 +101,7 @@ class Gadget:
                 self._modifiedRegs.append(reg_num)
             # Get memory reads 
             for pair in self.getSemantics(reg_num):
-                self._memoryReads += pair.expr.getMemAcc()
+                self._memoryReads += [m[0] for m in pair.expr.getMemAcc()]
                   
         self._modifiedRegs = list(set(self._modifiedRegs))
         

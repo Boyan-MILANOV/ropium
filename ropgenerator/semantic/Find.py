@@ -1,7 +1,8 @@
 # -*- coding:utf-8 -*- 
 # Find module: implement de find command - find gadgets and build ropchains :) 
 
-from ropgenerator.Constraints import Constraint, BadBytes, RegsNotModified, Assertion
+from ropgenerator.Constraints import Constraint, BadBytes, RegsNotModified, Assertion,\
+    RegsValidPtrRead, RegsValidPtrWrite
 from ropgenerator.IO import error, banner, string_bold, string_special 
 from ropgenerator.Database import QueryType
 from ropgenerator.Expressions import parseStrToExpr, ConstExpr, MEMExpr
@@ -58,7 +59,9 @@ def find(args):
         arg1 = parsed_args[2]
         arg2 = parsed_args[3]
         constraint = parsed_args[4]
-        assertion = Assertion()
+        assertion = Assertion().add(\
+            RegsValidPtrRead([(Arch.spNum(),-5000, 10000)])).add(\
+            RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]))
         # Search 
         res = search(qtype, arg1, arg2, constraint, assertion, n=4)
         print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())

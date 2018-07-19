@@ -263,6 +263,8 @@ class AssertTypeID(Enum):
     """
     REGS_NO_OVERLAP = "REGS_NO_OVERLAP"
     REGS_EQUAL = "REGS_EQUAL"
+    REGS_VALID_PTR_READ = "REGS_VALID_PTR_READ"
+    REGS_VALID_PTR_WRITE = "REGS_VALID_PTR_WRITE"
         
 class AssertionType:
     def __init__(self):
@@ -320,6 +322,75 @@ class RegsEqual(AssertionType):
             return True
         return False  
 
+class RegsValidPtrRead(AssertionType):
+    def __init__(self, regList=[]):
+        """
+        regList - list of triples (reg, low, high)
+        -> Accesses from reg-low to reg+high are correct !!
+        """
+        self.regs = regList
+        
+    def add(self, regList):
+        return RegsValidPtrRead(self.regs + regList)
+        
+    def update(self, regTuple):
+        """
+        regTuple = (reg, low, high)
+        """
+        new = []
+        for t in self.regs:
+            if( t[0] == regTuple[0]):
+                new.append(regTuple)
+            else:
+                new.append(t)
+        return RegsValidPtrRead(new)
+    
+    def validate(self, condition):
+        """
+        Condition must be CT.VALID_PTR_READ
+        """
+        (isInc, reg, inc ) = condition.right.isRegIncrement(-1)
+        if( not isInc ):
+            return False
+        for e in self.regs:  
+            if( e[0] == reg and inc > e[1] and inc < e[2]):
+                return True
+        return False
+
+class RegsValidPtrWrite(AssertionType):
+    """
+    regList - list of triples (reg, low, high)
+    -> Accesses from reg-low to reg+high are correct !!
+    """
+    def __init__(self, regList=[]):
+        self.regs = regList
+        
+    def add(self, regList):
+        return RegsValidPtrWrite(list(set(self.regs + regList)))
+        
+    def update(self, regTuple):
+        """
+        regTuple = (reg, low, high)
+        """
+        new = []
+        for t in self.regs:
+            if( t[0] == regTuple[0]):
+                new.append(regTuple)
+            else:
+                new.append(t)
+        return RegsValidPtrWrite(new)
+    
+    def validate(self, condition):
+        """
+        Condition must be CT.VALID_PTR_WRITE
+        """
+        (isInc, reg, inc ) = condition.right.isRegIncrement(-1)
+        if( not isInc ):
+            return False
+        for e in self.regs:
+            if( e[0] == reg and inc > e[1] and inc < e[2]):
+                return True
+        return False
 
 class Assertion:
     """
@@ -332,6 +403,8 @@ class Assertion:
     def __init__(self, assertList=[] ):
         self.regsEqual = RegsEqual()
         self.regsNoOverlap = RegsNoOverlap()
+        self.regsValidRead = RegsValidPtrRead()
+        self.regsValidWrite = RegsValidPtrWrite()
         for a in assertList:
             self.add(a, copy=False)
     
@@ -339,6 +412,8 @@ class Assertion:
         new = Assertion()
         new.regsEqual = self.regsEqual
         new.regsNoOverlap = self.regsNoOverlap
+        new.regsValidRead = self.regsValidRead
+        new.regsValidWrite = self.regsValidWrite
         return new 
     
     def add(self, a, copy=True): 
@@ -354,6 +429,10 @@ class Assertion:
             new.regsEqual = self.regsEqual.add(a.pairs)
         elif( isinstance(a, RegsNoOverlap)):
             new.regsNoOverlap = self.regsNoOverlap.add(a.pairs)
+        elif( isinstance(a, RegsValidPtrRead)):
+            new.regsValidRead = self.regsValidRead.add(a.regs)
+        elif( isinstance(a, RegsValidPtrWrite)):
+            new.regsValidWrite = self.regsValidWrite.add(a.regs)
         else:
             raise Exception("Assertion: {} not supported in add() function"\
             .format(a))
@@ -370,8 +449,13 @@ class Assertion:
                 new.regsEqual = RegsEqual()
             elif( t == AssertTypeID.REGS_NO_OVERLAP ):
                 new.regsNoOverLap = RegsNoOverlap()
+            elif( t == AssertTypeID.REGS_VALID_PTR_READ ):
+                new.regsValidRead = RegsValidPtrRead()
+            elif( t == AssertTypeID.REGS_VALID_PTR_WRITE ):
+                new.regsValidWrite = RegsValidPtrWrite()
             else:
                 raise Exception("Unknown assertion type")
+        return new 
         
     def _validateSingleCond(self, cond):
         """
@@ -390,6 +474,13 @@ class Assertion:
             return (self._validateSingleCond(cond.left) and self._validateSingleCond(cond.right))
         elif( cond.cond == CT.OR ):
             return (self._validateSingleCond(cond.left) or self._validateSingleCond(cond.right))
+        elif( cond.cond == CT.VALID_PTR_READ ):
+            # We can read where we can write ;) 
+            return (self.regsValidRead.validate(cond) or \
+                    self.regsValidWrite.validate(cond))
+            
+        elif( cond.cond == CT.VALID_PTR_WRITE ):
+            return self.regsValidWrite.validate(cond)
         else:
             return False
 
