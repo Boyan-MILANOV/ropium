@@ -101,13 +101,12 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment):
             continue
         # Find adjustment 
         if( g.spInc < 0 ):
-            correction = -1 * g.spInc
+            offset = -1 * g.spInc
         else: 
-            correction = 0
-        if( g.retType == RetType.JMP ):
-            offset = correction 
-        else:
-            offset = correction + Arch.octets() 
+            if( g.retType == RetType.JMP ):
+                offset = 0 
+            else:
+                offset = Arch.octets() 
         adjust_gadgets = search(QueryType.MEMtoREG, Arch.ipNum(), \
                 (Arch.spNum(),offset), constraint, assertion, n=1)
         if( not adjust_gadgets ):

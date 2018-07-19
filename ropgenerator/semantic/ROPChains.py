@@ -73,9 +73,9 @@ class ROPChain:
                 new.chain.append(element)
             else:
                 # Manage paddings ;) 
-                new_padding = len(self.paddings)
-                new.paddings.append((other.paddings[element]))
-                new.chain.append(new_padding)
+                index = len(new.paddings)
+                new.paddings.append(other.paddings[element])
+                new.chain.append(index)
         return new
         
     def strConsole(self, bits, badBytes = []): 
