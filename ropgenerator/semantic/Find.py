@@ -6,7 +6,7 @@ from ropgenerator.Constraints import Constraint, BadBytes, RegsNotModified, Asse
 from ropgenerator.IO import error, banner, string_bold, string_special 
 from ropgenerator.Database import QueryType
 from ropgenerator.Expressions import parseStrToExpr, ConstExpr, MEMExpr
-from ropgenerator.semantic.Engine import search
+from ropgenerator.semantic.Engine import search, search_not_chainable
 import ropgenerator.Architecture as Arch
 
 # Definition of options names
@@ -64,8 +64,14 @@ def find(args):
             RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]))
         # Search 
         res = search(qtype, arg1, arg2, constraint, assertion, n=4)
-        print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
-
+        if( res ):
+            print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
+        else:
+            res = search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=4)
+            print_chains(res, "Possibly matching gadget(s)", constraint.getBadBytes())
+            
+        
+        
 def parse_args(args):
     """
     Parse the user supplied arguments to the 'find' function

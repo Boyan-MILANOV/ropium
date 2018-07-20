@@ -17,9 +17,6 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False, 
             record=None, comment=None):
     """
     Searches for gadgets 
-    basic = False means that we don't call _basic_strategy
-    chainable = True means that we want only chainable gadgets 
-    init = True means the search just started and we have to do some initialization in SearchHelper
     """
     # Set the search record and increase its depth of 1 
     if ( record is None):
@@ -33,6 +30,10 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False, 
     # Reset the depth of the search record 
     record.decDepth()
     return sorted(res)
+
+def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1):
+    return _basic(qtype, arg1, arg2, constraint, assertion, n)
+    
     
 def _basic(qtype, arg1, arg2, constraint, assertion, n=1, noPadding=False):
     """

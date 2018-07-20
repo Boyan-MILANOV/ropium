@@ -892,7 +892,7 @@ class Concat(Expr):
         # into op(ADD/SUB, reg, CST)
         # DEBUG TODO 
         #if( isinstance(newArgs[0], Extract) and isinstance(newArgs[0].args[0], ))
-            
+        
         
         self.simplifiedValue = Concat(newArgs)
         return self.simplifiedValue

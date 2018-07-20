@@ -108,7 +108,7 @@ class ROPChain:
             if( not isinstance(element, Gadget)):
                 padding_str = pack_str
                 padding_str += string_special('0x'+format(self.paddings[element][0], '0'+str(bits/4)+'x'))+")"
-                padding_str += "# " + self.paddings[element][1]
+                padding_str += " # " + self.paddings[element][1]
                 res += "\n\t"+padding_str
             else:
                 res += "\n\t"+pack_str+string_special(validAddrStr(element, badBytes, bits)) +\
