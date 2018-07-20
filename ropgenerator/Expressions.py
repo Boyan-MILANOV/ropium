@@ -887,6 +887,13 @@ class Concat(Expr):
             return self.simplifiedValue
             
         newArgs = [a[0].simplify() for a in self.args]
+        # SImplify expressions like
+        # concat(extract(reg,...), op(ADD/SUB, extract(reg,...), CST)
+        # into op(ADD/SUB, reg, CST)
+        # DEBUG TODO 
+        #if( isinstance(newArgs[0], Extract) and isinstance(newArgs[0].args[0], ))
+            
+        
         self.simplifiedValue = Concat(newArgs)
         return self.simplifiedValue
     

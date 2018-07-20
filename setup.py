@@ -19,7 +19,7 @@ setup(  name='ropgenerator',
         packages=['ropgenerator', 'ropgenerator/semantic', 'ropgenerator/exploit'],
         scripts=['ROPGenerator'],
         install_requires=['python-magic', 'ROPGadget4ROPGenerator', 'prompt_toolkit>=2.0',\
-        'barf==0.4.0', 'enum', 'capstone==3.0.5rc2'],
+        'barf==0.5.0', 'enum', 'capstone==3.0.5rc2'],
         keywords='rop generator chain gadget semantic automated exploit ropchain',
         zip_safe = False,
         data_files=[(os.path.expanduser('~')+"/.ROPGenerator/", [])]

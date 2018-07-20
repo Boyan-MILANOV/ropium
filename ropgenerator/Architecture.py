@@ -3,7 +3,6 @@
 
 from barf.arch import ARCH_X86_MODE_32
 from barf.arch import ARCH_X86_MODE_64
-from barf.arch.x86.x86translator import FULL_TRANSLATION
 from barf.arch.x86.x86translator import X86Translator
 from barf.arch.x86.x86disassembler import X86Disassembler
 from barf.arch.x86.x86base import *
