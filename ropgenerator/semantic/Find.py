@@ -10,6 +10,9 @@ from ropgenerator.semantic.Engine import search, search_not_chainable
 import ropgenerator.Architecture as Arch
 
 # Definition of options names
+OPTION_HELP = '--help'
+OPTION_HELP_SHORT = '-h'
+
 OPTION_BAD_BYTES = '--bad-bytes'
 OPTION_KEEP_REGS = '--keep-regs'
 
@@ -48,6 +51,10 @@ def find(args):
     (the command should not be included in the list as args[0])
     """
     if( not args ):
+        print_help()
+        return 
+    
+    if( args[0] == OPTION_HELP or args[0] == OPTION_HELP_SHORT ):
         print_help()
         return 
     

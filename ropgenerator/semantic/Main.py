@@ -3,7 +3,7 @@
 
 from prompt_toolkit import PromptSession, ANSI
 
-from ropgenerator.IO import string_ropg, string_bold, string_special, banner
+from ropgenerator.IO import string_semantic, string_bold, string_special, banner
 from ropgenerator.semantic.Find import find
 
 import sys
@@ -23,7 +23,7 @@ helpStr += '\n\n\t' + string_bold(CMD_HELP) + ': \t\tshow this help'
 helpStr += '\n\t' + string_bold(CMD_MAIN) + ': \t\treturn to the main menu'
 helpStr += '\n\t' + string_bold(CMD_EXIT) + ': \t\texit ROPGenerator'
 
-promptSession = PromptSession(ANSI(u"("+ string_ropg(u'semantic') +u")> "))
+promptSession = PromptSession(ANSI(u"("+ string_semantic(u'semantic') +u")> "))
 
 def semantic_mode():
     """
