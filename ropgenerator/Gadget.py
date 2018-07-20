@@ -97,7 +97,7 @@ class Gadget:
                 self._modifiedRegs.append(reg_num)
                 continue
             # Get modified reg
-            if ((SSAExpr(reg_num) != self.getSemantics(reg_num)[0].expr) ):
+            if ((SSAExpr(reg_num,0) != self.getSemantics(reg_num)[0].expr) ):
                 self._modifiedRegs.append(reg_num)
             # Get memory reads 
             for pair in self.getSemantics(reg_num):

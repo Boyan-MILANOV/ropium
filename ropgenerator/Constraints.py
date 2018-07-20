@@ -129,6 +129,8 @@ class ValidPtrWrite(ConstraintType):
         pass
         
     def verify(self, gadget):
+        # DEBUG
+        return (True, [])
         return (True, [Cond(CT.VALID_PTR_WRITE, None, mem) for mem in\
         gadget.memoryWrites()])
     
@@ -137,6 +139,8 @@ class ValidPtrRead(ConstraintType):
         pass
         
     def verify(self, gadget):
+        # DEBUG
+        return (True, [])
         return (True, [Cond(CT.VALID_PTR_READ, None, mem) for mem in\
         gadget.memoryReads()])
 
@@ -349,7 +353,7 @@ class RegsValidPtrRead(AssertionType):
         """
         Condition must be CT.VALID_PTR_READ
         """
-        (isInc, reg, inc ) = condition.right.isRegIncrement(-1)
+        (isInc, reg, inc) = condition.right.isRegIncrement(-1)
         if( not isInc ):
             return False
         for e in self.regs:  
@@ -478,7 +482,6 @@ class Assertion:
             # We can read where we can write ;) 
             return (self.regsValidRead.validate(cond) or \
                     self.regsValidWrite.validate(cond))
-            
         elif( cond.cond == CT.VALID_PTR_WRITE ):
             return self.regsValidWrite.validate(cond)
         else:

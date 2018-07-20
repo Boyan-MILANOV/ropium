@@ -38,6 +38,9 @@ class SSAReg:
     def __eq__(self, other):
         return (self.num == other.num and self.ind == other.ind )
         
+    def __ne__(self, other):
+        return not (self == other)
+    
     def __hash__(self): 
         return (self.num+1)*5000 - self.ind
 
@@ -186,6 +189,9 @@ class ConstExpr(Expr):
             return False
         return self.value == other.value
     
+    def __ne__(self, other):
+        return not (self == other)
+    
     def getRegisters(self, ignoreMemAcc=False):
         return []
         
@@ -252,6 +258,9 @@ class SSAExpr(Expr):
             return False
         return self.reg == other.reg
         
+    def __ne__(self, other):
+        return not (self == other)
+    
     def getRegisters(self, ignoreMemAcc=False):
         return [self.reg]
         
@@ -340,6 +349,9 @@ class MEMExpr(Expr):
             return False
         return self.addr == other.addr
         
+    def __ne__(self, other):
+        return not (self == other)
+    
     def getRegisters(self, ignoreMemAcc=False):
         if( ignoreMemAcc ):
             return []
@@ -351,7 +363,6 @@ class MEMExpr(Expr):
         
     def __hash__(self):
         return hash("MEM")*hash(self.addr)
-        
         
     def replaceITE(self, expr):
         return MEMExpr( self.addr.replaceITE(expr), self.size)
@@ -449,6 +460,9 @@ class OpExpr(Expr):
                 return False
         return True 
         
+    def __ne__(self, other):
+        return not (self == other)
+    
     def getRegisters(self, ignoreMemAcc=False):
         if( self.regs is None ):
             self.regs = list(set(self.args[0].getRegisters(ignoreMemAcc) +\
@@ -741,6 +755,9 @@ class Convert(Expr):
             return False 
         return self.args[0] == other.args[0]
         
+    def __ne__(self, other):
+        return not (self == other)
+    
     def getRegisters(self, ignoreMemAcc=False):
         return list(set(self.args[0].getRegisters(ignoreMemAcc)))
         
@@ -830,6 +847,9 @@ class Concat(Expr):
                 return False
         return True
         
+    def __ne__(self, other):
+        return not (self == other)
+    
     def getRegisters(self, ignoreMemAcc=False):
         l = []
         for a in self.args:
@@ -914,10 +934,13 @@ class Extract(Expr):
         return Extract(self.high, self.low, self.args[0].replaceMemAcc(addr,expr))
         
     def __eq__(self, other):
-        if( not isinstance( other, Convert )):
+        if( not isinstance( other, Extract )):
             return False 
         return self.high == other.high and self.low == other.low and self.args[0] == other.args[0]
         
+    def __ne__(self, other):
+        return not (self == other)
+    
     def getRegisters(self, ignoreMemAcc=False):
         return list(set(self.args[0].getRegisters(ignoreMemAcc)))
         
@@ -1012,6 +1035,9 @@ class ITE(Expr):
             and self.args[0] == other.args[0] 
             and self.args[1] == other.args[1] )
         
+    def __ne__(self, other):
+        return not (self == other)
+    
     def getRegisters(self, ignoreMemAcc=False):
         return list(set(self.args[0].getRegisters(ignoreMemAcc) + self.args[1].getRegisters(ignoreMemAcc)))
         

@@ -74,9 +74,10 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, comment=None):
         if( record.impossible_REGtoREG.check(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())\
         or record.getDepth() >= 4):
             return [] 
-        res += _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n)
+        if( len(res) < n ):
+            res += _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n-len(res))
         #if( len(res) < n):
-            #res += _REGtoREG_increment(arg1, arg2, constraint, assertion, record, n)
+            #res += _REGtoREG_increment(arg1, arg2, constraint, assertion, record, n-len(res))
         if( not res ):
             record.impossible_REGtoREG.add(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())
     
