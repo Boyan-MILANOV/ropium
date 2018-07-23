@@ -9,6 +9,7 @@ from ropgenerator.Load import load
 from ropgenerator.Logs import initLogs, closeLogs
 from ropgenerator.semantic.Main import semantic_mode
 from ropgenerator.exploit.Main import exploit_mode
+from ropgenerator.exploit.Shellcode import save_shellcodes
 import ropgenerator.Database as Database
 
 import sys
@@ -70,9 +71,7 @@ def main():
                 elif( not semantic_mode()):
                     finish = True
             elif( command == CMD_EXPLOIT ):
-                if( not Database.gadgets ):
-                    error("You have to load gadgets before entering exploit-mode")
-                elif( not exploit_mode()):
+                if( not exploit_mode()):
                     finish = True
             if( command != None ):
                 print('')
@@ -80,6 +79,7 @@ def main():
         except KeyboardInterrupt:
             pass
     closeLogs()
+    save_shellcodes()
     exit(0)
 
 
