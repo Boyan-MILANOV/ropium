@@ -3,7 +3,7 @@ import os
 
 setup(  name='ropgenerator',
         version = "1.0",
-        description = "ROPGenerator makes ROPexploit easy by finding and\
+        description = "ROPGenerator makes ROP exploits easy by finding and\
                         chaining gadgets for you",
         url="https://github.com/Boyan-MILANOV/ropgenerator",
         author="Boyan MILANOV",
@@ -16,7 +16,8 @@ setup(  name='ropgenerator',
         "Programming Language :: Python :: 2.7",
         "Topic :: Security",
         ],    
-        packages=['ropgenerator', 'ropgenerator/semantic', 'ropgenerator/exploit'],
+        packages=['ropgenerator', 'ropgenerator/semantic', 'ropgenerator/exploit'\
+                    , 'ropgenerator.exploit.ZwoELF', 'ropgenerator.exploit.syscalls'],
         scripts=['ROPGenerator'],
         install_requires=['python-magic', 'ROPGadget4ROPGenerator', 'prompt_toolkit>=2.0',\
         'barf==0.5.0', 'enum', 'capstone==3.0.5rc2'],

@@ -56,7 +56,7 @@ def verbose_mode(mode):
     global VERBOSE
     VERBOSE = mode
  
-def info_verbose(msg):
+def verbose(msg):
     if( VERBOSE ):
         print('\t\t> '+msg)
         
