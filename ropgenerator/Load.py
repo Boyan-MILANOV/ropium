@@ -5,6 +5,7 @@ import os
 import subprocess
 from ropgenerator.Database import build, initDB
 from ropgenerator.semantic.Engine import initEngine
+from ropgenerator.exploit.Scanner import initScanner
 import ropgenerator.Architecture as Arch
 from ropgenerator.IO import string_bold, info, string_special, banner, notify, error
 from magic import from_file
@@ -172,6 +173,9 @@ def load(args):
     else:
         Arch.currentArch = user_arch
         
+    # Init the binary scanner
+    initScanner(filename)
+    
     # Extract the gadget list 
     gadgetList = getGadgets(filename)
     if( not gadgetList ):

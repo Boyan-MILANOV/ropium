@@ -129,6 +129,10 @@ class BinaryType(Enum):
 
 currentBinType = None
 
+def currentIsELF():
+    global currentBinType
+    return currentBinType in [BinaryType.X86_ELF, BinaryType.X64_ELF]
+    
 #############################
 # Reinitialisation function #
 #############################
