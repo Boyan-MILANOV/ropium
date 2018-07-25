@@ -221,7 +221,8 @@ class Database:
             self.types[QueryType.REGtoREG][r] = REGList()
             self.types[QueryType.MEMtoREG][r] = MEMList()
             
-        info(string_bold("Sorting gadgets semantics\n")) 
+        if( gadgets ):
+            info(string_bold("Sorting gadgets semantics\n")) 
         
         # Fill them 
         for i in range(0, len(gadgets)):
