@@ -51,6 +51,7 @@ class Gadget:
             self.asmStr = 'int 0x80'
             self.hexStr = '\\xcd\\x80'
             self.addrList = addr_list
+            self.nbInstr = self.nbInstrREIL = 1
             self.semantics = Semantics() 
             return 
         # Check for 'syscall' gadgets 
@@ -59,6 +60,7 @@ class Gadget:
             self.asmStr = 'syscall'
             self.hexStr = '\\x0f\\x05'
             self.addrList = addr_list
+            self.nbInstr = self.nbInstrREIL = 1
             self.semantics = Semantics()
             return 
         

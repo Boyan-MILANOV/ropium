@@ -108,6 +108,7 @@ def getGadgets(filename):
     
 def load(args):
     global helpStr
+    global loaded
     # Parse arguments and filename 
     filename = None
     user_arch = None
@@ -189,4 +190,11 @@ def load(args):
     build(gadgetList)
     # Init engine 
     initEngine()
-    
+    loaded = True
+
+
+# Module wide
+loaded = False
+def loadedBinary():
+    global loaded
+    return loaded

@@ -138,7 +138,7 @@ def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, comment=None):
         return []
     
     if( not comment ):
-        comment = "Constant: 0x" +string_bold("{:x}".format(cst))
+        comment = "Constant: " +string_bold("0x{:x}".format(cst))
         
     # Direct pop from the stack
     res = []

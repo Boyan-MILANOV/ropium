@@ -2,7 +2,7 @@
 # Constraints module: representation of constraints on gadgets
 import re
 import ropgenerator.Architecture as Arch
-from ropgenerator.Gadget import RetType
+from ropgenerator.Gadget import RetType, GadgetType
 from ropgenerator.Conditions import CT, Cond
 from ropgenerator.Expressions import SSAExpr
 from enum import Enum
@@ -183,7 +183,7 @@ class Constraint:
         elif( isinstance(c, Chainable)):
             new.chainable = c
         else:
-            raise Exception("Constraint: {} is invalid for add() \function"\
+            raise Exception("Constraint: {} is invalid for add() function"\
             .format(c))
         return new
 
@@ -222,6 +222,10 @@ class Constraint:
         """
         Verifies a gadget against all constraint types 
         """
+        if( gadget.type == GadgetType.INT80 or\
+            gadget.type == GadgetType.SYSCALL ):
+            return self.badBytes.verify(gadget)
+        
         resConds = []
         for c in self.list():
             (status, preConds) = c.verify(gadget)

@@ -194,7 +194,7 @@ def select_special_gadgets(gadgetList, constraint, n=1):
     res = []
     for i in range(0, len(gadgetList)):
         if( constraint.verify(gadgets[gadgetList[i]])[0] ):
-            res.append( i )
+            res.append( gadgets[gadgetList[i]] )
             if( len(res) >= n ):
                 break
     return res
