@@ -41,9 +41,9 @@ helpStr = banner([string_bold('Main Commands'),
 helpStr += '\n\t' + string_bold(CMD_LOAD) + ': \t\tload gadgets from a binary file'
 helpStr += '\n\n\t' + string_semantic(string_bold(CMD_SEARCH)) + \
     ': \tEnter semantic-mode (Search for'+'\n\t\t\tgadgets and ROPChains)'
-helpStr += '\n\t' + string_exploit(string_bold(CMD_EXPLOIT)) + \
+helpStr += '\n\n\t' + string_exploit(string_bold(CMD_EXPLOIT)) + \
     ': \tEnter exploit-mode (Automated exploit'+'\n\t\t\tgeneration features)'
-helpStr += '\n\t' + string_bold(CMD_HELP) + ': \t\tprint available commands'
+helpStr += '\n\n\t' + string_bold(CMD_HELP) + ': \t\tprint available commands'
 helpStr += '\n\t' + string_bold(CMD_EXIT) + ': \t\texit ROPGenerator'
 
 def main():
