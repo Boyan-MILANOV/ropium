@@ -29,7 +29,7 @@ OUTPUT = None # The one choosen
 
 
 # Help for the search command
-CMD_FIND_HELP = banner([string_bold("'find' command"),
+CMD_FIND_HELP = banner([string_bold("'query' command"),
                 string_special("(Find gadgets/ropchains that execute specific operations)")])
 CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>"+\
                 "\n\t\tfind [OPTIONS] <reg>=mem(<expr>)"+\
@@ -37,9 +37,9 @@ CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>"+
                 "\n\t\tfind [OPTIONS] int80"+\
                 "\n\t\tfind [OPTIONS] syscall"
 CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
-CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+":\tbad bytes for payload.\n\t\t\t\tExpected format is a list of bytes \n\t\t\t\tseparated by comas (e.g '-b 0A,0B,2F')"
-CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+":\tregisters that shouldn't be modified.\n\t\t\t\tExpected format is a list of registers \n\t\t\t\tseparated by comas (e.g '-k edi,eax')"
-CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_OUTPUT_SHORT)+","+string_special(OPTION_OUTPUT)+": output format for ropchains.\n\t\t\t\tExpected format is one of the following\n\t\t\t\t"+string_special(OUTPUT_CONSOLE)+','+string_special(OUTPUT_PYTHON)
+CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+" <bytes>\t Bad bytes for payload.\n\t\t\t\t\t Expected format is a list of bytes \n\t\t\t\t\t separated by comas (e.g '-b 0A,0B,2F')"
+CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+" <regs>\t Registers that shouldn't be modified.\n\t\t\t\t\t Expected format is a list of registers \n\t\t\t\t\t separated by comas (e.g '-k edi,eax')"
+CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_OUTPUT_SHORT)+","+string_special(OPTION_OUTPUT)+" <fmt> Output format for ropchains.\n\t\t\t\t\t Expected format is one of the following\n\t\t\t\t\t "+string_special(OUTPUT_CONSOLE)+','+string_special(OUTPUT_PYTHON)
 CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D "+ OPTION_OUTPUT + ' ' + OUTPUT_PYTHON + "  rax=rcx+4" 
 
 def print_help():
