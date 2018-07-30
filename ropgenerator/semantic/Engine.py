@@ -25,7 +25,7 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False, 
     # Search basic 
     res = _basic(qtype, arg1, arg2, constraint.add(Chainable(ret=True)), assertion, n)
     # Search chaining 
-    if( len(res) < n ):
+    if( len(res) < n and (qtype not in [QueryType.SYSCALL, QueryType.INT80])):
         res += _chain(qtype, arg1, arg2, constraint, assertion, record, n-len(res), comment)
     # Reset the depth of the search record 
     record.decDepth()
@@ -68,12 +68,17 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, comment=None):
     Search for ropchains by chaining gadgets 
     """
     res = []  
+    # For any types, adjust the returns 
     res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment)
+    
     if( qtype == QueryType.CSTtoREG ):
-        res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n, comment)
+        res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n-len(res), comment)
+        if( len(res) < n ):
+            res += _CSTtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), comment)
+            
     elif( qtype == QueryType.REGtoREG):
         if( record.impossible_REGtoREG.check(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())\
-        or record.getDepth() >= 4):
+        or record.getDepth() >= 5):
             return [] 
         if( len(res) < n ):
             res += _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n-len(res))
@@ -161,6 +166,34 @@ def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, comment=None):
                 return res
     return res
 
+def _CSTtoREG_transitivity(reg, cst, constraint, assertion, n=1, comment=None):
+    """
+    Perform REG1 <- CST with REG1 <- REG2 <- CST
+    """
+    res = []
+    for inter in range(0, Arch.ssaRegCount):
+        if( inter == reg or inter in constraint.getRegsNotModified() ):
+            continue
+        # Find reg <- inter 
+        inter_to_reg = search(QueryType.REGtoREG, reg, (inter,0), constraint, assertion, n)
+        if( inter_to_reg ):
+            # We found ROPChains s.t reg <- inter
+            # Now we want inter <- cst 
+            cst_to_inter = _basic(QueryType.CSTtoREG, inter, cst, constraint, assertion, n/len(inter_to_reg)+1)
+            for chain2 in inter_to_reg:
+                for chain1 in cst_to_inter:
+                    res.append(chain1.addChain(chain2, new=True))
+            if( len(res) < n ):
+                cst_to_inter = _CSTtoREG_pop(inter, cst, constraint, assertion, n/(len(inter_to_reg))+1, comment)
+                for chain2 in inter_to_reg:
+                    for chain1 in cst_to_inter:
+                        res.append(chain1.addChain(chain2, new=True))
+        # Did we get enough chains ?             
+        if( len(res) >= n ):
+            return res[:n]
+    # Return what we got 
+    return res
+
 
 def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1):
     """
@@ -173,7 +206,8 @@ def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1):
     res = []
     for inter_reg in range(0, Arch.ssaRegCount):
         if( inter_reg == arg1 or (inter_reg == arg2[0] and arg2[1]==0)\
-            or (inter_reg in record.unusable_REGtoREG)):
+            or (inter_reg in record.unusable_REGtoREG) or inter_reg == Arch.ipNum()\
+            or (inter_reg == Arch.spNum()) ):
             continue
         # Find reg1 <- inter_reg without using arg2    
         record.unusable_REGtoREG.append(arg2[0])
@@ -316,9 +350,6 @@ def combine_increments(increments_list, goal):
     Returns the shortest list of gadgets such that the sum of their
         increments equals the goal
     """
-    print("DEBUG INC_LIST: " + str(increments_list))
-    print("DEBUG, goal: " + str(goal))
-    
     MIN_GOAL = 1
     MAX_GOAL = 300
     INFINITY = 999999999
