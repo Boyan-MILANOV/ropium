@@ -997,6 +997,9 @@ class Extract(Expr):
                         res = simpExpr.args[0].args[0]
                     else:
                         res = simpExpr.args[0]
+        elif( isinstance( simpExpr, MEMExpr ) and (self.low % 8 == 0)  and self.size != simpExpr.size ):
+            # If we extract from the same address (from bit 0 )
+            res = MEMExpr(OpExpr(Op.ADD, [simpExpr.addr, ConstExpr(self.low/8,simpExpr.addr.size)]).simplify(), self.size)
         self.simplifiedValue = res 
         return res
     
