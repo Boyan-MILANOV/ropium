@@ -15,9 +15,11 @@ OPTION_HELP_SHORT = '-h'
 
 OPTION_BAD_BYTES = '--bad-bytes'
 OPTION_KEEP_REGS = '--keep-regs'
+OPTION_NB_RESULTS = '--nb-results'
 
 OPTION_BAD_BYTES_SHORT = '-b'
 OPTION_KEEP_REGS_SHORT = '-k' 
+OPTION_NB_RESULTS_SHORT = '-n'
 
 OPTION_OUTPUT = '--output-format'
 OPTION_OUTPUT_SHORT = '-f'
@@ -40,7 +42,8 @@ CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
 CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+" <bytes>\t Bad bytes for payload.\n\t\t\t\t\t Expected format is a list of bytes \n\t\t\t\t\t separated by comas (e.g '-b 0A,0B,2F')"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+" <regs>\t Registers that shouldn't be modified.\n\t\t\t\t\t Expected format is a list of registers \n\t\t\t\t\t separated by comas (e.g '-k edi,eax')"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_OUTPUT_SHORT)+","+string_special(OPTION_OUTPUT)+" <fmt> Output format for ropchains.\n\t\t\t\t\t Expected format is one of the following\n\t\t\t\t\t "+string_special(OUTPUT_CONSOLE)+','+string_special(OUTPUT_PYTHON)
-CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff\n\t\tfind rax=mem(rsp)\n\t\tfind mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D "+ OPTION_OUTPUT + ' ' + OUTPUT_PYTHON + "  rax=rcx+4" 
+CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_NB_RESULTS_SHORT)+","+string_special(OPTION_NB_RESULTS)+" <number> Nb of different ROPChains to find\n\t\t\t\t\t Default: 1\n\t\t\t\t\t (More results implies longer search)" 
+CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff\n\t\tfind rax=mem(rsp)\n\t\tfind --nb-results 3 mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D "+ OPTION_OUTPUT + ' ' + OUTPUT_PYTHON + "  rax=rcx+4" 
 
 def print_help():
     print(CMD_FIND_HELP)
@@ -66,11 +69,12 @@ def find(args):
         arg1 = parsed_args[2]
         arg2 = parsed_args[3]
         constraint = parsed_args[4]
+        nbResults = parsed_args[5]
         assertion = Assertion().add(\
             RegsValidPtrRead([(Arch.spNum(),-5000, 10000)])).add(\
             RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]))
         # Search 
-        res = search(qtype, arg1, arg2, constraint, assertion, n=4)
+        res = search(qtype, arg1, arg2, constraint, assertion, n=nbResults)
         if( res ):
             print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
         else:
@@ -82,7 +86,7 @@ def find(args):
 def parse_args(args):
     """
     Parse the user supplied arguments to the 'find' function
-    Returns either a tuple (True, GadgetType, x, y )
+    Returns either a tuple (True, GadgetType, x, y, constraint, nb_res )
     Or if not supported or invalid arguments, returns a tuple (False, msg)
     
     ---> See parse_user_request() specification for the list of possible tuples
@@ -94,8 +98,11 @@ def parse_args(args):
     seenBadBytes = False
     seenKeepRegs = False
     seenOutput = False
+    seenNbResults = False
+    
     i = 0 # Argument counter 
     constraint = Constraint()
+    nbResults = 1 # Default 1 result 
     OUTPUT = OUTPUT_CONSOLE
     while( i < len(args)):
         arg = args[i]
@@ -106,7 +113,7 @@ def parse_args(args):
             # bad bytes option 
             if( arg == OPTION_BAD_BYTES or arg == OPTION_BAD_BYTES_SHORT):
                 if( seenBadBytes ):
-                    return (False, "Error. '" + OPTION_BAD_BYTES + "' option should be used only once")
+                    return (False, "Error. '" + arg + "' option should be used only once")
                 if( i+1 >= len(args)):
                     return (False, "Error. Missing bad bytes after option '"+arg+"'")
                 seenBadBytes = True
@@ -115,9 +122,10 @@ def parse_args(args):
                     return (False, res)
                 i = i+1
                 constraint = constraint.add(BadBytes(res))
+            # Keep regs option
             elif( arg == OPTION_KEEP_REGS or arg == OPTION_KEEP_REGS_SHORT):
                 if( seenKeepRegs ):
-                    return (False, "Error. '" + OPTION_KEEP_REGS + "' option should be used only once.")
+                    return (False, "Error. '" + arg + "' option should be used only once.")
                 if( i+1 >= len(args)):
                     return (False, "Error. Missing registers after option '"+arg+"'")
                 seenKeepRegs = True
@@ -126,9 +134,10 @@ def parse_args(args):
                     return (False, res)
                 i = i+1
                 constraint = constraint.add( RegsNotModified(res))
+            # Output option 
             elif( arg == OPTION_OUTPUT or arg == OPTION_OUTPUT_SHORT ):
                 if( seenOutput ):
-                    return (False, "Error. '" + OPTION_OUTPUT + "' option should be used only once.")
+                    return (False, "Error. '" + arg + "' option should be used only once.")
                 if( i+1 >= len(args)):
                     return (False, "Error. Missing output format after option '"+arg+"'")
                 if( args[i+1] in [OUTPUT_CONSOLE, OUTPUT_PYTHON]):
@@ -137,6 +146,18 @@ def parse_args(args):
                     i = i +1
                 else:
                     return (False, "Error. '" + args[i+1] + "' output format is not supported")
+            # Nb of results option 
+            elif( arg == OPTION_NB_RESULTS or arg == OPTION_NB_RESULTS_SHORT ):
+                if( seenNbResults ):
+                    return (False, "Error. '" + arg + "' option should be used only once.")
+                if( i+1 >= len(args)):
+                    return (False, "Error. Missing output format after option '"+arg+"'")
+                try:
+                    nbResults = int(args[i+1])
+                except:
+                    return (False, "Error. '" + args[i+1] +"' is not a valid number")
+                i = i +1 
+                seenNbResults = True
             # Otherwise Ignore
             else:
                 return (False, "Error. Unknown option: '{}' ".format(arg))
@@ -155,7 +176,7 @@ def parse_args(args):
     if( not seenExpr ):
         return (False, "Error. Missing specification of gadget to find")
     else:
-        return parsed_query+(constraint,)
+        return parsed_query+(constraint,nbResults)
     
 def parse_query(req):
     """
