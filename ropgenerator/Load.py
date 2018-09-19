@@ -81,7 +81,7 @@ def getGadgets(filename):
     None if failure 
     """    
    
-    ropgadget = "ROPgadget4ROPGenerator"
+    ropgadget = "ROPgadget"
     notify("Executing ROPgadget as: " + ropgadget )
     try:
         p = subprocess.Popen([ropgadget,"--binary",filename,"--dump", "--all"],stdout=subprocess.PIPE)
