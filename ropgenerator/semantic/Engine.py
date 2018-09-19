@@ -11,7 +11,7 @@ import ropgenerator.Architecture as Arch
 
 ###################################
 # Search functions and strategies #
-###################################
+###################################     
 
 def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False, \
             record=None, comment=None):
@@ -67,6 +67,9 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, comment=None):
     """
     Search for ropchains by chaining gadgets 
     """
+    if( record.reachedMaxDepth() ):
+        return []
+    
     res = []  
     # For any types, adjust the returns 
     res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment)
@@ -77,8 +80,7 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, comment=None):
             res += _CSTtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), comment)
             
     elif( qtype == QueryType.REGtoREG):
-        if( record.impossible_REGtoREG.check(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())\
-        or record.getDepth() >= 5):
+        if( record.impossible_REGtoREG.check(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())):
             return [] 
         if( len(res) < n ):
             res += _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n-len(res))
@@ -175,7 +177,10 @@ def _CSTtoREG_transitivity(reg, cst, constraint, assertion, n=1, comment=None):
         if( inter == reg or inter in constraint.getRegsNotModified() ):
             continue
         # Find reg <- inter 
-        inter_to_reg = search(QueryType.REGtoREG, reg, (inter,0), constraint, assertion, n)
+        # Max depth=2 to avoid heavy recursive calls _chain() -> adjust_ret -> CSTtoREG_transitivity -> _chain() etc
+        REGtoREG_record = SearchRecord(maxdepth=4)
+        REGtoREG_record.unusable_REGtoREG.append(reg)
+        inter_to_reg = search(QueryType.REGtoREG, reg, (inter,0), constraint, assertion, n, record=REGtoREG_record)
         if( inter_to_reg ):
             # We found ROPChains s.t reg <- inter
             # Now we want inter <- cst 
@@ -317,8 +322,9 @@ class RecordREGtoREG:
         return new
     
 class SearchRecord:
-    def __init__(self):
+    def __init__(self, maxdepth=4):
         self.depth = 0
+        self.maxdepth = maxdepth
         self.impossible_REGtoREG = global_impossible_REGtoREG.copy()
         self.unusable_REGtoREG = []
         
@@ -330,6 +336,9 @@ class SearchRecord:
         
     def decDepth(self):
         self.depth -= 1
+        
+    def reachedMaxDepth(self):
+        return (self.depth > self.maxdepth)
 
 ################################################
 # Global records for the ROPGenerator sessions
