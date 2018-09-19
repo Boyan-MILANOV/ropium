@@ -98,6 +98,7 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment):
     res = []
     possible = _basic(qtype, arg1, arg2, \
             constraint.add(Chainable(jmp=True, call=True)), assertion, n)        
+    padding = constraint.getValidPadding(Arch.currentArch.octets)
     for chain in possible:
         g = chain.chain[0]
         ret_reg = g.retValue.reg.num
@@ -128,7 +129,7 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment):
             constraint.add(RegsNotModified([arg2[0]])), assertion, n=1,\
             comment="Address of "+string_bold(str(adjust_gadgets[0].chain[0])))
         if( adjust ):
-            res.append(adjust[0].addGadget(g))
+            res.append(adjust[0].addGadget(g).addPadding(padding))
             if( len(res) >= n ):
                 return res
     return res
