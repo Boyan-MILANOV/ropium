@@ -340,7 +340,16 @@ class MEMExpr(Expr):
         self.addr = self.addr.simplify()
         addr = addr.simplify()
         if( self.addr == addr ):
-            return expr
+            if( expr.size > self.size ):
+                # If we write like 32 bits over a 8 bits access, we 
+                # extract only the first 8 bits of the 32 bits value
+                return Extract(self.size, 0, expr)
+            elif( expr.size < self.size ):
+                # If we write too little, concat with the previously 
+                # stored value that will remain 
+                return Concat([expr, MEMExpr(OpExpr(Op.ADD, [addr, ConstExpr(expr.size/8, addr.size)]), self.size-expr.size)])
+            else:
+                return expr
         else:
             return MEMExpr( self.addr.replaceMemAcc( addr, expr ), self.size )
         
