@@ -51,10 +51,14 @@ class ROPChain:
         self.nbInstrREIL += gadget.nbInstrREIL
         return self
         
-    def addPadding(self, value, comment="Padding"):
+    def addPadding(self, value, comment="Padding", n=1):
+        if( n == 0 ):
+            return self
         index = len(self.paddings)
-        self.chain.append(index)
         self.paddings.append((value, comment))
+        while( n > 0 ):
+            self.chain.append(index)
+            n -= 1
         return self
         
     def addChain(self, other, new=False):

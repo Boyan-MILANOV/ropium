@@ -3,7 +3,7 @@
 
 from ropgenerator.semantic.ROPChains import ROPChain, validAddrStr
 from ropgenerator.Database import QueryType, DBSearch, DBPossibleInc, DBPossiblePopOffsets, REGList
-from ropgenerator.Constraints import Chainable, RegsNotModified, Constraint, Assertion
+from ropgenerator.Constraints import Chainable, RegsNotModified, Constraint, Assertion, CstrTypeID
 from ropgenerator.Gadget import RetType
 from ropgenerator.IO import string_bold
 from itertools import product
@@ -34,7 +34,6 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False, 
 def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1):
     return _basic(qtype, arg1, arg2, constraint, assertion, n)
     
-    
 def _basic(qtype, arg1, arg2, constraint, assertion, n=1, noPadding=False):
     """
     Search for gadgets basic method ( without chaining ) 
@@ -46,13 +45,20 @@ def _basic(qtype, arg1, arg2, constraint, assertion, n=1, noPadding=False):
         res = [ROPChain().addGadget(g) for g in gadgets]
         return res
     
+    # Check if the type is IP <- ... 
+    # In this case we remove the CHAINABLE constraint which makes no sense 
+    if( arg1 == Arch.ipNum() ):
+        constraint2 = constraint.remove([CstrTypeID.CHAINABLE])
+    else:
+        constraint2 = constraint
+    
     # Regular gadgets 
-    gadgets =  DBSearch(qtype, arg1, arg2, constraint,assertion, n)
+    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion, n)
     if( noPadding ):
         return [ROPChain().addGadget(g) for g in gadgets]
     else:
         res = []
-        padding = constraint.getValidPadding(Arch.currentArch.octets)
+        padding = constraint2.getValidPadding(Arch.currentArch.octets)
         for g in gadgets: 
             chain = ROPChain().addGadget(g)
             # Padding the chain if possible 
@@ -112,13 +118,15 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment):
         # Find adjustment 
         if( g.spInc < 0 ):
             offset = -1 * g.spInc
+            padding_length = 0
         else: 
+            padding_length = g.spInc
             if( g.retType == RetType.JMP ):
                 offset = 0 
             else:
                 offset = Arch.octets() 
         adjust_gadgets = search(QueryType.MEMtoREG, Arch.ipNum(), \
-                (Arch.spNum(),offset), constraint, assertion, n=1)
+                (Arch.spNum(),offset), constraint.add(RegsNotModified([arg1])), assertion, n=1)
         if( not adjust_gadgets ):
             continue
         else:
@@ -129,7 +137,7 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment):
             constraint.add(RegsNotModified([arg2[0]])), assertion, n=1,\
             comment="Address of "+string_bold(str(adjust_gadgets[0].chain[0])))
         if( adjust ):
-            res.append(adjust[0].addGadget(g).addPadding(padding))
+            res.append(adjust[0].addGadget(g).addPadding(padding, n=padding_length))
             if( len(res) >= n ):
                 return res
     return res
@@ -175,14 +183,18 @@ def _CSTtoREG_transitivity(reg, cst, constraint, assertion, n=1, comment=None):
     """
     res = []
     for inter in range(0, Arch.ssaRegCount):
-        if( inter == reg or inter in constraint.getRegsNotModified() ):
+        if( inter == reg or inter in constraint.getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum() ):
             continue
         # Find reg <- inter 
         # Max depth=2 to avoid heavy recursive calls _chain() -> adjust_ret -> CSTtoREG_transitivity -> _chain() etc
         REGtoREG_record = SearchRecord(maxdepth=4)
         REGtoREG_record.unusable_REGtoREG.append(reg)
         inter_to_reg = search(QueryType.REGtoREG, reg, (inter,0), constraint, assertion, n, record=REGtoREG_record)
+        if( inter_to_reg):
+            print("DEBUG inter " + str(inter_to_reg[0]))
         if( inter_to_reg ):
+            #DEBUG
+            print("\tDEBUG found")
             # We found ROPChains s.t reg <- inter
             # Now we want inter <- cst 
             cst_to_inter = _basic(QueryType.CSTtoREG, inter, cst, constraint, assertion, n/len(inter_to_reg)+1)

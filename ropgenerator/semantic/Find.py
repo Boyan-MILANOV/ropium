@@ -78,7 +78,7 @@ def find(args):
         if( res ):
             print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
         else:
-            res = search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=4)
+            res = search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=nbResults)
             print_chains(res, "Possibly matching gadget(s)", constraint.getBadBytes())
             
         

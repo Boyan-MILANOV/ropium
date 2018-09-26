@@ -35,6 +35,8 @@ class Chainable(ConstraintType):
     """
     Selected gadgets depending on ow they terminate
     
+    if ret = jmp = call = False, then validate any gadget
+    
     if ret = jmp = True && call = False, then select 
         only possible ret and jmp gadgets (no call), etc
     """
