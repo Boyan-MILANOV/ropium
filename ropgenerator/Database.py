@@ -64,16 +64,19 @@ def find_insert_index(gadgetList, gadget_num):
     lmin = 0
     lmax = len(gadgetList)-1
     while( True):
-        lmoy = (lmax + lmin)/2
-        if( lmax == lmin or gadgets[gadgetList[lmoy]].nbInstr == gadgets[gadget_num].nbInstr ):
-            return lmoy
-        elif( lmin == lmax ):
-            if ( gadgets[self.values[cst][lmin]].nbInstr >= gadgets[gadget_num].nbInstr ):
+        if( lmax == lmin ):
+            if( gadgets[gadgetList[lmin]].nbInstr >= gadgets[gadget_num].nbInstr ):
                 return lmin
             else:
-                return lmin+1 
+                return lmin+1
+        
+        lmoy = (lmax + lmin)/2
+        if( gadgets[gadgetList[lmoy]].nbInstr > gadgets[gadget_num].nbInstr ):
+            lmax = lmoy
+        elif( gadgets[gadgetList[lmoy]].nbInstr < gadgets[gadget_num].nbInstr ) :
+            lmin = lmoy+1
         else:
-            if( gadgets[gadgetList[lmoy]].nbInstr > gadgets[gadget_num].nbInstr ):
+            if( gadgets[gadgetList[lmoy]].nbInstrREIL >= gadgets[gadget_num].nbInstrREIL ):
                 lmax = lmoy
             else:
                 lmin = lmoy+1
@@ -101,6 +104,7 @@ class CSTList:
         res = []
         if( not cst in self.values ):
             return []
+            
         for i in range(0,len(self.values[cst])):
             if( len(res) >= n ):
                 break
