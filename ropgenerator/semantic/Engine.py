@@ -77,9 +77,6 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, comment=None):
         return []
     
     res = []  
-    # For any types, adjust the returns 
-    res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment)
-    
     if( qtype == QueryType.CSTtoREG ):
         res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n-len(res), comment)
         if( len(res) < n ):
@@ -95,12 +92,22 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, comment=None):
         if( not res ):
             record.impossible_REGtoREG.add(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())
     
+    # For any types, adjust the returns 
+    res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, record, comment)
+    
     return res
 
-def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment):
+def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, record = None, comment=""):
     """
     Search with basic but adjust the bad returns they have 
     """
+    # Test for ip 
+    if ( arg1 == Arch.ipNum() ):
+        return []
+    # Test for search record
+    if( record is None ):
+        record = SearchRecord()
+    
     res = []
     possible = _basic(qtype, arg1, arg2, \
             constraint.add(Chainable(jmp=True, call=True)), assertion, n)        
@@ -108,13 +115,17 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment):
     for chain in possible:
         g = chain.chain[0]
         ret_reg = g.retValue.reg.num
-        #Check if not modified within the gadget
+        # Check if we already know that ret_reg can't be adjusted
+        if( record.impossible_AdjustRet.check(ret_reg)):
+            continue
+        #Check if ret_reg not modified within the gadget
         if( ret_reg in g.modifiedRegs()):
             continue
         # Check if stack is preserved 
         spInc = g.spInc
         if( not spInc ):
             continue
+            
         # Find adjustment 
         if( g.spInc < 0 ):
             offset = -1 * g.spInc
@@ -126,7 +137,7 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment):
             else:
                 offset = Arch.octets() 
         adjust_gadgets = search(QueryType.MEMtoREG, Arch.ipNum(), \
-                (Arch.spNum(),offset), constraint.add(RegsNotModified([arg1])), assertion, n=1)
+                (Arch.spNum(),offset), constraint.add(RegsNotModified([arg1])), assertion, n=1, record=record)
         if( not adjust_gadgets ):
             continue
         else:
@@ -134,12 +145,15 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, comment):
                     constraint.getBadBytes(), Arch.octets()),  16)
         # Put the gadget address in the register 
         adjust = search(QueryType.CSTtoREG, ret_reg, adjust_addr, \
-            constraint.add(RegsNotModified([arg2[0]])), assertion, n=1,\
+            constraint.add(RegsNotModified([arg2[0]])), assertion, n=1, record=record,\
             comment="Address of "+string_bold(str(adjust_gadgets[0].chain[0])))
         if( adjust ):
             res.append(adjust[0].addGadget(g).addPadding(padding, n=padding_length))
             if( len(res) >= n ):
                 return res
+        else:
+            # Update the search record to say that reg_ret cannot be adjusted
+            record.impossible_AdjustRet.add(ret_reg)
     return res
         
 
@@ -190,11 +204,7 @@ def _CSTtoREG_transitivity(reg, cst, constraint, assertion, n=1, comment=None):
         REGtoREG_record = SearchRecord(maxdepth=4)
         REGtoREG_record.unusable_REGtoREG.append(reg)
         inter_to_reg = search(QueryType.REGtoREG, reg, (inter,0), constraint, assertion, n, record=REGtoREG_record)
-        if( inter_to_reg):
-            print("DEBUG inter " + str(inter_to_reg[0]))
         if( inter_to_reg ):
-            #DEBUG
-            print("\tDEBUG found")
             # We found ROPChains s.t reg <- inter
             # Now we want inter <- cst 
             cst_to_inter = _basic(QueryType.CSTtoREG, inter, cst, constraint, assertion, n/len(inter_to_reg)+1)
@@ -333,13 +343,27 @@ class RecordREGtoREG:
                 for cst in self.regs[reg1][reg2]:
                     new.regs[reg1][reg2][cst] = list(self.regs[reg1][reg2][cst])
         return new
-    
+
+class RecordAdjustRet:
+    def __init__(self):
+        self.regs = set()
+        
+    def add(self, reg_num):
+        self.regs.add(reg_num)
+        
+    def check(self, reg_num):
+        """
+        Return True iff reg_num in self.regs
+        """
+        return (reg_num in self.regs)
+
 class SearchRecord:
     def __init__(self, maxdepth=4):
         self.depth = 0
         self.maxdepth = maxdepth
         self.impossible_REGtoREG = global_impossible_REGtoREG.copy()
         self.unusable_REGtoREG = []
+        self.impossible_AdjustRet = RecordAdjustRet()
         
     def getDepth(self):
         return self.depth
