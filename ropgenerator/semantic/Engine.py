@@ -13,37 +13,47 @@ import ropgenerator.Architecture as Arch
 # Search functions and strategies #
 ###################################     
 
-def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False, \
+LMAX = 80 # Default max number of elements (padding included ) in ROPChains
+
+def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreConds=False, \
             record=None, comment=None):
     """
     Searches for gadgets 
     enablePreConds : return couples (GAdget, preCond) 
     record : stores info about the current search 
     """
+    # Test clmax
+    if( clmax <= 0 ):
+        return []
+    
     # Set the search record and increase its depth of 1 
     if ( record is None):
         record = SearchRecord()
     record.incDepth()
     # Search basic 
-    res = _basic(qtype, arg1, arg2, constraint.add(Chainable(ret=True)), assertion, n)
+    res = _basic(qtype, arg1, arg2, constraint.add(Chainable(ret=True)), assertion, n, clmax)
     # Search chaining 
     if( len(res) < n and (qtype not in [QueryType.SYSCALL, QueryType.INT80])):
-        res += _chain(qtype, arg1, arg2, constraint, assertion, record, n-len(res), comment)
+        res += _chain(qtype, arg1, arg2, constraint, assertion, record, n-len(res), clmax, comment)
     # Reset the depth of the search record 
     record.decDepth()
     return sorted(res)
 
-def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1):
-    return _basic(qtype, arg1, arg2, constraint, assertion, n)
+def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=9999999):
+    return _basic(qtype, arg1, arg2, constraint, assertion, n, clmax)
     
-def _basic(qtype, arg1, arg2, constraint, assertion, n=1, noPadding=False):
+def _basic(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, noPadding=False):
     """
     Search for gadgets basic method ( without chaining ) 
     Direct Database check  
     """
+    # Test clmax
+    if( clmax <= 0 ):
+        return []
+    
     # Check for special gadgets
     if( qtype == QueryType.INT80 or qtype == QueryType.SYSCALL):
-        gadgets = DBSearch(qtype, arg1, arg2, constraint, assertion, n=1)
+        gadgets = DBSearch(qtype, arg1, arg2, constraint, assertion, n=1, maxSpInc=clmax*Arch.octets())
         res = [ROPChain().addGadget(g) for g in gadgets]
         return res
     
@@ -55,7 +65,8 @@ def _basic(qtype, arg1, arg2, constraint, assertion, n=1, noPadding=False):
         constraint2 = constraint
     
     # Regular gadgets 
-    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion, n)
+    # maxSpInc -> +1 because we don't count the ret but -1 because the gadget takes one place 
+    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion, n, maxSpInc=(clmax+1-1)*Arch.octets())
     if( noPadding ):
         return [ROPChain().addGadget(g) for g in gadgets]
     else:
@@ -65,44 +76,52 @@ def _basic(qtype, arg1, arg2, constraint, assertion, n=1, noPadding=False):
             chain = ROPChain().addGadget(g)
             # Padding the chain if possible 
             if( g.spInc > 0 ):
-                for i in range(0, g.spInc/Arch.currentArch.octets - 1):
+                for i in range(0, g.spInc/Arch.octets() - 1):
                     chain.addPadding(padding)
             # Adding to the result 
             res.append(chain)
     return res
 
-def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, comment=None):
+def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, clmax=LMAX, comment=None):
     """
     Search for ropchains by chaining gadgets 
     """
+    # Test clmax
+    if( clmax <= 0 ):
+        return []
+    # Test record 
     if( record.reachedMaxDepth() ):
         return []
     
     res = []  
     if( qtype == QueryType.CSTtoREG ):
-        res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n-len(res), comment)
+        res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n-len(res), clmax, comment)
         if( len(res) < n ):
-            res += _CSTtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), comment)
+            res += _CSTtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), clmax, comment)
             
     elif( qtype == QueryType.REGtoREG):
         if( record.impossible_REGtoREG.check(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())):
             return [] 
         if( len(res) < n ):
-            res += _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n-len(res))
+            res += _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n-len(res), clmax)
         #if( len(res) < n):
             #res += _REGtoREG_increment(arg1, arg2, constraint, assertion, record, n-len(res))
         if( not res ):
             record.impossible_REGtoREG.add(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())
     
     # For any types, adjust the returns 
-    res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, record, comment)
+    res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax, record, comment)
     
     return res
 
-def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, record = None, comment=""):
+def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax=LMAX, record = None, comment=""):
     """
     Search with basic but adjust the bad returns they have 
     """
+    # Test clmax
+    if( clmax <= 0 ):
+        return []
+        
     # Test for ip 
     if ( arg1 == Arch.ipNum() ):
         return []
@@ -147,7 +166,7 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, record = None, comm
                     constraint.getBadBytes(), Arch.bits()),  16)
         # Put the gadget address in the register 
         adjust = search(QueryType.CSTtoREG, ret_reg, adjust_addr, \
-            constraint.add(RegsNotModified([arg2[0]])), assertion, n=1, record=record,\
+            constraint.add(RegsNotModified([arg2[0]])), assertion, n=1, clmax=clmax-len(chain),record=record,\
             comment="Address of "+string_bold(str(adjust_gadgets[0].chain[0])))
         if( adjust ):
             res.append(adjust[0].addGadget(g).addPadding(padding, n=padding_length))
@@ -159,10 +178,14 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, record = None, comm
     return res
         
 
-def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, comment=None):
+def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, clmax=LMAX, comment=None):
     """
     Returns a payload that puts cst into register reg by poping it from the stack
     """ 
+    # Test clmax
+    if( clmax <= 0 ):
+        return []
+    # Test n 
     if (n < 1 ):
         return []
     # Check if the cst is incompatible with the constraint
@@ -177,8 +200,9 @@ def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, comment=None):
     possible = DBPossiblePopOffsets(reg, constraint.add(Chainable(ret=True)), assertion) 
     for offset in sorted(filter(lambda x:x>=0, possible.keys())):
         possible_gadgets = [g for g in possible[offset]\
-            if g.spInc >= Arch.currentArch.octets \
-            and g.spInc - Arch.currentArch.octets > offset ]
+            if g.spInc >= Arch.octets() \
+            and g.spInc - Arch.octets() > offset \
+            and (g.spInc/Arch.octets()-1) <= clmax] # Test if padding is too much for clmax
         # Pad the gadgets 
         padding = constraint.getValidPadding(Arch.currentArch.octets)
         for gadget in possible_gadgets:
@@ -193,10 +217,14 @@ def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, comment=None):
                 return res
     return res
 
-def _CSTtoREG_transitivity(reg, cst, constraint, assertion, n=1, comment=None):
+def _CSTtoREG_transitivity(reg, cst, constraint, assertion, n=1, clmax=LMAX, comment=None):
     """
     Perform REG1 <- CST with REG1 <- REG2 <- CST
     """
+    # Test clmax
+    if( clmax <= 0 ):
+        return []
+    
     res = []
     for inter in range(0, Arch.ssaRegCount):
         if( inter == reg or inter in constraint.getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum() ):
@@ -205,19 +233,22 @@ def _CSTtoREG_transitivity(reg, cst, constraint, assertion, n=1, comment=None):
         # Max depth=2 to avoid heavy recursive calls _chain() -> adjust_ret -> CSTtoREG_transitivity -> _chain() etc
         REGtoREG_record = SearchRecord(maxdepth=4)
         REGtoREG_record.unusable_REGtoREG.append(reg)
-        inter_to_reg = search(QueryType.REGtoREG, reg, (inter,0), constraint, assertion, n, record=REGtoREG_record)
+        inter_to_reg = search(QueryType.REGtoREG, reg, (inter,0), constraint, assertion, n, clmax, record=REGtoREG_record)
         if( inter_to_reg ):
             # We found ROPChains s.t reg <- inter
             # Now we want inter <- cst 
-            cst_to_inter = _basic(QueryType.CSTtoREG, inter, cst, constraint, assertion, n/len(inter_to_reg)+1)
+            cst_to_inter = _basic(QueryType.CSTtoREG, inter, cst, constraint, assertion, n/len(inter_to_reg)+1, clmax-1)
             for chain2 in inter_to_reg:
                 for chain1 in cst_to_inter:
-                    res.append(chain1.addChain(chain2, new=True))
+                    if( len(chain1)+len(chain2) <= clmax):
+                        res.append(chain1.addChain(chain2, new=True))
             if( len(res) < n ):
-                cst_to_inter = _CSTtoREG_pop(inter, cst, constraint, assertion, n/(len(inter_to_reg))+1, comment)
+                cst_to_inter = _CSTtoREG_pop(inter, cst, constraint, assertion, n/(len(inter_to_reg))+1, clmax-1, comment)
                 for chain2 in inter_to_reg:
                     for chain1 in cst_to_inter:
-                        res.append(chain1.addChain(chain2, new=True))
+                        if( len(chain1)+len(chain2) <= clmax):
+                            res.append(chain1.addChain(chain2, new=True))
+                            
         # Did we get enough chains ?             
         if( len(res) >= n ):
             return res[:n]
@@ -225,10 +256,14 @@ def _CSTtoREG_transitivity(reg, cst, constraint, assertion, n=1, comment=None):
     return res
 
 
-def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1):
+def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1, clmax=LMAX ):
     """
     Perform REG1 <- REG2+CST with REG1 <- REG3 <- REG2+CST
     """
+    # Test clmax
+    if( clmax <= 0 ):
+        return []
+    
     # If reg1 <- reg1 + 0, return 
     if( arg1 == arg2[0] and arg2[1] == 0 ):
         return []
@@ -242,7 +277,7 @@ def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1):
         # Find reg1 <- inter_reg without using arg2    
         record.unusable_REGtoREG.append(arg2[0])
         inter_to_arg1_list = search(QueryType.REGtoREG, arg1, (inter_reg, 0), \
-                constraint, assertion, n, record=record )
+                constraint, assertion, n, clmax=clmax-1, record=record )
         record.unusable_REGtoREG.remove(arg2[0])
         if( not inter_to_arg1_list ):
             continue
@@ -250,18 +285,23 @@ def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1):
         # Find inter_reg <- arg2 without using arg1
         record.unusable_REGtoREG.append(arg1)
         for arg2_to_inter in search(QueryType.REGtoREG, inter_reg, arg2, \
-                constraint, assertion, n/len(inter_to_arg1_list)+1, record=record):
+                constraint, assertion, n/len(inter_to_arg1_list)+1, clmax=clmax-1, record=record):
             for inter_to_arg1 in inter_to_arg1_list:
-                res.append(arg2_to_inter.addChain(inter_to_arg1, new=True))
+                if( len(inter_to_arg1)+len(arg2_to_inter) <= clmax):
+                    res.append(arg2_to_inter.addChain(inter_to_arg1, new=True))
                 if( len(res) >= n ):
                     return res
         record.unusable_REGtoREG.remove(arg1)
     return res 
 
-def _REGtoREG_increment(arg1, arg2, constraint, assertion, record, n=1):
+def _REGtoREG_increment(arg1, arg2, constraint, assertion, record, n=1, clmax=LMAX):
     """
     Perform REG1 <- REG2+CST with REG1<-REG2; REG1 += CST
     """
+    # Test clmax
+    if( clmax <= 0 ):
+        return []
+    
     # Find possible increments gadgets for arg1
     possible_inc = DBPossibleInc(arg1, constraint, assertion)
     print("possible inc " + str(possible_inc))

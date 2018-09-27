@@ -27,9 +27,9 @@ class ROPChain:
         return res
     
     def __cmp__(self, other):
-        if( self.nbGadgets > other.nbGadgets):
+        if( len(self) > len(other)):
             return 1
-        elif( self.nbGadgets < other.nbGadgets):
+        elif( len(self) < len(other)):
             return -1
         else:
             if( self.nbInstr > other.nbInstr ):
@@ -44,6 +44,9 @@ class ROPChain:
                 else:
                     return 0 
 
+    def __len__(self):
+        return len(self.chain)
+    
     def addGadget(self, gadget):
         self.chain.append(gadget)
         self.nbGadgets += 1
@@ -81,7 +84,7 @@ class ROPChain:
                 new.paddings.append(other.paddings[element])
                 new.chain.append(index)
         return new
-        
+    
     def strConsole(self, bits, badBytes = []): 
         res = ''
         for element in self.chain:

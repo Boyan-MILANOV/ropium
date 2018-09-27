@@ -6,7 +6,7 @@ from ropgenerator.Constraints import Constraint, BadBytes, RegsNotModified, Asse
 from ropgenerator.IO import error, banner, string_bold, string_special 
 from ropgenerator.Database import QueryType
 from ropgenerator.Expressions import parseStrToExpr, ConstExpr, MEMExpr
-from ropgenerator.semantic.Engine import search, search_not_chainable
+from ropgenerator.semantic.Engine import search, search_not_chainable, LMAX
 import ropgenerator.Architecture as Arch
 
 # Definition of options names
@@ -16,10 +16,12 @@ OPTION_HELP_SHORT = '-h'
 OPTION_BAD_BYTES = '--bad-bytes'
 OPTION_KEEP_REGS = '--keep-regs'
 OPTION_NB_RESULTS = '--nb-results'
+OPTION_LMAX = '--max-length'
 
 OPTION_BAD_BYTES_SHORT = '-b'
 OPTION_KEEP_REGS_SHORT = '-k' 
 OPTION_NB_RESULTS_SHORT = '-n'
+OPTION_LMAX_SHORT = '-m' 
 
 OPTION_OUTPUT = '--output-format'
 OPTION_OUTPUT_SHORT = '-f'
@@ -41,8 +43,9 @@ CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>"+
 CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
 CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+" <bytes>\t Bad bytes for payload.\n\t\t\t\t\t Expected format is a list of bytes \n\t\t\t\t\t separated by comas (e.g '-b 0A,0B,2F')"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+" <regs>\t Registers that shouldn't be modified.\n\t\t\t\t\t Expected format is a list of registers \n\t\t\t\t\t separated by comas (e.g '-k edi,eax')"
+CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_LMAX_SHORT)+","+string_special(OPTION_LMAX)+" <int>\t Max length of the ROPChain in bytes."
+CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_NB_RESULTS_SHORT)+","+string_special(OPTION_NB_RESULTS)+" <int>\t Nb of different ROPChains to find\n\t\t\t\t\t Default: 1\n\t\t\t\t\t (More results implies longer search)" 
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_OUTPUT_SHORT)+","+string_special(OPTION_OUTPUT)+" <fmt> Output format for ropchains.\n\t\t\t\t\t Expected format is one of the following\n\t\t\t\t\t "+string_special(OUTPUT_CONSOLE)+','+string_special(OUTPUT_PYTHON)
-CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_NB_RESULTS_SHORT)+","+string_special(OPTION_NB_RESULTS)+" <number> Nb of different ROPChains to find\n\t\t\t\t\t Default: 1\n\t\t\t\t\t (More results implies longer search)" 
 CMD_FIND_HELP += "\n\n\t"+string_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rbx=0xff\n\t\tfind rax=mem(rsp)\n\t\tfind --nb-results 3 mem(rsp-8)=rcx\n\t\tfind "+OPTION_KEEP_REGS+ " rdx,rsp mem(rbp-0x10)=0b101\n\t\tfind "+ OPTION_BAD_BYTES+" 0A,0D "+ OPTION_OUTPUT + ' ' + OUTPUT_PYTHON + "  rax=rcx+4" 
 
 def print_help():
@@ -70,15 +73,16 @@ def find(args):
         arg2 = parsed_args[3]
         constraint = parsed_args[4]
         nbResults = parsed_args[5]
+        clmax = parsed_args[6]
         assertion = Assertion().add(\
             RegsValidPtrRead([(Arch.spNum(),-5000, 10000)])).add(\
             RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]))
         # Search 
-        res = search(qtype, arg1, arg2, constraint, assertion, n=nbResults)
+        res = search(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax)
         if( res ):
             print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
         else:
-            res = search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=nbResults)
+            res = search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax)
             print_chains(res, "Possibly matching gadget(s)", constraint.getBadBytes())
             
         
@@ -86,7 +90,7 @@ def find(args):
 def parse_args(args):
     """
     Parse the user supplied arguments to the 'find' function
-    Returns either a tuple (True, GadgetType, x, y, constraint, nb_res )
+    Returns either a tuple (True, GadgetType, x, y, constraint, nb_res, clmax )
     Or if not supported or invalid arguments, returns a tuple (False, msg)
     
     ---> See parse_user_request() specification for the list of possible tuples
@@ -99,10 +103,12 @@ def parse_args(args):
     seenKeepRegs = False
     seenOutput = False
     seenNbResults = False
+    seenLmax = False
     
     i = 0 # Argument counter 
     constraint = Constraint()
-    nbResults = 1 # Default 1 result 
+    nbResults = 1 # Default 1 result
+    clmax = LMAX 
     OUTPUT = OUTPUT_CONSOLE
     while( i < len(args)):
         arg = args[i]
@@ -154,10 +160,27 @@ def parse_args(args):
                     return (False, "Error. Missing output format after option '"+arg+"'")
                 try:
                     nbResults = int(args[i+1])
+                    if( nbResults <= 0 ):
+                        raise Exception()
                 except:
                     return (False, "Error. '" + args[i+1] +"' is not a valid number")
                 i = i +1 
                 seenNbResults = True
+            elif( arg == OPTION_LMAX or arg == OPTION_LMAX_SHORT ):
+                if( seenLmax ):
+                    return (False, "Error. '" + arg + "' option should be used only once.")
+                if( i+1 >= len(args)):
+                    return (False, "Error. Missing output format after option '"+arg+"'")
+                try:
+                    clmax = int(args[i+1])
+                    if( clmax <= Arch.octets() ):
+                        raise Exception()
+                    clmax /= Arch.octets()
+                except:
+                    return (False, "Error. '" + args[i+1] +"' bytes is too small")
+                i = i +1 
+                seenLmax = True
+                       
             # Otherwise Ignore
             else:
                 return (False, "Error. Unknown option: '{}' ".format(arg))
@@ -176,7 +199,7 @@ def parse_args(args):
     if( not seenExpr ):
         return (False, "Error. Missing specification of gadget to find")
     else:
-        return parsed_query+(constraint,nbResults)
+        return parsed_query+(constraint,nbResults, clmax)
     
 def parse_query(req):
     """
