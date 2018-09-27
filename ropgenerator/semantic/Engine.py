@@ -17,6 +17,8 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, enablePreConds=False, 
             record=None, comment=None):
     """
     Searches for gadgets 
+    enablePreConds : return couples (GAdget, preCond) 
+    record : stores info about the current search 
     """
     # Set the search record and increase its depth of 1 
     if ( record is None):
@@ -142,7 +144,7 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, record = None, comm
             continue
         else:
             adjust_addr = int(validAddrStr(adjust_gadgets[0].chain[0],\
-                    constraint.getBadBytes(), Arch.octets()),  16)
+                    constraint.getBadBytes(), Arch.bits()),  16)
         # Put the gadget address in the register 
         adjust = search(QueryType.CSTtoREG, ret_reg, adjust_addr, \
             constraint.add(RegsNotModified([arg2[0]])), assertion, n=1, record=record,\
