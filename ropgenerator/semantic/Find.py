@@ -108,7 +108,7 @@ def parse_args(args):
     i = 0 # Argument counter 
     constraint = Constraint()
     nbResults = 1 # Default 1 result
-    clmax = LMAX 
+    clmax = LMAX # Max length 
     OUTPUT = OUTPUT_CONSOLE
     while( i < len(args)):
         arg = args[i]
@@ -175,9 +175,10 @@ def parse_args(args):
                     clmax = int(args[i+1])
                     if( clmax <= Arch.octets() ):
                         raise Exception()
+                    # Convert number of bytes into number of ropchain elements
                     clmax /= Arch.octets()
                 except:
-                    return (False, "Error. '" + args[i+1] +"' bytes is too small")
+                    return (False, "Error. '" + args[i+1] +"' bytes is nto valid")
                 i = i +1 
                 seenLmax = True
                        

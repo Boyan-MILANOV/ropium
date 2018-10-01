@@ -195,7 +195,7 @@ class MEMDict:
             assertion, enablePreCond, n, maxSpInc)
 
 
-def select_special_gadgets(gadgetList, constraint, n=1):
+def select_special_gadgets(gadgetList, constraint, n=1, maxSpInc=None):
     """
     Function used by Database.find()
     """

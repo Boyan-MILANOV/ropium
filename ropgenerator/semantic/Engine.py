@@ -13,10 +13,10 @@ import ropgenerator.Architecture as Arch
 # Search functions and strategies #
 ###################################     
 
-LMAX = 80 # Default max number of elements (padding included ) in ROPChains
+LMAX = 80 # Default max number of elements (padding included) in ROPChains
 
 def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreConds=False, \
-            record=None, comment=None):
+            record=None, noPadding=False, comment=None):
     """
     Searches for gadgets 
     enablePreConds : return couples (GAdget, preCond) 

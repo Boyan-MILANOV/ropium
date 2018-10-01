@@ -58,7 +58,7 @@ def verbose_mode(mode):
  
 def verbose(msg):
     if( VERBOSE ):
-        print('\t\t> '+msg)
+        print(string_ropg('\t\t> ')+msg)
         
         
 def banner(msgList):

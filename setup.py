@@ -22,8 +22,8 @@ setup(  name='ropgenerator',
         "Topic :: Security",
         ],    
         packages=['ropgenerator', 'ropgenerator/semantic', 'ropgenerator/exploit'\
-                    , 'ropgenerator.exploit.ZwoELF', 'ropgenerator.exploit.syscalls'\
-                    , 'ropgenerator.exploit.pwn'],
+                    , 'ropgenerator.exploit/ZwoELF', 'ropgenerator/exploit/syscalls'\
+                    , 'ropgenerator/exploit/pwn'],
         scripts=['ROPGenerator'],
         install_requires=['python-magic', 'prompt_toolkit>=2.0',\
         'barf==0.5.0', 'enum', 'capstone==3.0.5rc2'],
