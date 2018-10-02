@@ -1,7 +1,8 @@
 # -*- coding:utf-8 -*- 
 # ROPChains module: representation of rop chains 
 from ropgenerator.Gadget import Gadget
-from ropgenerator.IO import string_special, string_bold
+from ropgenerator.IO import string_special, string_bold, string_exploit, string_ropg
+import ropgenerator.Architecture as Arch
 
 class ROPChain:
     def __init__(self, gadget_chain=[]):
@@ -92,7 +93,11 @@ class ROPChain:
                 element_str = string_special('0x'+format(self.paddings[element][0], '0'+str(bits/4)+'x'))
                 element_str += ' (' + self.paddings[element][1] + ')'
             else:
-                element_str = string_special(validAddrStr(element, badBytes, bits)) +\
+                valid_addr_str = validAddrStr(element, badBytes, bits)
+                if( not valid_addr_str ):
+                    error("Error! ROP-Chain gadget with no valid address. THIS SHOULD NOT HAPPEND (please report the bug for fixes)")
+                    return ''
+                element_str = string_special(valid_addr_str) +\
                         " (" + string_bold(element.asmStr) + ")"
             if (res != ''):
                 res += "\n\t"+element_str
@@ -137,3 +142,45 @@ def validAddrStr(gadget, badBytes, bits):
                 break
         if( ok):
             return "0x"+addrStr
+
+
+#########################
+#########################
+## Structure for a full exploit 
+# (ROPChain + description )
+class PwnChain:
+    def __init__(self):
+        self.ROPChains = []
+        self.info = []
+        self.len_bytes = 0
+        
+    def add( self, chain, descr):
+        self.ROPChains.append(chain)
+        self.info.append(descr)
+        self.len_bytes += len(chain)*Arch.octets()
+        
+    def strConsole(self, bits, badBytes):
+        res = ""
+        for i in range(0, len(self.ROPChains)):
+            info_string = string_bold("\t"+'-'*len(self.info[i])+'\n')\
+                            +string_exploit('\t'+self.info[i]+'\n')\
+                            +string_bold("\t"+'-'*len(self.info[i])+'\n')
+            chain_string = self.ROPChains[i].strConsole(bits, badBytes)+'\n'
+            res += info_string + chain_string
+        return res 
+        
+    def strPython(self, bits, badBytes):
+        res = ""
+        res += string_bold("\t# -----------------\n")
+        res += string_exploit("\t # Padding goes there")
+        res += string_bold("\t# -----------------\n")
+        res += "\tp = ''\n"
+        
+        for i in range(0, len(self.ROPChains)):
+            info_string = string_bold("\t# "+'-'*len(self.info[i])+'\n')\
+                            +string_exploit('\t# '+self.info[i]+'\n')\
+                            +string_bold("\t# "+'-'*len(self.info[i])+'\n')
+            chain_string = self.ROPChains[i].strPython(bits, badBytes)+"\n"
+            res += info_string + chain_string
+        return res 
+    

@@ -173,12 +173,12 @@ def parse_args(args):
                     return (False, "Error. Missing output format after option '"+arg+"'")
                 try:
                     clmax = int(args[i+1])
-                    if( clmax <= Arch.octets() ):
+                    if( clmax < Arch.octets() ):
                         raise Exception()
                     # Convert number of bytes into number of ropchain elements
                     clmax /= Arch.octets()
                 except:
-                    return (False, "Error. '" + args[i+1] +"' bytes is nto valid")
+                    return (False, "Error. '" + args[i+1] +"' bytes is not valid")
                 i = i +1 
                 seenLmax = True
                        
