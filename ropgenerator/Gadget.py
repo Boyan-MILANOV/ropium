@@ -111,7 +111,7 @@ class Gadget:
         if( self.type != GadgetType.REGULAR ):
             self.spInc = None
         else:
-            sp_num = Arch.n2r(Arch.currentArch.sp)
+            sp_num = Arch.spNum()
             if( not sp_num in self.graph.lastMod ):
                 self.spInc = 0
             else:                

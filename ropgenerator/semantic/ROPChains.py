@@ -105,7 +105,7 @@ class ROPChain:
                 res += "\t"+element_str
         return res
         
-    def strPython(self, bits, badBytes = []):
+    def strPython(self, bits, badBytes = [], init=True):
         # Getting endianness to pack values 
         if( bits == 32 ):
             endianness_str = "'<I'"
@@ -114,8 +114,10 @@ class ROPChain:
         else:
             raise Exception("{}-bits architecture not supported".format(bits))
         pack_str = "p += pack("+endianness_str+","
-        res = "\tfrom struct import pack"
-        res += "\n\tp = ''"
+        res = ''
+        if( init ):
+            res += "\tfrom struct import pack"
+            res += "\n\tp = ''"
         for element in self.chain:
             if( not isinstance(element, Gadget)):
                 padding_str = pack_str
@@ -162,25 +164,26 @@ class PwnChain:
     def strConsole(self, bits, badBytes):
         res = ""
         for i in range(0, len(self.ROPChains)):
-            info_string = string_bold("\t"+'-'*len(self.info[i])+'\n')\
+            info_string = "\t"+'-'*len(self.info[i])+'\n'\
                             +string_exploit('\t'+self.info[i]+'\n')\
-                            +string_bold("\t"+'-'*len(self.info[i])+'\n')
+                            +"\t"+'-'*len(self.info[i])+'\n'
             chain_string = self.ROPChains[i].strConsole(bits, badBytes)+'\n'
             res += info_string + chain_string
         return res 
         
     def strPython(self, bits, badBytes):
         res = ""
-        res += string_bold("\t# -----------------\n")
-        res += string_exploit("\t # Padding goes there")
-        res += string_bold("\t# -----------------\n")
+        res += "\t# -------------------\n"
+        res += "\t# "+string_exploit("Padding goes there\n")
+        res += "\t# -------------------\n"
+        res += "\tfrom struct import pack\n"
         res += "\tp = ''\n"
         
         for i in range(0, len(self.ROPChains)):
-            info_string = string_bold("\t# "+'-'*len(self.info[i])+'\n')\
-                            +string_exploit('\t# '+self.info[i]+'\n')\
-                            +string_bold("\t# "+'-'*len(self.info[i])+'\n')
-            chain_string = self.ROPChains[i].strPython(bits, badBytes)+"\n"
+            info_string = "\t# "+'-'*len(self.info[i])+'\n'\
+                            +"\t# "+string_exploit(self.info[i]+'\n')\
+                            +"\t# "+'-'*len(self.info[i])
+            chain_string = self.ROPChains[i].strPython(bits, badBytes, init=False)+"\n"
             res += info_string + chain_string
         return res 
     

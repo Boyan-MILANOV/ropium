@@ -48,12 +48,15 @@ def search_optimize_len(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMA
     Tries to find the shorter ROPChain possible 
     by using dichotomic calls to search() 
     """
+    if( clmax <= 0 ):
+        return []
+    
     lmin = 1 
     lmax = clmax
     best_find = []
     while( lmin != lmax):
         lmoy = (lmin+lmax+1)/2
-        res = search(qtype, arg1, arg2, constraint, assertion, n, lmoy, enablePreCond, \
+        res = search(qtype, arg1, arg2, constraint, assertion, n, lmoy, enablePreConds, \
             record, noPadding, comment)
         if( res ):
             # If found we can try shorter 
@@ -62,7 +65,7 @@ def search_optimize_len(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMA
         else:
             # If not found we try longer 
             lmin = lmoy
-    res = search(qtype, arg1, arg2, constraint, assertion, n, lmax, enablePreCond, \
+    res = search(qtype, arg1, arg2, constraint, assertion, n, lmax, enablePreConds, \
             record, noPadding, comment)
     if( res ):
         return res
@@ -170,8 +173,7 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax=LMAX, record 
         if( ret_reg in g.modifiedRegs()):
             continue
         # Check if stack is preserved 
-        spInc = g.spInc
-        if( not spInc ):
+        if( g.spInc is None ):
             continue
             
         # Find adjustment 
@@ -230,6 +232,10 @@ def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, clmax=LMAX, comment=None
         constraint2 =  constraint.add(Chainable(ret=True))
     possible = DBPossiblePopOffsets(reg,constraint2, assertion)
     for offset in sorted(filter(lambda x:x>=0, possible.keys())):
+        # If offsets are too big to fit in the lmax just break
+        if( offset > clmax*Arch.octets()):
+            break 
+        # Get possible gadgets
         possible_gadgets = [g for g in possible[offset]\
             if g.spInc >= Arch.octets() \
             and g.spInc - Arch.octets() > offset \
@@ -243,7 +249,8 @@ def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, clmax=LMAX, comment=None
                     chain.addPadding(cst, comment)
                 else:
                     chain.addPadding(padding)
-            res.append(chain)
+            if( len(chain) <= clmax ):
+                res.append(chain)
             if( len(res) >= n ):
                 return res
     return res
