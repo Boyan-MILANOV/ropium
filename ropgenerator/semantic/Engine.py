@@ -39,8 +39,8 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreC
     record.decDepth()
     return sorted(res)
 
-def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=9999999):
-    return _basic(qtype, arg1, arg2, constraint, assertion, n, clmax)
+def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=10000):
+    return _basic(qtype, arg1, arg2, constraint, assertion, n, clmax, noPadding=True)
 
 def search_optimize_len(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreConds=False, \
             record=None, noPadding=False, comment=None):
@@ -81,9 +81,14 @@ def _basic(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, noPadding=
     if( clmax <= 0 ):
         return []
     
+    if( not noPadding ):
+        maxSpInc = clmax*Arch.octets()
+    else:
+        maxSpInc = None
+    
     # Check for special gadgets
     if( qtype == QueryType.INT80 or qtype == QueryType.SYSCALL):
-        gadgets = DBSearch(qtype, arg1, arg2, constraint, assertion, n=1, maxSpInc=clmax*Arch.octets())
+        gadgets = DBSearch(qtype, arg1, arg2, constraint, assertion, n=1, maxSpInc=maxSpInc)
         res = [ROPChain().addGadget(g) for g in gadgets]
         return res
     
@@ -96,7 +101,7 @@ def _basic(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, noPadding=
     
     # Regular gadgets 
     # maxSpInc -> +1 because we don't count the ret but -1 because the gadget takes one place 
-    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion, n, maxSpInc=(clmax+1-1)*Arch.octets())
+    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion, n, maxSpInc=maxSpInc)
     if( noPadding ):
         return [ROPChain().addGadget(g) for g in gadgets]
     else:

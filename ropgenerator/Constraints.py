@@ -17,6 +17,7 @@ class CstrTypeID(Enum):
     REG_NOT_MODIFIED = "Registers Not Modified"
     VALID_PTR_READ = "Read Memory - Valid pointer"
     VALID_PTR_WRITE = "Write Memory - Valid pointer"
+    STACK_POINTER_INCREMENT = "Stack Pointer Increment"
 
 class ConstraintType:
     def __init__(self): 
@@ -146,6 +147,18 @@ class ValidPtrRead(ConstraintType):
         return (True, [Cond(CT.VALID_PTR_READ, None, mem) for mem in\
         gadget.memoryReads()])
 
+class StackPointerIncrement(ConstraintType):
+    def __init__(self, value=None):
+        self.inc = value
+        
+    def verify(self, gadget):
+        if( self.inc == None ):
+            return (True, [])
+        elif( gadget.spInc is None ):
+            return (False, [])
+        else:
+            return (gadget.spInc == self.inc, [])
+
 
 class Constraint:
     def __init__(self, constraintList=[]):
@@ -154,9 +167,12 @@ class Constraint:
         self.regsNotModified = RegsNotModified()
         self.validPtrRead = ValidPtrRead()
         self.validPtrWrite = ValidPtrWrite()
+        self.stackPointerIncrement = StackPointerIncrement()
         for c in constraintList:
             if( isinstance(c, Chainable)):
                 self.chainable = c
+            elif( isinstance(c, StackPointerIncrement)):
+                self.stackPointerIncrement = c
             else:
                 self.add(c, copy=False) 
     
@@ -167,6 +183,7 @@ class Constraint:
         new.regsNotModified = self.regsNotModified
         new.validPtrRead = self.validPtrRead
         new.validPtrWrite = self.validPtrWrite
+        new.stackPointerIncrement = self.stackPointerIncrement
         return new 
          
     def add(self, c, copy=True):
@@ -184,6 +201,8 @@ class Constraint:
             new.regsNotModified = self.regsNotModified.add(c.regs)
         elif( isinstance(c, Chainable)):
             new.chainable = c
+        elif( isinstance(c, StackPointerIncrement)):
+            new.stackPointerIncrement = c
         else:
             raise Exception("Constraint: {} is invalid for add() function"\
             .format(c))
@@ -197,6 +216,8 @@ class Constraint:
         new = self._copy()
         if( isinstance(c, Chainable)):
             new.chainable = c
+        elif( isinstance(c, StackPointerIncrement)):
+            new.stackPointerIncrement = c
         else:
             raise Exception("Constraint: {} is invalid for update() function"\
             .format(c))
@@ -207,6 +228,8 @@ class Constraint:
         for i in idList:
             if i == CstrTypeID.CHAINABLE:
                 new.chainable = Chainable()
+            elif i == CstrTypeID.STACK_POINTER_INCREMENT:
+                new.stackPointerIncrement = StackPointerIncrement()
             elif i == CstrTypeID.BAD_BYTES:
                 new.badBytes = BadBytes()
             elif i == CstrTypeID.REG_NOT_MODIFIED:
@@ -218,7 +241,7 @@ class Constraint:
     
     def list(self):
         return [self.chainable, self.badBytes, self.regsNotModified, \
-            self.validPtrRead, self.validPtrWrite]
+            self.validPtrRead, self.validPtrWrite, self.stackPointerIncrement]
     
     def verify(self, gadget):
         """
