@@ -82,8 +82,7 @@ class BadBytes(ConstraintType):
     
     def verify(self, gadget):
         for addr in gadget.addrList:
-            addrBytes = re.findall('..',('{:'+'{:02d}'\
-                .format(Arch.currentArch.octets)+'x}').format(addr))
+            addrBytes = re.findall('..',format(addr, '0'+str(Arch.octets()*2)+'x'))
             ok = True
             for byte in self.bytes:
                 if( byte in addrBytes):

@@ -114,6 +114,7 @@ class CSTList:
                 continue
             
             # Check if the constraint can be verified 
+            print("Constraint badBytes: " + str(constraint.getBadBytes()))
             (status, conds) = constraint.verify(gadget)
             if( status ):
                 # if yes, check if the assertion verifies the constraint
@@ -400,7 +401,36 @@ class Database:
                         tmp.append(gadget)
             res[cst] = tmp
         return res
-
+        
+    def possibleMemWrites(self, reg, cst, constraint, assertion, n=1):
+        """
+        n : nb of gadgets for each case ! 
+        """
+        global gadgets 
+        res = dict()
+        try:
+            write_regs = self.types[QueryType.REGtoMEM].registers[reg][cst].registers.keys()
+        except:
+            return dict()
+        for write_reg in write_regs:
+            if( write_reg not in res):
+                res[write_reg] = dict()
+            lookUp = self.types[QueryType.REGtoMEM].registers[reg][cst].registers[write_reg]
+            for write_cst in lookUp.values:
+                tmp = []
+                for i in range(0, len(lookUp.values[write_cst])):
+                    gadget = gadgets[lookUp.values[write_cst][i]]
+                    (status,conds) = constraint.verify(gadget)
+                    if( status ):
+                        # if yes, check if the assertion verifies the constraint
+                        remaining = assertion.filter(conds + [lookUp.preConditions[write_cst][i]])
+                        if( not remaining ):
+                            tmp.append(gadget)
+                            if( len(tmp) >= n ):
+                                break
+                res[write_reg][write_cst] = tmp
+        return res
+        
 ########################
 # Module wise database #
 ########################
@@ -420,6 +450,12 @@ def DBPossiblePopOffsets(reg, constraint, assertion):
     Return a list of offsets X such that reg <- mem(sp+X) possible 
     """
     return db.possiblePopOffsets(reg, constraint,assertion)
+    
+def DBPossibleMemWrites(addr_reg, addr_cst, constraint, assertion, n=1):
+    """
+    Return the list of [reg, cst] such that mem(addr_reg+addr_cst)<- reg+cst
+    """
+    return db.possibleMemWrites(addr_reg, addr_cst, constraint, assertion, n)
 
 #############################
 # Build the list of gadgets #

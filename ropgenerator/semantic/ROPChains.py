@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*- 
 # ROPChains module: representation of rop chains 
 from ropgenerator.Gadget import Gadget
-from ropgenerator.IO import string_special, string_bold, string_exploit, string_ropg
+from ropgenerator.IO import string_special, string_bold, string_exploit, string_ropg, error
 import ropgenerator.Architecture as Arch
 
 class ROPChain:
