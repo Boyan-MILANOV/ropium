@@ -143,11 +143,13 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, clmax=LMAX, co
             #res += _REGtoREG_increment(arg1, arg2, constraint, assertion, record, n-len(res))
         if( not res ):
             record.impossible_REGtoREG.add(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())
-    
+    elif( qtype == QueryType.MEMtoREG ):
+        res += MEMtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), clmax )
     # For any types, adjust the returns 
     res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax, record, comment)
     
     return res
+
 
 def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax=LMAX, record = None, comment=""):
     """
@@ -246,10 +248,10 @@ def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, clmax=LMAX, comment=None
             and g.spInc - Arch.octets() > offset \
             and (g.spInc/Arch.octets()-1) <= clmax] # Test if padding is too much for clmax
         # Pad the gadgets 
-        padding = constraint.getValidPadding(Arch.currentArch.octets)
+        padding = constraint.getValidPadding(Arch.octets())
         for gadget in possible_gadgets:
             chain = ROPChain([gadget])
-            for i in range(0, gadget.spInc-Arch.currentArch.octets, Arch.currentArch.octets):
+            for i in range(0, gadget.spInc-Arch.octets(), Arch.octets()):
                 if( i == offset):
                     chain.addPadding(cst, comment)
                 else:
@@ -273,7 +275,6 @@ def _CSTtoREG_transitivity(reg, cst, constraint, assertion, n=1, clmax=LMAX, com
         if( inter == reg or inter in constraint.getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum() ):
             continue
         # Find reg <- inter 
-        # Max depth=2 to avoid heavy recursive calls _chain() -> adjust_ret -> CSTtoREG_transitivity -> _chain() etc
         REGtoREG_record = SearchRecord(maxdepth=4)
         REGtoREG_record.unusable_REGtoREG.append(reg)
         inter_to_reg = search(QueryType.REGtoREG, reg, (inter,0), constraint, assertion, n, clmax, record=REGtoREG_record)
@@ -370,6 +371,35 @@ def _REGtoREG_increment(arg1, arg2, constraint, assertion, record, n=1, clmax=LM
         arg2_to_arg1 = search(QueryType.REGtoREG, arg1, (arg2[0],0), \
                     constraint, assertion, record, n/nb + 1)
         res = [chain.addChain(c, new=True) for chain in arg2_to_arg1 for c in res]
+    return res
+
+def MEMtoREG_transitivity(reg, arg2, constraint, assertion, n=1, clmax=LMAX):
+    if( clmax <= 0 ):
+        return []
+        
+    res = []
+    for inter in range(0, Arch.ssaRegCount):
+        if( inter == reg or inter in constraint.getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum() ):
+                continue    
+        
+        # Find arg1 <- inter
+        REGtoREG_record = SearchRecord(maxdepth=4)
+        REGtoREG_record.unusable_REGtoREG.append(reg)
+        inter_to_reg = search(QueryType.REGtoREG, reg, (inter,0), constraint, assertion, n, clmax-1, record=REGtoREG_record)
+        if (inter_to_reg):
+            len_min = min([len(chain) for chain in inter_to_reg])
+            # Try to find inter <- arg2
+            # First strategy basic 
+            arg2_to_inter = _basic(QueryType.MEMtoREG, inter, arg2, constraint, assertion, n, clmax-len_min)
+            res += [chain1.addChain(chain2, new=True) for chain1 in arg2_to_inter \
+                for chain2 in inter_to_reg if len(chain1)+len(chain2) <= clmax  ]
+            # Second strategy read reg (TODO)
+            if( len(res) < n ):
+                pass
+        # Did we get enough chains ? 
+        if( len(res) >= n ):
+            return res 
+    # Return the best we got 
     return res
 
 ###################################################################
