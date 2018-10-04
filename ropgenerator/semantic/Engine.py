@@ -3,7 +3,7 @@
 
 from ropgenerator.semantic.ROPChains import ROPChain, validAddrStr
 from ropgenerator.Database import QueryType, DBSearch, DBPossibleInc, DBPossiblePopOffsets, REGList, DBPossibleMemWrites
-from ropgenerator.Constraints import Chainable, RegsNotModified, Constraint, Assertion, CstrTypeID
+from ropgenerator.Constraints import Chainable, RegsNotModified, Constraint, Assertion, CstrTypeID, RegsNoOverlap
 from ropgenerator.Gadget import RetType
 from ropgenerator.IO import string_bold
 from itertools import product
@@ -100,9 +100,15 @@ def _basic(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, noPadding=
     else:
         constraint2 = constraint
     
+    # Check to add assertions when looking for Memory gadgets
+    if( qtype == QueryType.CSTtoMEM or qtype == QueryType.REGtoMEM ):
+        assertion2 = assertion.add(RegsNoOverlap([(arg1[0], Arch.spNum())]))
+    else:
+        assertion2 = assertion
+    
     # Regular gadgets 
     # maxSpInc -> +1 because we don't count the ret but -1 because the gadget takes one place 
-    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion, n, maxSpInc=maxSpInc)
+    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion2, n, maxSpInc=maxSpInc)
     if( noPadding ):
         return [ROPChain().addGadget(g) for g in gadgets]
     else:

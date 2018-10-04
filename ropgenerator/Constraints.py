@@ -4,7 +4,7 @@ import re
 import ropgenerator.Architecture as Arch
 from ropgenerator.Gadget import RetType, GadgetType
 from ropgenerator.Conditions import CT, Cond
-from ropgenerator.Expressions import SSAExpr
+from ropgenerator.Expressions import SSAExpr, MEMExpr
 from enum import Enum
 
 #################################################
@@ -57,19 +57,20 @@ class Chainable(ConstraintType):
         elif( self.call and gadget.retType == RetType.CALL ):
             return (True, [])
             
-        # If unknown ret, check if possible 
-        for p in gadget.semantics.get(Arch.currentArch.ip):
-            if( isinstance(p.expr, MEMExpr)):
-                addr = p.expr.addr
-                (isInc, inc) = addr.isRegIncrement(sp_num)    
-                # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
-                if( self.ret and isInc and inc == (self.spInc - (Arch.currentArch.octets)) ):
-                    return (True, [p.cond])
-            elif( isinstance(p.expr, SSAExpr )):
-                # Try to detect gadgets ending by 'call' 
-                if( self.call and gadget.ins[-1]._mnemonic[:4] == "call"):
-                    return (True, [p.cond])
-                elif( self.jmp):
+        # If unknown ret, check if ret possible
+        # Is a ret sometimes possible ? 
+        if( self.ret ):
+            for p in gadget.getSemantics(Arch.ipNum()):
+                if( isinstance(p.expr, MEMExpr)):
+                    addr = p.expr.addr
+                    (isInc, inc) = addr.isRegIncrement(Arch.spNum())    
+                    # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
+                    if( isInc and inc == (gadget.spInc - (Arch.octets())) ):
+                        return (True, [p.cond])
+        # Or a jump ? 
+        if( self.jmp ):
+            for p in gadget.getSemantics(Arch.ipNum()):
+                if( isinstance(p.expr, SSAExpr )):
                     return (True, [p.cond])
         return (False, [])
 

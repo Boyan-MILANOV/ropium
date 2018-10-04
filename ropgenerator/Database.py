@@ -114,7 +114,6 @@ class CSTList:
                 continue
             
             # Check if the constraint can be verified 
-            print("Constraint badBytes: " + str(constraint.getBadBytes()))
             (status, conds) = constraint.verify(gadget)
             if( status ):
                 # if yes, check if the assertion verifies the constraint
