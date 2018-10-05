@@ -155,7 +155,8 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, clmax=LMAX, co
         res += CSTtoMEM_write(arg1, arg2, constraint, assertion, n-len(res), clmax)
         
     # For any types, adjust the returns 
-    res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax, record, comment)
+    if( len(res) < n ):
+        res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax, record, comment)
     
     return res
 
@@ -336,8 +337,11 @@ def _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n=1, clmax
         
         # Find inter_reg <- arg2 without using arg1
         record.unusable_REGtoREG.append(arg1)
+        n2 = n/len(inter_to_arg1_list)
+        if( n2 == 0 ):
+            n2 = 1 
         for arg2_to_inter in search(QueryType.REGtoREG, inter_reg, arg2, \
-                constraint, assertion, n/len(inter_to_arg1_list)+1, clmax=clmax-1, record=record):
+                constraint, assertion, n2, clmax=clmax-1, record=record):
             for inter_to_arg1 in inter_to_arg1_list:
                 if( len(inter_to_arg1)+len(arg2_to_inter) <= clmax):
                     res.append(arg2_to_inter.addChain(inter_to_arg1, new=True))
