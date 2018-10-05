@@ -121,6 +121,8 @@ def charging_bar( nb_iter, curr_iter, bar_len, msg="", char=u"\u2588"):
         full_part = char * (curr_iter/div)
         empty_part = " "*(bar_len-len(full_part))
         bar += full_part + empty_part + '| '
+        if( nb_iter == 0 ):
+            nb_iter = 1
         bar += '{:03d}%'.format(100*curr_iter/nb_iter)
         sys.stdout.write(bar)
     sys.stdout.flush()

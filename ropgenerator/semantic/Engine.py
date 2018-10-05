@@ -398,7 +398,7 @@ def MEMtoREG_transitivity(reg, arg2, constraint, assertion, n=1, clmax=LMAX):
             len_min = min([len(chain) for chain in inter_to_reg])
             # Try to find inter <- arg2
             # First strategy basic 
-            arg2_to_inter = _basic(QueryType.MEMtoREG, inter, arg2, constraint, assertion, n, clmax-len_min)
+            arg2_to_inter = _basic(QueryType.MEMtoREG, inter, arg2, constraint.add(Chainable(ret=True)), assertion, n, clmax-len_min)
             res += [chain1.addChain(chain2, new=True) for chain1 in arg2_to_inter \
                 for chain2 in inter_to_reg if len(chain1)+len(chain2) <= clmax  ]
             # Second strategy read reg (TODO)
