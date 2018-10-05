@@ -222,7 +222,6 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax=LMAX, record 
             record.impossible_AdjustRet.add(ret_reg)
     return res
         
-
 def _CSTtoREG_pop(reg, cst, constraint, assertion, n=1, clmax=LMAX, comment=None):
     """
     Returns a payload that puts cst into register reg by poping it from the stack
@@ -430,14 +429,12 @@ def CSTtoMEM_write(arg1, cst, constraint, assertion, n=1, clmax=LMAX):
             continue
         # Find reg <- cst 
         # maxdepth 3 or it's too slow 
-        cst_to_reg_chains = search(QueryType.CSTtoREG, cst, reg, constraint.add(RegsNotModified([addr_reg])), assertion, n, clmax-1, maxdepth=3)
+        cst_to_reg_chains = search(QueryType.CSTtoREG, reg, cst, constraint.add(RegsNotModified([addr_reg])), assertion, n, clmax-1, maxdepth=3)
         if( not cst_to_reg_chains ):
             continue
         # Search for mem(arg1) <- reg 
         # We get all reg2,cst2 s.t mem(arg1) <- reg2+cst2 
-        print("DEBUG possible")
         possible_mem_writes = DBPossibleMemWrites(addr_reg, addr_cst, constraint, assertion, n=1)
-        print("DEBUG possible done")
         # 1.A. Ideally we look for reg2=reg and cst2=0 (direct_writes)
         possible_mem_writes_reg = possible_mem_writes.get(reg) 
         if( possible_mem_writes_reg ):
@@ -445,15 +442,17 @@ def CSTtoMEM_write(arg1, cst, constraint, assertion, n=1, clmax=LMAX):
         else:
             direct_writes = []
         padding = constraint.getValidPadding(Arch.octets())
-        for gadget in direct_writes:
-            # Pad the gadgets 
-            chain = ROPChain([gadget])
-            for i in range(0, gadget.spInc-Arch.octets(), Arch.octets()):
-                chain.addPadding(padding)
-            if( len(chain) <= clmax ):
-                res.append(chain)
-            if( len(res) >= n ):
-                return res
+        for write_gadget in direct_writes:
+            for cst_to_reg_chain in cst_to_reg_chains:
+                # Pad the gadgets 
+                write_chain = ROPChain([write_gadget])
+                for i in range(0, write_gadget.spInc-Arch.octets(), Arch.octets()):
+                    write_chain.addPadding(padding)
+                full_chain = cst_to_reg_chain.addChain(write_chain, new=True)
+                if( len(full_chain) <= clmax ):
+                    res.append(full_chain)
+                if( len(res) >= n ):
+                    return res
         # 1.B. 
     return res 
         
