@@ -16,12 +16,16 @@ import ropgenerator.Expressions as Expr
 # Boucle infinie 39\xc8\x19\xc0\x83\xd8\xff\x5e\x5b\xc3
 #"\x01\x41\x88\x48\xff\x49\x83\xc2\x01\x49"
 #\x01\x41\x88\x48\xff\x49\x83
+# \x18\x09\x00\x00\x11\x00\x1a\x00\xc2\x7b\x26 erreur Extract invalide 
+# \x48\x89\xF7\xFF\xE0 Erreur calcul du spInc 
+# "\x89\x08\x89\xD0\xC3" Condition not passed (32bits)
 
-asm = "\x0F\x85\x00\x00\x00\x00\x48\x89\xC8\xC3"
-Arch.currentArch = Arch.ArchX64
+asm = "\x89\x08\x89\xD0\xC3"
+Arch.currentArch = Arch.ArchX86
 #try:
 gadget = Gadget([0], asm) 
 print(gadget.semantics)
+print(gadget.spInc)
 
 
 #except Exception as e:
