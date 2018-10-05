@@ -3,7 +3,7 @@
 
 from prompt_toolkit import PromptSession, ANSI
 
-from ropgenerator.IO import string_semantic, string_bold, string_special, banner
+from ropgenerator.IO import string_semantic, string_bold, string_special, banner, error
 from ropgenerator.semantic.Find import find
 import ropgenerator.Architecture as Arch
 
@@ -46,6 +46,7 @@ def semantic_mode():
                 command = args[0]
             else:
                 command = None
+                continue
 
             if( command == CMD_FIND ):
                 find(args[1:])
@@ -57,6 +58,8 @@ def semantic_mode():
                 finish = True
             elif( command == CMD_REGS ):
                 list_regs()
+            else:
+                error("Unknown command '{}'".format(command))
             if( command != None ):
                 print('')
         except KeyboardInterrupt:

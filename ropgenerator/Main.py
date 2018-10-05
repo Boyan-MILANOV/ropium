@@ -60,10 +60,11 @@ def main():
                 command = args[0]
             else:
                 command = None
+                continue
 
             if( command == CMD_LOAD ):
                 load(args[1:])
-            if( command == CMD_EXIT ):
+            elif( command == CMD_EXIT ):
                 finish = True
             elif( command == CMD_HELP ):
                 print(helpStr)
@@ -75,6 +76,8 @@ def main():
             elif( command == CMD_EXPLOIT ):
                 if( not exploit_mode()):
                     finish = True
+            else:
+                error("Unknown command '{}'".format(command))
             if( command != None ):
                 print('')
                 
