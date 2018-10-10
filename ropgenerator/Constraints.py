@@ -48,6 +48,9 @@ class Chainable(ConstraintType):
         self.call = call
         
     def verify(self, gadget):
+        if( gadget.retType == RetType.UNKNOWN ):
+            return (False, [])
+        
         if( self.ret == self.jmp == self.call == False ):
             return (True, [])
         elif( self.ret and gadget.retType == RetType.RET ):

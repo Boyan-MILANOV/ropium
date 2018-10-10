@@ -156,7 +156,7 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, clmax=LMAX, co
         
     # For any types, adjust the returns 
     if( len(res) < n ):
-        res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax, record, comment)
+        res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax, record.copy(), comment)
     
     return res
 
@@ -178,8 +178,9 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax=LMAX, record 
     
     res = []
     possible = _basic(qtype, arg1, arg2, \
-            constraint.add(Chainable(jmp=True, call=True)), assertion, n)        
+            constraint.add(Chainable(jmp=True, call=True)), assertion, 10*n)        
     padding = constraint.getValidPadding(Arch.currentArch.octets)
+        
     for chain in possible:
         g = chain.chain[0]
         ret_reg = g.retValue.reg.num
@@ -192,13 +193,13 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax=LMAX, record 
         # Check if stack is preserved 
         if( g.spInc is None ):
             continue
-            
+        
         # Find adjustment 
         if( g.spInc < 0 ):
             offset = -1 * g.spInc
             padding_length = 0
         else: 
-            padding_length = g.spInc
+            padding_length = g.spInc / Arch.octets()
             if( g.retType == RetType.JMP ):
                 offset = 0 
             else:
@@ -214,6 +215,7 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax=LMAX, record 
         adjust = search(QueryType.CSTtoREG, ret_reg, adjust_addr, \
             constraint.add(RegsNotModified([arg2[0]])), assertion, n=1, clmax=clmax-len(chain),record=record,\
             comment="Address of "+string_bold(str(adjust_gadgets[0].chain[0])))
+        
         if( adjust ):
             res.append(adjust[0].addGadget(g).addPadding(padding, n=padding_length))
             if( len(res) >= n ):
@@ -531,6 +533,12 @@ class RecordAdjustRet:
         Return True iff reg_num in self.regs
         """
         return (reg_num in self.regs)
+        
+    def copy(self):
+        new = RecordAdjustRet()
+        for reg in self.regs:
+            new.add(reg)
+        return new
 
 class SearchRecord:
     def __init__(self, maxdepth=4):
@@ -551,6 +559,12 @@ class SearchRecord:
         
     def reachedMaxDepth(self):
         return (self.depth > self.maxdepth)
+        
+    def copy(self):
+        new = SearchRecord(maxdepth=self.maxdepth)
+        new.impossible_REGtoREG = self.impossible_REGtoREG.copy()
+        new. unusable_REGtoREG = self.unusable_REGtoREG
+        new.impossible_AdjustRet = self.impossible_AdjustRet.copy()
 
 ################################################
 # Global records for the ROPGenerator sessions
