@@ -16,6 +16,18 @@ import ropgenerator.Architecture as Arch
 LMAX = 80 # Default max number of elements (padding included) in ROPChains
 
 def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreConds=False, \
+            record=None, noPadding=False, comment=None, maxdepth=4, optimizeLen=False):
+                
+    """
+    Wrapper for search_first_hit and search_optimize_len
+    """
+    if( optimizeLen ):
+        return search_optimize_len(qtype, arg1, arg2, constraint, assertion, n, clmax, enablePreConds, record, noPadding, comment, maxdepth)
+    else:
+        return search_first_hit(qtype, arg1, arg2, constraint, assertion, n, clmax, enablePreConds, record, noPadding, comment, maxdepth)
+        
+        
+def search_first_hit(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreConds=False, \
             record=None, noPadding=False, comment=None, maxdepth=4):
     """
     Searches for gadgets 
@@ -44,7 +56,7 @@ def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=10
     return _basic(qtype, arg1, arg2, constraint, assertion, n, clmax, noPadding=True)
 
 def search_optimize_len(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreConds=False, \
-            record=None, noPadding=False, comment=None):
+            record=None, noPadding=False, comment=None, maxdepth=4):
     """
     Tries to find the shorter ROPChain possible 
     by using dichotomic calls to search() 
@@ -58,7 +70,7 @@ def search_optimize_len(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMA
     while( lmin != lmax):
         lmoy = (lmin+lmax+1)/2
         res = search(qtype, arg1, arg2, constraint, assertion, n, lmoy, enablePreConds, \
-            record, noPadding, comment)
+            record, noPadding, comment, maxdepth)
         if( res ):
             # If found we can try shorter 
             best_find = res
@@ -67,7 +79,7 @@ def search_optimize_len(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMA
             # If not found we try longer 
             lmin = lmoy
     res = search(qtype, arg1, arg2, constraint, assertion, n, lmax, enablePreConds, \
-            record, noPadding, comment)
+            record, noPadding, comment, maxdepth)
     if( res ):
         return res
     else:
@@ -480,16 +492,17 @@ class RecordREGtoREG:
         if( not cst in self.regs[reg1][reg2] ):
             self.regs[reg1][reg2][cst] = []
         # Adding 
-        newNotModInt = sum([(1 << r) for r in regsNotModified])
+        newNotModInt = sum([(1 << r) for r in list(set(regsNotModified))])
         for i in range(0, len(self.regs[reg1][reg2][cst])):
             prevNotModInt = self.regs[reg1][reg2][cst][i]
             if( prevNotModInt & newNotModInt == prevNotModInt ):
                 # new regsNotModified included in the previous ones
+                # We replace it (il engloble l'autre)
+                self.regs[reg1][reg2][cst][i] = newNotModInt
                 return
             elif( prevNotModInt & newNotModInt == newNotModInt ):
                 # previous regsNotModified included in the new one
-                # We replace it 
-                self.regs[reg1][reg2][cst][i] = newNotModInt
+                # We replace it
                 return
         # If new really different from all others, add it 
         self.regs[reg1][reg2][cst].append(newNotModInt)
@@ -504,9 +517,9 @@ class RecordREGtoREG:
                 regsNotModified_list = self.regs[reg1][reg2][cst]
             except:
                 return False
-            regsInt = sum([(1<<r) for r in regsNotModified])
+            regsInt = sum([(1<<r) for r in list(set(regsNotModified))])
             for notModInt in regsNotModified_list:
-                if( regsInt & notModInt == notModInt ):
+                if( (regsInt & notModInt) == regsInt ):
                     # recorded regs included in specified regs 
                     return True
             return False

@@ -17,11 +17,13 @@ OPTION_BAD_BYTES = '--bad-bytes'
 OPTION_KEEP_REGS = '--keep-regs'
 OPTION_NB_RESULTS = '--nb-results'
 OPTION_LMAX = '--max-length'
+OPTION_SHORTEST = '--shortest'
 
 OPTION_BAD_BYTES_SHORT = '-b'
 OPTION_KEEP_REGS_SHORT = '-k' 
 OPTION_NB_RESULTS_SHORT = '-n'
 OPTION_LMAX_SHORT = '-m' 
+OPTION_SHORTEST_SHORT = '-s'
 
 OPTION_OUTPUT = '--output-format'
 OPTION_OUTPUT_SHORT = '-f'
@@ -43,6 +45,7 @@ CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>"+
 CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
 CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+" <bytes>\t Bad bytes for payload.\n\t\t\t\t\t Expected format is a list of bytes \n\t\t\t\t\t separated by comas (e.g '-b 0A,0B,2F')"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+" <regs>\t Registers that shouldn't be modified.\n\t\t\t\t\t Expected format is a list of registers \n\t\t\t\t\t separated by comas (e.g '-k edi,eax')"
+CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_SHORTEST_SHORT)+","+string_special(OPTION_SHORTEST)+"\t\t Find the shortest matching ROP-Chains"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_LMAX_SHORT)+","+string_special(OPTION_LMAX)+" <int>\t Max length of the ROPChain in bytes."
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_NB_RESULTS_SHORT)+","+string_special(OPTION_NB_RESULTS)+" <int>\t Nb of different ROPChains to find\n\t\t\t\t\t Default: 1\n\t\t\t\t\t (More results implies longer search)" 
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_OUTPUT_SHORT)+","+string_special(OPTION_OUTPUT)+" <fmt> Output format for ropchains.\n\t\t\t\t\t Expected format is one of the following\n\t\t\t\t\t "+string_special(OUTPUT_CONSOLE)+','+string_special(OUTPUT_PYTHON)
@@ -74,11 +77,12 @@ def find(args):
         constraint = parsed_args[4]
         nbResults = parsed_args[5]
         clmax = parsed_args[6]
+        optimizeLen = parsed_args[7]
         assertion = Assertion().add(\
             RegsValidPtrRead([(Arch.spNum(),-5000, 10000)])).add(\
             RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]))
         # Search 
-        res = search(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax)
+        res = search(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax, optimizeLen=optimizeLen)
         if( res ):
             print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
         else:
@@ -90,7 +94,7 @@ def find(args):
 def parse_args(args):
     """
     Parse the user supplied arguments to the 'find' function
-    Returns either a tuple (True, GadgetType, x, y, constraint, nb_res, clmax )
+    Returns either a tuple (True, GadgetType, x, y, constraint, nb_res, clmax , shortest)
     Or if not supported or invalid arguments, returns a tuple (False, msg)
     
     ---> See parse_user_request() specification for the list of possible tuples
@@ -104,6 +108,7 @@ def parse_args(args):
     seenOutput = False
     seenNbResults = False
     seenLmax = False
+    seenShortest = False
     
     i = 0 # Argument counter 
     constraint = Constraint()
@@ -181,10 +186,14 @@ def parse_args(args):
                     return (False, "Error. '" + args[i+1] +"' bytes is not valid")
                 i = i +1 
                 seenLmax = True
-                       
+            elif( arg == OPTION_SHORTEST  or arg == OPTION_SHORTEST_SHORT ):
+                if( seenShortest ):
+                    return (False,"Error. '" + arg + "' option should be used only once.")
+                seenShortest = True
             # Otherwise Ignore
             else:
                 return (False, "Error. Unknown option: '{}' ".format(arg))
+        
         # If not option it should be a request expr=expr
         else:    
             if( seenExpr ):
@@ -200,7 +209,7 @@ def parse_args(args):
     if( not seenExpr ):
         return (False, "Error. Missing specification of gadget to find")
     else:
-        return parsed_query+(constraint,nbResults, clmax)
+        return parsed_query+(constraint,nbResults, clmax, seenShortest)
     
 def parse_query(req):
     """
