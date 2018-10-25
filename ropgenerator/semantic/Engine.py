@@ -165,7 +165,8 @@ def _chain(qtype, arg1, arg2, constraint, assertion, record, n=1, clmax=LMAX, co
         res += MEMtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), clmax )
     elif( qtype == QueryType.CSTtoMEM ):
         res += CSTtoMEM_write(arg1, arg2, constraint, assertion, n-len(res), clmax)
-        
+    elif( qtype == QueryType.REGtoMEM ):
+        res += REGtoMEM_transitivity(arg1,arg2, constraint, assertion, n-len(res), clmax)    
     # For any types, adjust the returns 
     if( len(res) < n ):
         res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax, record.copy(), comment)
@@ -439,6 +440,32 @@ def REGtoMEM_adjust_offset(arg1,arg2, constraint, assertion, n=1, clmax=LMAX):
     """
     pass
 
+def REGtoMEM_transitivity(arg1,arg2, constraint, assertion, n=1, clmax=LMAX):
+    """
+    reg <- arg2
+    mem(arg1) <- reg
+    """
+    if( clmax <= 0 ):
+        return []
+
+    res = []
+    for inter in range(0, Arch.ssaRegCount):
+        if( inter == arg2[0] or inter in constraint.getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum()):
+            continue 
+        # Find inter <- arg2 
+        REGtoREG_record = SearchRecord(maxdepth=4)
+        REGtoREG_record.unusable_REGtoREG.append(inter)
+        arg2_to_inter = search(QueryType.REGtoREG, inter, (arg2[0],arg2[1]), constraint, assertion, n, clmax-1, record=REGtoREG_record)
+        if( arg2_to_inter):
+            len_min = min([len(chain) for chain in arg2_to_inter])
+            # Try to find mem(arg1) <- inter
+            inter_to_mem = _basic(QueryType.REGtoMEM, arg1, (inter, 0), constraint.add(Chainable(ret=True)), assertion, n, clmax-len_min)
+            res += [chain1.addChain(chain2, new=True) for chain1 in arg2_to_inter\
+                for chain2 in inter_to_mem if len(chain1)+len(chain2) <= clmax]
+            if( len(res) >= n ):
+                return res
+    return res
+                
 def CSTtoMEM_write(arg1, cst, constraint, assertion, n=1, clmax=LMAX):
     """
     reg <- cst 
