@@ -425,11 +425,30 @@ class Database:
                         remaining = assertion.filter(conds + [lookUp.preConditions[write_cst][i]])
                         if( not remaining ):
                             tmp.append(gadget)
-                            if( len(tmp) >= n ):
-                                break
                 res[write_reg][write_cst] = tmp
         return res
         
+    def possibleAddressWrites(self, reg, cst, constraint, assertion, n=1):
+        """
+        : : nb of gadgets for each case !! 
+        """
+        global gadgets
+        res = dict()
+        for addr_reg in self.types[QueryType.REGtoMEM].registers.keys():
+            for addr_cst in self.types[QueryType.REGtoMEM].registers[addr_reg]:
+                # Get the lookUp for list of deps for MEM(addr_reg, addr_cst)
+                lookUp = self.types[QueryType.REGtoMEM].registers[addr_reg][addr_cst]
+                if( addr_reg not in res ):
+                    res[addr_reg] = dict()
+                # The get matching gadgets for reg/cst 
+                found = lookUp.find(reg, cst, constraint, assertion, n=n)
+                if( found ):
+                    # Found mem(addr_reg, addr_cst) <- reg+cst, add them !! 
+                    if( addr_cst not in reg[addr_reg]):
+                        res[addr_reg][addr_cst] = []
+                    res[addr_reg][addr_cst] += found
+                
+                    
 ########################
 # Module wise database #
 ########################
@@ -455,6 +474,12 @@ def DBPossibleMemWrites(addr_reg, addr_cst, constraint, assertion, n=1):
     Return the list of [reg, cst] such that mem(addr_reg+addr_cst)<- reg+cst
     """
     return db.possibleMemWrites(addr_reg, addr_cst, constraint, assertion, n)
+    
+def DBPossibleAddressWrites(reg, cst, constraint, assertion, n=1):
+    """
+    Return the list of [addr_reg, addr_cst] such than mem(addr_reg, addr_cst) <- reg+cst
+    """
+    return db.possibleAddressWrites(reg, cst, constraint, assertion, n)
 
 #############################
 # Build the list of gadgets #

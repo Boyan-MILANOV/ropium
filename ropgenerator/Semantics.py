@@ -171,7 +171,7 @@ class Semantics:
         """
         ## Adjust Cat(0, Extract( x, 0, E))
         ## --> E if E <  2^(x-1) €z 
-        pass 
+        pass #  TODO 
     
     
     def simplifyConditions(self):

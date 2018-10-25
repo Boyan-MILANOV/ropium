@@ -49,6 +49,12 @@ class Chainable(ConstraintType):
         
     def verify(self, gadget):
         if( gadget.retType == RetType.UNKNOWN ):
+            deps = gadget.getSemantics(Arch.ipNum())
+            for pair in deps:
+                if( isinstance(pair.expr, MEMExpr) ):
+                    (isInc, inc) = pair.expr.addr.isRegIncrement(Arch.spNum())
+                    if( isInc and inc >= 0 ):
+                        return (True, [pair.cond])
             return (False, [])
         
         if( self.ret == self.jmp == self.call == False ):

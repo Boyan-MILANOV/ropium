@@ -216,8 +216,12 @@ def _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax=LMAX, record 
                 offset = 0 
             else:
                 offset = Arch.octets() 
+        if( isinstance(arg1,int)):
+            arg1_reg = arg1
+        else:
+            arg1_reg = arg1[0]
         adjust_gadgets = search(QueryType.MEMtoREG, Arch.ipNum(), \
-                (Arch.spNum(),offset), constraint.add(RegsNotModified([arg1])), assertion, n=1, record=record)
+                (Arch.spNum(),offset), constraint.add(RegsNotModified([arg1_reg])), assertion, n=1, record=record)
         if( not adjust_gadgets ):
             continue
         else:
@@ -427,6 +431,13 @@ def MEMtoREG_transitivity(reg, arg2, constraint, assertion, n=1, clmax=LMAX):
             return res 
     # Return the best we got 
     return res
+
+def REGtoMEM_adjust_offset(arg1,arg2, constraint, assertion, n=1, clmax=LMAX):
+    """
+    reg <- address - offset
+    mem(reg + offset) <- arg2 
+    """
+    pass
 
 def CSTtoMEM_write(arg1, cst, constraint, assertion, n=1, clmax=LMAX):
     """
