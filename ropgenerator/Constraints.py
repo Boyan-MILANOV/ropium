@@ -4,7 +4,7 @@ import re
 import ropgenerator.Architecture as Arch
 from ropgenerator.Gadget import RetType, GadgetType
 from ropgenerator.Conditions import CT, Cond
-from ropgenerator.Expressions import SSAExpr, MEMExpr
+from ropgenerator.Expressions import SSAExpr, MEMExpr, ConstExpr
 from enum import Enum
 
 #################################################
@@ -301,6 +301,8 @@ class AssertTypeID(Enum):
     REGS_EQUAL = "REGS_EQUAL"
     REGS_VALID_PTR_READ = "REGS_VALID_PTR_READ"
     REGS_VALID_PTR_WRITE = "REGS_VALID_PTR_WRITE"
+    REGS_SUP_TO = "REGS_SUPERIOR_TO"
+    REGS_INF_TO = "REGS_INFERIOR_TO"
         
 class AssertionType:
     def __init__(self):
@@ -428,6 +430,120 @@ class RegsValidPtrWrite(AssertionType):
                 return True
         return False
 
+class RegsSupTo(AssertionType):
+    """
+    regs_dict['rax'] = 7 <=> rax is superior strictly to 7 
+    """
+    def __init__(self, regs_dict=None):
+        if( regs_dict is None ):
+            self.regs_dict = dict()
+        else:
+            self.regs_dict = dict(regs_dict)
+        
+    def add(self, reg, limit, copy=True):
+        if( not copy ):
+            new_dict = self.regs_dict
+        else:
+            new_dict = dict(self.regs_dict)
+        if( reg in self.regs_dict ):
+            new_dict[reg] = max(self.regs_dict[reg], limit)
+        else:
+            new_dict[reg] = limit
+        return RegSupTo(new_dict)
+            
+    def merge(self, other_dict, copy=True):
+        if( copy ):
+            new = RegsSupTo(self.regs_dict)
+        else:
+            new = self
+        for (reg, limit) in other_dict:
+            new.add(reg, limit, new=False)
+        return new 
+            
+    def validate(self, condition):
+        """
+        Condition must be CT.GT, CT.GE, CT.LT, CT.LE
+        """
+        # Get condition value
+        if( isinstance(condition.right, ConstExpr)):
+            value = condition.right.value
+        else:
+            return False
+        # Get condition register 
+        if( isinstance(condition.left, SSAExpr)):
+            reg = condition.left.reg
+        else:
+            return False    
+        # Check if the register is in the assertion 
+        limit = self.regs_dict.get(reg, None)
+        if( limit is None ):
+            return None
+        
+        # Check the condition 
+        if( isinstance( condition.cond, CT.GT)):
+            return value <= limit
+        elif( isinstance(consition.cond, CT.GE)):
+            return value -1 <= limit
+        else:
+            return False
+            
+class RegsInfTo(AssertionType):
+    """
+    regs_dict['rax'] = 7 <=> rax is superior strictly to 7 
+    """
+    def __init__(self, regs_dict=None):
+        if( regs_dict is None ):
+            self.regs_dict = dict()
+        else:
+            self.regs_dict = dict(regs_dict)
+        
+    def add(self, reg, limit, copy=True):
+        if( not copy ):
+            new_dict = self.regs_dict
+        else:
+            new_dict = dict(self.regs_dict)
+        if( reg in self.regs_dict ):
+            new_dict[reg] = min(self.regs_dict[reg], limit)
+        else:
+            new_dict[reg] = limit
+        return RegInfTo(new_dict)
+    
+    def merge(self, other_dict, copy=True):
+        if( copy ):
+            new = RegsSupTo(self.regs_dict)
+        else:
+            new = self
+        for (reg, limit) in other_dict:
+            new.add(reg, limit, new=False)
+        return new
+    
+    def validate(self, condition):
+        """
+        Condition must be CT.GT, CT.GE, CT.LT, CT.LE
+        """
+        # Get condition value
+        if( isinstance(condition.right, ConstExpr)):
+            value = condition.right.value
+        else:
+            return False
+        # Get condition register 
+        if( isinstance(condition.left, SSAExpr)):
+            reg = condition.left.reg
+        else:
+            return False    
+        # Check if the register is in the assertion 
+        limit = self.regs_dict.get(reg, None)
+        if( limit is None ):
+            return None
+        
+        # Check the condition 
+        if( isinstance( condition.cond, CT.LT)):
+            return value >= limit
+        elif( isinstance(consition.cond, CT.LE)):
+            return value +1 >= limit
+        else:
+            return False
+
 class Assertion:
     """
     Assertions types and values:
@@ -441,6 +557,8 @@ class Assertion:
         self.regsNoOverlap = RegsNoOverlap()
         self.regsValidRead = RegsValidPtrRead()
         self.regsValidWrite = RegsValidPtrWrite()
+        self.regsInfTo = RegsInfTo()
+        self.regsSupTo = RegsSupTo()
         for a in assertList:
             self.add(a, copy=False)
     
@@ -469,6 +587,10 @@ class Assertion:
             new.regsValidRead = self.regsValidRead.add(a.regs)
         elif( isinstance(a, RegsValidPtrWrite)):
             new.regsValidWrite = self.regsValidWrite.add(a.regs)
+        elif( isinstance(a, RegsSupTo)):
+            new.regsSupTo = self.regsSupTo.merge(a.regs_dict)
+        elif( isinstance(a, RegsInfTo)):
+            new.regsInfTo = self.regsInfTo.merge(a.regs_dict)
         else:
             raise Exception("Assertion: {} not supported in add() function"\
             .format(a))
@@ -489,6 +611,10 @@ class Assertion:
                 new.regsValidRead = RegsValidPtrRead()
             elif( t == AssertTypeID.REGS_VALID_PTR_WRITE ):
                 new.regsValidWrite = RegsValidPtrWrite()
+            elif( t == AssertTypeID.REGS_SUP_TO ):
+                new.regsSupTo = RegsSupTo()
+            elif( t == AssertTypeID.REGS_INF_TO ):
+                new.regsInfTo = RegsInfTo()
             else:
                 raise Exception("Unknown assertion type")
         return new 
@@ -503,7 +629,9 @@ class Assertion:
         elif( cond.cond == CT.FALSE ):
             return False
         elif( cond.cond in [CT.GE, CT.GT, CT.LT, CT.LE] ):
-            return self.regsNoOverlap.validate(cond)
+            return  self.regsNoOverlap.validate(cond)\
+                    or self.regsInfTo.validate(cond)\
+                    or self.regsSupTo.validate(cond)
         elif( cond.cond in [CT.EQUAL, CT.NOTEQUAL] ):
             return self.regsEqual.validate(cond)
         elif( cond.cond == CT.AND ):
@@ -529,9 +657,12 @@ class Assertion:
         return True
         
     def filter(self, condList):
+        """
+        returns a sublist of condList with only 
+        conditions that are not verified by the Assertion 
+        """
         res = []
         for cond in condList:
             if( not self._validateSingleCond(cond)):
                 res.append(cond)
         return res
-

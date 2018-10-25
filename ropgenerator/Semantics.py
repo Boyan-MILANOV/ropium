@@ -164,6 +164,16 @@ class Semantics:
         # Update memory semantics with the new ones 
         self.memory = newMemory
     
+    
+    def customSemanticAdjust(self):
+        """
+        Make some adjustments in semantics so that it is easier to process by the search engine 
+        """
+        ## Adjust Cat(0, Extract( x, 0, E))
+        ## --> E if E <  2^(x-1) €z 
+        pass 
+    
+    
     def simplifyConditions(self):
         """
         Simplifies the dependencies according to the conditions evaluated 
