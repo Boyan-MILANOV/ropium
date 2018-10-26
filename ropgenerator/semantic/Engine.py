@@ -533,12 +533,12 @@ class RecordREGtoREG:
         newNotModInt = sum([(1 << r) for r in list(set(regsNotModified))])
         for i in range(0, len(self.regs[reg1][reg2][cst])):
             prevNotModInt = self.regs[reg1][reg2][cst][i]
-            if( prevNotModInt & newNotModInt == prevNotModInt ):
+            if( prevNotModInt & newNotModInt == newNotModInt ):
                 # new regsNotModified included in the previous ones
                 # We replace it (il engloble l'autre)
                 self.regs[reg1][reg2][cst][i] = newNotModInt
                 return
-            elif( prevNotModInt & newNotModInt == newNotModInt ):
+            elif( prevNotModInt & newNotModInt == prevNotModInt ):
                 # previous regsNotModified included in the new one
                 # We replace it
                 return
@@ -557,7 +557,7 @@ class RecordREGtoREG:
                 return False
             regsInt = sum([(1<<r) for r in list(set(regsNotModified))])
             for notModInt in regsNotModified_list:
-                if( (regsInt & notModInt) == regsInt ):
+                if( (regsInt & notModInt) == notModInt ):
                     # recorded regs included in specified regs 
                     return True
             return False
