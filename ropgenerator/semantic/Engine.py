@@ -28,8 +28,10 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreC
     return _search(qtype, arg1, arg2, env, n, optimizeLen)
 
 def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=10000):
-    global env
-    return _basic(qtype, arg1, arg2, constraint, assertion, n, clmax, noPadding=True)
+    global MAXDEPTH
+    
+    env = SearchEnvironment(clmax, constraint, assertion, MAXDEPTH, noPadding=True)
+    return _basic(qtype, arg1, arg2, env, n)
 
 def _search(qtype, arg1, arg2, env, n=1, optimizeLen=False):
                 
@@ -46,9 +48,9 @@ def _search(qtype, arg1, arg2, env, n=1, optimizeLen=False):
         env.incDepth()
     
     if( optimizeLen ):
-        res = search_optimize_len(qtype, arg1, arg2, env, n)
+        res = _search_optimize_len(qtype, arg1, arg2, env, n)
     else:
-        res = search_first_hit(qtype, arg1, arg2, env, n)
+        res = _search_first_hit(qtype, arg1, arg2, env, n)
     
     env.decDepth()
     return res
@@ -59,7 +61,13 @@ def _search_first_hit(qtype, arg1, arg2, env, n=1):
     """
     
     # Search basic 
+    # Add Chainable constraint in env.constraint
+    
+    constraint = env.getConstraint()
+    env.setConstraint(constraint.add(Chainable(ret=True)))
     res = _basic(qtype, arg1, arg2, env, n)
+    # Restore normal constraint
+    env.setConstraint(constraint)
     # Search chaining 
     if( len(res) < n and (qtype not in [QueryType.SYSCALL, QueryType.INT80])):
         res += _chain(qtype, arg1, arg2, env, n-len(res))
@@ -127,7 +135,7 @@ def _basic(qtype, arg1, arg2, env, n=1):
     if( env.getNoPadding() ):
         maxSpInc = None
     else:
-        maxSpInc = clmax*Arch.octets()
+        maxSpInc = env.getLmax()*Arch.octets()
     
     # Check for special gadgets
     if( qtype == QueryType.INT80 or qtype == QueryType.SYSCALL):
@@ -151,7 +159,7 @@ def _basic(qtype, arg1, arg2, env, n=1):
     # Regular gadgets 
     # maxSpInc -> +1 because we don't count the ret but -1 because the gadget takes one place 
     gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion2, n, maxSpInc=maxSpInc)
-    if( noPadding ):
+    if( env.getNoPadding() ):
         return [ROPChain().addGadget(g) for g in gadgets]
     else:
         res = []
@@ -206,6 +214,52 @@ def _chain(qtype, arg1, arg2, env, n=1):
     return res
 
 
+def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
+    """
+    Perform REG1 <- REG2+CST with REG1 <- REG3 <- REG2+CST
+    """
+    ID = "REGtoREG_transitivity"
+    
+    ## Test for special cases 
+    # Test lmax
+    if( env.getLmax() <= 0 ):
+        return []
+    # If reg1 <- reg1 + 0, return 
+    if( arg1 == arg2[0] and arg2[1] == 0 ):
+        return []
+    
+    # Set env 
+    env.addCall(ID)
+    
+    # Search 
+    res = []
+    for inter_reg in range(0, Arch.ssaRegCount):
+        if( inter_reg == arg1 or (inter_reg == arg2[0] and arg2[1]==0)\
+            or (inter_reg in record.unusable_REGtoREG) or inter_reg == Arch.ipNum()\
+            or (inter_reg == Arch.spNum()) ):
+            continue
+        # Find reg1 <- inter_reg without using arg2    
+        record.unusable_REGtoREG.append(arg2[0])
+        inter_to_arg1_list = search(QueryType.REGtoREG, arg1, (inter_reg, 0), \
+                constraint, assertion, n, clmax=clmax-1, record=record )
+        record.unusable_REGtoREG.remove(arg2[0])
+        if( not inter_to_arg1_list ):
+            continue
+        
+        # Find inter_reg <- arg2 without using arg1
+        record.unusable_REGtoREG.append(arg1)
+        n2 = n/len(inter_to_arg1_list)
+        if( n2 == 0 ):
+            n2 = 1 
+        for arg2_to_inter in search(QueryType.REGtoREG, inter_reg, arg2, \
+                constraint, assertion, n2, clmax=clmax-1, record=record):
+            for inter_to_arg1 in inter_to_arg1_list:
+                if( len(inter_to_arg1)+len(arg2_to_inter) <= clmax):
+                    res.append(arg2_to_inter.addChain(inter_to_arg1, new=True))
+                if( len(res) >= n ):
+                    return res
+        record.unusable_REGtoREG.remove(arg1)
+    return res 
 
 
 ###################################################################
@@ -227,14 +281,13 @@ class RecordREGtoREG:
         newNotModInt = sum([(1 << r) for r in list(set(regsNotModified))])
         for i in range(0, len(self.regs[reg1][reg2][cst])):
             prevNotModInt = self.regs[reg1][reg2][cst][i]
-            if( prevNotModInt & newNotModInt == prevNotModInt ):
+            if( prevNotModInt & newNotModInt == newNotModInt ):
                 # new regsNotModified included in the previous ones
                 # We replace it (il engloble l'autre)
                 self.regs[reg1][reg2][cst][i] = newNotModInt
                 return
-            elif( prevNotModInt & newNotModInt == newNotModInt ):
+            elif( prevNotModInt & newNotModInt == prevNotModInt ):
                 # previous regsNotModified included in the new one
-                # We replace it
                 return
         # If new really different from all others, add it 
         self.regs[reg1][reg2][cst].append(newNotModInt)
@@ -251,7 +304,7 @@ class RecordREGtoREG:
                 return False
             regsInt = sum([(1<<r) for r in list(set(regsNotModified))])
             for notModInt in regsNotModified_list:
-                if( (regsInt & notModInt) == regsInt ):
+                if( (regsInt & notModInt) == notModInt ):
                     # recorded regs included in specified regs 
                     return True
             return False
@@ -364,7 +417,13 @@ class SearchEnvironment:
     def setNoPadding(self, b):
         self.noPadding = b
         
-
+    def addCall(self, ID):
+        if( not ID in self.calls_record ):
+            self.calls_record[ID] = 0
+        self.calls_record[ID] += 1
+        
+    def removeCall(self, ID):
+        self.calls_record[ID] -= 1
 
 ################################################
 # Global records for the ROPGenerator sessions
