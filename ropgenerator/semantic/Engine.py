@@ -215,8 +215,8 @@ def _chain(qtype, arg1, arg2, env, n=1):
         return []
         res += CSTtoMEM_write(arg1, arg2, constraint, assertion, n-len(res), clmax)
     elif( qtype == QueryType.REGtoMEM ):
-        return []
-        res += REGtoMEM_transitivity(arg1,arg2, constraint, assertion, n-len(res), clmax)    
+        res += REGtoMEM_transitivity(arg1,arg2, env, n-len(res))    
+    
     # For any types, adjust the returns 
     if( len(res) < n ):
         return res
@@ -453,8 +453,54 @@ def MEMtoREG_transitivity(reg, arg2, env, n=1):
     
     # Restore env 
     env.removeCall(ID)
-    
     return res[:n]
+
+
+def REGtoMEM_transitivity(arg1,arg2, env, n=1):
+    """
+    reg <- arg2
+    mem(arg1) <- reg
+    """
+    ID = "REGtOMEM_transitivity"
+    
+    ## Test for special cases 
+    # Test lmax
+    if( env.getLmax() <= 0 ):
+        return []
+    # Limit number of calls to ... 
+    elif( env.nbCalls(ID) >= 99 ):
+        return []
+    # Check if previous call was already REGtoMEM_transitivity
+    # Reason: we handle the transitivity with REGtoREG transitivity
+    # so no need to do it also recursively with this one ;) 
+    elif( env.callsHistory()[-1] == ID ):
+        return []
+
+    # Set env 
+    env.addCall(ID)
+    ###################################
+    res = []
+    for inter in Arch.registers():
+        if( inter == arg2[0] or inter in env.getConstraint().getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum()):
+            continue 
+        # Find inter <- arg2 
+        arg2_to_inter = _search(QueryType.REGtoREG, inter, (arg2[0],arg2[1]), env, n)
+        if( arg2_to_inter):
+            len_min = min([len(chain) for chain in arg2_to_inter])
+            # Try to find mem(arg1) <- inter
+            env.subLmax(len_min)
+            env.addUnusableReg(arg2[0])
+            inter_to_mem = _search(QueryType.REGtoMEM, arg1, (inter, 0), env)
+            env.removeUnusableReg(arg2[0])
+            env.addLmax(len_min)
+            res += [chain1.addChain(chain2, new=True) for chain1 in arg2_to_inter\
+                for chain2 in inter_to_mem if len(chain1)+len(chain2) <= env.getLmax()]
+            if( len(res) >= n ):
+                break
+    #####################################
+    # Resotre env
+    env.removeCall(ID)
+    return res
 
 ###################################################################
 # Data structures to store some info from the different searches
@@ -750,7 +796,7 @@ def init_impossible_REGtoREG(env):
         notify("Computation time : " + str(cTime))
     except: 
         print("\n")
-        fatal("Exception caught, stopping Semantic Engine init process...")
+        fatal("Exception caught, stopping Semantic Engine init process...\n")
         fatal("Search time might get very long !\n")
         env = SearchEnvironment(INIT_LMAX, Constraint(), baseAssertion, INIT_MAXDEPTH )
         
