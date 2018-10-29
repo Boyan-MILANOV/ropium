@@ -194,9 +194,8 @@ def _chain(qtype, arg1, arg2, env, n=1):
     ## CSTtoREG
     if( qtype == QueryType.CSTtoREG ):
         res += _CSTtoREG_pop(arg1, arg2, env, n-len(res))
-        if( len(res) < n ):
-            return res 
-            #res += _CSTtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), clmax, comment, maxdepth)
+        if( len(res) < n ): 
+            res += _CSTtoREG_transitivity(arg1, arg2, env, n-len(res))
     ## REGtoREG 
     elif( qtype == QueryType.REGtoREG):
         # Check if we already tried this query 
@@ -351,6 +350,63 @@ def _CSTtoREG_pop(reg, cst, env, n=1, comment=None):
     return res
 
 
+def _CSTtoREG_transitivity(reg, cst, env, n=1):
+    """
+    Perform REG1 <- CST with REG1 <- REG2 <- CST
+    """
+    ID = "CSTtoREG_transitivity"
+    
+    ## Test for special cases 
+    # Test lmax
+    if( env.getLmax() <= 0 ):
+        return []
+    # Limit number of calls to ... 
+    elif( env.nbCalls(ID) >= 99 ):
+        return []
+    # Check if the cst is in badBytes 
+    elif( not env.getConstraint().badBytes.verifyAddress(cst)):
+        return []
+    # Check if previous call was already CSTtoREG_transitivity
+    # Reason: we handle the transitivity with REGtoREG transitivity
+    # so no need to do it also recursively with this one ;) 
+    elif( env.callsHistory()[-1] == ID ):
+        return []
+    
+    # Set env 
+    env.addCall(ID)
+    
+    #############################
+    res = []
+    for inter in Arch.registers():
+        if( inter == reg or inter == Arch.ipNum() or inter == Arch.spNum() ):
+            continue
+        # Find reg <- inter 
+        # Set env 
+        inter_to_reg = _search(QueryType.REGtoREG, reg, (inter,0), env, n)
+        if( inter_to_reg ):
+            # We found ROPChains s.t reg <- inter
+            # Now we want inter <- cst 
+            min_len = min([len(chain) for chain in inter_to_reg])
+            env.subLmax(min_len)
+            cst_to_inter = _search(QueryType.CSTtoREG, inter, cst, env, n/len(inter_to_reg)+1)
+            env.addLmax(min_len)
+            
+            for chain2 in inter_to_reg:
+                for chain1 in cst_to_inter:
+                    if( len(chain1)+len(chain2) <= env.getLmax()):
+                        res.append(chain1.addChain(chain2, new=True))
+                            
+        # Did we get enough chains ?             
+        if( len(res) >= n ):
+            break
+    ###############################        
+    # Restore env 
+    env.removeCall(ID)
+    
+    return res[:n]
+
+
+
 ###################################################################
 # Data structures to store some info from the different searches
 # and fasten the computation time for the next searches 
@@ -440,7 +496,7 @@ class SearchEnvironment:
         self.assertion = assertion
         self.depth = 0
         self.calls_count = dict()
-        self.calls_history = []
+        self.calls_history = ["ROOT"]
         self.lmax = lmax
         self.maxdepth = maxdepth
         self.enablePreConds = enablePreConds
@@ -513,6 +569,9 @@ class SearchEnvironment:
         
     def nbCalls(self, ID):
         return self.calls_count.get(ID, 0)
+        
+    def callsHistory(self):
+        return self.calls_history
         
     def getImpossible_REGtoREG(self):
         return self.impossible_REGtoREG
