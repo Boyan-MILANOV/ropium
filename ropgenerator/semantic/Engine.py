@@ -210,8 +210,7 @@ def _chain(qtype, arg1, arg2, env, n=1):
         if( not res ):
             env.addImpossible_REGtoREG(arg1, arg2[0], arg2[1])
     elif( qtype == QueryType.MEMtoREG ):
-        return []
-        res += MEMtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), clmax )
+        res += MEMtoREG_transitivity(arg1, arg2, env, n-len(res))
     elif( qtype == QueryType.CSTtoMEM ):
         return []
         res += CSTtoMEM_write(arg1, arg2, constraint, assertion, n-len(res), clmax)
@@ -313,7 +312,7 @@ def _CSTtoREG_pop(reg, cst, env, n=1, comment=None):
         
     # Direct pop from the stack
     res = []
-    # Adapt constraint if ip <- cst TODO: check if need to realy adapt the ret :/ 
+    # Adapt constraint if ip <- cst
     if( reg != Arch.ipNum()):
         constraint2 =  env.getConstraint().add(Chainable(ret=True))
         
@@ -378,17 +377,18 @@ def _CSTtoREG_transitivity(reg, cst, env, n=1):
     #############################
     res = []
     for inter in Arch.registers():
-        if( inter == reg or inter == Arch.ipNum() or inter == Arch.spNum() ):
+        if( inter == reg or inter in env.getConstraint().getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum() ):
             continue
         # Find reg <- inter 
-        # Set env 
         inter_to_reg = _search(QueryType.REGtoREG, reg, (inter,0), env, n)
         if( inter_to_reg ):
             # We found ROPChains s.t reg <- inter
             # Now we want inter <- cst 
             min_len = min([len(chain) for chain in inter_to_reg])
             env.subLmax(min_len)
+            env.addUnusableReg(reg)
             cst_to_inter = _search(QueryType.CSTtoREG, inter, cst, env, n/len(inter_to_reg)+1)
+            env.removeUnusableReg(reg)
             env.addLmax(min_len)
             
             for chain2 in inter_to_reg:
@@ -406,6 +406,55 @@ def _CSTtoREG_transitivity(reg, cst, env, n=1):
     return res[:n]
 
 
+def MEMtoREG_transitivity(reg, arg2, env, n=1):
+    """
+    Perform reg <- inter <- mem(arg2)
+    """
+    ID = "MEMtoREG_transitivity"
+    
+    ## Test for special cases 
+    # Test lmax
+    if( env.getLmax() <= 0 ):
+        return []
+    # Limit number of calls to ... 
+    elif( env.nbCalls(ID) >= 99 ):
+        return []
+    # Check if previous call was already MEMtoREG_transitivity
+    # Reason: we handle the transitivity with REGtoREG transitivity
+    # so no need to do it also recursively with this one ;) 
+    elif( env.callsHistory()[-1] == ID ):
+        return []
+        
+    # Set env  
+    env.addCall(ID)
+        
+    ###########################
+    res = []
+    for inter in Arch.registers():
+        if( inter == reg or inter in env.getConstraint().getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum() ):
+                continue    
+        
+        # Find arg1 <- inter
+        inter_to_reg = _search(QueryType.REGtoREG, reg, (inter,0), env, n)
+        if (inter_to_reg):
+            min_len = min([len(chain) for chain in inter_to_reg])
+            # Try to find inter <- arg2
+            env.subLmax(min_len)
+            env.addUnusableReg(reg)
+            arg2_to_inter = _search(QueryType.MEMtoREG, inter, arg2, env, n)
+            env.removeUnusableReg(reg)
+            env.addLmax(min_len)
+            res += [chain1.addChain(chain2, new=True) for chain1 in arg2_to_inter \
+                for chain2 in inter_to_reg if len(chain1)+len(chain2) <= env.getLmax()  ]
+        # Did we get enough chains ? 
+        if( len(res) >= n ):
+            break
+    ########################
+    
+    # Restore env 
+    env.removeCall(ID)
+    
+    return res[:n]
 
 ###################################################################
 # Data structures to store some info from the different searches
