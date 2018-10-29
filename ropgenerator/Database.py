@@ -229,12 +229,8 @@ class Database:
             self.types[QueryType.REGtoREG][r] = REGList()
             self.types[QueryType.MEMtoREG][r] = MEMList()
             
-        if( gadgets ):
-            info(string_bold("Sorting gadgets semantics\n")) 
-        
         # Fill them 
         for i in range(0, len(gadgets)):
-            charging_bar(len(gadgets)-1, i, 30)
             gadget = gadgets[i]
             # Check for special gadgets (int 0x80 and syscall
             if( gadget.type == GadgetType.INT80 ):

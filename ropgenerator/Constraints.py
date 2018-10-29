@@ -47,16 +47,7 @@ class Chainable(ConstraintType):
         self.jmp = jmp
         self.call = call
         
-    def verify(self, gadget):
-        if( gadget.retType == RetType.UNKNOWN ):
-            deps = gadget.getSemantics(Arch.ipNum())
-            for pair in deps:
-                if( isinstance(pair.expr, MEMExpr) ):
-                    (isInc, inc) = pair.expr.addr.isRegIncrement(Arch.spNum())
-                    if( isInc and inc >= 0 ):
-                        return (True, [pair.cond])
-            return (False, [])
-        
+    def verify(self, gadget):        
         if( self.ret == self.jmp == self.call == False ):
             return (True, [])
         elif( self.ret and gadget.retType == RetType.RET ):
@@ -68,19 +59,19 @@ class Chainable(ConstraintType):
             
         # If unknown ret, check if ret possible
         # Is a ret sometimes possible ? 
-        if( self.ret ):
-            for p in gadget.getSemantics(Arch.ipNum()):
-                if( isinstance(p.expr, MEMExpr)):
-                    addr = p.expr.addr
-                    (isInc, inc) = addr.isRegIncrement(Arch.spNum())    
-                    # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
-                    if( isInc and inc == (gadget.spInc - (Arch.octets())) ):
+        if( gadget.retType == RetType.UNKNOWN ):
+            if( self.ret ):
+                for p in gadget.getSemantics(Arch.ipNum()):
+                    if( isinstance(p.expr, MEMExpr)):
+                        (isInc, inc) = p.expr.addr.isRegIncrement(Arch.spNum())    
+                        # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
+                        if( isInc and inc == (gadget.spInc - (Arch.octets())) ):
+                            return (True, [p.cond])
+            # Or a jump ? 
+            if( self.jmp ):
+                for p in gadget.getSemantics(Arch.ipNum()):
+                    if( isinstance(p.expr, SSAExpr )):
                         return (True, [p.cond])
-        # Or a jump ? 
-        if( self.jmp ):
-            for p in gadget.getSemantics(Arch.ipNum()):
-                if( isinstance(p.expr, SSAExpr )):
-                    return (True, [p.cond])
         return (False, [])
 
 class BadBytes(ConstraintType):
@@ -326,6 +317,9 @@ class RegsNoOverlap(AssertionType):
         """
         self.pairs = pairList
         
+    def __eq__(self, other):
+        return set(self.pairs) == set(other.pairs)
+    
     def add(self, pairList):
         return RegsNoOverlap(list(set(self.pairs + pairList)))
       
@@ -349,6 +343,9 @@ class RegsEqual(AssertionType):
         """
         self.pairs = pairList
         
+    def __eq__(self, other):
+        return set(self.pairs) == set(other.pairs)
+    
     def add(self, pairList):
         return RegsEqual(list(set(self.pairs + pairList)))
       
@@ -374,6 +371,9 @@ class RegsValidPtrRead(AssertionType):
         """
         self.regs = regList
         
+    def __eq__(self, other):
+        return set(self.regs) == set(other.regs)
+    
     def add(self, regList):
         return RegsValidPtrRead(self.regs + regList)
         
@@ -409,6 +409,9 @@ class RegsValidPtrWrite(AssertionType):
     def __init__(self, regList=[]):
         self.regs = regList
         
+    def __eq__(self, other):
+        return set(self.regs) == set(other.regs)
+    
     def add(self, regList):
         return RegsValidPtrWrite(list(set(self.regs + regList)))
         
@@ -445,6 +448,9 @@ class RegsSupTo(AssertionType):
             self.regs_dict = dict()
         else:
             self.regs_dict = dict(regs_dict)
+            
+    def __eq__(self, other):
+        return self.regs_dict == other.regs_dict
         
     def add(self, reg, limit, copy=True):
         if( not copy ):
@@ -503,6 +509,9 @@ class RegsInfTo(AssertionType):
         else:
             self.regs_dict = dict(regs_dict)
         
+    def __eq__(self, other):
+        return self.regs_dict == other.regs_dict
+    
     def add(self, reg, limit, copy=True):
         if( not copy ):
             new_dict = self.regs_dict
@@ -567,6 +576,16 @@ class Assertion:
         self.regsSupTo = RegsSupTo()
         for a in assertList:
             self.add(a, copy=False)
+    
+    def __eq__(self, other):
+        return  (id( self) == id(other))\
+            or \
+                ( self.regsEqual == other.regsEqual\
+                and self.regsNoOverlap == other.regsNoOverlap\
+                and self.regsValidRead == other.regsValidRead\
+                and self.regsValidWrite == other.regsValidWrite\
+                and self.regsInfTo == other.regsInfTo\
+                and self.regsSupTo == other.regsSupTo ) 
     
     def _copy(self):
         new = Assertion()
@@ -672,3 +691,4 @@ class Assertion:
             if( not self._validateSingleCond(cond)):
                 res.append(cond)
         return res
+

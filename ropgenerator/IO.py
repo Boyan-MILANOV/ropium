@@ -101,7 +101,7 @@ def string_semantic(text):
     
 # Custom charging bar :) 
 last_percent = -1 
-def charging_bar( nb_iter, curr_iter, bar_len, msg="", char=u"\u2588"):
+def charging_bar( nb_iter, curr_iter, bar_len=30, msg="", char=u"\u2588"):
     """
     Print a charging bar 
     """

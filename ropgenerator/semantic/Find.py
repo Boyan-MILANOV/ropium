@@ -6,7 +6,7 @@ from ropgenerator.Constraints import Constraint, BadBytes, RegsNotModified, Asse
 from ropgenerator.IO import error, banner, string_bold, string_special 
 from ropgenerator.Database import QueryType
 from ropgenerator.Expressions import parseStrToExpr, ConstExpr, MEMExpr
-from ropgenerator.semantic.Engine import search, search_not_chainable, LMAX
+from ropgenerator.semantic.Engine import search, search_not_chainable, LMAX, getBaseAssertion
 import ropgenerator.Architecture as Arch
 
 # Definition of options names
@@ -78,9 +78,7 @@ def find(args):
         nbResults = parsed_args[5]
         clmax = parsed_args[6]
         optimizeLen = parsed_args[7]
-        assertion = Assertion().add(\
-            RegsValidPtrRead([(Arch.spNum(),-5000, 10000)])).add(\
-            RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]))
+        assertion = getBaseAssertion()
         # Search 
         res = search(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax, optimizeLen=optimizeLen)
         if( res ):

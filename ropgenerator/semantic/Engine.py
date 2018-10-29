@@ -3,11 +3,12 @@
 
 from ropgenerator.semantic.ROPChains import ROPChain, validAddrStr
 from ropgenerator.Database import QueryType, DBSearch, DBPossibleInc, DBPossiblePopOffsets, REGList, DBPossibleMemWrites
-from ropgenerator.Constraints import Chainable, RegsNotModified, Constraint, Assertion, CstrTypeID, RegsNoOverlap
+from ropgenerator.Constraints import Chainable, RegsNotModified, Constraint, Assertion, CstrTypeID, RegsNoOverlap, RegsValidPtrRead, RegsValidPtrWrite
 from ropgenerator.Gadget import RetType
-from ropgenerator.IO import string_bold
+from ropgenerator.IO import string_bold, info, charging_bar, notify, fatal
 from itertools import product
 import ropgenerator.Architecture as Arch
+from datetime import datetime
 
 ###################################
 # Search functions and strategies #
@@ -178,37 +179,47 @@ def _chain(qtype, arg1, arg2, env, n=1):
     """
     Search for ropchains by chaining gadgets 
     """
-    return []
+    global global_impossible_REGtoREG
     
+    
+    ## Preliminary tests 
     # Test clmax
-    if( clmax <= 0 ):
+    if( env.getLmax() <= 0 ):
         return []
     # Test record 
-    if( record.reachedMaxDepth() ):
+    elif( env.reachedMaxDepth() ):
         return []
     
     res = []  
     if( qtype == QueryType.CSTtoREG ):
+        return []
         res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n-len(res), clmax, comment)
         if( len(res) < n ):
             res += _CSTtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), clmax, comment, maxdepth)
     elif( qtype == QueryType.REGtoREG):
-        if( record.impossible_REGtoREG.check(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())):
+        # Check if we already tried this query 
+        if( env.checkImpossible_REGtoREG(arg1, arg2[0], arg2[1])):
             return [] 
+        elif( (env.getAssertion() == baseAssertion) and global_impossible_REGtoREG.checkImpossible_REGtoREG(arg1, arg2[0], arg2[1])):
+            return []
+        # Use chaining strategies 
         if( len(res) < n ):
-            res += _REGtoREG_transitivity(arg1, arg2, constraint, assertion, record, n-len(res), clmax)
-        #if( len(res) < n):
-            #res += _REGtoREG_increment(arg1, arg2, constraint, assertion, record, n-len(res))
+            res += _REGtoREG_transitivity(arg1, arg2, env,  n-len(res))
+        # If unsucceful chaining attempt, record it in the environment 
         if( not res ):
-            record.impossible_REGtoREG.add(arg1, arg2[0], arg2[1], constraint.getRegsNotModified())
+            env.addImpossible_REGtoREG(arg1, arg2[0], arg2[1])
     elif( qtype == QueryType.MEMtoREG ):
+        return []
         res += MEMtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), clmax )
     elif( qtype == QueryType.CSTtoMEM ):
+        return []
         res += CSTtoMEM_write(arg1, arg2, constraint, assertion, n-len(res), clmax)
     elif( qtype == QueryType.REGtoMEM ):
+        return []
         res += REGtoMEM_transitivity(arg1,arg2, constraint, assertion, n-len(res), clmax)    
     # For any types, adjust the returns 
     if( len(res) < n ):
+        return res
         res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax, record.copy(), comment)
     
     return res
@@ -227,6 +238,9 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
     # If reg1 <- reg1 + 0, return 
     if( arg1 == arg2[0] and arg2[1] == 0 ):
         return []
+    # Limit number of calls to REGtoREG transitivity
+    if( env.nbCalls(ID) >= 3 ):
+        return []
     
     # Set env 
     env.addCall(ID)
@@ -235,30 +249,41 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
     res = []
     for inter_reg in range(0, Arch.ssaRegCount):
         if( inter_reg == arg1 or (inter_reg == arg2[0] and arg2[1]==0)\
-            or (inter_reg in record.unusable_REGtoREG) or inter_reg == Arch.ipNum()\
+            or (inter_reg in env.getUnusableRegs()) or inter_reg == Arch.ipNum()\
             or (inter_reg == Arch.spNum()) ):
             continue
         # Find reg1 <- inter_reg without using arg2    
-        record.unusable_REGtoREG.append(arg2[0])
-        inter_to_arg1_list = search(QueryType.REGtoREG, arg1, (inter_reg, 0), \
-                constraint, assertion, n, clmax=clmax-1, record=record )
-        record.unusable_REGtoREG.remove(arg2[0])
+        env.addUnusableReg(arg2[0])
+        env.subLmax(1)
+        inter_to_arg1_list = _search(QueryType.REGtoREG, arg1, (inter_reg, 0), env, n)
+        env.removeUnusableReg(arg2[0])
+        env.addLmax(1)
         if( not inter_to_arg1_list ):
             continue
+        else:
+            min_len_chain = min([len(chain) for chain in inter_to_arg1_list])
         
         # Find inter_reg <- arg2 without using arg1
-        record.unusable_REGtoREG.append(arg1)
+        env.addUnusableReg(arg1)
+        env.subLmax(min_len_chain)
         n2 = n/len(inter_to_arg1_list)
         if( n2 == 0 ):
             n2 = 1 
-        for arg2_to_inter in search(QueryType.REGtoREG, inter_reg, arg2, \
-                constraint, assertion, n2, clmax=clmax-1, record=record):
+        for arg2_to_inter in _search(QueryType.REGtoREG, inter_reg, arg2, env, n2):
             for inter_to_arg1 in inter_to_arg1_list:
-                if( len(inter_to_arg1)+len(arg2_to_inter) <= clmax):
+                if( len(inter_to_arg1)+len(arg2_to_inter) <= env.getLmax()):
                     res.append(arg2_to_inter.addChain(inter_to_arg1, new=True))
                 if( len(res) >= n ):
-                    return res
-        record.unusable_REGtoREG.remove(arg1)
+                    break
+            if( len(res) >= n ):
+                break
+        env.addLmax(min_len_chain)
+        env.removeUnusableReg(arg1)
+        if( len(res) >= n ):
+                break
+    
+    # Restore env
+    env.removeCall(ID)
     return res 
 
 
@@ -338,31 +363,6 @@ class RecordAdjustRet:
             new.add(reg)
         return new
 
-class SearchRecord:
-    def __init__(self, maxdepth=4):
-        self.depth = 0
-        self.maxdepth = maxdepth
-        self.impossible_REGtoREG = global_impossible_REGtoREG.copy()
-        self.unusable_REGtoREG = []
-        self.impossible_AdjustRet = RecordAdjustRet()
-        
-    def getDepth(self):
-        return self.depth
-        
-    def incDepth(self):
-        self.depth += 1
-        
-    def decDepth(self):
-        self.depth -= 1
-        
-    def reachedMaxDepth(self):
-        return (self.depth > self.maxdepth)
-        
-    def copy(self):
-        new = SearchRecord(maxdepth=self.maxdepth)
-        new.impossible_REGtoREG = self.impossible_REGtoREG.copy()
-        new. unusable_REGtoREG = self.unusable_REGtoREG
-        new.impossible_AdjustRet = self.impossible_AdjustRet.copy()
 
 #######################################
 #                                     #
@@ -375,12 +375,29 @@ class SearchEnvironment:
         self.constraint = constraint
         self.assertion = assertion
         self.depth = 0
-        self.calls_record = dict()
+        self.calls_count = dict()
+        self.calls_history = []
         self.lmax = lmax
         self.maxdepth = maxdepth
         self.enablePreConds = enablePreConds
         self.noPadding = noPadding
+        self.impossible_REGtoREG = RecordREGtoREG()
+        self.unusable_regs_REGtoREG = []
 
+    def __str__(self):
+        s = "SearchEnvironment:\n-------------------\n\n"
+        s += str(self.constraint) + '\n'
+        s += str(self.assertion) + '\n'
+        s += "Depth: " + str(self.depth) + '\n'
+        s += "impossibleREGtoREG: " + str(self.impossible_REGtoREG.regs) + '\n'
+        s += "Unusable regs REGtoREG " + str(self.unusable_regs_REGtoREG) + '\n'
+        s += "Calls history: "
+        tab = '\t'
+        for call in self.calls_history:
+            s += tab+call
+            tab += '\t'
+        return s 
+    
     def getConstraint(self):
         return self.constraint
         
@@ -398,6 +415,9 @@ class SearchEnvironment:
         
     def subLmax(self, length):
         self.lmax -= length
+        
+    def setLmax(self, length):
+        self.lmax = length
     
     def getDepth(self):
         return self.depth
@@ -409,7 +429,7 @@ class SearchEnvironment:
         self.depth -= 1
         
     def reachedMaxDepth(self):
-        return self.depth >= self.maxdepth
+        return self.depth > self.maxdepth
         
     def getNoPadding(self):
         return self.noPadding
@@ -418,19 +438,37 @@ class SearchEnvironment:
         self.noPadding = b
         
     def addCall(self, ID):
-        if( not ID in self.calls_record ):
-            self.calls_record[ID] = 0
-        self.calls_record[ID] += 1
+        if( not ID in self.calls_count ):
+            self.calls_count[ID] = 0
+        self.calls_count[ID] += 1
+        self.calls_history.append(ID)
         
     def removeCall(self, ID):
-        self.calls_record[ID] -= 1
-
-################################################
-# Global records for the ROPGenerator sessions
-# Used for optimisations 
-################################################
-
-global_impossible_REGtoREG = RecordREGtoREG()
+        self.calls_count[ID] -= 1
+        self.calls_history.remove(ID)
+        
+    def nbCalls(self, ID):
+        return self.calls_count.get(ID, 0)
+        
+    def getImpossible_REGtoREG(self):
+        return self.impossible_REGtoREG
+        
+    def checkImpossible_REGtoREG(self, reg1, reg2, cst ):
+        unusableRegsList = list(set(self.constraint.getRegsNotModified() + self.unusable_regs_REGtoREG))
+        return self.impossible_REGtoREG.check(reg1, reg2, cst, unusableRegsList)
+        
+    def addImpossible_REGtoREG(self, reg1, reg2, cst):
+        unusableRegsList = list(set(self.constraint.getRegsNotModified() + self.unusable_regs_REGtoREG))
+        self.impossible_REGtoREG.add(reg1, reg2, cst, unusableRegsList)
+        
+    def getUnusableRegs(self):
+        return self.unusable_regs_REGtoREG
+        
+    def addUnusableReg(self, reg):
+        self.unusable_regs_REGtoREG.append(reg)
+    
+    def removeUnusableReg(self, reg):
+        self.unusable_regs_REGtoREG.remove(reg)
 
 
 #########
@@ -482,24 +520,73 @@ def combine_increments(increments_list, goal):
     return res
 
 
+####################################
+# Module initialisation & Helpers  #
+####################################
+INIT_LMAX = 2000
+INIT_MAXDEPTH = 6
 
+# record to fasten REGtoREG search by cutting bad branches 
+global_impossible_REGtoREG = None
 
+# BaseAssertion, used as base for the basic search function 
+baseAssertion = None
 
-#############################
-# Initialization function   #
-#############################
 def initEngine():
-    #init_impossible_REGtoREG()
-    pass
-
-def init_impossible_REGtoREG():
+    global INIT_LMAX, INIT_MAXDEPTH
     global global_impossible_REGtoREG
-    record = SearchRecord()
-    for reg1 in range(0, Arch.ssaRegCount):
-        for reg2 in range(0, Arch.ssaRegCount):
-            print("Doing {} <- {} ".format(reg1, reg2))
-            if (reg2 == reg1):
-                continue
-            search(QueryType.REGtoREG, reg1, [reg2,0], Constraint(), Assertion(), n=1, record=record)
-    global_impossible_REGtoREG = record.impossible_REGtoREG
+    global baseAssertion
+    
+    # Init global variables
+    baseAssertion = Assertion().add(\
+            RegsValidPtrRead([(Arch.spNum(),-5000, 10000)]), copy=False).add(\
+            RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]), copy=False)
+    
+    info(string_bold("Initializing Semantic Engine\n"))
+    
+    # Init helper for REGtoREG 
+    global_impossible_REGtoREG = SearchEnvironment(INIT_LMAX, Constraint(), baseAssertion, INIT_MAXDEPTH )
+    init_impossible_REGtoREG(global_impossible_REGtoREG)
 
+
+def init_impossible_REGtoREG(env):
+    global INIT_LMAX, INIT_MAXDEPTH
+    global baseAssertion
+    
+    try: 
+        startTime = datetime.now()
+        i = 0
+        impossible_count = 0 
+        for reg1 in sorted(Arch.registers()):
+            reg_name = Arch.r2n(reg1)
+            if( len(reg_name) < 6 ):
+                reg_name += " "*(6-len(reg_name))
+            elif( len(reg_name) >= 6 ):
+                reg_name = reg_name[:5] + "."
+            for reg2 in Arch.registers():
+                i += 1 
+                charging_bar(len(Arch.registers()*len(Arch.registers())), i, 30)
+                if (reg2 == reg1):
+                    continue
+                _search(QueryType.REGtoREG, reg1, [reg2,0], env, n=1)
+                if( env.checkImpossible_REGtoREG(reg1, reg2, 0)):
+                    impossible_count += 1
+        cTime = datetime.now() - startTime
+        # Get how many impossible path we found 
+        impossible_rate = int(100*(float(impossible_count)/float((len(Arch.registers())-1)*len(Arch.registers()))))
+        notify('Optimization rate :  {}%'.format(impossible_rate))
+        notify("Computation time : " + str(cTime))
+    except: 
+        print("\n")
+        fatal("Exception caught, stopping Semantic Engine init process...")
+        fatal("Search time might get very long !\n")
+        env = SearchEnvironment(INIT_LMAX, Constraint(), baseAssertion, INIT_MAXDEPTH )
+        
+
+#########################
+# Modle wide accessors ##
+#########################
+
+def getBaseAssertion():
+    global baseAssertion
+    return baseAssertion
