@@ -1,6 +1,7 @@
 # -*- coding:utf-8 -*- 
 # Load module: load a binary and extract gadgets from it 
 
+import sys
 import os
 import subprocess
 from ropgenerator.Database import build, initDB
@@ -10,7 +11,7 @@ import ropgenerator.Architecture as Arch
 from ropgenerator.IO import string_bold, info, string_special, banner, notify, error
 from magic import from_file
 from base64 import b16decode
-from random import shuffle, random
+from random import shuffle, random, randrange, Random
 
 # Command options
 OPTION_ARCH = '--arch'
@@ -185,8 +186,13 @@ def load(args):
     # Build the gadget database
     # (we mix the list so that charging bar
     # appears to grow steadily )
+    
+    # DEBUG     
     r = random()
+    r = 0.601605548423114
+    print("++++ DEBUG random : ", r)
     shuffle(gadgetList, lambda: r)
+    
     build(gadgetList)
     # Init engine 
     initEngine()

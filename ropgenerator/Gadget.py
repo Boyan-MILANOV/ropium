@@ -129,27 +129,27 @@ class Gadget:
         self.retType = RetType.UNKNOWN
         self.retValue = None
         if( self.type == GadgetType.REGULAR ):
-            ip_num = Arch.n2r(Arch.currentArch.ip)
+            ip_num = Arch.ipNum()
             ip = SSAReg(ip_num, self.graph.lastMod[ip_num])
-            sp_num = Arch.n2r(Arch.currentArch.sp)
+            sp_num = Arch.spNum()
             
-            if( self.spInc != None ):
-                for p in self.semantics.get(ip):
-                    if( p.cond.isTrue()):
-                        if( isinstance(p.expr, MEMExpr)):
-                            addr = p.expr.addr
-                            (isInc, inc) = addr.isRegIncrement(sp_num)    
-                            # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
-                            if( isInc and inc == (self.spInc - (Arch.currentArch.octets)) ):
-                                self.retType = RetType.RET
-                                self.retValue = p.expr
-                        elif( isinstance(p.expr, SSAExpr )):
+            # DEBUG before this test if( self.spInc != None ):
+            for p in self.semantics.get(ip):
+                if( p.cond.isTrue()):
+                    if( isinstance(p.expr, MEMExpr)):
+                        addr = p.expr.addr
+                        (isInc, inc) = addr.isRegIncrement(sp_num)    
+                        # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
+                        if( isInc and inc == (self.spInc - (Arch.currentArch.octets)) ):
+                            self.retType = RetType.RET
                             self.retValue = p.expr
-                            # Try to detect gadgets ending by 'call' 
-                            if( ins[-1]._mnemonic[:4] == "call"):
-                                self.retType = RetType.CALL
-                            else:
-                                self.retType = RetType.JMP
+                    elif( isinstance(p.expr, SSAExpr )):
+                        self.retValue = p.expr
+                        # Try to detect gadgets ending by 'call' 
+                        if( ins[-1]._mnemonic[:4] == "call"):
+                            self.retType = RetType.CALL
+                        else:
+                            self.retType = RetType.JMP
     
     # Accessors and useful functions
     def __str__(self):

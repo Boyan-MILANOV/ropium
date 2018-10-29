@@ -63,7 +63,6 @@ def _search_first_hit(qtype, arg1, arg2, env, n=1):
     
     # Search basic 
     # Add Chainable constraint in env.constraint
-    
     constraint = env.getConstraint()
     env.setConstraint(constraint.add(Chainable(ret=True)))
     res = _basic(qtype, arg1, arg2, env, n)
@@ -104,11 +103,13 @@ def _search_optimize_len(qtype, arg1, arg2, env, n=1):
         # Set env
         env.setLmax(lmoy)
         # Search
-        res = _search(qtype, arg1, arg2, env, n)
+        # Copy env to reinit it everytime we search 
+        other_env = env.copy()
+        res = _search(qtype, arg1, arg2, other_env, n)
         if( res ):
             # If found we can try shorter 
             best_find = res
-            lmax = lmoy-1
+            lmax = max(1, min([len(chain) for chain in best_find])-1)
         else:
             # If not found we try longer 
             lmin = lmoy
@@ -116,7 +117,7 @@ def _search_optimize_len(qtype, arg1, arg2, env, n=1):
     # Set env 
     env.setLmax(lmax)
     # Search
-    res = search(qtype, arg1, arg2, env, n)
+    res = _search(qtype, arg1, arg2, env, n)
     # Restore env 
     env.setLmax(saved_lmax)
     
@@ -180,8 +181,6 @@ def _chain(qtype, arg1, arg2, env, n=1):
     Search for ropchains by chaining gadgets 
     """
     global global_impossible_REGtoREG
-    
-    
     ## Preliminary tests 
     # Test clmax
     if( env.getLmax() <= 0 ):
@@ -210,18 +209,16 @@ def _chain(qtype, arg1, arg2, env, n=1):
         if( not res ):
             env.addImpossible_REGtoREG(arg1, arg2[0], arg2[1])
     elif( qtype == QueryType.MEMtoREG ):
-        res += MEMtoREG_transitivity(arg1, arg2, env, n-len(res))
+        res += _MEMtoREG_transitivity(arg1, arg2, env, n-len(res))
     elif( qtype == QueryType.CSTtoMEM ):
         return []
-        res += CSTtoMEM_write(arg1, arg2, constraint, assertion, n-len(res), clmax)
+        res += _CSTtoMEM_write(arg1, arg2, constraint, assertion, n-len(res), clmax)
     elif( qtype == QueryType.REGtoMEM ):
-        res += REGtoMEM_transitivity(arg1,arg2, env, n-len(res))    
+        res += _REGtoMEM_transitivity(arg1,arg2, env, n-len(res))  
     
-    # For any types, adjust the returns 
-    if( len(res) < n ):
-        return res
-        res += _adjust_ret(qtype, arg1, arg2, constraint, assertion, n, clmax, record.copy(), comment)
-    
+    if( len(res) <= n):
+        res += _adjust_ret(qtype, arg1, arg2, env, n-len(res))
+        
     return res
 
 
@@ -236,10 +233,10 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
     if( env.getLmax() <= 0 ):
         return []
     # If reg1 <- reg1 + 0, return 
-    if( arg1 == arg2[0] and arg2[1] == 0 ):
+    elif( arg1 == arg2[0] and arg2[1] == 0 ):
         return []
     # Limit number of calls to REGtoREG transitivity
-    if( env.nbCalls(ID) >= 3 ):
+    elif( env.nbCalls(ID) >= 3 ):
         return []
     
     # Set env 
@@ -406,7 +403,7 @@ def _CSTtoREG_transitivity(reg, cst, env, n=1):
     return res[:n]
 
 
-def MEMtoREG_transitivity(reg, arg2, env, n=1):
+def _MEMtoREG_transitivity(reg, arg2, env, n=1):
     """
     Perform reg <- inter <- mem(arg2)
     """
@@ -456,7 +453,7 @@ def MEMtoREG_transitivity(reg, arg2, env, n=1):
     return res[:n]
 
 
-def REGtoMEM_transitivity(arg1,arg2, env, n=1):
+def _REGtoMEM_transitivity(arg1,arg2, env, n=1):
     """
     reg <- arg2
     mem(arg1) <- reg
@@ -499,6 +496,108 @@ def REGtoMEM_transitivity(arg1,arg2, env, n=1):
                 break
     #####################################
     # Resotre env
+    env.removeCall(ID)
+    return res
+    
+def _adjust_ret(qtype, arg1, arg2, env, n):
+    """
+    Search with basic but adjust the bad returns they have 
+    """
+    global LMAX
+    ID = "adjust_ret"
+    
+    ## Test for special cases 
+    # Test lmax
+    if( env.getLmax() <= 0 ):
+        return []
+    # Limit number of calls to ... 
+    elif( env.nbCalls(ID) >= 1 ):
+        return []
+    # Test for ip
+    # Reason: can not adjust ip if ip is the 
+    # target of the query :/  
+    elif ( arg1 == Arch.ipNum() ):
+        return []
+        
+    
+    # Set env 
+    env.addCall(ID)
+    
+    ########################################
+    res = []
+    padding = env.getConstraint().getValidPadding(Arch.octets())
+    # Get possible gadgets
+    constraint = env.getConstraint()
+    env.setConstraint(constraint.add(Chainable(jmp=True, call=True)))
+    possible = _basic(qtype, arg1, arg2, env, 10*n)      
+    env.setConstraint(constraint)
+    
+    # Try to adjust them  
+    for chain in possible:
+        g = chain.chain[0]
+        ret_reg = g.retValue.reg.num
+        # Check if we already know that ret_reg can't be adjusted
+        if( env.checkImpossible_adjust_ret(ret_reg)):
+            continue
+        #Check if ret_reg not modified within the gadget
+        elif( ret_reg in g.modifiedRegs()):
+            continue
+        # Check if stack is preserved 
+        elif( g.spInc is None ):
+            continue
+        
+        # Find adjustment 
+        if( g.spInc < 0 ):
+            offset = -1 * g.spInc
+            padding_length = 0
+        else: 
+            padding_length = g.spInc / Arch.octets()
+            if( g.retType == RetType.JMP ):
+                offset = 0 
+            else:
+                offset = Arch.octets() 
+        if( isinstance(arg1,int)):
+            arg1_reg = arg1
+        else:
+            arg1_reg = arg1[0]
+        
+        # Get adjustment gadgets 
+        env.setConstraint(constraint.add(RegsNotModified([arg1_reg])))
+        saved_lmax = env.getLmax()
+        env.setLmax(LMAX)
+        adjust_gadgets = _search(QueryType.MEMtoREG, Arch.ipNum(), \
+                (Arch.spNum(),offset), env, n=1)
+        env.setConstraint(constraint)
+        env.setLmax(saved_lmax)
+        
+        if( not adjust_gadgets ):
+            continue
+        else:
+            adjust_addr = int(validAddrStr(adjust_gadgets[0].chain[0],\
+                    constraint.getBadBytes(), Arch.bits()),  16)
+        
+        # Find gadgets to put the gadget address in the jmp/call register 
+        if( isinstance(arg2, int)):
+            arg2_reg = arg2
+        else:
+            arg2_reg = arg2[0]
+            
+        env.setConstraint(constraint.add(RegsNotModified([arg2_reg])))
+        env.subLmax(1+padding_length)
+        adjust = _search(QueryType.CSTtoREG, ret_reg, adjust_addr, env, n=1)
+        # TODO comment="Address of "+string_bold(str(adjust_gadgets[0].chain[0])))
+        env.addLmax(1+padding_length)
+        env.setConstraint(constraint)
+        if( adjust ):
+            res.append(adjust[0].addGadget(g).addPadding(padding, n=padding_length))
+            if( len(res) >= n ):
+                break
+        else:
+            # Update the search record to say that reg_ret cannot be adjusted
+            env.addImpossible_adjust_ret(ret_reg)
+    ########################################
+    # Restore env
+    env.impossible_adjust_ret = RecordAdjustRet()
     env.removeCall(ID)
     return res
 
@@ -597,6 +696,7 @@ class SearchEnvironment:
         self.enablePreConds = enablePreConds
         self.noPadding = noPadding
         self.impossible_REGtoREG = RecordREGtoREG()
+        self.impossible_adjust_ret = RecordAdjustRet()
         self.unusable_regs_REGtoREG = []
 
     def __str__(self):
@@ -604,14 +704,26 @@ class SearchEnvironment:
         s += str(self.constraint) + '\n'
         s += str(self.assertion) + '\n'
         s += "Depth: " + str(self.depth) + '\n'
+        s += "Lmax: " + str(self.lmax) + '\n'
         s += "impossibleREGtoREG: " + str(self.impossible_REGtoREG.regs) + '\n'
         s += "Unusable regs REGtoREG " + str(self.unusable_regs_REGtoREG) + '\n'
         s += "Calls history: "
         tab = '\t'
         for call in self.calls_history:
-            s += tab+call
+            s += tab+call+'\n'
             tab += '\t'
         return s 
+    
+    def copy(self):
+        new = SearchEnvironment(self.lmax, self.constraint, self.assertion, self.maxdepth,\
+            self.enablePreConds, self.noPadding)
+        new.depth = self.depth
+        new.calls_count = dict(self.calls_count)
+        new.calls_history = list(self.calls_history)
+        new.impossible_REGtoREG = self.impossible_REGtoREG.copy()
+        new.impossible_adjust_ret = self.impossible_adjust_ret.copy()
+        new.unusable_regs_REGtoREG = list(self.unusable_regs_REGtoREG)
+        return new
     
     def getConstraint(self):
         return self.constraint
@@ -679,6 +791,12 @@ class SearchEnvironment:
         unusableRegsList = list(set(self.constraint.getRegsNotModified() + self.unusable_regs_REGtoREG))
         self.impossible_REGtoREG.add(reg1, reg2, cst, unusableRegsList)
         
+    def addImpossible_adjust_ret(self, reg):
+        self.impossible_adjust_ret.add(reg)
+        
+    def checkImpossible_adjust_ret(self, reg):
+        return self.impossible_adjust_ret.check(reg)
+    
     def getUnusableRegs(self):
         return self.unusable_regs_REGtoREG
         
