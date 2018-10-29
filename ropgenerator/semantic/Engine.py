@@ -191,11 +191,13 @@ def _chain(qtype, arg1, arg2, env, n=1):
         return []
     
     res = []  
+    ## CSTtoREG
     if( qtype == QueryType.CSTtoREG ):
-        return []
-        res += _CSTtoREG_pop(arg1, arg2, constraint, assertion, n-len(res), clmax, comment)
+        res += _CSTtoREG_pop(arg1, arg2, env, n-len(res))
         if( len(res) < n ):
-            res += _CSTtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), clmax, comment, maxdepth)
+            return res 
+            #res += _CSTtoREG_transitivity(arg1, arg2, constraint, assertion, n-len(res), clmax, comment, maxdepth)
+    ## REGtoREG 
     elif( qtype == QueryType.REGtoREG):
         # Check if we already tried this query 
         if( env.checkImpossible_REGtoREG(arg1, arg2[0], arg2[1])):
@@ -285,6 +287,68 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
     # Restore env
     env.removeCall(ID)
     return res 
+
+def _CSTtoREG_pop(reg, cst, env, n=1, comment=None):
+    """
+    Returns a payload that puts cst into register reg by poping it from the stack
+    """ 
+    ID = "CSTtoREG_pop"
+    
+    ## Test for special cases 
+    # Test lmax
+    if( env.getLmax() <= 0 ):
+        return []
+    # Limit number of calls to ... 
+    elif( env.nbCalls(ID) >= 99 ):
+        return []
+    # Check if the cst is in badBytes 
+    elif( not env.getConstraint().badBytes.verifyAddress(cst)):
+        return []
+    
+    # Set env 
+    env.addCall(ID)
+    
+    ########################
+    if( not comment ):
+        comment = "Constant: " +string_bold("0x{:x}".format(cst))
+        
+    # Direct pop from the stack
+    res = []
+    # Adapt constraint if ip <- cst TODO: check if need to realy adapt the ret :/ 
+    if( reg != Arch.ipNum()):
+        constraint2 =  env.getConstraint().add(Chainable(ret=True))
+        
+    possible = DBPossiblePopOffsets(reg,constraint2, env.getAssertion())
+    for offset in sorted(filter(lambda x:x>=0, possible.keys())):
+        # If offsets are too big to fit in the lmax just break
+        if( offset > env.getLmax()*Arch.octets()):
+            break 
+        # Get possible gadgets
+        possible_gadgets = [g for g in possible[offset]\
+            if g.spInc >= Arch.octets() \
+            and g.spInc - Arch.octets() > offset \
+            and (g.spInc/Arch.octets()-1) <= env.getLmax()] # Test if padding is too much for clmax
+        # Pad the gadgets 
+        padding = env.getConstraint().getValidPadding(Arch.octets())
+        for gadget in possible_gadgets:
+            chain = ROPChain([gadget])
+            for i in range(0, gadget.spInc-Arch.octets(), Arch.octets()):
+                if( i == offset):
+                    chain.addPadding(cst, comment)
+                else:
+                    chain.addPadding(padding)
+            if( len(chain) <= env.getLmax() ):
+                res.append(chain)
+            if( len(res) >= n ):
+                break
+        if( len(res) >= n ):
+            break
+    #########################
+    
+    # Restore env 
+    env.removeCall(ID)
+    
+    return res
 
 
 ###################################################################
@@ -574,7 +638,7 @@ def init_impossible_REGtoREG(env):
         cTime = datetime.now() - startTime
         # Get how many impossible path we found 
         impossible_rate = int(100*(float(impossible_count)/float((len(Arch.registers())-1)*len(Arch.registers()))))
-        notify('Optimization rate :  {}%'.format(impossible_rate))
+        notify('Optimization rate : {}%'.format(impossible_rate))
         notify("Computation time : " + str(cTime))
     except: 
         print("\n")
