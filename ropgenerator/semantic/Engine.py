@@ -9,6 +9,7 @@ from ropgenerator.IO import string_bold, info, charging_bar, notify, fatal
 from itertools import product
 import ropgenerator.Architecture as Arch
 from datetime import datetime
+from enum import Enum
 
 ###################################
 # Search functions and strategies #
@@ -190,6 +191,10 @@ def _chain(qtype, arg1, arg2, env, n=1):
         return []
     
     res = []  
+    # Adjust ret must be BEFORE other strategies so that 
+    # when they fail we can set impossible queries 
+    res += _adjust_ret(qtype, arg1, arg2, env, n-len(res))
+            
     ## CSTtoREG
     if( qtype == QueryType.CSTtoREG ):
         res += _CSTtoREG_pop(arg1, arg2, env, n-len(res))
@@ -215,18 +220,23 @@ def _chain(qtype, arg1, arg2, env, n=1):
         res += _CSTtoMEM_write(arg1, arg2, constraint, assertion, n-len(res), clmax)
     elif( qtype == QueryType.REGtoMEM ):
         res += _REGtoMEM_transitivity(arg1,arg2, env, n-len(res))  
-    
-    if( len(res) <= n):
-        res += _adjust_ret(qtype, arg1, arg2, env, n-len(res))
         
     return res
 
-
+# Types of strategies 
+class StrategyType(Enum):
+    REGtoREG_TRANSITIVITY = "REGtoREG_transitivity"
+    CSTtoREG_POP = "CSTtoREG_pop"
+    CSTtoREG_TRANSITIVITY = "CSTtoREG_transitivity"
+    MEMtoREG_TRANSITIVITY = "MEMtoREG_transitivity"
+    REGtoMEM_TRANSITIVITY = "REGtOMEM_transitivity"
+    ADJUST_RET = "adjust_ret"
+    
 def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
     """
     Perform REG1 <- REG2+CST with REG1 <- REG3 <- REG2+CST
     """
-    ID = "REGtoREG_transitivity"
+    ID = StrategyType.REGtoREG_TRANSITIVITY
     
     ## Test for special cases 
     # Test lmax
@@ -236,8 +246,10 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
     elif( arg1 == arg2[0] and arg2[1] == 0 ):
         return []
     # Limit number of calls to REGtoREG transitivity
-    elif( env.nbCalls(ID) >= 3 ):
+    elif( env.callsHistory()[-2:] == [ID, ID] ):
         return []
+    elif( env.nbCalls(ID) >= 4):
+        pass
     
     # Set env 
     env.addCall(ID)
@@ -283,11 +295,11 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
     env.removeCall(ID)
     return res 
 
-def _CSTtoREG_pop(reg, cst, env, n=1, comment=None):
+def _CSTtoREG_pop(reg, cst, env, n=1):
     """
     Returns a payload that puts cst into register reg by poping it from the stack
     """ 
-    ID = "CSTtoREG_pop"
+    ID = StrategyType.CSTtoREG_POP
     
     ## Test for special cases 
     # Test lmax
@@ -302,11 +314,15 @@ def _CSTtoREG_pop(reg, cst, env, n=1, comment=None):
     
     # Set env 
     env.addCall(ID)
-    
-    ########################
-    if( not comment ):
+    # Get comment 
+    if( env.hasComment(ID)):
+        envHadComment = True
+        comment = env.popComment(ID)
+    else:
+        envHadComment = False
         comment = "Constant: " +string_bold("0x{:x}".format(cst))
         
+    ########################
     # Direct pop from the stack
     res = []
     # Adapt constraint if ip <- cst
@@ -342,6 +358,8 @@ def _CSTtoREG_pop(reg, cst, env, n=1, comment=None):
     
     # Restore env 
     env.removeCall(ID)
+    if( envHadComment ):
+        env.pushComment(ID, comment)
     
     return res
 
@@ -350,7 +368,7 @@ def _CSTtoREG_transitivity(reg, cst, env, n=1):
     """
     Perform REG1 <- CST with REG1 <- REG2 <- CST
     """
-    ID = "CSTtoREG_transitivity"
+    ID = StrategyType.CSTtoREG_TRANSITIVITY
     
     ## Test for special cases 
     # Test lmax
@@ -407,7 +425,7 @@ def _MEMtoREG_transitivity(reg, arg2, env, n=1):
     """
     Perform reg <- inter <- mem(arg2)
     """
-    ID = "MEMtoREG_transitivity"
+    ID = StrategyType.MEMtoREG_TRANSITIVITY
     
     ## Test for special cases 
     # Test lmax
@@ -458,7 +476,7 @@ def _REGtoMEM_transitivity(arg1,arg2, env, n=1):
     reg <- arg2
     mem(arg1) <- reg
     """
-    ID = "REGtOMEM_transitivity"
+    ID = StrategyType.REGtoMEM_TRANSITIVITY
     
     ## Test for special cases 
     # Test lmax
@@ -504,14 +522,14 @@ def _adjust_ret(qtype, arg1, arg2, env, n):
     Search with basic but adjust the bad returns they have 
     """
     global LMAX
-    ID = "adjust_ret"
+    ID = StrategyType.ADJUST_RET
     
     ## Test for special cases 
     # Test lmax
     if( env.getLmax() <= 0 ):
         return []
     # Limit number of calls to ... 
-    elif( env.nbCalls(ID) >= 1 ):
+    elif( env.nbCalls(ID) >= 2 ):
         return []
     # Test for ip
     # Reason: can not adjust ip if ip is the 
@@ -519,7 +537,6 @@ def _adjust_ret(qtype, arg1, arg2, env, n):
     elif ( arg1 == Arch.ipNum() ):
         return []
         
-    
     # Set env 
     env.addCall(ID)
     
@@ -584,8 +601,9 @@ def _adjust_ret(qtype, arg1, arg2, env, n):
             
         env.setConstraint(constraint.add(RegsNotModified([arg2_reg])))
         env.subLmax(1+padding_length)
+        env.pushComment(StrategyType.CSTtoREG_POP, "Address of "+string_bold(str(adjust_gadgets[0].chain[0])))
         adjust = _search(QueryType.CSTtoREG, ret_reg, adjust_addr, env, n=1)
-        # TODO comment="Address of "+string_bold(str(adjust_gadgets[0].chain[0])))
+        env.popComment(StrategyType.CSTtoREG_POP)
         env.addLmax(1+padding_length)
         env.setConstraint(constraint)
         if( adjust ):
@@ -618,19 +636,23 @@ class RecordREGtoREG:
             self.regs[reg1][reg2][cst] = []
         # Adding 
         newNotModInt = sum([(1 << r) for r in list(set(regsNotModified))])
+        added = False
+        already = False
         for i in range(0, len(self.regs[reg1][reg2][cst])):
             prevNotModInt = self.regs[reg1][reg2][cst][i]
             if( prevNotModInt & newNotModInt == newNotModInt ):
                 # new regsNotModified included in the previous ones
                 # We replace it (il engloble l'autre)
                 self.regs[reg1][reg2][cst][i] = newNotModInt
-                return
+                added = True
             elif( prevNotModInt & newNotModInt == prevNotModInt ):
                 # previous regsNotModified included in the new one
-                return
+                already = True
+                break
         # If new really different from all others, add it 
-        self.regs[reg1][reg2][cst].append(newNotModInt)
-        
+        if( (not added) and (not already) ):
+            self.regs[reg1][reg2][cst].append(newNotModInt)
+        self.regs[reg1][reg2][cst] = list(set(self.regs[reg1][reg2][cst]))
             
     def check(self, reg1, reg2, cst, regsNotModified):
             """
@@ -698,6 +720,7 @@ class SearchEnvironment:
         self.impossible_REGtoREG = RecordREGtoREG()
         self.impossible_adjust_ret = RecordAdjustRet()
         self.unusable_regs_REGtoREG = []
+        self.comments = dict()
 
     def __str__(self):
         s = "SearchEnvironment:\n-------------------\n\n"
@@ -723,6 +746,7 @@ class SearchEnvironment:
         new.impossible_REGtoREG = self.impossible_REGtoREG.copy()
         new.impossible_adjust_ret = self.impossible_adjust_ret.copy()
         new.unusable_regs_REGtoREG = list(self.unusable_regs_REGtoREG)
+        new.comments = dict(self.comments)
         return new
     
     def getConstraint(self):
@@ -806,6 +830,21 @@ class SearchEnvironment:
     def removeUnusableReg(self, reg):
         self.unusable_regs_REGtoREG.remove(reg)
 
+    def hasComment(self, ID):
+        return (len(self.comments.get(ID,[])) > 0)
+    
+    def pushComment(self, ID, comment):
+        if( not ID in self.comments ):
+            self.comments[ID] = [comment] 
+        else:
+            self.comments[ID].append(comment)
+        
+    def getComment(self, ID):
+        return self.comments[ID][-1]
+    
+    def popComment(self, ID):
+        return self.comments[ID].pop()
+        
 
 #########
 # Utils #
@@ -904,7 +943,7 @@ def init_impossible_REGtoREG(env):
                 charging_bar(len(Arch.registers()*len(Arch.registers())), i, 30)
                 if (reg2 == reg1):
                     continue
-                _search(QueryType.REGtoREG, reg1, [reg2,0], env, n=1)
+                _search(QueryType.REGtoREG, reg1, (reg2,0), env, n=1)
                 if( env.checkImpossible_REGtoREG(reg1, reg2, 0)):
                     impossible_count += 1
         cTime = datetime.now() - startTime

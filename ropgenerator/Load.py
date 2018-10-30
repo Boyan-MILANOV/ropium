@@ -186,11 +186,8 @@ def load(args):
     # Build the gadget database
     # (we mix the list so that charging bar
     # appears to grow steadily )
-    
-    # DEBUG     
+      
     r = random()
-    r = 0.601605548423114
-    print("++++ DEBUG random : ", r)
     shuffle(gadgetList, lambda: r)
     
     build(gadgetList)
@@ -198,7 +195,7 @@ def load(args):
     initEngine()
     loaded = True
 
-
+###################################
 # Module wide
 loaded = False
 def loadedBinary():
