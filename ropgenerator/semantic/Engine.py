@@ -328,6 +328,8 @@ def _CSTtoREG_pop(reg, cst, env, n=1):
     # Adapt constraint if ip <- cst
     if( reg != Arch.ipNum()):
         constraint2 =  env.getConstraint().add(Chainable(ret=True))
+    else:
+        constraint2 = env.getConstraint()
         
     possible = DBPossiblePopOffsets(reg,constraint2, env.getAssertion())
     for offset in sorted(filter(lambda x:x>=0, possible.keys())):
