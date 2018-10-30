@@ -216,8 +216,7 @@ def _chain(qtype, arg1, arg2, env, n=1):
     elif( qtype == QueryType.MEMtoREG ):
         res += _MEMtoREG_transitivity(arg1, arg2, env, n-len(res))
     elif( qtype == QueryType.CSTtoMEM ):
-        return []
-        res += _CSTtoMEM_write(arg1, arg2, constraint, assertion, n-len(res), clmax)
+        res += _CSTtoMEM_write(arg1, arg2, env, n-len(res))
     elif( qtype == QueryType.REGtoMEM ):
         res += _REGtoMEM_transitivity(arg1,arg2, env, n-len(res))  
         
@@ -230,6 +229,7 @@ class StrategyType(Enum):
     CSTtoREG_TRANSITIVITY = "CSTtoREG_transitivity"
     MEMtoREG_TRANSITIVITY = "MEMtoREG_transitivity"
     REGtoMEM_TRANSITIVITY = "REGtOMEM_transitivity"
+    CSTtoMEM_WRITE = "CSTtoMEM_write"
     ADJUST_RET = "adjust_ret"
     
 def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
@@ -290,11 +290,11 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
         env.removeUnusableReg(arg1)
         if( len(res) >= n ):
                 break
-    
     # Restore env
     env.removeCall(ID)
     return res 
-
+    
+    
 def _CSTtoREG_pop(reg, cst, env, n=1):
     """
     Returns a payload that puts cst into register reg by poping it from the stack
@@ -518,6 +518,77 @@ def _REGtoMEM_transitivity(arg1,arg2, env, n=1):
     # Resotre env
     env.removeCall(ID)
     return res
+
+def _CSTtoMEM_write(arg1, cst, env, n=1):
+    """
+    reg <- cst 
+    mem(arg2) <- reg
+    """
+    ID = StrategyType.CSTtoMEM_WRITE
+    
+    ## Test for special cases 
+    # Test lmax
+    if( env.getLmax() <= 0 ):
+        return []
+    # Limit number of calls to ... 
+    elif( env.nbCalls(ID) >= 99 ):
+        return []
+
+    # Set env 
+    env.addCall(ID)
+    ######################################
+    res = []
+    addr_reg = arg1[0]
+    addr_cst = arg1[1]
+    # 1. First strategy (direct)
+    # reg <- cst 
+    # mem(arg1) <- reg 
+    for reg in Arch.registers():
+        if( reg == Arch.ipNum() or reg == Arch.spNum() or reg == addr_reg ):
+            continue
+        # Find reg <- cst
+        constraint = env.getConstraint()
+        env.setConstraint(constraint.add(RegsNotModified([addr_reg])))
+        env.subLmax(1)
+        cst_to_reg_chains = _search(QueryType.CSTtoREG, reg, cst, env, n)
+        env.addLmax(1)
+        env.setConstraint(constraint)
+        if( not cst_to_reg_chains ):
+            continue
+        # Search for mem(arg1) <- reg 
+        # We get all reg2,cst2 s.t mem(arg1) <- reg2+cst2 
+        possible_mem_writes = DBPossibleMemWrites(addr_reg, addr_cst, env.getConstraint(), env.getAssertion(), n=1)
+        # 1.A. Ideally we look for reg2=reg and cst2=0 (direct_writes)
+        possible_mem_writes_reg = possible_mem_writes.get(reg) 
+        if( possible_mem_writes_reg ):
+            direct_writes = possible_mem_writes[reg].get(0, [])
+        else:
+            direct_writes = []
+        padding = constraint.getValidPadding(Arch.octets())
+        for write_gadget in direct_writes:
+            for cst_to_reg_chain in cst_to_reg_chains:
+                # Pad the gadgets 
+                write_chain = ROPChain([write_gadget])
+                for i in range(0, write_gadget.spInc-Arch.octets(), Arch.octets()):
+                    write_chain.addPadding(padding)
+                full_chain = cst_to_reg_chain.addChain(write_chain, new=True)
+                if( len(full_chain) <= env.getLmax() ):
+                    res.append(full_chain)
+                if( len(res) >= n ):
+                    break
+            if( len(res) >= n ):
+                break
+        if( len(res) >= n ):
+            break
+        # 1.B. 
+        # To be implemented 
+        
+    ###################
+    # Restore env 
+    env.removeCall(ID)
+    return res 
+
+
     
 def _adjust_ret(qtype, arg1, arg2, env, n):
     """
@@ -668,7 +739,7 @@ class RecordREGtoREG:
             regsInt = sum([(1<<r) for r in list(set(regsNotModified))])
             for notModInt in regsNotModified_list:
                 if( (regsInt & notModInt) == notModInt ):
-                    # recorded regs included in specified regs 
+                    # recorded regs included in specified regs
                     return True
             return False
 
