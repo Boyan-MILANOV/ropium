@@ -48,7 +48,7 @@ def _search(qtype, arg1, arg2, env, n=1, optimizeLen=False):
         return []
     else:
         env.incDepth()
-    
+        
     if( optimizeLen ):
         res = _search_optimize_len(qtype, arg1, arg2, env, n)
     else:
@@ -204,9 +204,9 @@ def _chain(qtype, arg1, arg2, env, n=1):
     elif( qtype == QueryType.REGtoREG):
         # Check if we already tried this query 
         if( env.checkImpossible_REGtoREG(arg1, arg2[0], arg2[1])):
-            return [] 
+            return res 
         elif( (env.getAssertion() == baseAssertion) and global_impossible_REGtoREG.checkImpossible_REGtoREG(arg1, arg2[0], arg2[1])):
-            return []
+            return res
         # Use chaining strategies 
         if( len(res) < n ):
             res += _REGtoREG_transitivity(arg1, arg2, env,  n-len(res))
@@ -248,18 +248,18 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
     # Limit number of calls to REGtoREG transitivity
     elif( env.callsHistory()[-2:] == [ID, ID] ):
         return []
-    elif( env.nbCalls(ID) >= 4):
-        pass
+
     
     # Set env 
     env.addCall(ID)
     
     # Search 
     res = []
-    for inter_reg in range(0, Arch.ssaRegCount):
+    for inter_reg in Arch.registers():
         if( inter_reg == arg1 or (inter_reg == arg2[0] and arg2[1]==0)\
-            or (inter_reg in env.getUnusableRegs()) or inter_reg == Arch.ipNum()\
-            or (inter_reg == Arch.spNum()) ):
+            or (env.checkImpossible_REGtoREG(arg1, inter_reg, 0))\
+            or (env.checkImpossible_REGtoREG(inter_reg, arg2[0], arg2[1]))\
+            or inter_reg == Arch.ipNum() or inter_reg == Arch.spNum() ):
             continue
         # Find reg1 <- inter_reg without using arg2    
         env.addUnusableReg(arg2[0])
@@ -612,6 +612,7 @@ def _adjust_ret(qtype, arg1, arg2, env, n):
         
     # Set env 
     env.addCall(ID)
+    saved_adjust_ret = env.getImpossible_adjust_ret().copy()
     
     ########################################
     res = []
@@ -688,7 +689,7 @@ def _adjust_ret(qtype, arg1, arg2, env, n):
             env.addImpossible_adjust_ret(ret_reg)
     ########################################
     # Restore env
-    env.impossible_adjust_ret = RecordAdjustRet()
+    env.impossible_adjust_ret = saved_adjust_ret
     env.removeCall(ID)
     return res
 
@@ -888,6 +889,9 @@ class SearchEnvironment:
         unusableRegsList = list(set(self.constraint.getRegsNotModified() + self.unusable_regs_REGtoREG))
         self.impossible_REGtoREG.add(reg1, reg2, cst, unusableRegsList)
         
+    def getImpossible_adjust_ret(self):
+        return self.impossible_adjust_ret
+    
     def addImpossible_adjust_ret(self, reg):
         self.impossible_adjust_ret.add(reg)
         
@@ -1014,7 +1018,7 @@ def init_impossible_REGtoREG(env):
             for reg2 in Arch.registers():
                 i += 1 
                 charging_bar(len(Arch.registers()*len(Arch.registers())), i, 30)
-                if (reg2 == reg1):
+                if (reg2 == reg1 or reg2 == Arch.ipNum()):
                     continue
                 _search(QueryType.REGtoREG, reg1, (reg2,0), env, n=1)
                 if( env.checkImpossible_REGtoREG(reg1, reg2, 0)):

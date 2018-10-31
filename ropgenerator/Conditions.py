@@ -298,7 +298,7 @@ class Cond:
             # We look if the left part is equal to the right part 
             # !!! We DO NOT perform any simplification when left != right because '==' 
             # corresponds to structural equality between two expressions BUT NOT semantic
-            # equivalence. I.e we can have self.right != self.left from the == omparator function 
+            # equivalence. I.e we can have self.right != self.left from the == comparator function 
             # but still have self.right == self.left in the real world 
             self.right = self.right.simplify()
             self.left = self.left.simplify()
@@ -370,12 +370,13 @@ class Cond:
             else:
                 return CE.FALSE
         
+        
         if( self.customSimplified ):
             return self.customSimplifiedValue
         
         if( not self.cleaned ):
             self.clean()
-                
+               
         if( isLogicalConst(self.cond)):
             return ( self.cond == CT.TRUE )
         elif( isArithmeticComp(self.cond)):

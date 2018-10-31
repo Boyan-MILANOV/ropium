@@ -464,6 +464,11 @@ class OpExpr(Expr):
             return False 
         elif( len(self.args) != len(other.args)):
             return False
+        elif( self.op != other.op ):
+            return False
+        elif( self.size != other.size ):
+            return False    
+            
         for ind, arg in enumerate(self.args):
             if( arg != other.args[ind] ):
                 return False
