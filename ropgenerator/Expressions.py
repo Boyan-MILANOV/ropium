@@ -227,13 +227,15 @@ class SSAExpr(Expr):
     Represents an expression made out of a single register ( like R5_3 )
     """
 
-    def __init__(self, num, ind=0):
+    def __init__(self, num, ind=0, size=None):
         Expr.__init__(self)
         if( isinstance(num, SSAReg)):
             self.reg = SSAReg(num.num, num.ind)
         else:
             self.reg = SSAReg(num, ind)
-        self.size = Arch.currentArch.bits
+        if( size = None ):
+            size = Arch.bits()
+        self.size = size
     
     def __str__(self):
         return str(self.reg)

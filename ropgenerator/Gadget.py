@@ -70,7 +70,8 @@ class Gadget:
             (irsb, ins) = Arch.currentArch.asmToREIL(raw)
         except Arch.ArchException as e:
             raise GadgetException(str(e))
-        try: 
+        try:
+            print("DEBUG, gadget: " +  '; '.join(str(i) for i in ins) +  '  \\x' + '\\x'.join("{:02x}".format(ord(c)) for c in raw))
             self.graph = REILtoGraph(irsb)
             self.semantics = self.graph.getSemantics()
         except GraphException as e:

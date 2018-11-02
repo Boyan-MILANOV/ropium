@@ -21,19 +21,16 @@ from ropgenerator.Constraints import Constraint, CstrTypeID, Chainable
 # \x48\x89\xF7\xFF\xE0 Erreur calcul du spInc 
 # "\x89\x08\x89\xD0\xC3" Condition not passed (32bits)
 # \x48\x89\x03\x48\x83\xC4\x08\x5B\x5D\xC3 mem(rbx) <- rax not found by engine 
+# \x53\x48\x83\xC4\x08\x5B\x5D\xC3 BAD PADDING !! 
+# Invalid Extract (graphic instr) \xf2\x0f\xf0\x06\xf3\x0f\x7f\x07\xc3
 
 
-asm = "\x48\x89\x03\x48\x83\xC4\x08\x5B\x5D\xC3"
+asm = "\xf2\x0f\xf0\x06\xf3\x0f\x7f\x07\xc3"
 Arch.currentArch = Arch.ArchX64
 #try:
 gadget = Gadget([0], asm) 
 print(gadget.semantics)
-print(gadget.spInc)
 
-c = Constraint([Chainable(ret=True)])
-(ok, conds) = c.verify(gadget)
-print(ok)
-print(conds)
 
 #except Exception as e:
 #    print "Bad gadget ignored : " + str(e)

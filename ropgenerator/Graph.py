@@ -761,7 +761,7 @@ def translateFullRegAssignement( expr, op , graph):
         offset = 0 
     # Special treatement for the flags registers 
     if(reg == "rflags" or reg == "eflags"):
-        return Convert( Arch.currentArch.bits, expr)
+        return Convert( Arch.bits(), expr)
     # If normal registers, we translate :
     else:
         oldReg = SSAExpr(graph.getReg(op.name))
@@ -877,9 +877,9 @@ def REILtoGraph( irsb):
                 expr = barfOperandToExpr( instr.operands[0], valuesTable, graph )
                 if( instr.operands[0].size < instr.operands[2].size ):
                     expr = translateFullRegAssignement( expr, instr.operands[2], graph )
-                else:
+                elif( instr.operands[0].size > instr.operands[2].size):
                     expr = Convert(instr.operands[2].size, expr)
-                if( instr.operands[2].size != Arch.currentArch.bits ):
+                if( instr.operands[2].size < Arch.bits() ):
                     expr = translateFullRegAssignement( expr, instr.operands[2], graph )
                 subRegs = expr.getRegisters()
                 subMems = expr.getMemAcc()

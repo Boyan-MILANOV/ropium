@@ -34,6 +34,5 @@ expressions = [expr1, expr2, expr3, expr4, expr5, expr6, expr7, expr9, expr10, e
 print("Expressions tests")
 print("-----------------\n")
 
-for e in expressions:
-    print("Expression: " + str(e))
-    print("Simplified: " + str(e.simplify()) + "\n")
+op = OpExpr(Op.SUB, [r1_0, ConstExpr(54,32)])
+print(op.toArray())

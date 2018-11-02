@@ -99,6 +99,7 @@ ArchX64.archMode = ARCH_X86_MODE_64
 ArchX64.disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_64)
 ArchX64.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
 
+
 available = [ArchX86.name, ArchX64.name]
 
 # Some functions
