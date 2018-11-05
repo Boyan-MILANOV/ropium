@@ -121,6 +121,9 @@ def ipNum():
 def registers():
     return range(0, ssaRegCount)
     
+def current():
+    return currentArch
+    
 #####################
 # Types of binaries #
 ##################### 
