@@ -233,7 +233,7 @@ class SSAExpr(Expr):
             self.reg = SSAReg(num.num, num.ind)
         else:
             self.reg = SSAReg(num, ind)
-        if( size = None ):
+        if( size is None ):
             size = Arch.bits()
         self.size = size
     
