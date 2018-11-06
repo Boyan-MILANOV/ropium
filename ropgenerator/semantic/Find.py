@@ -173,7 +173,7 @@ def parse_args(args):
                 if( seenLmax ):
                     return (False, "Error. '" + arg + "' option should be used only once.")
                 if( i+1 >= len(args)):
-                    return (False, "Error. Missing output format after option '"+arg+"'")
+                    return (False, "Error. Missing length after option '"+arg+"'")
                 try:
                     clmax = int(args[i+1])
                     if( clmax < Arch.octets() ):
