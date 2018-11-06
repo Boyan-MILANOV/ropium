@@ -94,6 +94,11 @@ def _search_optimize_len(qtype, arg1, arg2, env, n=1):
     if( env.getLmax() <= 0 ):
         return []
     
+    # Make one search with max to see if possible 
+    res = _search(qtype, arg1, arg2, env, n)
+    if( not res):
+        return []
+    
     # Save env
     saved_lmax = env.getLmax()
 
