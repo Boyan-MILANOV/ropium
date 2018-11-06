@@ -101,12 +101,31 @@ class BadBytes(ConstraintType):
         """
         addrBytes = re.findall('..',('{:'+'{:02d}'\
             .format(Arch.currentArch.octets)+'x}').format(address))
-        ok = True
         for byte in self.bytes:
             if( byte in addrBytes):
                 return False
         # No bad bytes found, so valid address
         return True
+        
+    def findIndex(self, address):
+        """
+        Returns the number of a bad byte in an address
+        from right to left, starting from 0 
+        
+        i.e byte 2 in 0x12345678 is 0x34
+        
+        Returns -1 if no bad byte found 
+        """
+        addrBytes = re.findall('..',('{:'+'{:02d}'\
+            .format(Arch.currentArch.octets)+'x}').format(address))
+        index = -1
+        for byte in reversed(addrBytes):
+            index += 1
+            if( byte in self.bytes):
+                return index
+        # No bad bytes found, so valid address
+        return -1
+        
 
 class RegsNotModified(ConstraintType):
     def __init__(self, regsList=[]):
