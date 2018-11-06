@@ -19,7 +19,7 @@ LMAX = 80 # Default max number of elements (padding included) in ROPChains
 MAXDEPTH = 6
 
 def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreConds=False, \
-            noPadding=False, comment=None, maxdepth=4, optimizeLen=False):
+            noPadding=False, CSTtoREG_comment=None, maxdepth=4, optimizeLen=False):
                 
     """
     Wrapper for search_first_hit and search_optimize_len
@@ -27,6 +27,8 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreC
     global MAXDEPTH
     
     env = SearchEnvironment(clmax, constraint, assertion, MAXDEPTH, enablePreConds, noPadding)
+    if( CSTtoREG_comment ):
+        env.pushComment(StrategyType.CSTtoREG_POP, CSTtoREG_comment)
     return _search(qtype, arg1, arg2, env, n, optimizeLen)
 
 def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=10000):
