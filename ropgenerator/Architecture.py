@@ -30,6 +30,7 @@ class Architecture:
         self.sp = None
         self.bits = None
         self.octets = None
+        self.minPageSize = None
         
         # BARF Information 
         self.archMode = None
@@ -86,6 +87,7 @@ ArchX86.octets = 4
 ArchX86.archMode = ARCH_X86_MODE_32
 ArchX86.disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_32)
 ArchX86.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_32)
+ArchX86.minPageSize = 0x1000
 
 # X86-64
 ArchX64 = Architecture()
@@ -98,7 +100,7 @@ ArchX64.octets = 8
 ArchX64.archMode = ARCH_X86_MODE_64
 ArchX64.disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_64)
 ArchX64.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
-
+ArchX64.minPageSize = 0x1000
 
 available = [ArchX86.name, ArchX64.name]
 
@@ -123,6 +125,9 @@ def registers():
     
 def current():
     return currentArch
+    
+def minPageSize():
+    return currentArch.minPageSize
     
 #####################
 # Types of binaries #
