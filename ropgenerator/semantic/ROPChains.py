@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*- 
 # ROPChains module: representation of rop chains 
 from ropgenerator.Gadget import Gadget
-from ropgenerator.IO import string_special, string_bold, string_exploit, string_ropg, error
+from ropgenerator.IO import string_special, string_bold, string_exploit, string_ropg, error, disable_colors, enable_colors
 import ropgenerator.Architecture as Arch
 
 class ROPChain:
@@ -105,7 +105,12 @@ class ROPChain:
                 res += "\t"+element_str
         return res
         
-    def strPython(self, bits, badBytes = [], init=True):
+    def strPython(self, bits, badBytes = [], init=True, noTab=False):
+        if( noTab ):
+            tab = ''
+        else:
+            tab = '\t'
+        
         # Getting endianness to pack values 
         if( bits == 32 ):
             endianness_str = "'<I'"
@@ -116,16 +121,16 @@ class ROPChain:
         pack_str = "p += pack("+endianness_str+","
         res = ''
         if( init ):
-            res += "\tfrom struct import pack"
-            res += "\n\tp = ''"
+            res += tab + "from struct import pack\n"
+            res += tab + "p = ''"
         for element in self.chain:
             if( not isinstance(element, Gadget)):
                 padding_str = pack_str
                 padding_str += string_special('0x'+format(self.paddings[element][0], '0'+str(bits/4)+'x'))+")"
                 padding_str += " # " + self.paddings[element][1]
-                res += "\n\t"+padding_str
+                res += "\n"+tab+padding_str
             else:
-                res += "\n\t"+pack_str+string_special(validAddrStr(element, badBytes, bits)) +\
+                res += "\n"+tab+pack_str+string_special(validAddrStr(element, badBytes, bits)) +\
                         ") # " + string_bold(element.asmStr)
         return res
 
@@ -171,19 +176,24 @@ class PwnChain:
             res += info_string + chain_string
         return res 
         
-    def strPython(self, bits, badBytes):
+    def strPython(self, bits, badBytes, noTab=False):
+        if( noTab ):
+            tab = ''
+        else:
+            tab = '\t' 
         res = ""
-        res += "\t# -------------------\n"
-        res += "\t# "+string_exploit("Padding goes there\n")
-        res += "\t# -------------------\n"
-        res += "\tfrom struct import pack\n"
-        res += "\tp = ''\n"
+        res += tab+"# -------------------\n"
+        res += tab+"# "+string_exploit("Padding goes there\n")
+        res += tab+"# -------------------\n"
+        res += tab+"from struct import pack\n"
+        res += tab+"p = ''\n"
         
         for i in range(0, len(self.ROPChains)):
-            info_string = "\t# "+'-'*len(self.info[i])+'\n'\
-                            +"\t# "+string_exploit(self.info[i]+'\n')\
-                            +"\t# "+'-'*len(self.info[i])
-            chain_string = self.ROPChains[i].strPython(bits, badBytes, init=False)+"\n"
+            info_string = tab + "# "+'-'*len(self.info[i])+'\n'\
+                            + tab + "# "+string_exploit(self.info[i]+'\n')\
+                            +tab+"# "+'-'*len(self.info[i])
+            chain_string = self.ROPChains[i].strPython(bits, badBytes, init=False, noTab=noTab)+"\n"
             res += info_string + chain_string
+        
         return res 
     
