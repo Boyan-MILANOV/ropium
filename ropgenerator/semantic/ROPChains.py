@@ -150,6 +150,11 @@ def validAddrStr(gadget, badBytes, bits):
         if( ok):
             return "0x"+addrStr
 
+def validByteStr(badBytes):
+    for byte in reversed(range(0,0x100)):
+        if( not hex(byte)[2:] in badBytes):
+            return '\\x'+format(byte, "02x")
+    return None
 
 #########################
 #########################
@@ -176,17 +181,23 @@ class PwnChain:
             res += info_string + chain_string
         return res 
         
-    def strPython(self, bits, badBytes, noTab=False):
+    def strPython(self, bits, badBytes, noTab=False, paddingByteStr=None, paddingLen=0):
         if( noTab ):
             tab = ''
         else:
             tab = '\t' 
+        if( not paddingByteStr and (paddingLen > 0)):
+            paddingByteStr = validByteStr(badBytes)
+            
         res = ""
         res += tab+"# -------------------\n"
         res += tab+"# "+string_exploit("Padding goes there\n")
         res += tab+"# -------------------\n"
         res += tab+"from struct import pack\n"
-        res += tab+"p = ''\n"
+        if( paddingLen == 0 ):
+            res += tab+"p = ''\n"
+        else:
+            res += tab+"p = '"+paddingByteStr+"' * "+str(paddingLen)+'\n'
         
         for i in range(0, len(self.ROPChains)):
             info_string = tab + "# "+'-'*len(self.info[i])+'\n'\
