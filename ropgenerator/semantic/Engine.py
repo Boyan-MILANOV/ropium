@@ -587,9 +587,15 @@ def _CSTtoMEM_write(arg1, cst, env, n=1):
                 break
         if( len(res) >= n ):
             break
-        # 1.B. 
+        # 1.B. Otherwise we try to adjust the cst2
         # To be implemented 
-        
+     
+    # 2d Strategy: indirect
+    # reg <- arg2 - cst
+    # mem(arg1) <- reg + cst 
+    
+    # TO IMPLEMENT IN ANOTHER FUNCTION ! 
+    
     ###################
     # Restore env 
     env.removeCall(ID)

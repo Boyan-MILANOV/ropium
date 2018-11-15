@@ -426,7 +426,7 @@ class Database:
         
     def possibleAddressWrites(self, reg, cst, constraint, assertion, n=1):
         """
-        : : nb of gadgets for each case !! 
+        n : nb of gadgets for each case !! 
         """
         global gadgets
         res = dict()
@@ -443,6 +443,25 @@ class Database:
                     if( addr_cst not in reg[addr_reg]):
                         res[addr_reg][addr_cst] = []
                     res[addr_reg][addr_cst] += found
+                    
+    def allPossibleWrites(self, constraint, assertion):
+        """
+        n : nb of gadgets for each case
+        """
+        global gadgets 
+        res = []
+        for addr_reg in self.types[QueryType.REGtoMEM].registers.keys():
+            for addr_cst in self.types[QueryType.REGtoMEM].registers[addr_reg]:
+                # Get the lookUp for list of deps for MEM(addr_reg, addr_cst)
+                lookUp = self.types[QueryType.REGtoMEM].registers[addr_reg][addr_cst]
+                # Iterate through reg and cst 
+                for reg in lookUp.registers.keys():
+                    for cst in lookUp.registers[reg].values.keys():
+                        gadgets = lookUp.registers[reg].find(cst, constraint, assertion, n=1)
+                        if( gadgets ):
+                            res.append(((addr_reg, addr_cst),(reg,cst),gadgets[0]))
+        return res 
+                    
                 
                     
 ########################
@@ -476,6 +495,13 @@ def DBPossibleAddressWrites(reg, cst, constraint, assertion, n=1):
     Return the list of [addr_reg, addr_cst] such than mem(addr_reg, addr_cst) <- reg+cst
     """
     return db.possibleAddressWrites(reg, cst, constraint, assertion, n)
+    
+def DBAllPossibleWrites(constraint, assertion):
+    """
+    Return a list of [(addr_reg, addr_cst), (reg, cst), gadget] 
+    s.t gadget does: mem(addr_reg, addr_cst) <- reg+cst ! 
+    """
+    return db.allPossibleWrites(constraint, assertion)
 
 #############################
 # Build the list of gadgets #
