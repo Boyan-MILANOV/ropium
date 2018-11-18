@@ -41,6 +41,9 @@ class QueryType(Enum):
     SYSCALL = "syscall"
     INT80 = "int 0x80"
 
+def isMemWriteQuery(qtype):
+    return (qtype in [QueryType.CSTtoMEM, QueryType.REGtoMEM, QueryType.MEMtoMEM])
+    
 #######################
 # List of all gadgets #
 #######################
@@ -101,6 +104,7 @@ class CSTList:
         self.preConditions[cst].insert(index, preCond)
         
     def find(self, cst, constraint, assertion, enablePreConds=False, n=1 , maxSpInc=None):
+        global gadgets
         res = []
         if( not cst in self.values ):
             return []
@@ -457,9 +461,9 @@ class Database:
                 # Iterate through reg and cst 
                 for reg in lookUp.registers.keys():
                     for cst in lookUp.registers[reg].values.keys():
-                        gadgets = lookUp.registers[reg].find(cst, constraint, assertion, n=1)
-                        if( gadgets ):
-                            res.append(((addr_reg, addr_cst),(reg,cst),gadgets[0]))
+                        gadget_list = lookUp.registers[reg].find(cst, constraint, assertion, n=1)
+                        if( gadget_list ):
+                            res.append(((addr_reg, addr_cst),(reg,cst),gadget_list[0]))
         return res 
                     
                 

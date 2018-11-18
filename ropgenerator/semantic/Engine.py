@@ -1005,7 +1005,8 @@ def initEngine():
     # Init global variables
     baseAssertion = Assertion().add(\
             RegsValidPtrRead([(Arch.spNum(),-5000, 10000)]), copy=False).add(\
-            RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]), copy=False)
+            RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]), copy=False).add(\
+            RegsNoOverlap([(Arch.spNum(), reg) for reg in Arch.registers()]))
     
     info(string_bold("Initializing Semantic Engine\n"))
     

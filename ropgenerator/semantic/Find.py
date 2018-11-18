@@ -4,10 +4,11 @@
 from ropgenerator.Constraints import Constraint, BadBytes, RegsNotModified, Assertion,\
     RegsValidPtrRead, RegsValidPtrWrite
 from ropgenerator.IO import error, banner, string_bold, string_special 
-from ropgenerator.Database import QueryType
+from ropgenerator.Database import QueryType, isMemWriteQuery
 from ropgenerator.Expressions import parseStrToExpr, ConstExpr, MEMExpr
 from ropgenerator.semantic.Engine import search, search_not_chainable, LMAX, getBaseAssertion
 import ropgenerator.Architecture as Arch
+from ropgenerator.exploit.Utils import store_constant_address
 
 # Definition of options names
 OPTION_HELP = '--help'
@@ -79,13 +80,22 @@ def find(args):
         clmax = parsed_args[6]
         optimizeLen = parsed_args[7]
         assertion = getBaseAssertion()
-        # Search 
-        res = search(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax, optimizeLen=optimizeLen)
-        if( res ):
+        # If mem(cst) <- value, special treatment  
+        if( isMemWriteQuery(qtype) and isinstance(arg1, int) ): 
+            res = store_constant_address(qtype, arg1, arg2, constraint, assertion, clmax=clmax, optimizeLen=optimizeLen)
+            if( not res is None ):
+                res = [res]
+            else:
+                res = []
             print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
         else:
-            res = search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax)
-            print_chains(res, "Possibly matching gadget(s)", constraint.getBadBytes())
+            # Search 
+            res = search(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax, optimizeLen=optimizeLen)
+            if( res ):
+                print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
+            else:
+                res = search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax)
+                print_chains(res, "Possibly matching gadget(s)", constraint.getBadBytes())
             
         
         
@@ -276,11 +286,11 @@ def parse_query(req):
         # if MEMtoREG
         elif( isinstance(right_expr, MEMExpr)):
             (isInc, num, inc) = right_expr.addr.isRegIncrement(-1)
-            return (True, QueryType.MEMtoREG, Arch.regNameToNum[left], [num,inc])
+            return (True, QueryType.MEMtoREG, Arch.regNameToNum[left], (num,inc))
         # otherwise REGtoREG
         else:
             (isInc, num, inc) = right_expr.isRegIncrement(-1)
-            return (True, QueryType.REGtoREG, Arch.regNameToNum[left], [num,inc])
+            return (True, QueryType.REGtoREG, Arch.regNameToNum[left], (num,inc))
     
     elif( left[:4] == 'mem(' ):
         (success,addr) = parseStrToExpr(left[4:-1], Arch.regNameToNum)
@@ -298,18 +308,21 @@ def parse_query(req):
             return (False, "\n\tError. Right expression '"+right+"' is not supported :(")
             
         (isInc, addr_reg, addr_cst) = addr.isRegIncrement(-1)
-        
+        if( not isInc ):
+            arg1 = addr.value
+        else:
+            arg1 = (addr_reg, addr_cst)
         # Test if CSTtoMEM
         if( isinstance(right_expr, ConstExpr)):
-            return (True, QueryType.CSTtoMEM, [addr_reg, addr_cst], right_expr.value)        
+            return (True, QueryType.CSTtoMEM, arg1, right_expr.value)        
         # Test if it is MEMEXPRtoMEM
         elif( isinstance( right_expr, MEMExpr)):
             (isInc, num, inc) = right_expr.addr.isRegIncrement(-1)
-            return (True, QueryType.MEMtoMEM, [addr_reg, addr_cst], [num,inc])
+            return (True, QueryType.MEMtoMEM, arg1, (num,inc))
         # Otherwise REGEXPRtoMEM
         else:
             (isInc, num, inc) = right_expr.isRegIncrement(-1)
-            return (True, QueryType.REGtoMEM, [addr_reg, addr_cst], [num,inc])
+            return (True, QueryType.REGtoMEM, arg1, (num,inc))
     else:
         return ( False, "\n\tOperand '" +left+"' is invalid or not yet supported :(")
 
@@ -323,6 +336,9 @@ def is_supported_expr(expr):
         mem(REG +- CST)
     """
     if( isinstance(expr, ConstExpr) ):
+        # Test if too big 
+        if( expr.value >= (0x1 << Arch.bits())):
+            return False
         return True
     elif( isinstance(expr, MEMExpr)):
         return (not isinstance( expr.addr, MEMExpr)) and \
