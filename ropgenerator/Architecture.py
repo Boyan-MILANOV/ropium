@@ -31,6 +31,7 @@ class Architecture:
         self.bits = None
         self.octets = None
         self.minPageSize = None
+        self.endianness = None
         
         # BARF Information 
         self.archMode = None
@@ -70,6 +71,13 @@ def n2r(name):
     global regNameToNum
     return regNameToNum[name]
     
+##############
+# Endianness # 
+##############
+class EndiannessType(Enum):
+    BIG = "BIG"
+    LITTLE = "LITTLE"
+    
 ###########################
 # Supported architectures #
 ###########################
@@ -88,6 +96,7 @@ ArchX86.archMode = ARCH_X86_MODE_32
 ArchX86.disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_32)
 ArchX86.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_32)
 ArchX86.minPageSize = 0x1000
+ArchX86.endianness = EndiannessType.LITTLE
 
 # X86-64
 ArchX64 = Architecture()
@@ -101,6 +110,8 @@ ArchX64.archMode = ARCH_X86_MODE_64
 ArchX64.disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_64)
 ArchX64.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
 ArchX64.minPageSize = 0x1000
+ArchX64.endianness = EndiannessType.LITTLE
+
 
 available = [ArchX86.name, ArchX64.name]
 
@@ -128,6 +139,12 @@ def current():
     
 def minPageSize():
     return currentArch.minPageSize
+    
+def isLittleEndian():
+    return currentArch.endianness == EndiannessType.LITTLE
+
+def isBigEndian():
+    return currentArch.endianness == EndiannessType.BIG
     
 #####################
 # Types of binaries #
