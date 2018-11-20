@@ -6,7 +6,7 @@ from ropgenerator.Constraints import Constraint, BadBytes, RegsNotModified, Asse
 from ropgenerator.IO import error, banner, string_bold, string_special 
 from ropgenerator.Database import QueryType, isMemWriteQuery
 from ropgenerator.Expressions import parseStrToExpr, ConstExpr, MEMExpr
-from ropgenerator.semantic.Engine import search, search_not_chainable, LMAX, getBaseAssertion
+from ropgenerator.semantic.Engine import search, search_not_chainable, LMAX, getBaseAssertion, get_search_count, reset_search_count
 import ropgenerator.Architecture as Arch
 from ropgenerator.exploit.Utils import store_constant_address
 
@@ -60,6 +60,8 @@ def find(args):
     args - List of user arguments as strings
     (the command should not be included in the list as args[0])
     """
+    reset_search_count()
+    
     if( not args ):
         print_help()
         return 
@@ -97,7 +99,7 @@ def find(args):
                 res = search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax)
                 print_chains(res, "Possibly matching gadget(s)", constraint.getBadBytes())
             
-        
+        print("DEBUG : " + str(get_search_count()))
         
 def parse_args(args):
     """

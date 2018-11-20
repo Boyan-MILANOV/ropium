@@ -62,7 +62,7 @@ class Chainable(ConstraintType):
         if( gadget.retType == RetType.UNKNOWN ):
             if( self.ret ):
                 for p in gadget.getSemantics(Arch.ipNum()):
-                    if( isinstance(p.expr, MEMExpr)):
+                    if( (not gadget.spInc is None) and isinstance(p.expr, MEMExpr)):
                         (isInc, inc) = p.expr.addr.isRegIncrement(Arch.spNum())    
                         # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
                         if( isInc and inc == (gadget.spInc - (Arch.octets())) ):
