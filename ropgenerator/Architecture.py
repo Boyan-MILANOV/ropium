@@ -109,7 +109,7 @@ ArchX86.disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_32)
 ArchX86.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_32)
 ArchX86.minPageSize = 0x1000
 ArchX86.endianness = EndiannessType.LITTLE
-Arch.X86.regs = ['eax','ebx','ecx','edx','esi','edi','esp','eip'\
+ArchX86.regs = ['eax','ebx','ecx','edx','esi','edi','esp','eip'\
                 , 'cf', 'pf', 'af', 'zf', 'sf']
 
 # X86-64
