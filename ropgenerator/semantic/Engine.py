@@ -33,7 +33,7 @@ LMAX = 80 # Default max number of elements (padding included) in ROPChains
 MAXDEPTH = 6
 
 def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreConds=False, \
-            noPadding=False, CSTtoREG_comment=None, maxdepth=4, optimizeLen=False):
+            noPadding=False, CSTtoREG_comment=None, maxdepth=4, optimizeLen=False, offset=0):
                 
     """
     Wrapper for search_first_hit and search_optimize_len
@@ -46,11 +46,13 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreC
     res = _search(qtype, arg1, arg2, env, n, optimizeLen)
     return res if res else [] # Debug to maintain compatibility since we adapt all code 
 
-def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=10000):
+def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=10000, offset=0):
     global MAXDEPTH
     
     env = SearchEnvironment(clmax, constraint, assertion, MAXDEPTH, noPadding=True)
-    return _basic(qtype, arg1, arg2, env, n)
+    res = _basic(qtype, arg1, arg2, env, n)
+    return res if res else [] # Debug to maintain compatibility since we adapt all code 
+
 
 def _search(qtype, arg1, arg2, env, n=1, optimizeLen=False):
                 
@@ -1129,11 +1131,13 @@ class FailTypes(Enum):
     MAX_LENGTH="MAX_LENGTH"
     BAD_BYTES="BAD_BYTES"
     KEEP_REGS="KEEP_REGS"
+    OFFSET="OFFSET"
     
 class FailRecord:
-    def __init__(self, lmax=False):
+    def __init__(self, lmax=False, offset=False):
         self.reasons = dict()
         self.reasons[FailTypes.MAX_LENGTH] = lmax
+        self.reasons[FailTypes.OFFSET] = offset
         self.reasons[FailTypes.BAD_BYTES] = []
         self.reasons[FailTypes.KEEP_REGS] = []
         
@@ -1149,6 +1153,8 @@ class FailRecord:
         elif( failtype == FailTypes.KEEP_REGS ):
             if( not arg in self.reasons[failtype]):
                 self.reasons[failtype].append(arg)
+        elif( failtype == FailTypes.OFFSET ):
+            self.reasons[failtype] = True
                 
     def check_max_len(self):
         return self.reasons[FailTypes.MAX_LENGTH]
@@ -1156,6 +1162,8 @@ class FailRecord:
     def merge(self, other):
         if( not self.reasons[FailTypes.MAX_LENGTH]):
             self.reasons[FailTypes.MAX_LENGTH] = other.reasons[FailTypes.MAX_LENGTH]
+        if( not self.reasons[FailTypes.OFFSET]):
+            self.reasons[FailTypes.OFFSET] = other.reasons[FailTypes.OFFSET]
         self.reasons[FailTypes.BAD_BYTES] = list(set(self.reasons[FailTypes.BAD_BYTES] + other.reasons[FailTypes.BAD_BYTES]))
         self.reasons[FailTypes.KEEP_REGS] = list(set(self.reasons[FailTypes.KEEP_REGS] + other.reasons[FailTypes.KEEP_REGS]))
         return self
@@ -1167,7 +1175,7 @@ def analyze_res(res_chains, res_fail, res):
         res_fail.merge(res)
             
 #########################
-# Modle wide accessors ##
+# Module wide accessors #
 #########################
 
 def getBaseAssertion():

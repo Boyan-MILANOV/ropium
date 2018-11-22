@@ -9,6 +9,8 @@ from ropgenerator.Expressions import parseStrToExpr, ConstExpr, MEMExpr
 from ropgenerator.semantic.Engine import search, search_not_chainable, LMAX, getBaseAssertion, get_search_count, reset_search_count
 import ropgenerator.Architecture as Arch
 from ropgenerator.exploit.Utils import store_constant_address, parse_bad_bytes, parse_keep_regs
+from ropgenerator.CommonUtils import set_offset, reset_offset
+import sys 
 
 # Definition of options names
 OPTION_HELP = '--help'
@@ -19,12 +21,14 @@ OPTION_KEEP_REGS = '--keep-regs'
 OPTION_NB_RESULTS = '--nb-results'
 OPTION_LMAX = '--max-length'
 OPTION_SHORTEST = '--shortest'
+OPTION_OFFSET = '--offset'
 
 OPTION_BAD_BYTES_SHORT = '-b'
 OPTION_KEEP_REGS_SHORT = '-k' 
 OPTION_NB_RESULTS_SHORT = '-n'
 OPTION_LMAX_SHORT = '-m' 
 OPTION_SHORTEST_SHORT = '-s'
+OPTION_OFFSET_SHORT = '-off'
 
 OPTION_OUTPUT = '--output-format'
 OPTION_OUTPUT_SHORT = '-f'
@@ -46,6 +50,7 @@ CMD_FIND_HELP += "\n\n\t"+string_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>"+
 CMD_FIND_HELP += "\n\n\t"+string_bold("Options")+":"
 CMD_FIND_HELP += "\n\t\t"+string_special(OPTION_BAD_BYTES_SHORT)+","+string_special(OPTION_BAD_BYTES)+" <bytes>\t Bad bytes for payload.\n\t\t\t\t\t Expected format is a list of bytes \n\t\t\t\t\t separated by comas (e.g '-b 0A,0B,2F')"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_KEEP_REGS_SHORT)+","+string_special(OPTION_KEEP_REGS)+" <regs>\t Registers that shouldn't be modified.\n\t\t\t\t\t Expected format is a list of registers \n\t\t\t\t\t separated by comas (e.g '-k edi,eax')"
+CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_OFFSET_SHORT)+","+string_special(OPTION_OFFSET)+" <int>\t Offset to add to gadget addresses"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_SHORTEST_SHORT)+","+string_special(OPTION_SHORTEST)+"\t\t Find the shortest matching ROP-Chains"
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_LMAX_SHORT)+","+string_special(OPTION_LMAX)+" <int>\t Max length of the ROPChain in bytes."
 CMD_FIND_HELP += "\n\n\t\t"+string_special(OPTION_NB_RESULTS_SHORT)+","+string_special(OPTION_NB_RESULTS)+" <int>\t Nb of different ROPChains to find\n\t\t\t\t\t Default: 1\n\t\t\t\t\t (More results implies longer search)" 
@@ -81,24 +86,36 @@ def find(args):
         nbResults = parsed_args[5]
         clmax = parsed_args[6]
         optimizeLen = parsed_args[7]
+        offset = parsed_args[8]
         assertion = getBaseAssertion()
-        # If mem(cst) <- value, special treatment  
-        if( isMemWriteQuery(qtype) and isinstance(arg1, int) ): 
-            res = store_constant_address(qtype, arg1, arg2, constraint, assertion, clmax=clmax, optimizeLen=optimizeLen)
-            if( not res is None ):
-                res = [res]
-            else:
-                res = []
-            print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
-        else:
-            # Search 
-            res = search(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax, optimizeLen=optimizeLen)
-            if( res ):
+        
+        # Set offset
+        if( not set_offset(offset) ):
+            error("Error. Your offset is too big :'( ")
+            return 
+        try:         
+            # If mem(cst) <- value, special treatment  
+            if( isMemWriteQuery(qtype) and isinstance(arg1, int) ): 
+                res = store_constant_address(qtype, arg1, arg2, constraint, assertion, clmax=clmax, optimizeLen=optimizeLen)
+                if( not res is None ):
+                    res = [res]
+                else:
+                    res = []
                 print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
             else:
-                res = search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax)
-                print_chains(res, "Possibly matching gadget(s)", constraint.getBadBytes())
-            
+                # Search 
+                res = search(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax, optimizeLen=optimizeLen)
+                if( res ):
+                    print_chains(res, "Built matching ROPChain(s)", constraint.getBadBytes())
+                else:
+                    res = search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=nbResults, clmax=clmax)
+                    print_chains(res, "Possibly matching gadget(s)", constraint.getBadBytes())
+        except Exception, e:
+            reset_offset()
+            raise sys.exec_info[1], None, sys.exec_info[2]
+        
+        # Reset offset 
+        reset_offset()
         print("DEBUG : " + str(get_search_count()))
         
 def parse_args(args):
@@ -119,12 +136,15 @@ def parse_args(args):
     seenNbResults = False
     seenLmax = False
     seenShortest = False
+    seenOffset = False
     
     i = 0 # Argument counter 
     constraint = Constraint()
     nbResults = 1 # Default 1 result
     clmax = LMAX # Max length 
     OUTPUT = OUTPUT_CONSOLE
+    offset = 0
+    
     while( i < len(args)):
         arg = args[i]
         # Look for options
@@ -181,6 +201,22 @@ def parse_args(args):
                     return (False, "Error. '" + args[i+1] +"' is not a valid number")
                 i = i +1 
                 seenNbResults = True
+            elif( arg == OPTION_OFFSET or arg == OPTION_OFFSET_SHORT):
+                if( seenOffset ):
+                    return (False, "Error. '" + arg + "' option should be used only once.")
+                if( i+1 >= len(args)):
+                    return (False, "Error. Missing output format after option '"+arg+"'")
+                try:
+                    offset = int(args[i+1])
+                    if( offset < 0 ):
+                        raise Exception()
+                except:
+                    try: 
+                        offset = int(args[i+1], 16)
+                    except:
+                        return (False, "Error. '" + args[i+1] +"' is not a valid offset")
+                i = i +1 
+                seenOffset = True
             elif( arg == OPTION_LMAX or arg == OPTION_LMAX_SHORT ):
                 if( seenLmax ):
                     return (False, "Error. '" + arg + "' option should be used only once.")
@@ -219,7 +255,7 @@ def parse_args(args):
     if( not seenExpr ):
         return (False, "Error. Missing specification of gadget to find")
     else:
-        return parsed_query+(constraint,nbResults, clmax, seenShortest)
+        return parsed_query+(constraint,nbResults, clmax, seenShortest, offset)
     
 def parse_query(req):
     """

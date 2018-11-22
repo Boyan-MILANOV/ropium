@@ -586,3 +586,42 @@ def initDB():
     global db, gadgets
     gadgets = []
     db = Database()
+    
+    
+###################
+# Utils functions #
+###################
+_offset = 0 
+def set_gadgets_offset( offset):
+    """
+    adds offset to all gadget addresses 
+    returns True if success
+    returns False if fail 
+    """
+    global gadgets, _offset
+        
+    i = 0
+    _offset = offset
+    for gadget in gadgets:
+        if( not gadget.addOffset(offset)):
+            reset_gadgets_offset(i)
+            return False
+        i += 1
+    _offset = offset
+    return True
+            
+def reset_gadgets_offset(gadget_num=-1):
+    """
+    decrements gadget addresses by offset until gadget_num (NOT included)
+    if gadget_num = -1, do it for all gadgets 
+    """
+    global _offset, gadgets
+    if( gadget_num <= 0 ):
+        gadget_num = len(gadgets)
+    i = 0
+    for gadget in gadgets:
+        if( i >= gadget_num ):
+            return 
+        gadget.addOffset(-1*_offset)
+        i += 1
+    _offset = 0

@@ -182,3 +182,15 @@ class Gadget:
             # Or return the same
             else:
                 return [SPair(SSAExpr(num, 0), CTrue())]
+                
+    def addOffset(self, offset):
+        new_addresses = []
+        for addr in self.addrList:
+            new = addr+offset 
+            # Check if offset isn't too big 
+            if( new >= (0x1 << Arch.bits())\
+                or new < 0 ):
+                return False
+            new_addresses.append(new)
+        self.addrList = new_addresses
+        return True
