@@ -524,6 +524,9 @@ def _MEMtoREG_transitivity(reg, arg2, env, n=1):
             arg2_to_inter = _search(QueryType.MEMtoREG, inter, arg2, env, n)
             env.removeUnusableReg(reg)
             env.addLmax(min_len)
+            if( not arg2_to_inter ):
+                res_fail.merge(arg2_to_inter)
+                continue
             res += [chain1.addChain(chain2, new=True) for chain1 in arg2_to_inter \
                 for chain2 in inter_to_reg if len(chain1)+len(chain2) <= env.getLmax()  ]
         else:

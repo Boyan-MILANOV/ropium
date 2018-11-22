@@ -8,7 +8,7 @@ from ropgenerator.Database import QueryType, isMemWriteQuery
 from ropgenerator.Expressions import parseStrToExpr, ConstExpr, MEMExpr
 from ropgenerator.semantic.Engine import search, search_not_chainable, LMAX, getBaseAssertion, get_search_count, reset_search_count
 import ropgenerator.Architecture as Arch
-from ropgenerator.exploit.Utils import store_constant_address
+from ropgenerator.exploit.Utils import store_constant_address, parse_bad_bytes, parse_keep_regs
 
 # Definition of options names
 OPTION_HELP = '--help'
@@ -350,46 +350,6 @@ def is_supported_expr(expr):
         (isInc, reg, inc) = expr.isRegIncrement(-1)
         return isInc
 
-def parse_bad_bytes(string):
-    """
-    Parses a bad bytes string into a list of bad bytes
-    Input: a string of format like "00,0A,FF,32,C7"
-    Ouput if valid string : (True, list) where list = 
-        ['00', '0a', 'ff', '32', 'c7'] (separate them in individual strings
-        and force lower case)
-    Output if invalid string (False, error_message)
-    """
-    hex_chars = '0123456789abcdefABCDEF'
-    i = 0
-    bad_bytes = []
-    user_bad_bytes = [b.lower() for b in string.split(',')]
-    for user_bad_byte in user_bad_bytes:
-        if( not user_bad_byte ):
-            return (False, "Error. Missing bad byte after ','")
-        elif( len(user_bad_byte) != 2 ):
-            return (False, "Error. '{}' is not a valid byte".format(user_bad_byte))
-        elif( not ((user_bad_byte[i] in hex_chars) and (user_bad_byte[i+1] in hex_chars))):
-            return (False, "Error. '{}' is not a valid byte".format(user_bad_byte))
-        else:
-            bad_bytes.append(user_bad_byte)
-    return (True, bad_bytes)
-    
-def parse_keep_regs(string):
-    """
-    Parses a 'keep registers' string into a list of register uids
-    Input: a string of format like "rax,rcx,rdi"
-    Output if valid string (True, list) where list = 
-        [1, 3, 4] (R1 is rax, R3 is RCX, ... )
-    Output if invalid string (False, error_message)
-    """
-    user_keep_regs = string.split(',')
-    keep_regs = set()
-    for reg in user_keep_regs:
-        if( reg in Arch.regNameToNum ):
-            keep_regs.add(Arch.n2r(reg))
-        else:
-            return (False, "Error. '{}' is not a valid register".format(reg))
-    return (True, list(keep_regs))
 
 ##########################
 # Pretty print functions #
