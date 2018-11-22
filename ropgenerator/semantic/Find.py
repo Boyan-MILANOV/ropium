@@ -112,11 +112,10 @@ def find(args):
                     print_chains(res, "Possibly matching gadget(s)", constraint.getBadBytes())
         except Exception, e:
             reset_offset()
-            raise sys.exec_info[1], None, sys.exec_info[2]
+            raise sys.exc_info()[1], None, sys.exc_info()[2]
         
         # Reset offset 
         reset_offset()
-        print("DEBUG : " + str(get_search_count()))
         
 def parse_args(args):
     """
