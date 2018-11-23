@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*- 
 # Semantics module: structure to store gadget semantics
 from ropgenerator.Conditions import Cond, CT, CTrue, CFalse
-from ropgenerator.Expressions import SSAReg
+from ropgenerator.Expressions import SSAReg, Concat, Extract, SSAExpr, Op, OpExpr, ConstExpr
 from ropgenerator.Architecture import r2n
 
 class SPair:
@@ -169,9 +169,61 @@ class Semantics:
         """
         Make some adjustments in semantics so that it is easier to process by the search engine 
         """
-        ## Adjust Cat(0, Extract( x, 0, E))
-        ## --> E if E <  2^(x-1) €z 
-        pass #  TODO 
+        def adjustSemantic(spair):
+            """
+            returns a list of SPair
+            """
+            expr = spair.expr
+            cond  = spair.cond
+            if( isinstance(expr, Concat) and len(expr.args) == 2):
+                upper = expr.args[0][0]
+                lower = expr.args[1][0]
+                if( isinstance(upper, ConstExpr) and upper.value == 0):
+                    if( isinstance(lower, OpExpr)):
+                        left = lower.args[0]
+                        right = lower.args[1]
+                        # IF there is a Const it will be on the right ;)
+                        if( not isinstance(right, ConstExpr)):
+                            tmp = left
+                            left = right
+                            right = left
+                        # Reg + cst 
+                        if( lower.op == Op.ADD and (isinstance(left, Extract) and isinstance(left.args[0], SSAExpr) and left.low == 0)\
+                            and isinstance(right, ConstExpr)):
+                                new_cond = Cond(CT.AND, 
+                                            Cond(CT.AND, cond, Cond(CT.LT, left.args[0], \
+                                                ConstExpr((0x1<<(left.high+1))-right.value, left.args[0].size))), 
+                                            Cond(CT.GE, left.args[0], ConstExpr(0, left.args[0].size)))
+                                new_cond.customSimplify()
+                                new_expr = OpExpr(Op.ADD,[left.args[0], ConstExpr(right.value,left.args[0].size)])
+                                return [SPair(new_expr, new_cond)]
+                        
+                        # Reg - cst... 
+                        elif( lower.op == Op.SUB and (isinstance(left, Extract) and isinstance(left.args[0], SSAExpr) and left.low == 0)\
+                            and isinstance(right, ConstExpr)):
+                                new_cond = Cond(CT.AND, 
+                                            Cond(CT.AND, cond, Cond(CT.LT, left.args[0], \
+                                                ConstExpr(0x1<<(left.high+1),left.args[0].size ))), 
+                                            Cond(CT.GE, left.args[0], ConstExpr(right.value, left.args[0].size)))
+                                new_cond.customSimplify()
+                                new_expr = OpExpr(Op.SUB,[left.args[0], ConstExpr(right.value,left.args[0].size)])
+                                return [SPair(new_expr, new_cond)]
+                        # Other cases ? :) 
+                        else:
+                            pass
+            return []
+                
+        ## Adjust semantics 
+        for reg in self.registers.keys():
+            newPairs = [] 
+            for p in self.registers[reg]:
+                newPairs += adjustSemantic(p)
+            self.registers[reg] += newPairs
+        for addr in self.memory.keys():
+            newPairs = [] 
+            for p in self.memory[addr]:
+                newPairs += adjustSemantic(p)
+            self.memory[addr] += newPairs
     
     
     def simplifyConditions(self):

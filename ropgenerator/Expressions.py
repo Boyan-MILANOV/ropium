@@ -1007,6 +1007,12 @@ class Extract(Expr):
         elif( isinstance( simpExpr, MEMExpr ) and (self.low % 8 == 0)  and self.size != simpExpr.size ):
             # If we extract from the same address (from bit 0 )
             res = MEMExpr(OpExpr(Op.ADD, [simpExpr.addr, ConstExpr(self.low/8,simpExpr.addr.size)]).simplify(), self.size)
+        elif( isinstance( simpExpr, ConstExpr )):
+            res_value = simpExpr.value << (simpExpr.size-self.high)
+            res_value = res_value % (0x1<< simpExpr.size)
+            res_value = res_value >> (self.low+simpExpr.size-self.high)
+            res = ConstExpr(res_value, self.high-self.low+1)
+        
         self.simplifiedValue = res 
         return res
     

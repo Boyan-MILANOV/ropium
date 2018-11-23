@@ -50,8 +50,8 @@ def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=10
     global MAXDEPTH
     
     env = SearchEnvironment(clmax, constraint, assertion, MAXDEPTH, noPadding=True)
-    res = _basic(qtype, arg1, arg2, env, n)
-    return res if res else [] # Debug to maintain compatibility since we adapt all code 
+    res = _basic(qtype, arg1, arg2, env, n, enablePreConds=True)
+    return [x[0] for x in res] if res else [] # Debug to maintain compatibility since we adapt all code 
 
 
 def _search(qtype, arg1, arg2, env, n=1, optimizeLen=False):
@@ -166,7 +166,7 @@ def _search_optimize_len(qtype, arg1, arg2, env, n=1):
     else:
         return best_find
             
-def _basic(qtype, arg1, arg2, env, n=1):
+def _basic(qtype, arg1, arg2, env, n=1, enablePreConds=False):
     """
     Search for gadgets basic method ( without chaining ) 
     Direct Database check  
@@ -200,8 +200,10 @@ def _basic(qtype, arg1, arg2, env, n=1):
     
     # Regular gadgets 
     # maxSpInc -> +1 because we don't count the ret but -1 because the gadget takes one place 
-    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion2, n, maxSpInc=maxSpInc)
-    if( env.getNoPadding() ):
+    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion2, n, enablePreConds=enablePreConds, maxSpInc=maxSpInc)
+    if( enablePreConds ):
+        return [(ROPChain().addGadget(g[0]), g[1]) for g in gadgets] 
+    elif( env.getNoPadding() ):
         return [ROPChain().addGadget(g) for g in gadgets]
     else:
         res = []
