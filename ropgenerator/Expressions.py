@@ -417,6 +417,9 @@ class Op(Enum):
     OR = "Or"
     XOR = "Xor"
     BSH = "Bsh"
+    
+    def __str__(self):
+        return self.value
 
 
 class OpExpr(Expr):
@@ -438,7 +441,7 @@ class OpExpr(Expr):
         self.simplifiedValue = None
         
     def __str__(self):
-        return "%s%d(%s)" % ( self.op, self.size, ','.join(str(a) for a in self.args))
+        return "%s%d(%s)" % ( str(self.op), self.size, ','.join(str(a) for a in self.args))
         
     def replaceReg( self, reg, expr ):
         newArgs = []
@@ -622,6 +625,24 @@ class OpExpr(Expr):
             elif( left == right ):
                 res = ConstExpr(0, left.size)
             
+        elif( op == Op.AND ):
+            if( isinstance(left, ConstExpr) and isinstance(right, ConstExpr)):
+                res = ConstExpr(left.value & right.value, left.size)
+            elif( isinstance(left, ConstExpr)):
+                if( left.value == 0 ):
+                    res = left
+                elif( left.value == (0x1<<left.size)-1 ):
+                    res = right
+            elif( isinstance(right, ConstExpr)):
+                if( right.value == 0 ):
+                    res = right
+                elif( right.value == (0x1<<right.size)-1 ):
+                    res = left
+        elif( op == Op.BSH ):
+            if( isinstance(left, OpExpr) and left.op == Op.BSH and isinstance(left.args[1], ConstExpr)):
+                if( isinstance(right, ConstExpr)):
+                    res = OpExpr(Op.BSH, [left.args[0], ConstExpr(left.args[1].value+right.value, right.size)])
+        
         self.simplifiedValue = res
         return res
             
@@ -1007,6 +1028,12 @@ class Extract(Expr):
         elif( isinstance( simpExpr, MEMExpr ) and (self.low % 8 == 0)  and self.size != simpExpr.size ):
             # If we extract from the same address (from bit 0 )
             res = MEMExpr(OpExpr(Op.ADD, [simpExpr.addr, ConstExpr(self.low/8,simpExpr.addr.size)]).simplify(), self.size)
+        elif( isinstance( simpExpr, ConstExpr )):
+            res_value = simpExpr.value << (simpExpr.size-self.high)
+            res_value = res_value % (0x1<< simpExpr.size)
+            res_value = res_value >> (self.low+simpExpr.size-self.high)
+            res = ConstExpr(res_value, self.high-self.low+1)
+        
         self.simplifiedValue = res 
         return res
     

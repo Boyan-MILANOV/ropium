@@ -11,6 +11,20 @@ import ropgenerator.Architecture as Arch
 from datetime import datetime
 from enum import Enum
 
+##############
+# Debug data #
+##############
+debug_search_count = 0
+def get_search_count():
+    global debug_search_count
+    return debug_search_count
+    
+def reset_search_count():
+    global debug_search_count
+    debug_search_count = 0
+
+
+
 ###################################
 # Search functions and strategies #
 ###################################     
@@ -19,7 +33,7 @@ LMAX = 80 # Default max number of elements (padding included) in ROPChains
 MAXDEPTH = 6
 
 def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreConds=False, \
-            noPadding=False, CSTtoREG_comment=None, maxdepth=4, optimizeLen=False):
+            noPadding=False, CSTtoREG_comment=None, maxdepth=4, optimizeLen=False, offset=0):
                 
     """
     Wrapper for search_first_hit and search_optimize_len
@@ -29,25 +43,32 @@ def search(qtype, arg1, arg2, constraint, assertion, n=1, clmax=LMAX, enablePreC
     env = SearchEnvironment(clmax, constraint, assertion, MAXDEPTH, enablePreConds, noPadding)
     if( CSTtoREG_comment ):
         env.pushComment(StrategyType.CSTtoREG_POP, CSTtoREG_comment)
-    return _search(qtype, arg1, arg2, env, n, optimizeLen)
+    res = _search(qtype, arg1, arg2, env, n, optimizeLen)
+    return res if res else [] # Debug to maintain compatibility since we adapt all code 
 
-def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=10000):
+def search_not_chainable(qtype, arg1, arg2, constraint, assertion, n=1, clmax=10000, offset=0):
     global MAXDEPTH
     
     env = SearchEnvironment(clmax, constraint, assertion, MAXDEPTH, noPadding=True)
-    return _basic(qtype, arg1, arg2, env, n)
+    res = _basic(qtype, arg1, arg2, env, n, enablePreConds=True)
+    return [x[0] for x in res] if res else [] # Debug to maintain compatibility since we adapt all code 
+
 
 def _search(qtype, arg1, arg2, env, n=1, optimizeLen=False):
                 
     """
     Wrapper for search_first_hit and search_optimize_len
     """
+    # Debug info 
+    global debug_search_count
+    debug_search_count += 1
+    
     # Test the max length of the chain 
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     # Test depth of the search 
     if( env.reachedMaxDepth()):
-        return []
+        return FailRecord()
     else:
         env.incDepth()
         
@@ -65,16 +86,20 @@ def _search_first_hit(qtype, arg1, arg2, env, n=1):
     """
     
     # Search basic 
+    res = []
+    res_fail = FailRecord()
     # Add Chainable constraint in env.constraint
     constraint = env.getConstraint()
     env.setConstraint(constraint.add(Chainable(ret=True)))
-    res = _basic(qtype, arg1, arg2, env, n)
+    basic = _basic(qtype, arg1, arg2, env, n)
+    analyze_res(res, res_fail, basic)
     # Restore normal constraint
     env.setConstraint(constraint)
     # Search chaining 
     if( len(res) < n and (qtype not in [QueryType.SYSCALL, QueryType.INT80])):
-        res += _chain(qtype, arg1, arg2, env, n-len(res))
-    return sorted(res)
+        chain = _chain(qtype, arg1, arg2, env, n-len(res))
+        analyze_res(res, res_fail, chain)
+    return sorted(res) if res else res_fail
 
 def _search_not_chainable(qtype, arg1, arg2, env, n=1):
     # Save and set env
@@ -92,12 +117,12 @@ def _search_optimize_len(qtype, arg1, arg2, env, n=1):
     by using dichotomic calls to search() 
     """
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     
     # Make one search with max to see if possible 
     res = _search(qtype, arg1, arg2, env, n)
     if( not res):
-        return []
+        return res
     
     # Save env
     saved_lmax = env.getLmax()
@@ -119,9 +144,13 @@ def _search_optimize_len(qtype, arg1, arg2, env, n=1):
             best_find = res
             lmax = max(1, min([len(chain) for chain in best_find])-1)
         else:
-            # If not found we try longer 
-            lmin = lmoy
-    
+            # If not found check if it was because of the length
+            # If because of the length, we try bigger
+            if( res.check_max_len()):
+                lmin = lmoy
+            # Else we can already return
+            else:
+                return res
     # Set env 
     env.setLmax(lmax)
     # Search
@@ -129,18 +158,21 @@ def _search_optimize_len(qtype, arg1, arg2, env, n=1):
     # Restore env 
     env.setLmax(saved_lmax)
     
-    if( res ):
+    # If no fail or no best_find found, return res 
+    # (can be either a fail or a success)
+    if( res or (not best_find)):
         return res
+    # Else return the best find 
     else:
         return best_find
             
-def _basic(qtype, arg1, arg2, env, n=1):
+def _basic(qtype, arg1, arg2, env, n=1, enablePreConds=False):
     """
     Search for gadgets basic method ( without chaining ) 
     Direct Database check  
     """
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     
     if( env.getNoPadding() ):
         maxSpInc = None
@@ -168,8 +200,10 @@ def _basic(qtype, arg1, arg2, env, n=1):
     
     # Regular gadgets 
     # maxSpInc -> +1 because we don't count the ret but -1 because the gadget takes one place 
-    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion2, n, maxSpInc=maxSpInc)
-    if( env.getNoPadding() ):
+    gadgets =  DBSearch(qtype, arg1, arg2, constraint2, assertion2, n, enablePreConds=enablePreConds, maxSpInc=maxSpInc)
+    if( enablePreConds ):
+        return [(ROPChain().addGadget(g[0]), g[1]) for g in gadgets] 
+    elif( env.getNoPadding() ):
         return [ROPChain().addGadget(g) for g in gadgets]
     else:
         res = []
@@ -182,7 +216,10 @@ def _basic(qtype, arg1, arg2, env, n=1):
                     chain.addPadding(padding)
             # Adding to the result 
             res.append(chain)
-    return res
+    if( len(res) == 0 ):
+        return FailRecord()
+    else:
+        return res
 
 def _chain(qtype, arg1, arg2, env, n=1):
     """
@@ -192,42 +229,50 @@ def _chain(qtype, arg1, arg2, env, n=1):
     ## Preliminary tests 
     # Test clmax
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     # Test record 
     elif( env.reachedMaxDepth() ):
-        return []
+        return FailRecord()
     
     res = []  
+    res_fail = FailRecord()
     # Adjust ret must be BEFORE other strategies so that 
     # when they fail we can set impossible queries 
-    res += _adjust_ret(qtype, arg1, arg2, env, n-len(res))
-            
+    adjust = _adjust_ret(qtype, arg1, arg2, env, n-len(res))
+    analyze_res(res, res_fail, adjust)
+    
     ## CSTtoREG
     if( qtype == QueryType.CSTtoREG ):
-        res += _CSTtoREG_pop(arg1, arg2, env, n-len(res))
+        pop = _CSTtoREG_pop(arg1, arg2, env, n-len(res))
+        analyze_res(res, res_fail, pop)
         if( len(res) < n ): 
-            res += _CSTtoREG_transitivity(arg1, arg2, env, n-len(res))
+            trans = _CSTtoREG_transitivity(arg1, arg2, env, n-len(res))
+            analyze_res(res, res_fail, trans)
     ## REGtoREG 
     elif( qtype == QueryType.REGtoREG):
         # Check if we already tried this query 
         if( env.checkImpossible_REGtoREG(arg1, arg2[0], arg2[1])):
-            return res 
+            return (res if res else res_fail)
         elif( (env.getAssertion() == baseAssertion) and global_impossible_REGtoREG.checkImpossible_REGtoREG(arg1, arg2[0], arg2[1])):
-            return res
+            return (res if res else res_fail)
         # Use chaining strategies 
         if( len(res) < n ):
-            res += _REGtoREG_transitivity(arg1, arg2, env,  n-len(res))
+            trans = _REGtoREG_transitivity(arg1, arg2, env,  n-len(res))
+            analyze_res(res, res_fail, trans)
         # If unsucceful chaining attempt, record it in the environment 
         if( not res ):
             env.addImpossible_REGtoREG(arg1, arg2[0], arg2[1])
     elif( qtype == QueryType.MEMtoREG ):
-        res += _MEMtoREG_transitivity(arg1, arg2, env, n-len(res))
+        trans = _MEMtoREG_transitivity(arg1, arg2, env, n-len(res))
+        analyze_res(res, res_fail, trans)
     elif( qtype == QueryType.CSTtoMEM ):
-        res += _CSTtoMEM_write(arg1, arg2, env, n-len(res))
+        write = _CSTtoMEM_write(arg1, arg2, env, n-len(res))
+        analyze_res(res, res_fail, write)
     elif( qtype == QueryType.REGtoMEM ):
-        res += _REGtoMEM_transitivity(arg1,arg2, env, n-len(res))  
+        trans = _REGtoMEM_transitivity(arg1,arg2, env, n-len(res))  
+        analyze_res(res, res_fail, trans)
         
-    return res
+    return res if res else res_fail
 
 # Types of strategies 
 class StrategyType(Enum):
@@ -248,13 +293,13 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
     ## Test for special cases 
     # Test lmax
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     # If reg1 <- reg1 + 0, return 
     elif( arg1 == arg2[0] and arg2[1] == 0 ):
-        return []
+        return FailRecord()
     # Limit number of calls to REGtoREG transitivity
     elif( env.callsHistory()[-2:] == [ID, ID] ):
-        return []
+        return FailRecord()
 
     
     # Set env 
@@ -262,6 +307,7 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
     
     # Search 
     res = []
+    res_fail = FailRecord()
     for inter_reg in Arch.registers():
         if( inter_reg == arg1 or (inter_reg == arg2[0] and arg2[1]==0)\
             or (env.checkImpossible_REGtoREG(arg1, inter_reg, 0))\
@@ -275,6 +321,7 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
         env.removeUnusableReg(arg2[0])
         env.addLmax(1)
         if( not inter_to_arg1_list ):
+            res_fail.merge(inter_to_arg1_list)
             continue
         else:
             min_len_chain = min([len(chain) for chain in inter_to_arg1_list])
@@ -285,7 +332,12 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
         n2 = n/len(inter_to_arg1_list)
         if( n2 == 0 ):
             n2 = 1 
-        for arg2_to_inter in _search(QueryType.REGtoREG, inter_reg, arg2, env, n2):
+            
+        arg2_to_inter_chains = _search(QueryType.REGtoREG, inter_reg, arg2, env, n2)
+        if( not arg2_to_inter_chains):
+            res_fail.merge(arg2_to_inter_chains)
+            continue
+        for arg2_to_inter in arg2_to_inter_chains:
             for inter_to_arg1 in inter_to_arg1_list:
                 if( len(inter_to_arg1)+len(arg2_to_inter) <= env.getLmax()):
                     res.append(arg2_to_inter.addChain(inter_to_arg1, new=True))
@@ -299,7 +351,7 @@ def _REGtoREG_transitivity(arg1, arg2, env, n=1 ):
                 break
     # Restore env
     env.removeCall(ID)
-    return res 
+    return res if res else res_fail
     
     
 def _CSTtoREG_pop(reg, cst, env, n=1):
@@ -311,13 +363,13 @@ def _CSTtoREG_pop(reg, cst, env, n=1):
     ## Test for special cases 
     # Test lmax
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     # Limit number of calls to ... 
     elif( env.nbCalls(ID) >= 99 ):
-        return []
+        return FailRecord()
     # Check if the cst is in badBytes 
     elif( not env.getConstraint().badBytes.verifyAddress(cst)):
-        return []
+        return FailRecord()
     
     # Set env 
     env.addCall(ID)
@@ -332,6 +384,7 @@ def _CSTtoREG_pop(reg, cst, env, n=1):
     ########################
     # Direct pop from the stack
     res = []
+    res_fail = FailRecord()
     # Adapt constraint if ip <- cst
     if( reg != Arch.ipNum()):
         constraint2 =  env.getConstraint().add(Chainable(ret=True))
@@ -370,7 +423,7 @@ def _CSTtoREG_pop(reg, cst, env, n=1):
     if( envHadComment ):
         env.pushComment(ID, comment)
     
-    return res
+    return res if res else res_fail
 
 
 def _CSTtoREG_transitivity(reg, cst, env, n=1):
@@ -382,29 +435,32 @@ def _CSTtoREG_transitivity(reg, cst, env, n=1):
     ## Test for special cases 
     # Test lmax
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     # Limit number of calls to ... 
     elif( env.nbCalls(ID) >= 99 ):
-        return []
+        return FailRecord()
     # Check if the cst is in badBytes 
     elif( not env.getConstraint().badBytes.verifyAddress(cst)):
-        return []
+        return FailRecord()
     # Check if previous call was already CSTtoREG_transitivity
     # Reason: we handle the transitivity with REGtoREG transitivity
     # so no need to do it also recursively with this one ;) 
     elif( env.callsHistory()[-1] == ID ):
-        return []
+        return FailRecord()
     
     # Set env 
     env.addCall(ID)
     
     #############################
     res = []
+    res_fail = FailRecord()
     for inter in Arch.registers():
         if( inter == reg or inter in env.getConstraint().getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum() ):
             continue
         # Find reg <- inter 
         inter_to_reg = _search(QueryType.REGtoREG, reg, (inter,0), env, n)
+        if( not inter_to_reg ):
+            res_fail.merge(inter_to_reg)
         if( inter_to_reg ):
             # We found ROPChains s.t reg <- inter
             # Now we want inter <- cst 
@@ -415,6 +471,9 @@ def _CSTtoREG_transitivity(reg, cst, env, n=1):
             env.removeUnusableReg(reg)
             env.addLmax(min_len)
             
+            if( not cst_to_inter ):
+                res_fail.merge(cst_to_inter)
+                continue
             for chain2 in inter_to_reg:
                 for chain1 in cst_to_inter:
                     if( len(chain1)+len(chain2) <= env.getLmax()):
@@ -427,7 +486,7 @@ def _CSTtoREG_transitivity(reg, cst, env, n=1):
     # Restore env 
     env.removeCall(ID)
     
-    return res[:n]
+    return res[:n] if res else res_fail
 
 
 def _MEMtoREG_transitivity(reg, arg2, env, n=1):
@@ -439,21 +498,22 @@ def _MEMtoREG_transitivity(reg, arg2, env, n=1):
     ## Test for special cases 
     # Test lmax
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     # Limit number of calls to ... 
     elif( env.nbCalls(ID) >= 99 ):
-        return []
+        return FailRecord()
     # Check if previous call was already MEMtoREG_transitivity
     # Reason: we handle the transitivity with REGtoREG transitivity
     # so no need to do it also recursively with this one ;) 
     elif( env.callsHistory()[-1] == ID ):
-        return []
+        return FailRecord()
         
     # Set env  
     env.addCall(ID)
         
     ###########################
     res = []
+    res_fail = FailRecord()
     for inter in Arch.registers():
         if( inter == reg or inter in env.getConstraint().getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum() ):
                 continue    
@@ -468,8 +528,13 @@ def _MEMtoREG_transitivity(reg, arg2, env, n=1):
             arg2_to_inter = _search(QueryType.MEMtoREG, inter, arg2, env, n)
             env.removeUnusableReg(reg)
             env.addLmax(min_len)
+            if( not arg2_to_inter ):
+                res_fail.merge(arg2_to_inter)
+                continue
             res += [chain1.addChain(chain2, new=True) for chain1 in arg2_to_inter \
                 for chain2 in inter_to_reg if len(chain1)+len(chain2) <= env.getLmax()  ]
+        else:
+            res_fail.merge(inter_to_reg)
         # Did we get enough chains ? 
         if( len(res) >= n ):
             break
@@ -477,7 +542,7 @@ def _MEMtoREG_transitivity(reg, arg2, env, n=1):
     
     # Restore env 
     env.removeCall(ID)
-    return res[:n]
+    return res[:n] if res else res_fail
 
 
 def _REGtoMEM_transitivity(arg1,arg2, env, n=1):
@@ -490,20 +555,21 @@ def _REGtoMEM_transitivity(arg1,arg2, env, n=1):
     ## Test for special cases 
     # Test lmax
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     # Limit number of calls to ... 
     elif( env.nbCalls(ID) >= 99 ):
-        return []
+        return FailRecord()
     # Check if previous call was already REGtoMEM_transitivity
     # Reason: we handle the transitivity with REGtoREG transitivity
     # so no need to do it also recursively with this one ;) 
     elif( env.callsHistory()[-1] == ID ):
-        return []
+        return FailRecord()
 
     # Set env 
     env.addCall(ID)
     ###################################
     res = []
+    res_fail = FailRecord()
     for inter in Arch.registers():
         if( inter == arg2[0] or inter in env.getConstraint().getRegsNotModified() or inter == Arch.ipNum() or inter == Arch.spNum()):
             continue 
@@ -517,14 +583,19 @@ def _REGtoMEM_transitivity(arg1,arg2, env, n=1):
             inter_to_mem = _search(QueryType.REGtoMEM, arg1, (inter, 0), env)
             env.removeUnusableReg(arg2[0])
             env.addLmax(len_min)
+            if( not inter_to_mem ):
+                res_fail.merge(inter_to_mem)
+                continue 
             res += [chain1.addChain(chain2, new=True) for chain1 in arg2_to_inter\
                 for chain2 in inter_to_mem if len(chain1)+len(chain2) <= env.getLmax()]
             if( len(res) >= n ):
                 break
+        else:
+            res_fail.merge(arg2_to_inter)
     #####################################
     # Resotre env
     env.removeCall(ID)
-    return res
+    return res if res else res_fail 
 
 def _CSTtoMEM_write(arg1, cst, env, n=1):
     """
@@ -536,15 +607,16 @@ def _CSTtoMEM_write(arg1, cst, env, n=1):
     ## Test for special cases 
     # Test lmax
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     # Limit number of calls to ... 
     elif( env.nbCalls(ID) >= 99 ):
-        return []
+        return FailRecord()
 
     # Set env 
     env.addCall(ID)
     ######################################
     res = []
+    res_fail
     addr_reg = arg1[0]
     addr_cst = arg1[1]
     # 1. First strategy (direct)
@@ -561,6 +633,7 @@ def _CSTtoMEM_write(arg1, cst, env, n=1):
         env.addLmax(1)
         env.setConstraint(constraint)
         if( not cst_to_reg_chains ):
+            res_fail.merge(cst_to_reg_chains)
             continue
         # Search for mem(arg1) <- reg 
         # We get all reg2,cst2 s.t mem(arg1) <- reg2+cst2 
@@ -587,13 +660,19 @@ def _CSTtoMEM_write(arg1, cst, env, n=1):
                 break
         if( len(res) >= n ):
             break
-        # 1.B. 
+        # 1.B. Otherwise we try to adjust the cst2
         # To be implemented 
-        
+     
+    # 2d Strategy: indirect
+    # reg <- arg2 - cst
+    # mem(arg1) <- reg + cst 
+    
+    # TO IMPLEMENT IN ANOTHER FUNCTION ! 
+    
     ###################
     # Restore env 
     env.removeCall(ID)
-    return res 
+    return res if res else res_fail 
 
 
     
@@ -607,15 +686,15 @@ def _adjust_ret(qtype, arg1, arg2, env, n):
     ## Test for special cases 
     # Test lmax
     if( env.getLmax() <= 0 ):
-        return []
+        return FailRecord(lmax=True)
     # Limit number of calls to ... 
     elif( env.nbCalls(ID) >= 2 ):
-        return []
+        return FailRecord()
     # Test for ip
     # Reason: can not adjust ip if ip is the 
     # target of the query :/  
     elif ( arg1 == Arch.ipNum() ):
-        return []
+        return FailRecord()
         
     # Set env 
     env.addCall(ID)
@@ -623,12 +702,17 @@ def _adjust_ret(qtype, arg1, arg2, env, n):
     
     ########################################
     res = []
+    res_fail = FailRecord()
     padding = env.getConstraint().getValidPadding(Arch.octets())
     # Get possible gadgets
     constraint = env.getConstraint()
     env.setConstraint(constraint.add(Chainable(jmp=True, call=True)))
     possible = _basic(qtype, arg1, arg2, env, 10*n)      
     env.setConstraint(constraint)
+    
+    if( not possible ):
+        res_fail.merge(possible)
+        possible = []
     
     # Try to adjust them  
     for chain in possible:
@@ -669,6 +753,7 @@ def _adjust_ret(qtype, arg1, arg2, env, n):
         env.setLmax(saved_lmax)
         
         if( not adjust_gadgets ):
+            res_fail.merge(adjust_gadgets)
             continue
         else:
             adjust_addr = int(validAddrStr(adjust_gadgets[0].chain[0],\
@@ -694,11 +779,12 @@ def _adjust_ret(qtype, arg1, arg2, env, n):
         else:
             # Update the search record to say that reg_ret cannot be adjusted
             env.addImpossible_adjust_ret(ret_reg)
+            res_fail.merge(adjust)
     ########################################
     # Restore env
     env.impossible_adjust_ret = saved_adjust_ret
     env.removeCall(ID)
-    return res
+    return res if res else res_fail 
 
 ###################################################################
 # Data structures to store some info from the different searches
@@ -999,7 +1085,8 @@ def initEngine():
     # Init global variables
     baseAssertion = Assertion().add(\
             RegsValidPtrRead([(Arch.spNum(),-5000, 10000)]), copy=False).add(\
-            RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]), copy=False)
+            RegsValidPtrWrite([(Arch.spNum(), -5000, 0)]), copy=False).add(\
+            RegsNoOverlap([(Arch.spNum(), reg) for reg in Arch.registers()]))
     
     info(string_bold("Initializing Semantic Engine\n"))
     
@@ -1011,39 +1098,86 @@ def initEngine():
 def init_impossible_REGtoREG(env):
     global INIT_LMAX, INIT_MAXDEPTH
     global baseAssertion
-    
-    try: 
-        startTime = datetime.now()
-        i = 0
-        impossible_count = 0 
-        for reg1 in sorted(Arch.registers()):
-            reg_name = Arch.r2n(reg1)
-            if( len(reg_name) < 6 ):
-                reg_name += " "*(6-len(reg_name))
-            elif( len(reg_name) >= 6 ):
-                reg_name = reg_name[:5] + "."
-            for reg2 in Arch.registers():
-                i += 1 
-                charging_bar(len(Arch.registers()*len(Arch.registers())), i, 30)
-                if (reg2 == reg1 or reg2 == Arch.ipNum()):
-                    continue
-                _search(QueryType.REGtoREG, reg1, (reg2,0), env, n=1)
-                if( env.checkImpossible_REGtoREG(reg1, reg2, 0)):
-                    impossible_count += 1
-        cTime = datetime.now() - startTime
-        # Get how many impossible path we found 
-        impossible_rate = int(100*(float(impossible_count)/float((len(Arch.registers())-1)*len(Arch.registers()))))
-        notify('Optimization rate : {}%'.format(impossible_rate))
-        notify("Computation time : " + str(cTime))
-    except: 
-        print("\n")
-        fatal("Exception caught, stopping Semantic Engine init process...\n")
-        fatal("Search time might get very long !\n")
-        env = SearchEnvironment(INIT_LMAX, Constraint(), baseAssertion, INIT_MAXDEPTH )
+    # DEBUG
+    #try: 
+    startTime = datetime.now()
+    i = 0
+    impossible_count = 0 
+    for reg1 in sorted(Arch.registers()):
+        reg_name = Arch.r2n(reg1)
+        if( len(reg_name) < 6 ):
+            reg_name += " "*(6-len(reg_name))
+        elif( len(reg_name) >= 6 ):
+            reg_name = reg_name[:5] + "."
+        for reg2 in Arch.registers():
+            i += 1 
+            charging_bar(len(Arch.registers()*len(Arch.registers())), i, 30)
+            if (reg2 == reg1 or reg2 == Arch.ipNum()):
+                continue
+            _search(QueryType.REGtoREG, reg1, (reg2,0), env, n=1)
+            if( env.checkImpossible_REGtoREG(reg1, reg2, 0)):
+                impossible_count += 1
+    cTime = datetime.now() - startTime
+    # Get how many impossible path we found 
+    impossible_rate = int(100*(float(impossible_count)/float((len(Arch.registers())-1)*len(Arch.registers()))))
+    notify('Optimization rate : {}%'.format(impossible_rate))
+    notify("Computation time : " + str(cTime))
+    # except: 
+        # print("\n")
+        # fatal("Exception caught, stopping Semantic Engine init process...\n")
+        # fatal("Search time might get very long !\n")
+        # env = SearchEnvironment(INIT_LMAX, Constraint(), baseAssertion, INIT_MAXDEPTH )
         
 
+class FailTypes(Enum):
+    MAX_LENGTH="MAX_LENGTH"
+    BAD_BYTES="BAD_BYTES"
+    KEEP_REGS="KEEP_REGS"
+    OFFSET="OFFSET"
+    
+class FailRecord:
+    def __init__(self, lmax=False, offset=False):
+        self.reasons = dict()
+        self.reasons[FailTypes.MAX_LENGTH] = lmax
+        self.reasons[FailTypes.OFFSET] = offset
+        self.reasons[FailTypes.BAD_BYTES] = []
+        self.reasons[FailTypes.KEEP_REGS] = []
+        
+    def __nonzero__(self):
+        return False
+        
+    def add(self, failtype, arg=None):
+        if( failtype == FailTypes.MAX_LENGTH ):
+            self.reasons[failtype] = True
+        elif( failtype == FailTypes.BAD_BYTES ):
+            if( not arg in self.reasons[failtype]):
+                self.reasons[failtype].append(arg)
+        elif( failtype == FailTypes.KEEP_REGS ):
+            if( not arg in self.reasons[failtype]):
+                self.reasons[failtype].append(arg)
+        elif( failtype == FailTypes.OFFSET ):
+            self.reasons[failtype] = True
+                
+    def check_max_len(self):
+        return self.reasons[FailTypes.MAX_LENGTH]
+        
+    def merge(self, other):
+        if( not self.reasons[FailTypes.MAX_LENGTH]):
+            self.reasons[FailTypes.MAX_LENGTH] = other.reasons[FailTypes.MAX_LENGTH]
+        if( not self.reasons[FailTypes.OFFSET]):
+            self.reasons[FailTypes.OFFSET] = other.reasons[FailTypes.OFFSET]
+        self.reasons[FailTypes.BAD_BYTES] = list(set(self.reasons[FailTypes.BAD_BYTES] + other.reasons[FailTypes.BAD_BYTES]))
+        self.reasons[FailTypes.KEEP_REGS] = list(set(self.reasons[FailTypes.KEEP_REGS] + other.reasons[FailTypes.KEEP_REGS]))
+        return self
+    
+def analyze_res(res_chains, res_fail, res):
+    if( res):
+        res_chains += res
+    else:
+        res_fail.merge(res)
+            
 #########################
-# Modle wide accessors ##
+# Module wide accessors #
 #########################
 
 def getBaseAssertion():

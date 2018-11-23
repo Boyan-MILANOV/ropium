@@ -126,6 +126,7 @@ class Graph:
         semantics.flattenITE()
         semantics.simplifyValues()
         semantics.simplifyConditions()
+        semantics.customSemanticAdjust()
         return semantics
 
 #####################################

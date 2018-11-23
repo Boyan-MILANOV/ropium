@@ -31,6 +31,8 @@ class Architecture:
         self.bits = None
         self.octets = None
         self.minPageSize = None
+        self.endianness = None
+        self.regs = None
         
         # BARF Information 
         self.archMode = None
@@ -70,11 +72,29 @@ def n2r(name):
     global regNameToNum
     return regNameToNum[name]
     
+##############
+# Endianness # 
+##############
+class EndiannessType(Enum):
+    BIG = "BIG"
+    LITTLE = "LITTLE"
+    
 ###########################
 # Supported architectures #
 ###########################
 
 currentArch = None
+def setArch(arch):
+    global currentArch, ssaRegCount, regNumToName, regNameToNum
+    currentArch = arch
+    ssaRegCount = 0
+    regNumToName = dict()
+    regNameToNum = dict()
+    for reg in arch.regs:
+        regNumToName[ssaRegCount] = reg
+        regNameToNum[reg] = ssaRegCount
+        ssaRegCount += 1
+
 
 # X86 
 ArchX86 = Architecture()
@@ -88,6 +108,9 @@ ArchX86.archMode = ARCH_X86_MODE_32
 ArchX86.disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_32)
 ArchX86.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_32)
 ArchX86.minPageSize = 0x1000
+ArchX86.endianness = EndiannessType.LITTLE
+ArchX86.regs = ['eax','ebx','ecx','edx','esi','edi','esp','eip'\
+                , 'cf', 'pf', 'af', 'zf', 'sf']
 
 # X86-64
 ArchX64 = Architecture()
@@ -101,6 +124,11 @@ ArchX64.archMode = ARCH_X86_MODE_64
 ArchX64.disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_64)
 ArchX64.irTranslator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
 ArchX64.minPageSize = 0x1000
+ArchX64.endianness = EndiannessType.LITTLE
+ArchX64.regs = ['rax', 'rbx', 'rcx', 'rdx', 'rsi', 'rdi', 'rsp', 'rbp', 'rip'\
+                , 'r8', 'r9', 'r10', 'r11', 'r12', 'r13', 'r14', 'r15', 'sf', 'zf'\
+                , 'af','cf','df','es', 'fs']
+
 
 available = [ArchX86.name, ArchX64.name]
 
@@ -128,6 +156,12 @@ def current():
     
 def minPageSize():
     return currentArch.minPageSize
+    
+def isLittleEndian():
+    return currentArch.endianness == EndiannessType.LITTLE
+
+def isBigEndian():
+    return currentArch.endianness == EndiannessType.BIG
     
 #####################
 # Types of binaries #

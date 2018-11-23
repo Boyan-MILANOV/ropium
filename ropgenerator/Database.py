@@ -41,6 +41,9 @@ class QueryType(Enum):
     SYSCALL = "syscall"
     INT80 = "int 0x80"
 
+def isMemWriteQuery(qtype):
+    return (qtype in [QueryType.CSTtoMEM, QueryType.REGtoMEM, QueryType.MEMtoMEM])
+    
 #######################
 # List of all gadgets #
 #######################
@@ -101,6 +104,7 @@ class CSTList:
         self.preConditions[cst].insert(index, preCond)
         
     def find(self, cst, constraint, assertion, enablePreConds=False, n=1 , maxSpInc=None):
+        global gadgets
         res = []
         if( not cst in self.values ):
             return []
@@ -426,7 +430,7 @@ class Database:
         
     def possibleAddressWrites(self, reg, cst, constraint, assertion, n=1):
         """
-        : : nb of gadgets for each case !! 
+        n : nb of gadgets for each case !! 
         """
         global gadgets
         res = dict()
@@ -443,6 +447,25 @@ class Database:
                     if( addr_cst not in reg[addr_reg]):
                         res[addr_reg][addr_cst] = []
                     res[addr_reg][addr_cst] += found
+                    
+    def allPossibleWrites(self, constraint, assertion):
+        """
+        n : nb of gadgets for each case
+        """
+        global gadgets 
+        res = []
+        for addr_reg in self.types[QueryType.REGtoMEM].registers.keys():
+            for addr_cst in self.types[QueryType.REGtoMEM].registers[addr_reg]:
+                # Get the lookUp for list of deps for MEM(addr_reg, addr_cst)
+                lookUp = self.types[QueryType.REGtoMEM].registers[addr_reg][addr_cst]
+                # Iterate through reg and cst 
+                for reg in lookUp.registers.keys():
+                    for cst in lookUp.registers[reg].values.keys():
+                        gadget_list = lookUp.registers[reg].find(cst, constraint, assertion, n=1)
+                        if( gadget_list ):
+                            res.append(((addr_reg, addr_cst),(reg,cst),gadget_list[0]))
+        return res 
+                    
                 
                     
 ########################
@@ -476,6 +499,13 @@ def DBPossibleAddressWrites(reg, cst, constraint, assertion, n=1):
     Return the list of [addr_reg, addr_cst] such than mem(addr_reg, addr_cst) <- reg+cst
     """
     return db.possibleAddressWrites(reg, cst, constraint, assertion, n)
+    
+def DBAllPossibleWrites(constraint, assertion):
+    """
+    Return a list of [(addr_reg, addr_cst), (reg, cst), gadget] 
+    s.t gadget does: mem(addr_reg, addr_cst) <- reg+cst ! 
+    """
+    return db.allPossibleWrites(constraint, assertion)
 
 #############################
 # Build the list of gadgets #
@@ -556,3 +586,42 @@ def initDB():
     global db, gadgets
     gadgets = []
     db = Database()
+    
+    
+###################
+# Utils functions #
+###################
+_offset = 0 
+def set_gadgets_offset( offset):
+    """
+    adds offset to all gadget addresses 
+    returns True if success
+    returns False if fail 
+    """
+    global gadgets, _offset
+        
+    i = 0
+    _offset = offset
+    for gadget in gadgets:
+        if( not gadget.addOffset(offset)):
+            reset_gadgets_offset(i)
+            return False
+        i += 1
+    _offset = offset
+    return True
+            
+def reset_gadgets_offset(gadget_num=-1):
+    """
+    decrements gadget addresses by offset until gadget_num (NOT included)
+    if gadget_num = -1, do it for all gadgets 
+    """
+    global _offset, gadgets
+    if( gadget_num <= 0 ):
+        gadget_num = len(gadgets)
+    i = 0
+    for gadget in gadgets:
+        if( i >= gadget_num ):
+            return 
+        gadget.addOffset(-1*_offset)
+        i += 1
+    _offset = 0

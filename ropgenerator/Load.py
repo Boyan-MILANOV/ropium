@@ -171,9 +171,9 @@ def load(args):
         print("\tFound: " + arch.name)
         return 
     elif( arch ):
-        Arch.currentArch = arch
+        Arch.setArch(arch)
     else:
-        Arch.currentArch = user_arch
+        Arch.setArch(user_arch)
         
     # Init the binary scanner
     initScanner(filename)
