@@ -1,6 +1,4 @@
 #include "Expression.hpp"
-#include "Simplification.hpp"
-
 ////////////////////////////////////////////////////////////////////////
 int main(){
     // Test function 
@@ -11,8 +9,8 @@ int main(){
     e2 = ExprObjectPtr(new ExprObject (ExprPtr(new ExprReg(0,64))));
     e5 = ExprObjectPtr(new ExprObject (ExprPtr(new ExprReg(3,64))));
     e4 = ExprObjectPtr(new ExprObject (ExprPtr(new ExprCst(6, 64))));
-    e3 = e1 + e4;
-    res = make_shared<ExprObject>(simplify_arithmetic_const_folding(e3->expr_ptr()));
-    cout << res; 
+    e3 = e5*(e1 + (e2+e4) - e2) + e1/e4;
+    e3->simplify(); 
+    cout << e3; 
     return 0;  
 }

@@ -1,3 +1,4 @@
+#include "Expression.hpp"
 #include "Simplification.hpp"
 
 /* Simplification functions take an ExprPtr as input
@@ -55,8 +56,10 @@ ExprPtr simplify_arithmetic_const_folding(ExprPtr p){
     if( !left || !right )
         return p; 
         
-    if( p->binop() == OP_ADD || p->binop() == OP_ADD || p->binop() == OP_ADD )
+    if( p->binop() == OP_ADD || p->binop() == OP_SUB)
         return (left->merge_op(right, p->binop()))->to_expr(p->size());
+    else if(p->binop() == OP_MUL && p->right_expr_ptr()->type() == EXPR_CST)
+        return (left->mul_all(p->right_expr_ptr()->value()))->to_expr(p->size());
     else
         return p; 
 }
