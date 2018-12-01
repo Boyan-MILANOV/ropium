@@ -1,24 +1,18 @@
 #include "Expression.hpp" 
+#include "Simplification.hpp"
 
 using namespace std; 
 
 ////////////////////////////////////////////////////////////////////////
 //// Expr 
 // Constructors
-Expr::Expr(ExprType t): _type(t),_size(-1), _simplified(false), _polynom(nullptr), _no_polynom(false){}
-Expr::Expr(ExprType t, int s): _type(t),_size(s), _simplified(false), _polynom(nullptr), _no_polynom(false){}
-Expr::Expr(ExprType t, int s, bool simp): _type(t),_size(s), _simplified(simp), _polynom(nullptr), _no_polynom(false){}
+Expr::Expr(ExprType t): _type(t),_size(-1), _simplified(false), _polynom(nullptr), _computed_polynom(false){}
+Expr::Expr(ExprType t, int s): _type(t),_size(s), _simplified(false), _polynom(nullptr), _computed_polynom(false){}
+Expr::Expr(ExprType t, int s, bool simp): _type(t),_size(s), _simplified(simp), _polynom(nullptr), _computed_polynom(false){}
 // Accessors and modifiers 
 int Expr::size(){return _size;}
 int Expr::set_size(int s){return (_size=s); }
 ExprType Expr::type(){return _type;}
-ExprAsPolynom * Expr::polynom(){
-    return _polynom; 
-}
-void Expr::set_polynom(ExprAsPolynom* p){
-    free(_polynom);
-    _polynom = p;
-}
 void Expr::set_simplified(bool v){_simplified = v;}
 // IO
 void Expr::print(ostream& os){os << "???";}
@@ -26,6 +20,19 @@ ostream& operator<< (ostream& os, Expr e){
     e.print(os);
     return os; 
 }
+// Polynom
+void Expr::set_polynom(ExprAsPolynom* p){
+    delete _polynom;
+    _polynom = p;
+    _computed_polynom = true;
+}
+ExprAsPolynom * Expr::polynom(){
+    return _polynom; 
+}
+void Expr::compute_polynom(){
+    _computed_polynom = true;
+}
+
 // !!! This function must ALWAYS be overloaded by child classes 
 ExprPtr Expr::get_shared_ptr(){
     return nullptr;
@@ -52,10 +59,12 @@ ExprPtr ExprCst::get_shared_ptr(){
     return shared_from_this(); 
 }
 // POlynom
-ExprAsPolynom* compute_polynom(int size){
-    ExprAsPolynom* res = new ExprAsPolynom(size);
-    res.set(size-1, _value);
-    return res; 
+void ExprCst::compute_polynom(){
+    if( !_computed_polynom){
+        _polynom = new ExprAsPolynom(NB_REGS_MAX+1);
+        _polynom->set(NB_REGS_MAX, _value);
+        _computed_polynom = true;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -71,10 +80,12 @@ ExprPtr ExprReg::get_shared_ptr(){
     return shared_from_this(); 
 }
 // Polynom
-ExprAsPolynom* compute_polynom(int size){
-    ExprAsPolynom* res = new ExprAsPolynom(size);
-    res.set(_num, 1);
-    return res; 
+void ExprReg::compute_polynom(){
+    if( !_computed_polynom){
+        _polynom = new ExprAsPolynom(NB_REGS_MAX+1);
+        _polynom->set(_num, 1);
+        _computed_polynom = true;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -165,6 +176,16 @@ ExprObject::ExprObject(ExprPtr p): _expr_ptr(p){}
 ExprPtr ExprObject::expr_ptr(){return _expr_ptr;}
 Expr ExprObject::expr(){return *_expr_ptr;}
 void ExprObject::set_expr_ptr(ExprPtr p){_expr_ptr = p;}
+void ExprObject::simplify(){
+    ExprPtr tmp;
+    bool modified = false;
+    if( _expr_ptr->type() == EXPR_BINOP ){
+        _expr_ptr->left_object_ptr()->simplify(); 
+        _expr_ptr->right_object_ptr()->simplify(); 
+        _expr_ptr = simplify_arithmetic_const_folding(_expr_ptr);
+    } 
+    _expr_ptr->compute_polynom(); 
+}
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -229,10 +250,10 @@ ExprAsPolynom* ExprAsPolynom::merge_op(ExprAsPolynom *other, Binop op){
             func = [](int a, int b)->int{return a+b;};
             break;
         case OP_SUB:
-            func = [](int a, int b)->int{return a+b;};
+            func = [](int a, int b)->int{return a-b;};
             break;
         case OP_MUL:
-            func = [](int a, int b)->int{return a+b;};
+            func = [](int a, int b)->int{return a*b;};
             break;
         default:
             throw "Invalid ExprType in merge_op!";
@@ -244,22 +265,51 @@ ExprAsPolynom* ExprAsPolynom::merge_op(ExprAsPolynom *other, Binop op){
     return res; 
 }
 
+ExprAsPolynom* ExprAsPolynom::mul_all(int factor){
+    ExprAsPolynom* res = new ExprAsPolynom(_len);
+    int i;
+    for(i = 0; i < _len; i++)
+        res->set(i, _polynom[i]*factor);
+    return res; 
+}
+
 ExprPtr ExprAsPolynom::to_expr(int expr_size){
     int i; 
-    ExprObjectPtr tmp; 
-    // Const 
+    ExprObjectPtr tmp;
+    bool not_null = false;
+    // Const
     tmp = make_shared<ExprObject>(make_shared<ExprCst>(_polynom[_len-1], expr_size));
+    if( _polynom[_len-1] != 0 ){
+        not_null = true;
+    }
     // Regs
     for(i = 0; i < _len-1; i++){
         if( _polynom[i] == 1 )
-            tmp = make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) + tmp; 
+            if( not_null )
+                tmp = make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) + tmp; 
+            else{
+                tmp = make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size));
+                not_null = true;
+            }
         else if( _polynom[i] > 1  )
-            tmp = (make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) * 
+            if( not_null )
+                tmp = (make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) * 
                   make_shared<ExprObject>(make_shared<ExprCst>(_polynom[i], expr_size))) 
                   + tmp;
+            else{
+                tmp = (make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) * 
+                  make_shared<ExprObject>(make_shared<ExprCst>(_polynom[i], expr_size)));
+                not_null = true;
+            }
         else if( _polynom[i] < 0  )
-            tmp = tmp - (make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) * 
+            if( not_null )
+                tmp = tmp - (make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) * 
                   make_shared<ExprObject>(make_shared<ExprCst>(_polynom[i], expr_size))) ;
+            else{
+                tmp = make_shared<ExprObject>(make_shared<ExprCst>(-1, expr_size))
+                      * make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size));
+                not_null = true;
+            }
     }
     tmp->expr_ptr()->set_polynom(this);
     return tmp->expr_ptr(); 
@@ -268,4 +318,6 @@ ExprPtr ExprAsPolynom::to_expr(int expr_size){
 ExprAsPolynom::~ExprAsPolynom(){
     free(_polynom);
 }
+
+
 

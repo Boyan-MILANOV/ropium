@@ -5,6 +5,7 @@
 #include <memory>
 
 #define PTRCAST(t,p) static_pointer_cast<t>(p)
+#define NB_REGS_MAX 64
 
 using namespace std; 
 
@@ -24,11 +25,12 @@ using ExprObjectPtr = shared_ptr<ExprObject>;
 class ExprAsPolynom; 
 
 class Expr{
+    protected:
         const ExprType _type;
         int _size;
         bool _simplified;
         ExprAsPolynom* _polynom;
-        bool _no_polynom;
+        bool _computed_polynom;
     public:
         // Constructors
         Expr(ExprType t);
@@ -39,12 +41,13 @@ class Expr{
         int set_size(int s);
         ExprType type(); 
         virtual ExprAsPolynom* polynom();
+        virtual 
         void set_polynom(ExprAsPolynom* p);
         void set_simplified(bool v);
         // Misc 
         virtual void print(ostream& os);
         virtual shared_ptr<Expr> get_shared_ptr();
-        virtual ExprAsPolynom* compute_polynom(int nb_regs);
+        virtual void compute_polynom();
         // Destructor
         ~Expr();
         
@@ -105,6 +108,7 @@ class ExprCst: public Expr, public std::enable_shared_from_this<ExprCst>{
         ExprCst(cst_t v, int s);
         // Accessors and modifiers 
         cst_t value();
+        void compute_polynom();
         // Misc 
         void print(ostream& os);
         ExprPtr get_shared_ptr();
@@ -118,6 +122,7 @@ class ExprReg: public Expr, public std::enable_shared_from_this<ExprReg>{
         // Constructor 
         ExprReg(int n, int s);
         // Misc 
+        void compute_polynom();
         void print(ostream& os);
         ExprPtr get_shared_ptr();
 
@@ -191,6 +196,7 @@ class ExprAsPolynom{
         // Operations
         void set(int index, int value);
         ExprAsPolynom* merge_op(ExprAsPolynom *other, Binop op);
+        ExprAsPolynom* mul_all(int factor);
         ExprPtr to_expr(int expr_size);
         // Destructor 
         ~ExprAsPolynom();
