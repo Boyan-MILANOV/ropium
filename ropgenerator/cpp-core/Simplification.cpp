@@ -1,67 +1,231 @@
 #include "Expression.hpp"
 #include "Simplification.hpp"
+#include "Expression.hpp"
 
+////////////////////////////////////////////////////////////////////////
+// ExprAsPolynom
+// Constructor 
+ExprAsPolynom::ExprAsPolynom(int l){
+    _polynom = (int*)calloc(l,sizeof(int)); // calloc initializes bits to zero 
+    _len = l; 
+}
+// Accessors 
+int ExprAsPolynom::len(){ return _len;}
+int * ExprAsPolynom::polynom(){return _polynom;}
+// Operations 
+void ExprAsPolynom::set(int index, int value){
+    _polynom[index] = value; 
+}
+
+ExprAsPolynom* ExprAsPolynom::copy(){
+    ExprAsPolynom* res = new ExprAsPolynom(_len);
+    int i;
+    for (i=0; i<_len; i++)
+        res->_polynom[i] = _polynom[i];
+    return res; 
+}
+
+ExprAsPolynom* ExprAsPolynom::merge_op(ExprAsPolynom *other, Binop op){
+    int i; 
+    ExprAsPolynom *res = new ExprAsPolynom(_len);
+    int (*func)(int,int);
+    switch(op){
+        case OP_ADD:
+            func = [](int a, int b)->int{return a+b;};
+            break;
+        case OP_SUB:
+            func = [](int a, int b)->int{return a-b;};
+            break;
+        case OP_MUL:
+            func = [](int a, int b)->int{return a*b;};
+            break;
+        default:
+            throw "Invalid ExprType in merge_op!";
+    }
+    if( other->len() != _len )
+        throw "Merging polynoms of different length!";
+    for( i = 0; i < _len; i++)
+        res->polynom()[i] = func(_polynom[i], other->polynom()[i]); 
+    return res; 
+}
+
+ExprAsPolynom* ExprAsPolynom::mul_all(int factor){
+    ExprAsPolynom* res = new ExprAsPolynom(_len);
+    int i;
+    for(i = 0; i < _len; i++)
+        res->set(i, _polynom[i]*factor);
+    return res; 
+}
+
+ExprPtr ExprAsPolynom::to_expr(int expr_size){
+    int i; 
+    ExprObjectPtr tmp;
+    bool not_null = false;
+    // Const
+    tmp = make_shared<ExprObject>(make_shared<ExprCst>(_polynom[_len-1], expr_size));
+    if( _polynom[_len-1] != 0 ){
+        not_null = true;
+    }
+    // Regs
+    for(i = 0; i < _len-1; i++){
+        if( _polynom[i] == 1 )
+            if( not_null )
+                tmp = tmp + make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)); 
+            else{
+                tmp = make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size));
+                not_null = true;
+            }
+        else if( _polynom[i] == -1){
+            if( not_null )
+                tmp = tmp - make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)); 
+            else{
+                tmp = make_shared<ExprObject>(make_shared<ExprCst>(-1, expr_size))
+                      * make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size));
+                not_null = true;
+            }
+        } 
+        
+        else if( _polynom[i] > 1  )
+            if( not_null )
+                tmp = tmp + (make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) * 
+                  make_shared<ExprObject>(make_shared<ExprCst>(_polynom[i], expr_size)));
+            else{
+                tmp = (make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) * 
+                  make_shared<ExprObject>(make_shared<ExprCst>(_polynom[i], expr_size)));
+                not_null = true;
+            }
+        else if( _polynom[i] < -1  ){
+            if( not_null )
+                tmp = tmp - (make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) * 
+                  make_shared<ExprObject>(make_shared<ExprCst>(_polynom[i], expr_size))) ;
+            else{
+                tmp = make_shared<ExprObject>(make_shared<ExprCst>(-1*_polynom[i], expr_size))
+                      * make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size));
+                not_null = true;
+            }
+        }
+    }
+    tmp->expr_ptr()->set_polynom(copy());
+    return tmp->expr_ptr(); 
+}
+// Destructor 
+ExprAsPolynom::~ExprAsPolynom(){
+    free(_polynom);
+}
+
+
+////////////////////////////////////////////////////////////////////////
+// Simplification functions 
 /* Simplification functions take an ExprPtr as input
    They return 
    - The argument if no simplifaction was found 
    - Another ExprPtr to the new expression if they simplified the argument  
 */
 
-
-ExprPtr simplify_arithmetic_const_folding(Binop op, ExprPtr left, ExprPtr right){
-        ExprObjectPtr tmp, new_object_ptr; 
-        ExprPtr new_expr_ptr;
-        int factor;
-        
-        if( op == OP_ADD )
-            factor = 1; 
-        else
-            factor = -1; 
-            
-        // If right is a constant 
-        if( right->type() == EXPR_CST ){
-            // Check if left is a constant 
-            if( left->type() == EXPR_CST )
-                return make_shared<ExprCst>(left->value() + factor*right->value(), left->size());
-            // Check if left is a OP_ADD with a constant (X + 1)+ 2 = X + 3  
-            // Or if left is a OP_SUB with a constant (X - 1)+ 2 = X + 1
-            else if( left->type() == EXPR_BINOP 
-                     && left->right_expr_ptr()->type() == EXPR_CST){
-                if( left->binop() == OP_ADD ){
-                    new_expr_ptr = make_shared<ExprCst>(left->right_expr_ptr()->value() + factor*right->value(),
-                                                        left->size());
-                    new_object_ptr = make_shared<ExprObject>(new_expr_ptr);
-                    return make_shared<ExprBinop>(OP_ADD, 
-                                                 left->left_object_ptr(), 
-                                                 new_object_ptr);
-                }else if( left->binop() == OP_SUB ){
-                    return left; // TODO 
-                }   
-            }
+// Constant folding 
+ExprPtr simplify_constant_folding(ExprPtr p){
+    cst_t left_val, right_val; 
+    // Neutral for binary operations 
+    if( p->type() == EXPR_BINOP ){
+        // Neutral elements for BINOP are only constants 
+        if( p->right_expr_ptr()->type() != EXPR_CST ||
+            p->left_expr_ptr()->type() != EXPR_CST)
+            return p; 
+        left_val = p->left_expr_ptr()->value();
+        right_val = p->right_expr_ptr()->value();
+        switch(p->binop()){
+            case OP_ADD:
+                return make_shared<ExprCst>(left_val+right_val, p->size());
+            case OP_SUB:
+                return make_shared<ExprCst>(left_val-right_val, p->size()); 
+            case OP_MUL:
+                return make_shared<ExprCst>(left_val*right_val, p->size());
+            case OP_DIV:
+                return make_shared<ExprCst>(left_val/right_val, p->size());
+            case OP_AND:
+                return make_shared<ExprCst>(left_val&right_val, p->size());
+            case OP_OR:
+                return make_shared<ExprCst>(left_val|right_val, p->size());
+            case OP_XOR:
+                return make_shared<ExprCst>(left_val^right_val, p->size()); 
+            default:
+                return p;
         }
-        // If no simplifications, return a null shared_pointer
-        return left; 
+    }else if( p->type() == EXPR_UNOP ){
+        if( p->arg_expr_ptr()->type() != EXPR_CST )
+            return p;
+        switch(p->unop()){
+            case OP_NEG:
+                return make_shared<ExprCst>(~p->arg_expr_ptr()->value(), p->size());
+            default:
+                return p;
+        }
+    }else if( p->type() == EXPR_EXTRACT ){
+        if( p->arg_expr_ptr()->type() != EXPR_CST ){
+            return p;
+        }
+        if( (p->low() == 0) && (p->high() == p->arg_expr_ptr()->size()-1)){
+            return p->arg_object_ptr()->expr_ptr();
+        }else{
+            left_val = p->arg_expr_ptr()->value() >> p->low();
+            left_val &= ((1<<(p->high() - p->low() + 1))-1); 
+            return make_shared<ExprCst>(left_val, p->size());
+        }
+    }
+    return p; 
 }
 
 // Polynom simplifications 
-ExprPtr simplify_arithmetic_const_folding(ExprPtr p){
-    ExprPtr res; 
-    ExprAsPolynom *left, *right; 
+ExprPtr simplify_polynom_factorization(ExprPtr p){
+    ExprAsPolynom* polynom; 
 
     if( p->type() != EXPR_BINOP )
         return p; 
-        
-    left = p->left_expr_ptr()->polynom();
-    right = p->right_expr_ptr()->polynom();
-    if( !left || !right )
-        return p; 
-        
-    if( p->binop() == OP_ADD || p->binop() == OP_SUB)
-        return (left->merge_op(right, p->binop()))->to_expr(p->size());
-    else if(p->binop() == OP_MUL && p->right_expr_ptr()->type() == EXPR_CST)
-        return (left->mul_all(p->right_expr_ptr()->value()))->to_expr(p->size());
+    
+    polynom = p->polynom();
+    if( polynom)
+        return polynom->to_expr(p->size());
     else
-        return p; 
+        return p;
 }
 
-
+ExprPtr simplify_neutral_element(ExprPtr p){
+    cst_t val; 
+    // Neutral for binary operations 
+    if( p->type() == EXPR_BINOP ){
+        // Neutral elements for BINOP are only constants 
+        if( p->right_expr_ptr()->type() != EXPR_CST )
+            return p; 
+        val = p->right_expr_ptr()->value();
+        switch(p->binop()){
+            case OP_ADD:
+            case OP_SUB:
+                return ( val == 0 )? p->left_expr_ptr() : p; 
+            case OP_MUL:
+            case OP_DIV:
+                return ( val == 1 )? p->left_expr_ptr() : p; 
+            case OP_AND:
+                if( val == (1 << (p->size()-1) ))
+                    return p->left_expr_ptr();
+                return p;
+                break;
+            case OP_OR:
+            case OP_XOR:
+                if( val == (1 << (p->size()-1) ))
+                    return p->left_expr_ptr();
+                else if( val == (1 << (p->size()-1) ))
+                    return make_shared<ExprUnop>(OP_NEG, p->left_object_ptr());
+                return ( val == 0 )? p->left_expr_ptr() : p; 
+            default:
+                return p;
+        }
+    }else if( p->type() == EXPR_UNOP ){
+        return p; // TODO
+    }else if( p->type() == EXPR_EXTRACT ){
+        if( p->low() == 0 && p->high() == p->size()-1)
+            return p->arg_object_ptr()->expr_ptr();
+        else
+            return p; 
+    }
+    return p; 
+}

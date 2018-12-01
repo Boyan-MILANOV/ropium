@@ -17,18 +17,16 @@ enum Unop {OP_NEG};
 enum Binop {OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_AND, OP_OR, OP_XOR }; 
 
 // Type used to store the values for ExprCst
-using cst_t= unsigned long long;  
+using cst_t= long long;  
 
-// Abstract class for Expressions 
 class ExprObject;
 using ExprObjectPtr = shared_ptr<ExprObject>; 
 class ExprAsPolynom; 
-
+// Abstract base class for Expressions 
 class Expr{
     protected:
-        const ExprType _type;
-        int _size;
-        bool _simplified;
+        const ExprType _type; // Type of the expression 
+        int _size; // Size in bits
         ExprAsPolynom* _polynom;
         bool _computed_polynom;
     public:
@@ -41,38 +39,41 @@ class Expr{
         int set_size(int s);
         ExprType type(); 
         virtual ExprAsPolynom* polynom();
-        virtual 
         void set_polynom(ExprAsPolynom* p);
-        void set_simplified(bool v);
         // Misc 
         virtual void print(ostream& os);
-        virtual shared_ptr<Expr> get_shared_ptr();
         virtual void compute_polynom();
         // Destructor
         ~Expr();
         
         // Virtual functions of all child classes to avoid heavy casting when manipulating expressions
         // From ExprCst
-        virtual cst_t value(){throw "Wrong class to call this method";}; 
+        virtual cst_t value(){throw "Wrong class to call this method";}
         // From ExprBinop
-        virtual ExprObjectPtr left_object_ptr(){throw "Wrong class to call this method";}; 
-        virtual ExprObjectPtr right_object_ptr(){throw "Wrong class to call this method";}; 
-        virtual shared_ptr<Expr> left_expr_ptr(){throw "Wrong class to call this method";}; 
-        virtual shared_ptr<Expr> right_expr_ptr(){throw "Wrong class to call this method";}; 
+        virtual ExprObjectPtr left_object_ptr(){throw "Wrong class to call this method";}
+        virtual ExprObjectPtr right_object_ptr(){throw "Wrong class to call this method";}
+        virtual shared_ptr<Expr> left_expr_ptr(){throw "Wrong class to call this method";}
+        virtual shared_ptr<Expr> right_expr_ptr(){throw "Wrong class to call this method";}
         virtual Binop binop(){throw "Wrong class to call this method";}; 
-        virtual void exchange_args(){throw "Wrong class to call this method";}; 
+        virtual Unop unop(){throw "Wrong class to call this method";}
+        virtual void exchange_args(){throw "Wrong class to call this method";} 
+        // From ExprExtract
+        virtual int low(){throw "Wrong class to call this method";}
+        virtual int high(){throw "Wrong class to call this method";}
+        virtual shared_ptr<Expr> arg_expr_ptr(){throw "Wrong class to call this method";}
+        virtual shared_ptr<ExprObject> arg_object_ptr(){throw "Wrong class to call this method";}
 };
 
 // Shared pointer to expressions 
 using ExprPtr = shared_ptr<Expr>;
 
-////////////////////////////////////////////////////////////////////////
-// ExprObject 
 class ExprAsPolynom; 
-
+////////////////////////////////////////////////////////////////////////
+// ExprObject (wrapper around Expr)
 class ExprObject{
     protected:
         ExprPtr _expr_ptr; 
+        bool _simplified; // If the expression has been simplified 
     public:
         // Constructors 
         ExprObject(ExprPtr p);
@@ -84,10 +85,10 @@ class ExprObject{
         void simplify(); // Should always compute polynom
          
 };
-// Shared pointer level manipulation 
+// ExprObjectPtr level manipulation 
 // IO
 ostream& operator<< (ostream& os, ExprObjectPtr p);
-// Combine expressions 
+// Operators 
 ExprObjectPtr operator+ (ExprObjectPtr p1, ExprObjectPtr p2);
 ExprObjectPtr operator- (ExprObjectPtr p1, ExprObjectPtr p2);
 ExprObjectPtr operator* (ExprObjectPtr p1, ExprObjectPtr p2);
@@ -97,9 +98,9 @@ ExprObjectPtr operator| (ExprObjectPtr p1, ExprObjectPtr p2);
 ExprObjectPtr operator^ (ExprObjectPtr p1, ExprObjectPtr p2);
 ExprObjectPtr Extract (ExprObjectPtr p1, int high, int low);
 ExprObjectPtr operator~ (ExprObjectPtr p1);
+
 ////////////////////////////////////////////////////////////////////////
-
-
+//// Different kinds of expressions 
 // Constant Expression 
 class ExprCst: public Expr, public std::enable_shared_from_this<ExprCst>{
     cst_t _value; // The value, signed 
@@ -108,11 +109,9 @@ class ExprCst: public Expr, public std::enable_shared_from_this<ExprCst>{
         ExprCst(cst_t v, int s);
         // Accessors and modifiers 
         cst_t value();
-        void compute_polynom();
         // Misc 
         void print(ostream& os);
-        ExprPtr get_shared_ptr();
-        
+        void compute_polynom();
 }; 
 
 // Register Expression 
@@ -124,8 +123,6 @@ class ExprReg: public Expr, public std::enable_shared_from_this<ExprReg>{
         // Misc 
         void compute_polynom();
         void print(ostream& os);
-        ExprPtr get_shared_ptr();
-
 }; 
 
 // Memory Expression 
@@ -136,7 +133,7 @@ class ExprMem: public Expr, public std::enable_shared_from_this<ExprMem>{
         ExprMem( ExprObjectPtr a, int s);
         // Misc 
         void print(ostream& os);
-        ExprPtr get_shared_ptr();
+        
 }; 
 
 // Binary Operation Expression 
@@ -146,60 +143,48 @@ class ExprBinop: public Expr , public std::enable_shared_from_this<ExprBinop>{
     public: 
         // Constructor 
         ExprBinop(Binop o, ExprObjectPtr l, ExprObjectPtr r);
-        // Misc 
-        void print(ostream& os);
+        // Accessors and modifiers 
         ExprObjectPtr left_object_ptr();
         ExprObjectPtr right_object_ptr();
         ExprPtr left_expr_ptr();
         ExprPtr right_expr_ptr();
         Binop binop();
+        // Misc 
+        void print(ostream& os);
         void exchange_args();
-        ExprPtr get_shared_ptr();
+        void compute_polynom();
+        
 };
 
 // Unary Operation Expression 
 class ExprUnop: public Expr, public std::enable_shared_from_this<ExprUnop>{
-    Unop op; 
-    ExprObjectPtr arg; 
+    Unop _op; 
+    ExprObjectPtr _arg; 
     public: 
         // Constructor 
         ExprUnop(Unop o, ExprObjectPtr a);
+        // Accessors 
+        ExprObjectPtr arg_object_ptr();
+        ExprPtr arg_expr_ptr();
+        Unop unop();
         // Misc 
         void print(ostream& os);
-        ExprPtr get_shared_ptr();
+        
 }; 
 
 // Extraction Expression 
 class ExprExtract: public Expr, public std::enable_shared_from_this<ExprExtract>{
-    ExprObjectPtr arg; 
-    int low, high; 
+    ExprObjectPtr _arg; 
+    int _low, _high; 
     public: 
         // Constructor 
         ExprExtract( ExprObjectPtr a, int high, int low);
+        // Accessors and modifiers
+        int low();
+        int high();
+        ExprPtr arg_expr_ptr();
+        ExprObjectPtr arg_object_ptr();
         // Misc 
         void print(ostream& os);
-        ExprPtr get_shared_ptr();
 }; 
-
-////////////////////////////////////////////////////////////////////////
-// Polynom representation for simplifications :) 
-#define POLYNOM_MAXLEN 150
-class ExprAsPolynom{
-    int* _polynom; //polynom[i] = reg i , last element is the constant
-    int _len; 
-    public: 
-        // Constructor 
-        ExprAsPolynom(int l);
-        // Accessors 
-        int len();
-        int * polynom();
-        // Operations
-        void set(int index, int value);
-        ExprAsPolynom* merge_op(ExprAsPolynom *other, Binop op);
-        ExprAsPolynom* mul_all(int factor);
-        ExprPtr to_expr(int expr_size);
-        // Destructor 
-        ~ExprAsPolynom();
-};
-
 #endif 
