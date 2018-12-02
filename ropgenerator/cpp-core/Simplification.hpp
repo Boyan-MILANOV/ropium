@@ -15,6 +15,7 @@ class ExprAsPolynom{
         // Operations
         void set(int index, int value);
         ExprAsPolynom* copy();
+        bool equal( ExprAsPolynom* other);
         ExprAsPolynom* merge_op(ExprAsPolynom *other, Binop op);
         ExprAsPolynom* mul_all(int factor);
         ExprPtr to_expr(int expr_size);
@@ -24,6 +25,7 @@ class ExprAsPolynom{
 
 ////////////////////////////////////////////////////////////////////////
 //Simplifications
+void canonize(ExprPtr p);
 ExprPtr simplify_constant_folding(ExprPtr p);
 ExprPtr simplify_polynom_factorization(ExprPtr p);
 ExprPtr simplify_neutral_element(ExprPtr p);

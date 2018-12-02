@@ -10,7 +10,7 @@
 using namespace std; 
 
 // Types of expressions 
-enum ExprType {EXPR_CST, EXPR_REG, EXPR_MEM, EXPR_UNOP, EXPR_BINOP, EXPR_CONCAT, EXPR_EXTRACT, EXPR_UNKNOWN}; 
+enum ExprType {EXPR_CST, EXPR_REG, EXPR_MEM, EXPR_UNOP, EXPR_BINOP, EXPR_EXTRACT, EXPR_CONCAT, EXPR_UNKNOWN}; 
 
 // Operators between Expressions 
 enum Unop {OP_NEG};
@@ -38,17 +38,24 @@ class Expr{
         int size();
         int set_size(int s);
         ExprType type(); 
-        virtual ExprAsPolynom* polynom();
-        void set_polynom(ExprAsPolynom* p);
         // Misc 
         virtual void print(ostream& os);
+        virtual ExprAsPolynom* polynom();
+        void set_polynom(ExprAsPolynom* p);
         virtual void compute_polynom();
+        virtual bool equal(shared_ptr<Expr> other){throw "Wrong class to call this method";} 
+        virtual bool lthan(shared_ptr<Expr> other){throw "Wrong class to call this method";} 
         // Destructor
         ~Expr();
         
         // Virtual functions of all child classes to avoid heavy casting when manipulating expressions
         // From ExprCst
         virtual cst_t value(){throw "Wrong class to call this method";}
+        // From ExprReg
+        virtual int num(){throw "Wrong class to call this method";}
+        // From ExprMem
+        virtual shared_ptr<ExprObject> addr_object_ptr(){throw "Wrong class to call this method";}
+        virtual shared_ptr<Expr> addr_expr_ptr(){throw "Wrong class to call this method";}
         // From ExprBinop
         virtual ExprObjectPtr left_object_ptr(){throw "Wrong class to call this method";}
         virtual ExprObjectPtr right_object_ptr(){throw "Wrong class to call this method";}
@@ -88,6 +95,7 @@ class ExprObject{
         void set_expr_ptr(ExprPtr p);
         // Misc
         void simplify(); // Should always compute polynom
+        bool equal(ExprObjectPtr other);
          
 };
 // ExprObjectPtr level manipulation 
@@ -108,7 +116,7 @@ ExprObjectPtr operator~ (ExprObjectPtr p1);
 ////////////////////////////////////////////////////////////////////////
 //// Different kinds of expressions 
 // Constant Expression 
-class ExprCst: public Expr, public std::enable_shared_from_this<ExprCst>{
+class ExprCst: public Expr{
     cst_t _value; // The value, signed 
     public:
         // Constructor 
@@ -118,34 +126,45 @@ class ExprCst: public Expr, public std::enable_shared_from_this<ExprCst>{
         // Misc 
         void print(ostream& os);
         void compute_polynom();
+        bool equal(shared_ptr<Expr> other);
+        bool lthan(ExprPtr other);
 }; 
 
 // Register Expression 
-class ExprReg: public Expr, public std::enable_shared_from_this<ExprReg>{
+class ExprReg: public Expr{
     int _num;
     public:
         // Constructor 
         ExprReg(int n, int s);
+        // Accessor
+        int num(); 
         // Misc 
         void compute_polynom();
         void print(ostream& os);
+        bool equal(shared_ptr<Expr> other);
+        bool lthan(ExprPtr other);
 }; 
 
 // Memory Expression 
-class ExprMem: public Expr, public std::enable_shared_from_this<ExprMem>{
-    ExprObjectPtr addr;
+class ExprMem: public Expr{
+    ExprObjectPtr _addr;
     public: 
         // Constructor 
         ExprMem( ExprObjectPtr a, int s);
+        // Accessors
+        ExprObjectPtr addr_object_ptr();
+        ExprPtr addr_expr_ptr();
         // Misc 
         void print(ostream& os);
+        bool equal(shared_ptr<Expr> other);
+        bool lthan(ExprPtr other);
         
 }; 
 
 // Binary Operation Expression 
-class ExprBinop: public Expr , public std::enable_shared_from_this<ExprBinop>{
-    Binop op; 
-    ExprObjectPtr left, right;
+class ExprBinop: public Expr{
+    Binop _op; 
+    ExprObjectPtr _left, _right;
     public: 
         // Constructor 
         ExprBinop(Binop o, ExprObjectPtr l, ExprObjectPtr r);
@@ -159,6 +178,8 @@ class ExprBinop: public Expr , public std::enable_shared_from_this<ExprBinop>{
         void print(ostream& os);
         void exchange_args();
         void compute_polynom();
+        bool equal(shared_ptr<Expr> other);
+        bool lthan(ExprPtr other);
         
 };
 
@@ -175,6 +196,8 @@ class ExprUnop: public Expr{
         Unop unop();
         // Misc 
         void print(ostream& os);
+        bool equal(shared_ptr<Expr> other);
+        bool lthan(ExprPtr other);
         
 }; 
 
@@ -192,6 +215,8 @@ class ExprExtract: public Expr{
         ExprObjectPtr arg_object_ptr();
         // Misc 
         void print(ostream& os);
+        bool equal(shared_ptr<Expr> other);
+        bool lthan(ExprPtr other);
 }; 
 
 // Concatenate Expression
@@ -207,5 +232,7 @@ class ExprConcat: public Expr{
         ExprPtr lower_expr_ptr();
         // Misc 
         void print(ostream& os);
+        bool equal(shared_ptr<Expr> other);
+        bool lthan(ExprPtr other);
 };
 #endif 
