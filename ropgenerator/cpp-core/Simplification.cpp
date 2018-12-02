@@ -171,6 +171,14 @@ ExprPtr simplify_constant_folding(ExprPtr p){
             left_val &= ((1<<(p->high() - p->low() + 1))-1); 
             return make_shared<ExprCst>(left_val, p->size());
         }
+    }else if( p->type() == EXPR_CONCAT ){
+        if( p->lower_expr_ptr()->type() != EXPR_CST ||
+            p->upper_expr_ptr()->type() != EXPR_CST)
+            return p; 
+        left_val = p->upper_expr_ptr()->value();
+        right_val = p->lower_expr_ptr()->value();
+        return make_shared<ExprCst>((left_val << p->lower_expr_ptr()->size()) + right_val ,
+                                    p->lower_expr_ptr()->size() + p->upper_expr_ptr()->size()); 
     }
     return p; 
 }

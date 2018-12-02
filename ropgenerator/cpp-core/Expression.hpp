@@ -62,6 +62,11 @@ class Expr{
         virtual int high(){throw "Wrong class to call this method";}
         virtual shared_ptr<Expr> arg_expr_ptr(){throw "Wrong class to call this method";}
         virtual shared_ptr<ExprObject> arg_object_ptr(){throw "Wrong class to call this method";}
+        // From ExprConcat
+        virtual shared_ptr<ExprObject> upper_object_ptr(){throw "Wrong class to call this method";}
+        virtual shared_ptr<ExprObject> lower_object_ptr(){throw "Wrong class to call this method";}
+        virtual shared_ptr<Expr> upper_expr_ptr(){throw "Wrong class to call this method";}
+        virtual shared_ptr<Expr> lower_expr_ptr(){throw "Wrong class to call this method";}
 };
 
 // Shared pointer to expressions 
@@ -97,6 +102,7 @@ ExprObjectPtr operator& (ExprObjectPtr p1, ExprObjectPtr p2);
 ExprObjectPtr operator| (ExprObjectPtr p1, ExprObjectPtr p2);
 ExprObjectPtr operator^ (ExprObjectPtr p1, ExprObjectPtr p2);
 ExprObjectPtr Extract (ExprObjectPtr p1, int high, int low);
+ExprObjectPtr Concat (ExprObjectPtr p1, ExprObjectPtr p2); 
 ExprObjectPtr operator~ (ExprObjectPtr p1);
 
 ////////////////////////////////////////////////////////////////////////
@@ -157,7 +163,7 @@ class ExprBinop: public Expr , public std::enable_shared_from_this<ExprBinop>{
 };
 
 // Unary Operation Expression 
-class ExprUnop: public Expr, public std::enable_shared_from_this<ExprUnop>{
+class ExprUnop: public Expr{
     Unop _op; 
     ExprObjectPtr _arg; 
     public: 
@@ -173,7 +179,7 @@ class ExprUnop: public Expr, public std::enable_shared_from_this<ExprUnop>{
 }; 
 
 // Extraction Expression 
-class ExprExtract: public Expr, public std::enable_shared_from_this<ExprExtract>{
+class ExprExtract: public Expr{
     ExprObjectPtr _arg; 
     int _low, _high; 
     public: 
@@ -187,4 +193,19 @@ class ExprExtract: public Expr, public std::enable_shared_from_this<ExprExtract>
         // Misc 
         void print(ostream& os);
 }; 
+
+// Concatenate Expression
+class ExprConcat: public Expr{
+    ExprObjectPtr _upper, _lower; 
+    public: 
+        // Constructor
+        ExprConcat( ExprObjectPtr u, ExprObjectPtr l );
+        // Accessors and modifiers 
+        ExprObjectPtr upper_object_ptr();
+        ExprObjectPtr lower_object_ptr();
+        ExprPtr upper_expr_ptr();
+        ExprPtr lower_expr_ptr();
+        // Misc 
+        void print(ostream& os);
+};
 #endif 
