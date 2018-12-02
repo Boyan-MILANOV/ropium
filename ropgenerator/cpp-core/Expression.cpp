@@ -176,6 +176,22 @@ int ExprExtract::high(){ return _high;}
 ExprPtr ExprExtract::arg_expr_ptr(){return _arg->expr_ptr();}
 ExprObjectPtr ExprExtract::arg_object_ptr(){ return _arg;}
 
+/////////////////////////////////////////////////////////////////////////
+// ExprConcat
+// Constructor
+ExprConcat::ExprConcat( ExprObjectPtr u, ExprObjectPtr l ): Expr(EXPR_CONCAT), _upper(u), _lower(l){
+    set_size(l->expr_ptr()->size() + u->expr_ptr()->size());
+}
+// Accessors and modifiers 
+ExprObjectPtr ExprConcat::upper_object_ptr(){ return _upper;}
+ExprObjectPtr ExprConcat::lower_object_ptr(){ return _lower;}
+ExprPtr ExprConcat::upper_expr_ptr(){ return _upper->expr_ptr();}
+ExprPtr ExprConcat::lower_expr_ptr(){ return _lower->expr_ptr();}
+// Misc 
+void ExprConcat::print(ostream& os){
+    os << "(" << _upper << "." << _lower << ")";
+}
+
 ////////////////////////////////////////////////////////////////////////
 // ExprObject
 ExprObject::ExprObject(ExprPtr p): _expr_ptr(p), _simplified(false){}
@@ -203,6 +219,10 @@ void ExprObject::simplify(){
             _expr_ptr = simplify_constant_folding(_expr_ptr);
             _expr_ptr = simplify_neutral_element(_expr_ptr);
             break;
+        case EXPR_CONCAT:
+            _expr_ptr->lower_object_ptr()->simplify();
+            _expr_ptr->upper_object_ptr()->simplify();
+            _expr_ptr = simplify_constant_folding(_expr_ptr);
         default:
             break;
     }
@@ -242,6 +262,9 @@ ExprObjectPtr operator^ (ExprObjectPtr p1, ExprObjectPtr p2){
 }
 ExprObjectPtr Extract(ExprObjectPtr p1, int high, int low){
     return make_shared<ExprObject>(make_shared<ExprExtract>(p1, high, low)); 
+}
+ExprObjectPtr Concat (ExprObjectPtr p1, ExprObjectPtr p2){
+    return make_shared<ExprObject>(make_shared<ExprConcat>(p1,p2));
 }
 ExprObjectPtr operator~ (ExprObjectPtr p1){
     return make_shared<ExprObject>(make_shared<ExprUnop>(OP_NEG, p1)); 
