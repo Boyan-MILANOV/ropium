@@ -1,6 +1,12 @@
 #ifndef SIMPLIFICATION_H
 #define SIMPLIFICATION_H
 
+#include "Expression.hpp"
+#include "Condition.hpp"
+/*---------------------------------------------------------------
+ *              Simplifications on Expressions 
+ *---------------------------------------------------------------*/ 
+ 
 ////////////////////////////////////////////////////////////////////////
 // Polynom representation for simplifications :)
 class ExprAsPolynom{
@@ -16,6 +22,7 @@ class ExprAsPolynom{
         void set(int index, int value);
         ExprAsPolynom* copy();
         bool equal( ExprAsPolynom* other);
+        CondEval compare(ExprAsPolynom* other, CondType comp);
         ExprAsPolynom* merge_op(ExprAsPolynom *other, Binop op);
         ExprAsPolynom* mul_all(int factor);
         ExprPtr to_expr(int expr_size);
@@ -29,4 +36,16 @@ void canonize(ExprPtr p);
 ExprPtr simplify_constant_folding(ExprPtr p);
 ExprPtr simplify_polynom_factorization(ExprPtr p);
 ExprPtr simplify_neutral_element(ExprPtr p);
+ExprPtr simplify_pattern(ExprPtr p);
+
+
+/*---------------------------------------------------------------
+ *              Simplifications on Conditions 
+ *---------------------------------------------------------------*/ 
+// Simplifications
+CondPtr simplify_constant_folding(CondPtr p);
+CondPtr simplify_neutral_element(CondPtr p);
+CondPtr simplify_compare_polynom(CondPtr p);
+CondPtr simplify_redundancy(CondPtr p);
+ 
 #endif 

@@ -8,7 +8,6 @@ using namespace std;
 // Constructors
 Expr::Expr(ExprType t): _type(t),_size(-1), _polynom(nullptr), _computed_polynom(false){}
 Expr::Expr(ExprType t, int s): _type(t),_size(s), _polynom(nullptr), _computed_polynom(false){}
-Expr::Expr(ExprType t, int s, bool simp): _type(t),_size(s), _polynom(nullptr), _computed_polynom(false){}
 // Accessors and modifiers
 int Expr::size(){return _size;}
 int Expr::set_size(int s){return (_size=s); }
@@ -46,7 +45,7 @@ Expr::~Expr(){
 ////////////////////////////////////////////////////////////////////////
 //// ExprCst
 // Constructor 
-ExprCst::ExprCst(cst_t v, int s):Expr(EXPR_CST, s, true),_value(v) {}
+ExprCst::ExprCst(cst_t v, int s):Expr(EXPR_CST, s),_value(v) {}
 // Accessors and modifiers 
 cst_t ExprCst::value(){return _value;}
 // Operators
@@ -63,7 +62,8 @@ void ExprCst::compute_polynom(){
 }
 // Misc
 bool ExprCst::equal(shared_ptr<Expr> other){
-    return ( (other->type() == EXPR_CST) &&
+    return ( other.get() == this ) || 
+            ( (other->type() == EXPR_CST) &&
             (other->value() ==  _value) );
 }
 bool ExprCst::lthan(ExprPtr other){
@@ -91,7 +91,8 @@ void ExprReg::compute_polynom(){
 }
 // Misc
 bool ExprReg::equal(shared_ptr<Expr> other){
-    return ( (other->type() == EXPR_REG) &&
+    return ( other.get() == this ) || 
+            ( (other->type() == EXPR_REG) &&
             (other->num() ==  _num) );
 }
 bool ExprReg::lthan(ExprPtr other){
@@ -117,7 +118,8 @@ ExprPtr ExprMem::addr_expr_ptr(){ return _addr->expr_ptr();}
 
 // Misc
 bool ExprMem::equal(shared_ptr<Expr> other){
-    return ( (other->type() == EXPR_MEM) &&
+    return ( other.get() == this ) || 
+            ( (other->type() == EXPR_MEM) &&
             (_addr->expr_ptr()->equal(other->addr_expr_ptr())) );
 }
 bool ExprMem::lthan(ExprPtr other){
@@ -182,7 +184,9 @@ void ExprBinop::compute_polynom(){
 }
 // Misc
 bool ExprBinop::equal(shared_ptr<Expr> other){
-    if( polynom() == nullptr || other->polynom() == nullptr)
+    if( other.get() == this )
+        return true; 
+    else if( polynom() == nullptr || other->polynom() == nullptr)
         return ( (other->type() == EXPR_BINOP) &&
             (other->binop() ==  _op) &&
             (_left->expr_ptr()->equal(other->left_expr_ptr())) && 
@@ -218,7 +222,8 @@ void ExprUnop::print(ostream& os){
 }
 // Misc
 bool ExprUnop::equal(shared_ptr<Expr> other){
-    return ( (other->type() == EXPR_UNOP) &&
+    return ( other.get() == this ) || 
+            ( (other->type() == EXPR_UNOP) &&
             (other->unop() == _op) && 
             (_arg->expr_ptr()->equal(other->arg_expr_ptr())) );
 }
@@ -247,7 +252,8 @@ ExprPtr ExprExtract::arg_expr_ptr(){return _arg->expr_ptr();}
 ExprObjectPtr ExprExtract::arg_object_ptr(){ return _arg;}
 // Misc
 bool ExprExtract::equal(shared_ptr<Expr> other){
-    return ( (other->type() == EXPR_EXTRACT) &&
+    return ( other.get() == this ) || 
+            ( (other->type() == EXPR_EXTRACT) &&
             (other->high() == _high) && (other->low() == _low) && 
             (_arg->expr_ptr()->equal(other->arg_expr_ptr())) );
 }
@@ -274,7 +280,8 @@ void ExprConcat::print(ostream& os){
     os << "(" << _upper << "." << _lower << ")";
 }
 bool ExprConcat::equal(shared_ptr<Expr> other){
-    return ( (other->type() == EXPR_CONCAT) &&
+    return ( other.get() == this ) || 
+            ( (other->type() == EXPR_CONCAT) &&
             (_upper->expr_ptr()->equal(other->upper_expr_ptr())) && 
             (_lower->expr_ptr()->equal(other->lower_expr_ptr())));
 }
@@ -294,12 +301,10 @@ bool ExprConcat::lthan(ExprPtr other){
 ExprObject::ExprObject(ExprPtr p): _expr_ptr(p), _simplified(false){}
 ExprPtr ExprObject::expr_ptr(){return _expr_ptr;}
 Expr ExprObject::expr(){return *_expr_ptr;}
-void ExprObject::set_expr_ptr(ExprPtr p){_expr_ptr = p;}
 bool ExprObject::equal(ExprObjectPtr other){
     return _expr_ptr->equal(other->expr_ptr());
 }
 void ExprObject::simplify(){
-    ExprPtr tmp;
     if( _simplified )
         return; 
         
@@ -307,6 +312,7 @@ void ExprObject::simplify(){
         case EXPR_UNOP:
             _expr_ptr->arg_object_ptr()->simplify();
             _expr_ptr = simplify_constant_folding(_expr_ptr);
+            break;
         case EXPR_BINOP:
             _expr_ptr->left_object_ptr()->simplify(); 
             _expr_ptr->right_object_ptr()->simplify(); 
@@ -318,6 +324,7 @@ void ExprObject::simplify(){
         case EXPR_EXTRACT:
             _expr_ptr->arg_object_ptr()->simplify();
             _expr_ptr = simplify_constant_folding(_expr_ptr);
+            _expr_ptr = simplify_pattern(_expr_ptr);
             _expr_ptr = simplify_neutral_element(_expr_ptr);
             break;
         case EXPR_CONCAT:
