@@ -1,6 +1,8 @@
 #include "Expression.hpp"
 #include "Simplification.hpp"
-#include "Expression.hpp"
+/*---------------------------------------------------------------
+ *              Simplifications on Expressions 
+ *---------------------------------------------------------------*/ 
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -64,8 +66,7 @@ ExprPtr simplify_constant_folding(ExprPtr p){
     }else if( p->type() == EXPR_EXTRACT ){
         if( p->arg_expr_ptr()->type() != EXPR_CST ){
             return p;
-        }
-        if( (p->low() == 0) && (p->high() == p->arg_expr_ptr()->size()-1)){
+        }else if( (p->low() == 0) && (p->high() == p->arg_expr_ptr()->size()-1)){
             return p->arg_object_ptr()->expr_ptr();
         }else{
             left_val = p->arg_expr_ptr()->value() >> p->low();
@@ -111,32 +112,51 @@ ExprPtr simplify_neutral_element(ExprPtr p){
             case OP_SUB:
                 return ( val == 0 )? p->right_expr_ptr() : p; 
             case OP_MUL:
+                if( val == 0 )
+                    return p->left_expr_ptr();
+                else
+                    return ( val == 1 )? p->right_expr_ptr() : p; 
             case OP_DIV:
                 return ( val == 1 )? p->right_expr_ptr() : p; 
             case OP_AND:
                 if( val == (1 << (p->size()-1) ))
                     return p->right_expr_ptr();
+                else if( val == 0 )
+                    return p->left_expr_ptr(); 
                 return p;
                 break;
             case OP_OR:
+                if( val == (1 << (p->size()-1) )) // 0xfffff... 
+                    return p->left_expr_ptr();
+                return ( val == 0 )? p->right_expr_ptr() : p; 
             case OP_XOR:
                 if( val == (1 << (p->size()-1) ))
-                    return p->right_expr_ptr();
-                else if( val == (1 << (p->size()-1) ))
                     return make_shared<ExprUnop>(OP_NEG, p->right_object_ptr());
                 return ( val == 0 )? p->right_expr_ptr() : p; 
             default:
                 return p;
         }
-    }else if( p->type() == EXPR_UNOP ){
-        return p; // TODO
     }else if( p->type() == EXPR_EXTRACT ){
-        if( p->low() == 0 && p->high() == p->size()-1)
+        if( (p->low() == 0) && (p->high() == p->arg_expr_ptr()->size()-1))
             return p->arg_object_ptr()->expr_ptr();
         else
             return p; 
     }
     return p; 
+}
+
+ExprPtr simplify_pattern(ExprPtr p){
+    if( p->type() == EXPR_CONCAT ){
+        // Concat(X[a:b], X[b-1:c]) = X[a:c] 
+        if( p->upper_expr_ptr()->type() == EXPR_EXTRACT && 
+            p->lower_expr_ptr()->type() == EXPR_EXTRACT &&
+            p->lower_expr_ptr()->arg_expr_ptr()->equal(p->lower_expr_ptr()->arg_expr_ptr()) && 
+            p->upper_expr_ptr()->low() == p->lower_expr_ptr()->high() + 1)
+            return make_shared<ExprExtract>(p->lower_expr_ptr()->arg_object_ptr(), 
+                                            p->upper_expr_ptr()->high(),
+                                            p->lower_expr_ptr()->low());
+    }
+    return p;
 }
 
 
@@ -171,6 +191,24 @@ bool ExprAsPolynom::equal(ExprAsPolynom* other){
         if( _polynom[i] != other->polynom()[i])
             return false;
     return true;
+}
+
+CondEval ExprAsPolynom::compare(ExprAsPolynom* other, CondType comp){
+    int i;
+    if( other->len() != _len )
+        throw "Comparing polynoms of different length!";
+    for( i = 0; i < _len; i++)
+        if( _polynom[i] != other->polynom()[i])
+            break;
+    if( i == _len )
+        return (comp == COND_EQ || comp == COND_LE) ? EVAL_TRUE : EVAL_FALSE;
+    else if( i == _len-1)
+        if( _polynom[i] < other->polynom()[i] )
+            return (comp == COND_NEQ || comp == COND_LT) ? EVAL_TRUE : EVAL_FALSE;
+        else
+            return (comp == COND_NEQ) ? EVAL_TRUE : EVAL_FALSE;
+    else
+        return EVAL_UNKNOWN;
 }
 
 ExprAsPolynom* ExprAsPolynom::merge_op(ExprAsPolynom* other, Binop op){
@@ -262,3 +300,89 @@ ExprAsPolynom::~ExprAsPolynom(){
 }
 
 
+
+/*---------------------------------------------------------------
+ *              Simplifications on Conditions 
+ *---------------------------------------------------------------*/ 
+// Simplifications
+CondPtr simplify_constant_folding(CondPtr p){
+    cst_t left_val, right_val; 
+    if( !is_compare_cond(p->type()) )
+        return p;
+    if( p->left_expr_ptr()->type() == EXPR_CST && 
+        p->right_expr_ptr()->type() == EXPR_CST ){
+        left_val = p->left_expr_ptr()->value(); 
+        right_val = p->right_expr_ptr()->value(); 
+    }else
+        return p; 
+        
+    switch(p->type()){
+        case COND_EQ:
+            return make_shared<CondConst>((left_val==right_val)?COND_TRUE:COND_FALSE);
+        case COND_NEQ:
+            return make_shared<CondConst>((left_val!=right_val)?COND_TRUE:COND_FALSE);
+        case COND_LT:
+            return make_shared<CondConst>((left_val<right_val)?COND_TRUE:COND_FALSE);
+        case COND_LE:
+            return make_shared<CondConst>((left_val<=right_val)?COND_TRUE:COND_FALSE);
+        default:
+            return p; 
+    }
+}
+
+
+CondPtr simplify_neutral_element(CondPtr p){
+    switch(p->type()){
+        case COND_NOT:
+            if( is_const_cond(p->arg_cond_ptr()->type()))
+                return make_shared<CondConst>(invert_cond_type(p->arg_cond_ptr()->type()));
+            else
+                return p; 
+        case COND_AND:
+            if( p->left_cond_ptr()->type() == COND_TRUE)
+                return p->right_cond_ptr();
+            else if( p->left_cond_ptr()->type() == COND_FALSE)
+                return p->left_cond_ptr();
+            else if( p->right_cond_ptr()->type() == COND_TRUE)
+                return p->left_cond_ptr();
+            else if(  p->right_cond_ptr()->type() == COND_FALSE)
+                return p->right_cond_ptr();
+            else
+                return p;
+        case COND_OR:
+            if( p->left_cond_ptr()->type() == COND_TRUE)
+                return p->left_cond_ptr();
+            else if( p->left_cond_ptr()->type() == COND_FALSE)
+                return p->right_cond_ptr();
+            else if( p->right_cond_ptr()->type() == COND_TRUE)
+                return p->right_cond_ptr();
+            else if(  p->right_cond_ptr()->type() == COND_FALSE)
+                return p->left_cond_ptr();
+            else
+                return p;
+        default:
+            return p;
+        
+    }
+}
+
+CondPtr simplify_compare_polynom(CondPtr p){
+    ExprAsPolynom *left_p, *right_p;
+    if( ! is_compare_cond(p->type()) )
+        return p;
+    left_p = p->left_expr_ptr()->polynom();
+    right_p = p->right_expr_ptr()->polynom();
+    if( left_p==nullptr || right_p==nullptr )
+        return p;
+        
+    switch(left_p->compare(right_p, p->type())){
+        case EVAL_TRUE:
+            return make_shared<CondConst>(COND_TRUE);
+        case EVAL_FALSE:
+            return make_shared<CondConst>(COND_FALSE);
+        default:
+            return p;
+    }
+}
+
+CondPtr simplify_redundancy(CondPtr p);

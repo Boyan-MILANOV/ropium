@@ -33,7 +33,6 @@ class Expr{
         // Constructors
         Expr(ExprType t);
         Expr(ExprType t, int s);
-        Expr(ExprType t, int s, bool simp); 
         // Accessors and modifiers 
         int size();
         int set_size(int s);
@@ -79,7 +78,6 @@ class Expr{
 // Shared pointer to expressions 
 using ExprPtr = shared_ptr<Expr>;
 
-class ExprAsPolynom; 
 ////////////////////////////////////////////////////////////////////////
 // ExprObject (wrapper around Expr)
 class ExprObject{
@@ -92,7 +90,6 @@ class ExprObject{
         // Accessors, modifiers
         ExprPtr expr_ptr();
         Expr expr();
-        void set_expr_ptr(ExprPtr p);
         // Misc
         void simplify(); // Should always compute polynom
         bool equal(ExprObjectPtr other);
