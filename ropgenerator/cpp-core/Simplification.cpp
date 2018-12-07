@@ -18,10 +18,32 @@ void canonize(ExprPtr p){
      * Lowest priority goes on the left
      * Priorities are the values of the enum ExprType ;) 
     */
-    if( p ->type() != EXPR_BINOP || p->binop() == OP_SUB)
+    if( p->type() != EXPR_BINOP || p->binop() == OP_SUB)
         return;
     else if( p->right_expr_ptr()->lthan( p->left_expr_ptr()))
         p->exchange_args();
+}
+
+// Propagate unknown expressions 
+ExprPtr simplify_unknown(ExprPtr p){
+    if( p->type() == EXPR_UNOP && p->arg_expr_ptr()->type() == EXPR_UNKNOWN)
+        return p->arg_expr_ptr(); 
+    else if( p->type() == EXPR_BINOP )
+        if( p->left_expr_ptr()->type() == EXPR_UNKNOWN)
+            return p->left_expr_ptr();
+        else if( p->right_expr_ptr()->type() == EXPR_UNKNOWN)
+            return p->right_expr_ptr(); 
+    else if( p->type() == EXPR_EXTRACT && p->arg_expr_ptr()->type() == EXPR_UNKNOWN)
+        return p->arg_expr_ptr(); 
+    else if( p->type() == EXPR_CONCAT ) 
+        if( p->upper_expr_ptr()->type() == EXPR_UNKNOWN)
+            return p->upper_expr_ptr();
+        else if( p->lower_expr_ptr()->type() == EXPR_UNKNOWN)
+            return p->lower_expr_ptr();
+    else if( p->type() == EXPR_MEM && p->addr_expr_ptr()->type() == EXPR_UNKNOWN)
+        return p->addr_expr_ptr();
+        
+    return p; 
 }
 
 
@@ -51,6 +73,8 @@ ExprPtr simplify_constant_folding(ExprPtr p){
                 return make_shared<ExprCst>(left_val|right_val, p->size());
             case OP_XOR:
                 return make_shared<ExprCst>(left_val^right_val, p->size()); 
+            case OP_MOD:
+                return make_shared<ExprCst>(left_val%right_val, p->size());
             default:
                 return p;
         }
@@ -133,6 +157,8 @@ ExprPtr simplify_neutral_element(ExprPtr p){
                 if( val == (1 << (p->size()-1) ))
                     return make_shared<ExprUnop>(OP_NEG, p->right_object_ptr());
                 return ( val == 0 )? p->right_expr_ptr() : p; 
+            case OP_MOD:
+                return ( val == 1 )? p->left_expr_ptr() : p;
             default:
                 return p;
         }

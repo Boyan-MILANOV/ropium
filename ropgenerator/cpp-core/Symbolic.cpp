@@ -1,5 +1,7 @@
 #include "Symbolic.hpp"
 
+using namespace std; 
+
 // Arguments for REIL-type of operations 
 SymArg::SymArg(ArgType t, int i, int s): _type(t), _id(i), _size(s){}
 SymArg::SymArg(ArgType t, int i, int s, int l, int h): _type(t), _id(i), _size(s), _low(l), _high(h){}
@@ -29,6 +31,19 @@ SymArg* IRInstruction::src1(){return &_src1;}
 SymArg* IRInstruction::src2(){return &_src2;}
 SymArg* IRInstruction::dst(){return &_dst;}
 
+// Some useful functions 
+bool is_calculation_instr(IRInstruction& instr){
+    return  instr.op() == IR_ADD || 
+            instr.op() == IR_AND ||
+            instr.op() == IR_BSH || 
+            instr.op() == IR_DIV || 
+            instr.op() == IR_MOD || 
+            instr.op() == IR_MUL || 
+            instr.op() == IR_OR ||
+            instr.op() == IR_SUB ||
+            instr.op() == IR_XOR ;    
+}
+
 // IR Block of instructions 
 IRBlock::IRBlock(){
     int i;
@@ -44,9 +59,105 @@ bool IRBlock::add_instr(IRInstruction ins){
         return true;
 }
 
-Semantics* IRBlock::compute_semantics(){
-    Semantics* res = new Semantics(); 
-    // TODO 
-    return res; 
+ExprObjectPtr IRBlock::arg_to_expr(SymArg& arg ){
+    ExprObjectPtr res; 
+    if( arg.type() == ARG_CST ){
+        res = make_shared<ExprObject>(make_shared<ExprCst>(arg.value(), arg.size()));
+    }else if( arg.type() == ARG_TMP){
+        res = _tmp_table[arg.id()]; 
+    }else if( arg.type() == ARG_REG){
+        if( _reg_modified[arg.id()])
+            res = _reg_table[arg.id()];
+        else{
+            // We create a new value for it 
+            res = make_shared<ExprObject>(make_shared<ExprReg>(arg.id(), arg.size())); 
+            _reg_table[arg.id()] = res; 
+        }
+    }else
+        throw "SymArg type not supported in arg_to_expr()";
+    // Translate if low and high specified 
+    if( arg.low() != 0 || arg.high() != arg.size())
+        return Extract(res, arg.high(), arg.low());
+    else
+        return res; 
 }
 
+ExprObjectPtr IRBlock::full_reg_assignment(ExprObjectPtr expr, SymArg& reg){
+    ExprObjectPtr prev; 
+    if( reg.low() == 0 && reg.high() == reg.size()-1)
+        return expr; 
+    else if( reg.low() == 0 ){
+        prev = arg_to_expr(reg);
+        return Concat(Extract(prev, reg.size()-1, reg.high()+1), expr);
+    }else if( reg.high() == reg.size()-1){
+        prev = arg_to_expr(reg);
+        return Concat(expr, Extract(prev, reg.low()-1, 0));
+    }else{
+        prev = arg_to_expr(reg);
+        return Concat( Extract(prev, reg.size()-1, reg.high()+1), Concat(expr, Extract(prev, reg.low()-1, 0)));
+    }    
+}
+
+Semantics* IRBlock::compute_semantics(){
+    list<class IRInstruction>::iterator it; 
+    Semantics* res = new Semantics();
+    ExprObjectPtr src1, src2, comb; 
+    // TODO 
+    for( it = _instr.begin(); it != _instr.end(); ++it){
+        if( is_calculation_instr((*it))){
+            // Get src1 and src2
+            src1 = this->arg_to_expr(*(it->src1())); 
+            src2 = this->arg_to_expr(*(it->src2()));
+            // Compute their combinaison 
+            switch(it->op()){
+                case IR_ADD:
+                    comb = src1+src2; 
+                    break;
+                case IR_AND:
+                    comb = src1 & src2; 
+                    break;
+                case IR_BSH:
+                    throw "Not supported: need to add it to my IR :( ";
+                    break;
+                case IR_DIV:
+                    comb = src1 / src2; 
+                    break;
+                case IR_MOD:
+                    throw "Not supported, need to add it"; 
+                    break;
+                case IR_MUL:
+                    comb = src1 * src2; 
+                    break;
+                case IR_OR:
+                    comb = src1 | src2; 
+                    break;
+                case IR_SUB:
+                    comb = src1 - src2; 
+                    break;
+                case IR_XOR:
+                    comb = src1 ^ src2; 
+                    break;
+                default:
+                    throw "Unknown type of calculation in IR";
+            }
+            if( it->dst()->type() == ARG_REG )
+                _reg_table[it->dst()->id()] = this->full_reg_assignment(comb, *(it->dst()));
+            else if( it->dst()->type() == ARG_TMP )
+                _tmp_table[it->dst()->id()] = comb; 
+            else
+                throw "Invalid arg type for dst in IR calculation instruction"; 
+        }else if( it->op() == IR_STR ){
+            src1 = this->arg_to_expr(*(it->src1())); 
+            if( it->dst()->type() == ARG_REG )
+                _reg_table[it->dst()->id()] = this->full_reg_assignment(src1, *(it->dst()));
+            else if( it->dst()->type() == ARG_TMP )
+                _tmp_table[it->dst()->id()] = comb; 
+            else
+                throw "Invalid arg type for dst in IR_STR instruction"; 
+        }// TODO Rest of them 
+        
+        
+    }
+    
+    return res; 
+}
