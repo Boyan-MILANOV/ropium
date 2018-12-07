@@ -25,6 +25,8 @@ class SymArg{
         int size();
         int low();
         int high();
+        // From child classes 
+        virtual cst_t value(); 
 };
 
 class ArgEmpty: public SymArg{
@@ -81,6 +83,10 @@ class IRBlock{
         IRBlock();
         bool add_instr(IRInstruction ins);
         Semantics* compute_semantics();
+    private:
+        ExprObjectPtr full_reg_assignment(ExprObjectPtr expr, SymArg& reg);
+        list<SPair> get_mem_semantics(ExprObjectPtr addr, int size);
+        ExprObjectPtr arg_to_expr(SymArg& arg);
 };
 
 #endif 

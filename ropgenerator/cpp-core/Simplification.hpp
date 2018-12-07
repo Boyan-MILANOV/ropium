@@ -33,6 +33,7 @@ class ExprAsPolynom{
 ////////////////////////////////////////////////////////////////////////
 //Simplifications
 void canonize(ExprPtr p);
+ExprPtr simplify_unknown(ExprPtr p);
 ExprPtr simplify_constant_folding(ExprPtr p);
 ExprPtr simplify_polynom_factorization(ExprPtr p);
 ExprPtr simplify_neutral_element(ExprPtr p);

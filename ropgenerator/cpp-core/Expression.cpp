@@ -132,7 +132,7 @@ bool ExprMem::lthan(ExprPtr other){
 ////////////////////////////////////////////////////////////////////////
 //// ExprBinop
 // To string, needs to match the enum in Expression.hpp !!
-const char* binop_to_str[] = {"+","-","*","/","&","|","^"}; 
+const char* binop_to_str[] = {"+","-","*","/","&","|","^","%"}; 
 // Constructor 
 ExprBinop::ExprBinop( Binop o, ExprObjectPtr l, ExprObjectPtr r): Expr(EXPR_BINOP), _op(o), _left(l), _right(r){
     if( l->expr_ptr()->size() != r->expr_ptr()->size() )
@@ -295,6 +295,9 @@ bool ExprConcat::lthan(ExprPtr other){
         return _type < other->type();
 }
 
+////////////////////////////////////////////////////////////////////////
+// ExprUnknown
+ExprUnknown::ExprUnknown(): Expr(EXPR_UNKNOWN){};
 
 ////////////////////////////////////////////////////////////////////////
 // ExprObject
@@ -311,18 +314,21 @@ void ExprObject::simplify(){
     switch( _expr_ptr->type() ){
         case EXPR_UNOP:
             _expr_ptr->arg_object_ptr()->simplify();
+            _expr_ptr = simplify_unknown(_expr_ptr);
             _expr_ptr = simplify_constant_folding(_expr_ptr);
             break;
         case EXPR_BINOP:
             _expr_ptr->left_object_ptr()->simplify(); 
             _expr_ptr->right_object_ptr()->simplify(); 
             canonize(_expr_ptr);
+            _expr_ptr = simplify_unknown(_expr_ptr);
             _expr_ptr = simplify_constant_folding(_expr_ptr);
             _expr_ptr = simplify_neutral_element(_expr_ptr);
             _expr_ptr = simplify_polynom_factorization(_expr_ptr);
             break;
         case EXPR_EXTRACT:
             _expr_ptr->arg_object_ptr()->simplify();
+            _expr_ptr = simplify_unknown(_expr_ptr);
             _expr_ptr = simplify_constant_folding(_expr_ptr);
             _expr_ptr = simplify_pattern(_expr_ptr);
             _expr_ptr = simplify_neutral_element(_expr_ptr);
@@ -330,7 +336,13 @@ void ExprObject::simplify(){
         case EXPR_CONCAT:
             _expr_ptr->lower_object_ptr()->simplify();
             _expr_ptr->upper_object_ptr()->simplify();
+            _expr_ptr = simplify_unknown(_expr_ptr);
             _expr_ptr = simplify_constant_folding(_expr_ptr);
+            break;
+        case EXPR_MEM:
+            _expr_ptr->addr_object_ptr()->simplify(); 
+            _expr_ptr = simplify_unknown(_expr_ptr);
+            break;
         default:
             break;
     }
@@ -366,6 +378,9 @@ ExprObjectPtr operator| (ExprObjectPtr p1, ExprObjectPtr p2){
 }
 ExprObjectPtr operator^ (ExprObjectPtr p1, ExprObjectPtr p2){
     return make_shared<ExprObject>(make_shared<ExprBinop>(OP_XOR, p1, p2)); 
+}
+ExprObjectPtr operator% (ExprObjectPtr p1, ExprObjectPtr p2){
+    return make_shared<ExprObject>(make_shared<ExprBinop>(OP_MOD, p1, p2)); 
 }
 ExprObjectPtr Extract(ExprObjectPtr p1, int high, int low){
     return make_shared<ExprObject>(make_shared<ExprExtract>(p1, high, low)); 

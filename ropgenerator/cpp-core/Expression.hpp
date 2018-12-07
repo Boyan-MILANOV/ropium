@@ -14,7 +14,7 @@ enum ExprType {EXPR_CST, EXPR_REG, EXPR_MEM, EXPR_UNOP, EXPR_BINOP, EXPR_EXTRACT
 
 // Operators between Expressions 
 enum Unop {OP_NEG};
-enum Binop {OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_AND, OP_OR, OP_XOR }; 
+enum Binop {OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_AND, OP_OR, OP_XOR, OP_MOD }; 
 
 // Type used to store the values for ExprCst
 using cst_t= long long;  
@@ -232,4 +232,10 @@ class ExprConcat: public Expr{
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
 };
+
+class ExprUnknown: public Expr{
+    public:
+        ExprUnknown();
+}; 
+
 #endif 
