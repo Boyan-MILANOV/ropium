@@ -1,11 +1,11 @@
 #ifndef SEMANTIC_H
 #define SEMANTIC_H
 
-#include <list>
+#include <vector>
 #include "Expression.hpp"
 #include "Condition.hpp"
 
-using namespace std; 
+using std::vector; 
 
 class SPair{
     ExprObjectPtr _expr;
@@ -16,18 +16,18 @@ class SPair{
         CondObjectPtr cond(); 
 };
 
-using reg_tuple=tuple<int, std::list<class SPair>>;
-using mem_tuple=tuple<ExprObjectPtr, list<class SPair>>;
+using reg_tuple=tuple<int, vector<class SPair>>;
+using mem_tuple=tuple<ExprObjectPtr, vector<class SPair>>;
 
 class Semantics{
-    list<reg_tuple> _regs;
-    list<mem_tuple> _mem; 
+    vector<reg_tuple> _regs;
+    vector<mem_tuple> _mem; 
     public: 
         Semantics();
-        void add_reg(int num, list<class SPair>pairs);
-        void add_mem(ExprObjectPtr addr, list<class SPair>pairs);
-        list<reg_tuple> regs();
-        list<mem_tuple> mem(); 
+        void add_reg(int num, vector<class SPair>pairs);
+        void add_mem(ExprObjectPtr addr, vector<class SPair>pairs);
+        vector<reg_tuple> regs();
+        vector<mem_tuple> mem(); 
 };
 
 #endif

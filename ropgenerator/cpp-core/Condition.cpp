@@ -200,6 +200,8 @@ CondObjectPtr operator|| (CondObjectPtr p1, CondObjectPtr p2){
 CondObjectPtr operator! (CondObjectPtr p1){
     return make_shared<CondObject>(make_shared<CondUnLogic>(COND_NOT, p1));
 }
-
+CondObjectPtr NewCondTrue(){
+    return make_shared<CondObject>(make_shared<CondConst>(COND_TRUE));
+}
 
 
