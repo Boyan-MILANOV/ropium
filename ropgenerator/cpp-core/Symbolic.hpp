@@ -5,7 +5,7 @@
 #include "Expression.hpp"
 #include "Condition.hpp"
 #include "Simplification.hpp"
-#include <list>
+#include <vector>
 
 using namespace std; 
 
@@ -74,19 +74,23 @@ class IRInstruction{
 #define NB_INSTR_MAX 2048
 
 class IRBlock{
-    list<class IRInstruction> _instr;
-    ExprObjectPtr _reg_table[NB_REGS_MAX];
+    vector<class IRInstruction> _instr;
+    vector<SPair*>* _reg_table[NB_REGS_MAX];
     bool _reg_modified[NB_REGS_MAX];
-    ExprObjectPtr _tmp_table[NB_TMP_MAX];
-    mem_tuple _mem_table[NB_MEM_MAX];
+    vector<SPair*>* _tmp_table[NB_TMP_MAX];
+    tuple<ExprObjectPtr, vector<SPair*>*> _mem_table[NB_MEM_MAX]; //<addr, list of spairs>
     public:
         IRBlock();
         bool add_instr(IRInstruction ins);
         Semantics* compute_semantics();
     private:
-        ExprObjectPtr full_reg_assignment(ExprObjectPtr expr, SymArg& reg);
-        list<SPair> get_mem_semantics(ExprObjectPtr addr, int size);
-        ExprObjectPtr arg_to_expr(SymArg& arg);
+        inline ExprObjectPtr full_reg_assignment(ExprObjectPtr expr, ExprObjectPtr prev, SymArg& reg);
+        vector<SPair*>* full_reg_assignment(vector<SPair*>* spairs, SymArg& reg);
+        vector<SPair*>* get_mem_semantics(ExprObjectPtr addr, int size);
+        vector<SPair*>* arg_to_spairs(SymArg& arg);
+        
+        void execute_stm(vector<SPair*>* src1, vector<SPair*>* dst, int &memory_writes_cnt, int size);
+        vector<SPair*>* execute_calculation(IROperation op,vector<SPair*>* src1, vector<SPair*>*src2); 
 };
 
 #endif 

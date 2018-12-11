@@ -132,7 +132,7 @@ bool ExprMem::lthan(ExprPtr other){
 ////////////////////////////////////////////////////////////////////////
 //// ExprBinop
 // To string, needs to match the enum in Expression.hpp !!
-const char* binop_to_str[] = {"+","-","*","/","&","|","^","%"}; 
+const char* binop_to_str[] = {"+","-","*","/","&","|","^","%", "<>"}; 
 // Constructor 
 ExprBinop::ExprBinop( Binop o, ExprObjectPtr l, ExprObjectPtr r): Expr(EXPR_BINOP), _op(o), _left(l), _right(r){
     if( l->expr_ptr()->size() != r->expr_ptr()->size() )
@@ -381,6 +381,9 @@ ExprObjectPtr operator^ (ExprObjectPtr p1, ExprObjectPtr p2){
 }
 ExprObjectPtr operator% (ExprObjectPtr p1, ExprObjectPtr p2){
     return make_shared<ExprObject>(make_shared<ExprBinop>(OP_MOD, p1, p2)); 
+}
+ExprObjectPtr Bsh(ExprObjectPtr p1,  ExprObjectPtr p2){
+    return make_shared<ExprObject>(make_shared<ExprBinop>(OP_BSH, p1, p2)); 
 }
 ExprObjectPtr Extract(ExprObjectPtr p1, int high, int low){
     return make_shared<ExprObject>(make_shared<ExprExtract>(p1, high, low)); 

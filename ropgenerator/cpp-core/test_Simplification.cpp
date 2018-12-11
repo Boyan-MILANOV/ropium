@@ -5,7 +5,7 @@ int main(){
     ExprObjectPtr e1,e2,e3,e4, e5; 
     ExprObjectPtr res; 
     int i;
-    for(i = 0; i < 100000; i++){
+    for(i = 0; i < 1000000; i++){
         e1 = ExprObjectPtr(new ExprObject (ExprPtr(new ExprCst(23, 64))));
         e2 = ExprObjectPtr(new ExprObject (ExprPtr(new ExprReg(0,64))));
         e5 = ExprObjectPtr(new ExprObject (ExprPtr(new ExprReg(3,64))));

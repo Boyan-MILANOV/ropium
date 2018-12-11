@@ -146,4 +146,6 @@ CondObjectPtr Valid_write (ExprObjectPtr p1);
 CondObjectPtr operator&& (CondObjectPtr p1, CondObjectPtr p2);
 CondObjectPtr operator|| (CondObjectPtr p1, CondObjectPtr p2);
 CondObjectPtr operator! (CondObjectPtr p1);
+
+CondObjectPtr NewCondTrue();
 #endif 

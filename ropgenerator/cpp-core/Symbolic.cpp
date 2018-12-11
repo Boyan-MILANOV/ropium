@@ -59,87 +59,139 @@ bool IRBlock::add_instr(IRInstruction ins){
         return true;
 }
 
-ExprObjectPtr IRBlock::arg_to_expr(SymArg& arg ){
-    ExprObjectPtr res; 
+vector<SPair*>* IRBlock::arg_to_spairs(SymArg& arg ){
+    vector<SPair*>* res, *res2;
+    ExprObjectPtr expr; 
+    vector<SPair*>::iterator tmp; 
     if( arg.type() == ARG_CST ){
-        res = make_shared<ExprObject>(make_shared<ExprCst>(arg.value(), arg.size()));
+        expr = make_shared<ExprObject>(make_shared<ExprCst>(arg.value(), arg.size()));
+        res = new vector<SPair*>();
+        res->push_back(new SPair(expr, NewCondTrue()));
     }else if( arg.type() == ARG_TMP){
-        res = _tmp_table[arg.id()]; 
+        res = _tmp_table[arg.id()];
     }else if( arg.type() == ARG_REG){
         if( _reg_modified[arg.id()])
             res = _reg_table[arg.id()];
         else{
-            // We create a new value for it 
-            res = make_shared<ExprObject>(make_shared<ExprReg>(arg.id(), arg.size())); 
-            _reg_table[arg.id()] = res; 
+            // We create a new value for it
+            expr = make_shared<ExprObject>(make_shared<ExprReg>(arg.id(), arg.size()));
+            _reg_table[arg.id()] = new vector<SPair*>();
+            _reg_table[arg.id()]->push_back((1, new SPair(expr, NewCondTrue())));
+            res = _reg_table[arg.id()]; 
         }
-    }else
+    }else{
         throw "SymArg type not supported in arg_to_expr()";
+    }
     // Translate if low and high specified 
-    if( arg.low() != 0 || arg.high() != arg.size())
-        return Extract(res, arg.high(), arg.low());
-    else
+    if( arg.low() != 0 || arg.high() != arg.size()){
+        res2 = new vector<SPair*>(); 
+        for( tmp = res->begin(); tmp != res->end(); tmp++){
+            res2->push_back(new SPair(Extract((*tmp)->expr(), arg.high(), arg.low()),  (*tmp)->cond()));
+        }
+        return res2; 
+    }else
         return res; 
 }
 
-ExprObjectPtr IRBlock::full_reg_assignment(ExprObjectPtr expr, SymArg& reg){
-    ExprObjectPtr prev; 
+inline ExprObjectPtr IRBlock::full_reg_assignment(ExprObjectPtr expr, ExprObjectPtr prev, SymArg& reg){
     if( reg.low() == 0 && reg.high() == reg.size()-1)
         return expr; 
     else if( reg.low() == 0 ){
-        prev = arg_to_expr(reg);
         return Concat(Extract(prev, reg.size()-1, reg.high()+1), expr);
     }else if( reg.high() == reg.size()-1){
-        prev = arg_to_expr(reg);
         return Concat(expr, Extract(prev, reg.low()-1, 0));
     }else{
-        prev = arg_to_expr(reg);
         return Concat( Extract(prev, reg.size()-1, reg.high()+1), Concat(expr, Extract(prev, reg.low()-1, 0)));
     }    
 }
+// Pre-condition: all expressions in spairs have the same size
+vector<SPair*>* IRBlock::full_reg_assignment(vector<SPair*>* spairs, SymArg& reg){
+    vector<SPair*>::iterator p, p2; 
+    vector<SPair*>* res, *prev;
+    if( spairs->empty() || ( reg.low() == 0 && reg.high() == reg.size()-1))
+        return spairs; 
+    res = new vector<SPair*>();
+    prev = arg_to_spairs(reg);
+    for(p = spairs->begin(); p != spairs->end(); p++ ){
+        for(p2 = prev->begin(); p2 != spairs->end(); p2++ )
+            res->push_back(new SPair(full_reg_assignment((*p)->expr(), (*p2)->expr(), reg), (*p)->cond()));
+    }
+    return res; 
+}
+
+
+vector<SPair*>* IRBlock::execute_calculation(IROperation op,vector<SPair*>* src1, vector<SPair*>*src2){
+    vector<SPair*>* res = new vector<SPair*>(); 
+    vector<SPair*>::iterator arg1, arg2; 
+    for( arg1 = src1->begin(); arg1 != src1->end(); arg1++){
+        for( arg2 = src2->begin(); arg2 != src2->end(); arg2++){
+            // Compute their combinaison 
+            switch(op){
+                case IR_ADD:
+                    res->push_back( new SPair((*arg1)->expr()+(*arg2)->expr(), (*arg1)->cond() && (*arg2)->cond())) ; 
+                    break;
+                case IR_AND:
+                    res->push_back( new SPair((*arg1)->expr()&(*arg2)->expr(), (*arg1)->cond() && (*arg2)->cond())) ;
+                    break;
+                case IR_BSH:
+                    res->push_back( new SPair(Bsh((*arg1)->expr(),(*arg2)->expr()), (*arg1)->cond() && (*arg2)->cond())) ;
+                    break;
+                case IR_DIV:
+                    res->push_back( new SPair((*arg1)->expr()/(*arg2)->expr(), (*arg1)->cond() && (*arg2)->cond())) ;
+                    break;
+                case IR_MOD:
+                    res->push_back( new SPair((*arg1)->expr()%(*arg2)->expr(), (*arg1)->cond() && (*arg2)->cond())) ;
+                    break;
+                case IR_MUL:
+                    res->push_back( new SPair((*arg1)->expr()*(*arg2)->expr(), (*arg1)->cond() && (*arg2)->cond())) ;
+                    break;
+                case IR_OR:
+                    res->push_back( new SPair((*arg1)->expr()|(*arg2)->expr(), (*arg1)->cond() && (*arg2)->cond())) ;
+                    break;
+                case IR_SUB:
+                    res->push_back( new SPair((*arg1)->expr()-(*arg2)->expr(), (*arg1)->cond() && (*arg2)->cond())) ;
+                    break;
+                case IR_XOR:
+                    res->push_back( new SPair((*arg1)->expr()^(*arg2)->expr(), (*arg1)->cond() && (*arg2)->cond())) ;
+                    break;
+                default:
+                    throw "Unknown type of calculation in IR in combine_args()";
+            }
+        }
+    }
+    return res; 
+}
+
+void IRBlock::execute_stm(vector<SPair*>* src1, vector<SPair*>* dst, int& mem_write_cnt, int size){
+    vector<SPair*>::iterator value, addr;
+    vector<SPair*> *tmp; 
+    for( addr = dst->begin(); addr != dst->end(); addr++){
+        if( mem_write_cnt >= NB_MEM_MAX )
+            throw "Too many memory writes!";
+        tmp = new vector<SPair*>; 
+        for( value = src1->begin();  value != src1->end(); value++)
+            if( (*value)->expr()->expr_ptr()->size() != size ) 
+                tmp->push_back(new SPair(Extract((*value)->expr(), size-1, 0), (*value)->cond() && (*addr)->cond()));
+            else
+                tmp->push_back(new SPair((*value)->expr(), (*value)->cond() && (*addr)->cond()));
+        _mem_table[mem_write_cnt++] = make_tuple((*addr)->expr(), tmp);
+    }
+}
 
 Semantics* IRBlock::compute_semantics(){
-    list<class IRInstruction>::iterator it; 
+    vector<class IRInstruction>::iterator it; 
     Semantics* res = new Semantics();
-    ExprObjectPtr src1, src2, comb; 
+    vector<SPair*>* src1, *src2, *comb, *dst; 
+    int mem_write_cnt = 0; 
     // TODO 
     for( it = _instr.begin(); it != _instr.end(); ++it){
         if( is_calculation_instr((*it))){
             // Get src1 and src2
-            src1 = this->arg_to_expr(*(it->src1())); 
-            src2 = this->arg_to_expr(*(it->src2()));
+            src1 = this->arg_to_spairs(*(it->src1())); 
+            src2 = this->arg_to_spairs(*(it->src2()));
             // Compute their combinaison 
-            switch(it->op()){
-                case IR_ADD:
-                    comb = src1+src2; 
-                    break;
-                case IR_AND:
-                    comb = src1 & src2; 
-                    break;
-                case IR_BSH:
-                    throw "Not supported: need to add it to my IR :( ";
-                    break;
-                case IR_DIV:
-                    comb = src1 / src2; 
-                    break;
-                case IR_MOD:
-                    throw "Not supported, need to add it"; 
-                    break;
-                case IR_MUL:
-                    comb = src1 * src2; 
-                    break;
-                case IR_OR:
-                    comb = src1 | src2; 
-                    break;
-                case IR_SUB:
-                    comb = src1 - src2; 
-                    break;
-                case IR_XOR:
-                    comb = src1 ^ src2; 
-                    break;
-                default:
-                    throw "Unknown type of calculation in IR";
-            }
+            comb = this->execute_calculation(it->op(), src1, src2);
+            
             if( it->dst()->type() == ARG_REG )
                 _reg_table[it->dst()->id()] = this->full_reg_assignment(comb, *(it->dst()));
             else if( it->dst()->type() == ARG_TMP )
@@ -147,14 +199,18 @@ Semantics* IRBlock::compute_semantics(){
             else
                 throw "Invalid arg type for dst in IR calculation instruction"; 
         }else if( it->op() == IR_STR ){
-            src1 = this->arg_to_expr(*(it->src1())); 
+            src1 = this->arg_to_spairs(*(it->src1())); 
             if( it->dst()->type() == ARG_REG )
                 _reg_table[it->dst()->id()] = this->full_reg_assignment(src1, *(it->dst()));
             else if( it->dst()->type() == ARG_TMP )
-                _tmp_table[it->dst()->id()] = comb; 
+                _tmp_table[it->dst()->id()] = src1; 
             else
                 throw "Invalid arg type for dst in IR_STR instruction"; 
-        }// TODO Rest of them 
+        }else if( it->op() == IR_STM ){
+            src1 = this->arg_to_spairs(*(it->src1()));
+            dst = this->arg_to_spairs(*(it->dst()));
+            execute_stm(src1, dst, mem_write_cnt, it->src1()->size());
+        }// TODO IR_STR
         
         
     }
