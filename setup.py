@@ -13,7 +13,7 @@ setup(  name='ropgenerator',
         url="https://github.com/Boyan-MILANOV/ropgenerator",
         author="Boyan MILANOV",
         author_email="boyan.milanov@hotmail.fr",
-        licence="GPLv3",
+        license="GPLv3",
         classifiers=[
         'Development Status :: 4 - Beta',
         "Environment :: Console",
@@ -22,7 +22,7 @@ setup(  name='ropgenerator',
         "Topic :: Security",
         ],    
         packages=['ropgenerator', 'ropgenerator/semantic', 'ropgenerator/exploit'\
-                    , 'ropgenerator.exploit/ZwoELF', 'ropgenerator/exploit/syscalls'\
+                    , 'ropgenerator/exploit/syscalls'\
                     , 'ropgenerator/exploit/pwn'],
         scripts=['ROPGenerator'],
         install_requires=['python-magic', 'prompt_toolkit>=2.0',\
@@ -37,4 +37,4 @@ setup(  name='ropgenerator',
 try:
     os.chmod(ROPGenerator_dir, 0777)
 except:
-    print("[!] Error while setting up ROPGenerator's data directory")
+    pass 
