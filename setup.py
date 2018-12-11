@@ -7,7 +7,7 @@ ROPGenerator_dir = os.path.expanduser('~')+"/.ROPGenerator/"
 
 
 setup(  name='ropgenerator',
-        version = "1.1",
+        version = "1.2",
         description = "ROPGenerator makes ROP exploits easy by finding and\
                         chaining gadgets for you",
         url="https://github.com/Boyan-MILANOV/ropgenerator",
