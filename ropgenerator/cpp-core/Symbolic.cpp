@@ -174,16 +174,52 @@ void IRBlock::execute_stm(vector<SPair*>* src1, vector<SPair*>* dst, int& mem_wr
                 tmp->push_back(new SPair(Extract((*value)->expr(), size-1, 0), (*value)->cond() && (*addr)->cond()));
             else
                 tmp->push_back(new SPair((*value)->expr(), (*value)->cond() && (*addr)->cond()));
-        _mem_table[mem_write_cnt++] = make_tuple((*addr)->expr(), tmp);
+        _mem_table[mem_write_cnt++] = make_pair((*addr)->expr(), tmp);
     }
+}
+
+vector<SPair*>* IRBlock::execute_ldm(SPair& spair, int size, int mem_write_cnt){
+    int i, write_size;
+    ExprObjectPtr write_addr; 
+    vector<SPair*>* pairs, *res; 
+    ExprObjectPtr addr = spair.expr();
+    CondObjectPtr no_overwrite_cond = spair.cond(); // We include the spair condition as base
+    CondObjectPtr equal_cond, nequal_cond;
+    vector<SPair*>::iterator it; 
+    
+    
+    res = new vector<SPair*>(); 
+    // For each memory access
+    for( i = mem_write_cnt-1; i >= 0; i--){
+        tie(write_addr, pairs) = _mem_table[i]; 
+        // Get the condition for equal addresses 
+        equal_cond = (write_addr == addr);
+        // Add the possible value(s)
+        for(it = pairs->begin(); it != pairs->end(); it++){
+            // FIXEME ? Here we approximate if we read more than what we wrote
+            if( size >= (*it)->expr()->expr_ptr()->size())
+                res->push_back(new SPair((*it)->expr(),  (*it)->cond() && equal_cond ));
+            else
+                res->push_back(new SPair(Extract((*it)->expr(), size-1, 0 ),  (*it)->cond() && equal_cond ));
+        }
+        write_size = (*pairs)[0]->expr()->expr_ptr()->size(); 
+        // Update the condition if different addresses
+        nequal_cond =   ((write_addr+NewExprCst((cst_t)(write_size-1), write_addr->expr_ptr()->size())) < addr)
+                        || 
+                        ((addr+NewExprCst((cst_t)(size-1), addr->expr_ptr()->size())) < write_addr);
+        no_overwrite_cond = no_overwrite_cond && nequal_cond; 
+    } 
+    // If all writes don't match the read, the value is the initial memory 
+    res->push_back(new SPair(NewExprMem( addr, size), no_overwrite_cond));
+    return res; 
 }
 
 Semantics* IRBlock::compute_semantics(){
     vector<class IRInstruction>::iterator it; 
     Semantics* res = new Semantics();
-    vector<SPair*>* src1, *src2, *comb, *dst; 
+    vector<SPair*>* src1, *src2, *comb, *dst, *mem, *tmp;
+    vector<SPair*>::iterator pit;  
     int mem_write_cnt = 0; 
-    // TODO 
     for( it = _instr.begin(); it != _instr.end(); ++it){
         if( is_calculation_instr((*it))){
             // Get src1 and src2
@@ -210,10 +246,23 @@ Semantics* IRBlock::compute_semantics(){
             src1 = this->arg_to_spairs(*(it->src1()));
             dst = this->arg_to_spairs(*(it->dst()));
             execute_stm(src1, dst, mem_write_cnt, it->src1()->size());
-        }// TODO IR_STR
-        
-        
+        }else if( it->op() == IR_LDM){
+            src1 = this->arg_to_spairs(*(it->src1()));
+            mem = new vector<SPair*>();
+            // For all possible read address values, get the semantics  
+            for(pit = src1->begin(); pit != src1->end(); pit++){
+                tmp = execute_ldm(**pit, it->dst()->size(), mem_write_cnt);
+                mem->insert(mem->end(), std::make_move_iterator(tmp->begin()), std::make_move_iterator(tmp->end()));
+                delete tmp; 
+            }
+            if( it->dst()->type() == ARG_REG )
+                _reg_table[it->dst()->id()] = mem;
+            else if( it->dst()->type() == ARG_TMP )
+                _tmp_table[it->dst()->id()] = mem; 
+            else
+                throw "Invalid arg type for dst in IR_LDM instruction"; 
+        }
     }
-    
+    // TODO: fill the semantic object and return it 
     return res; 
 }
