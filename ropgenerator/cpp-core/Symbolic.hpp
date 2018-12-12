@@ -78,7 +78,7 @@ class IRBlock{
     vector<SPair*>* _reg_table[NB_REGS_MAX];
     bool _reg_modified[NB_REGS_MAX];
     vector<SPair*>* _tmp_table[NB_TMP_MAX];
-    tuple<ExprObjectPtr, vector<SPair*>*> _mem_table[NB_MEM_MAX]; //<addr, list of spairs>
+    pair<ExprObjectPtr, vector<SPair*>*> _mem_table[NB_MEM_MAX]; //<addr, list of spairs>
     public:
         IRBlock();
         bool add_instr(IRInstruction ins);
@@ -86,11 +86,12 @@ class IRBlock{
     private:
         inline ExprObjectPtr full_reg_assignment(ExprObjectPtr expr, ExprObjectPtr prev, SymArg& reg);
         vector<SPair*>* full_reg_assignment(vector<SPair*>* spairs, SymArg& reg);
-        vector<SPair*>* get_mem_semantics(ExprObjectPtr addr, int size);
         vector<SPair*>* arg_to_spairs(SymArg& arg);
         
         void execute_stm(vector<SPair*>* src1, vector<SPair*>* dst, int &memory_writes_cnt, int size);
-        vector<SPair*>* execute_calculation(IROperation op,vector<SPair*>* src1, vector<SPair*>*src2); 
+        vector<SPair*>* execute_calculation(IROperation op,vector<SPair*>* src1, vector<SPair*>*src2);
+        vector<SPair*>* execute_ldm(SPair& pair, int size, int mem_write_cnt);
+        
 };
 
 #endif 

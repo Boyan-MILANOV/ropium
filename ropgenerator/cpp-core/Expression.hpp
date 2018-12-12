@@ -112,6 +112,11 @@ ExprObjectPtr Extract (ExprObjectPtr p1, int high, int low);
 ExprObjectPtr Concat (ExprObjectPtr p1, ExprObjectPtr p2); 
 ExprObjectPtr operator~ (ExprObjectPtr p1);
 
+// Wrappers
+ExprObjectPtr NewExprCst(cst_t value, int size);
+ExprObjectPtr NewExprMem(ExprObjectPtr addr, int s);
+
+
 ////////////////////////////////////////////////////////////////////////
 //// Different kinds of expressions 
 // Constant Expression 

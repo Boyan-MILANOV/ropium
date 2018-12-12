@@ -7,17 +7,17 @@ CondObjectPtr SPair::cond(){return _cond;}
 
 // Semantics 
 Semantics::Semantics(){
-        _regs = vector<reg_tuple>();
-        _mem = vector<mem_tuple>();
+        _regs = vector<reg_pair>();
+        _mem = vector<mem_pair>();
 }
 void Semantics::add_reg(int num, vector<class SPair>pairs){
-    _regs.push_back(make_tuple(num, pairs));
+    _regs.push_back(make_pair(num, pairs));
 }
 void Semantics::add_mem(ExprObjectPtr addr, vector<class SPair>pairs){
-    _mem.push_back(make_tuple(addr, pairs));
+    _mem.push_back(make_pair(addr, pairs));
 }
-vector<reg_tuple> Semantics::regs(){return _regs;}
-vector<mem_tuple> Semantics::mem(){return _mem;}
+vector<reg_pair> Semantics::regs(){return _regs;}
+vector<mem_pair> Semantics::mem(){return _mem;}
 
  
 

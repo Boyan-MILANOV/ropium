@@ -395,7 +395,13 @@ ExprObjectPtr operator~ (ExprObjectPtr p1){
     return make_shared<ExprObject>(make_shared<ExprUnop>(OP_NEG, p1)); 
 }
 
-
+// Wrappers
+ExprObjectPtr NewExprCst(cst_t value, int size){
+    return make_shared<ExprObject>(make_shared<ExprCst>(value, size));
+}
+ExprObjectPtr NewExprMem(ExprObjectPtr addr, int s){
+    return make_shared<ExprObject>(make_shared<ExprMem>(addr, s));
+}
 
 
 

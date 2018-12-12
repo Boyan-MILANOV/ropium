@@ -16,18 +16,18 @@ class SPair{
         CondObjectPtr cond(); 
 };
 
-using reg_tuple=tuple<int, vector<class SPair>>;
-using mem_tuple=tuple<ExprObjectPtr, vector<class SPair>>;
+using reg_pair=pair<int, vector<class SPair>>;
+using mem_pair=pair<ExprObjectPtr, vector<class SPair>>;
 
 class Semantics{
-    vector<reg_tuple> _regs;
-    vector<mem_tuple> _mem; 
+    vector<reg_pair> _regs;
+    vector<mem_pair> _mem; 
     public: 
         Semantics();
         void add_reg(int num, vector<class SPair>pairs);
         void add_mem(ExprObjectPtr addr, vector<class SPair>pairs);
-        vector<reg_tuple> regs();
-        vector<mem_tuple> mem(); 
+        vector<reg_pair> regs();
+        vector<mem_pair> mem(); 
 };
 
 #endif
