@@ -7,7 +7,7 @@ SymArg::SymArg(ArgType t, int i, int s): _type(t), _id(i), _size(s){
     _low = 0; 
     _high = _size-1; 
 }
-SymArg::SymArg(ArgType t, int i, int s, int l, int h): _type(t), _id(i), _size(s), _low(l), _high(h){}
+SymArg::SymArg(ArgType t, int i, int s, int h, int l): _type(t), _id(i), _size(s),  _high(h), _low(l){}
 ArgType SymArg::type(){return _type;}
 int SymArg::id(){return _id;}
 int SymArg::size(){return _size;}
@@ -27,10 +27,10 @@ ArgCst::ArgCst(cst_t v, int s): SymArg(ARG_CST, -1, s){
 }
 
 ArgReg::ArgReg(int n, int s): SymArg(ARG_REG, n, s){}
-ArgReg::ArgReg(int n, int s, int l, int h): SymArg(ARG_REG, n, s, l, h){}
+ArgReg::ArgReg(int n, int s, int h, int l): SymArg(ARG_REG, n, s, h, l){}
 
 ArgTmp::ArgTmp( int n, int s): SymArg(ARG_TMP, n, s){}
-ArgTmp::ArgTmp( int n, int s, int l, int h): SymArg(ARG_TMP, n, s, l, h){}
+ArgTmp::ArgTmp( int n, int s, int h, int l): SymArg(ARG_TMP, n, s, h, l){}
 
 // IR Instruction
 IRInstruction::IRInstruction(IROperation o, SymArg a1, SymArg a2, SymArg d): _op(o), _src1(a1), _src2(a2), _dst(d){}
@@ -53,11 +53,14 @@ bool is_calculation_instr(IRInstruction& instr){
 }
 
 // IR Block of instructions 
-IRBlock::IRBlock(){
+IRBlock::IRBlock(): _mem_write_cnt(0){
     int i;
     for( i = 0; i < NB_REGS_MAX; i++ ){
         _reg_modified[i] = false;
         _reg_table[i] = nullptr; 
+    }
+    for( i = 0; i < NB_TMP_MAX; i++ ){
+        _tmp_table[i] = nullptr; 
     }
 }
 
@@ -88,7 +91,7 @@ vector<SPair>* IRBlock::arg_to_spairs(SymArg& arg ){
             expr = make_shared<ExprObject>(make_shared<ExprReg>(arg.id(), arg.size()));
             _reg_table[arg.id()] = new vector<SPair>();
             _reg_table[arg.id()]->push_back(SPair(expr, NewCondTrue()));
-            res = _reg_table[arg.id()]; 
+            res = new vector<SPair>(*_reg_table[arg.id()]); 
         }
     }else{
         throw "SymArg type not supported in arg_to_expr()";
@@ -118,18 +121,21 @@ inline ExprObjectPtr IRBlock::full_reg_assignment(ExprObjectPtr expr, ExprObject
     }    
 }
 
-// Pre-condition: all expressions in spairs have the same size
+// Pre-condition: all expressions in spairs have the same size and correspond to the 
+// low-high of reg 
 vector<SPair>* IRBlock::full_reg_assignment(vector<SPair>* spairs, SymArg& reg){
     vector<SPair>::iterator p, p2; 
     vector<SPair>* res, *prev;
+    SymArg full_reg = ArgReg(reg.id(), reg.size()); 
     if( spairs->empty() || ( reg.low() == 0 && reg.high() == reg.size()-1))
         return new vector<SPair>(*spairs); 
     res = new vector<SPair>();
-    prev = arg_to_spairs(reg);
+    prev = arg_to_spairs(full_reg); // We discard high/low because we want the full value ! 
     for(p = spairs->begin(); p != spairs->end(); p++ ){
-        for(p2 = prev->begin(); p2 != spairs->end(); p2++ )
+        for(p2 = prev->begin(); p2 != prev->end(); p2++ )
             res->push_back(SPair(full_reg_assignment((*p).expr(), (*p2).expr(), reg), (*p).cond()));
     }
+    delete prev; 
     return res; 
 }
 
@@ -178,31 +184,31 @@ vector<SPair>* IRBlock::execute_calculation(IROperation op, vector<SPair>* src1,
     return res; 
 }
 
-void IRBlock::execute_stm(vector<SPair>* src1, vector<SPair>* dst, int& mem_write_cnt, int size){
+void IRBlock::execute_stm(vector<SPair>* src1, vector<SPair>* dst, int& mem_write_cnt){
     int i;
     vector<SPair>::iterator value, addr, it;
     vector<SPair> *tmp, *prev, *tmp2;
     ExprObjectPtr prev_addr; 
     CondObjectPtr no_overwrite_cond; 
+    int size; 
     // Get the possible values for the write address 
     for( addr = dst->begin(); addr != dst->end(); addr++){
         if( mem_write_cnt >= NB_MEM_MAX )
             throw "Too many memory writes!";
         tmp = new vector<SPair>();        
         // Get values for this write 
+        size = src1->front().expr()->expr_ptr()->size(); // We assume all values have the same size 
         for( value = src1->begin();  value != src1->end(); value++)
-            if( (*value).expr()->expr_ptr()->size() != size ) 
-                tmp->push_back(SPair(Extract((*value).expr(), size-1, 0), (*value).cond() && (*addr).cond()));
-            else
-                tmp->push_back(SPair((*value).expr(), (*value).cond() && (*addr).cond()));
+            tmp->push_back(SPair((*value).expr(), (*value).cond() && (*addr).cond()));
         _mem_table[mem_write_cnt++] = make_pair((*addr).expr(), tmp);
         // Update all the previous ones to add the non-overwritten condition 
         for( i = mem_write_cnt-2; i >= 0; i--){
             // Get the i-th access SPairs
             std::tie(prev_addr, prev) = _mem_table[i];
-            no_overwrite_cond = (((*addr).expr()+NewExprCst((cst_t)(size-1), (*addr).expr()->expr_ptr()->size())) < prev_addr)
+            // Divide sizes by 8 to get sizes in bytes not bits (assume their are 8 multiples ! ) 
+            no_overwrite_cond = (((*addr).expr()+NewExprCst((cst_t)(size/8-1), (*addr).expr()->expr_ptr()->size())) < prev_addr)
                             || 
-                        ((prev_addr+NewExprCst((cst_t)(prev_addr->expr_ptr()->size()-1), prev_addr->expr_ptr()->size())) < (*addr).expr());
+                        ((prev_addr+NewExprCst((cst_t)(prev_addr->expr_ptr()->size()/8-1), prev_addr->expr_ptr()->size())) < (*addr).expr());
             // For each previous possible value, and the non-overwritten condition 
             for( value = prev->begin(); value != prev->end(); value++){
                 (*value).set_cond( (*value).cond() && no_overwrite_cond );
@@ -233,17 +239,27 @@ vector<SPair>* IRBlock::execute_ldm(SPair& spair, int size, int mem_write_cnt){
         equal_cond = (write_addr == addr);
         // Add the possible value(s)
         for(it = pairs->begin(); it != pairs->end(); it++){
-            // FIXEME ? Here we approximate if we read more than what we wrote
-            if( size >= (*it).expr()->expr_ptr()->size())
+            // TODO FIXEME ? Here we approximate if we read more than what we wrote
+            if( size > (*it).expr()->expr_ptr()->size())
+                res->push_back(SPair(
+                    Concat( NewExprMem( addr+NewExprCst(
+                                                (*it).expr()->expr_ptr()->size()/8,
+                                                addr->expr_ptr()->size()), 
+                                        size - (*it).expr()->expr_ptr()->size()
+                                      ),
+                            (*it).expr()),  
+                    (*it).cond() && equal_cond  && spair.cond() )
+                    );
+            else if( size == (*it).expr()->expr_ptr()->size())
                 res->push_back(SPair((*it).expr(),  (*it).cond() && equal_cond  && spair.cond() ));
             else
                 res->push_back(SPair(Extract((*it).expr(), size-1, 0 ),  (*it).cond() && equal_cond  && spair.cond()));
         }
         write_size = (*pairs)[0].expr()->expr_ptr()->size(); 
         // Update the condition if different addresses
-        nequal_cond =   ((write_addr+NewExprCst((cst_t)(write_size-1), write_addr->expr_ptr()->size())) < addr)
+        nequal_cond =   ((write_addr+NewExprCst((cst_t)(write_size/8-1), write_addr->expr_ptr()->size())) < addr)
                         || 
-                        ((addr+NewExprCst((cst_t)(size-1), addr->expr_ptr()->size())) < write_addr);
+                        ((addr+NewExprCst((cst_t)(size/8-1), addr->expr_ptr()->size())) < write_addr);
         no_overwrite_cond = no_overwrite_cond && nequal_cond; 
     } 
     // If all writes don't match the read, the value is the initial memory 
@@ -285,7 +301,7 @@ Semantics* IRBlock::compute_semantics(){
         }else if( it->op() == IR_STM ){
             src1 = this->arg_to_spairs(*(it->src1()));
             dst = this->arg_to_spairs(*(it->dst()));
-            execute_stm(src1, dst, mem_write_cnt, it->src1()->size());
+            execute_stm(src1, dst, mem_write_cnt);
         }else if( it->op() == IR_LDM){
             src1 = this->arg_to_spairs(*(it->src1()));
             mem = new vector<SPair>();
@@ -297,15 +313,16 @@ Semantics* IRBlock::compute_semantics(){
                 tmp = nullptr;  
             }
             if( it->dst()->type() == ARG_REG ){
-                _reg_table[it->dst()->id()] = mem;
+                _reg_table[it->dst()->id()] = this->full_reg_assignment(mem, *(it->dst()));
                 _reg_modified[it->dst()->id()] = true; 
+                delete mem; 
             }else if( it->dst()->type() == ARG_TMP )
                 _tmp_table[it->dst()->id()] = mem; 
             else
                 throw "Invalid arg type for dst in IR_LDM instruction"; 
         }
     }
-    // TODO: fill the semantic object and return it
+    // Fill the semantic object and return it
     res = new Semantics();
     // Register semantics 
     for( i = 0; i < NB_REGS_MAX; i++ ){
@@ -321,5 +338,24 @@ Semantics* IRBlock::compute_semantics(){
         std:tie(addr, tmp) = _mem_table[i];
         res->add_mem(addr, tmp);
     }
+    
+    _mem_write_cnt = mem_write_cnt; 
     return res; 
+}
+
+
+IRBlock::~IRBlock(){
+    int i;
+    for( i = 0; i < NB_REGS_MAX; i++ ){
+        if( _reg_table[i] != nullptr )
+            delete _reg_table[i];
+    }
+    for( i = 0; i < NB_TMP_MAX; i++ ){
+        if( _tmp_table[i] != nullptr )
+            delete _tmp_table[i];
+    }
+    for( i = 0; i < _mem_write_cnt; i++ ){
+        if( _mem_table[i].second != nullptr)
+            delete _mem_table[i].second; 
+    }
 }
