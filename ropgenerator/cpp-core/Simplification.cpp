@@ -184,7 +184,7 @@ ExprPtr simplify_pattern(ExprPtr p){
                                             p->upper_expr_ptr()->high(),
                                             p->lower_expr_ptr()->low());
     }else if( p->type() == EXPR_EXTRACT ){
-        if( p->arg_expr_ptr()->type() == EXPR_CONCAT )
+        if( p->arg_expr_ptr()->type() == EXPR_CONCAT ){
             // Extract( Concat(X,Y), a, b ) where a,b in Y only 
             bound = p->arg_expr_ptr()->lower_expr_ptr()->size(); 
             if( p->high() == bound-1 && p->low() == 0 )
@@ -196,6 +196,7 @@ ExprPtr simplify_pattern(ExprPtr p){
                 return p->arg_expr_ptr()->upper_expr_ptr(); 
             else if( p->low() > bound )
                 return make_shared<ExprExtract>(p->arg_expr_ptr()->upper_object_ptr(), p->high(), p->low());
+        }
     
     }     
     return p;

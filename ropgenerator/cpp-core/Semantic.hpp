@@ -32,8 +32,12 @@ class Semantics{
         vector<reg_pair> regs();
         vector<mem_pair> mem(); 
         void print(ostream& os);
+        ~Semantics(); 
+        // Simplification functions
+        void simplify_expressions();
+        void simplify_conditions();  
 };
 
-ostream& operator<< (ostream& os, Semantics s);
+ostream& operator<< (ostream& os, Semantics *s);
 
 #endif

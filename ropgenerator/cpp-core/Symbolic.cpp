@@ -72,6 +72,10 @@ bool IRBlock::add_instr(IRInstruction ins){
         return true;
 }
 
+/* Translate an arg to a list of its possible values (SPairs)
+ * If the low/high fields of arg don't match its size, the 
+ * possible values are adjusted with Extract()
+ */ 
 vector<SPair>* IRBlock::arg_to_spairs(SymArg& arg ){
     vector<SPair>* res, *res2;
     ExprObjectPtr expr; 
@@ -109,6 +113,10 @@ vector<SPair>* IRBlock::arg_to_spairs(SymArg& arg ){
         return res; 
 }
 
+/* We assign 'expr' to argument 'reg' that has the previous value 'prev'
+ * If expr is smaller than prev, then we use the low/high fields of reg to 
+ * know where to insert it in the previous value using a Concat() expression
+ */ 
 inline ExprObjectPtr IRBlock::full_reg_assignment(ExprObjectPtr expr, ExprObjectPtr prev, SymArg& reg){
     if( reg.low() == 0 && reg.high() == reg.size()-1)
         return expr; 
@@ -121,8 +129,10 @@ inline ExprObjectPtr IRBlock::full_reg_assignment(ExprObjectPtr expr, ExprObject
     }    
 }
 
-// Pre-condition: all expressions in spairs have the same size and correspond to the 
-// low-high of reg 
+/* Same than previous function but does it for all possible values in spairs
+ * Pre-condition: all expressions in spairs have the same size and correspond to the 
+ * low-high of reg
+ */  
 vector<SPair>* IRBlock::full_reg_assignment(vector<SPair>* spairs, SymArg& reg){
     vector<SPair>::iterator p, p2; 
     vector<SPair>* res, *prev;
@@ -139,7 +149,7 @@ vector<SPair>* IRBlock::full_reg_assignment(vector<SPair>* spairs, SymArg& reg){
     return res; 
 }
 
-
+/* Returns the possible values for a calculation expression */ 
 vector<SPair>* IRBlock::execute_calculation(IROperation op, vector<SPair>* src1, vector<SPair>*src2){
     vector<SPair>* res = new vector<SPair>(); 
     vector<SPair>::iterator arg1, arg2; 
@@ -184,6 +194,14 @@ vector<SPair>* IRBlock::execute_calculation(IROperation op, vector<SPair>* src1,
     return res; 
 }
 
+/* Executes a IR_STR instruction
+ * src1 are the possible stored values
+ * dst are the possible store addresses
+ * mem_write_cnt = the number of stores done so far
+ *
+ * All the previous stored values are updated depending on the new one 
+ * (overwritting) 
+ */ 
 void IRBlock::execute_stm(vector<SPair>* src1, vector<SPair>* dst, int& mem_write_cnt){
     int i;
     vector<SPair>::iterator value, addr, it;
@@ -221,6 +239,11 @@ void IRBlock::execute_stm(vector<SPair>* src1, vector<SPair>* dst, int& mem_writ
     }
 }
 
+/* Returns the possible values from a IR_LDM instruction
+ * spair: is the address we are reading at 
+ * size: the number of bits we read from 
+ * mem_write_cnt = the number of memory writes so far 
+ */  
 vector<SPair>* IRBlock::execute_ldm(SPair& spair, int size, int mem_write_cnt){
     int i, write_size;
     ExprObjectPtr write_addr; 
@@ -267,6 +290,12 @@ vector<SPair>* IRBlock::execute_ldm(SPair& spair, int size, int mem_write_cnt){
     return res; 
 }
 
+/* Symbolically executes the list of IRInstructions and returns a poitner tp
+ * a Semantics instance containing this IRBlock semantics
+ * 
+ * !!! This function should be called only once per IRBlock or the program will
+ * likely crash 
+ */ 
 Semantics* IRBlock::compute_semantics(){
     vector<class IRInstruction>::iterator it; 
     Semantics* res;
@@ -326,17 +355,13 @@ Semantics* IRBlock::compute_semantics(){
     res = new Semantics();
     // Register semantics 
     for( i = 0; i < NB_REGS_MAX; i++ ){
-        if( _reg_modified[i] ){
-            res->add_reg( i, _reg_table[i]);
-        }else if( _reg_table[i] != nullptr ){
-             delete _reg_table[i]; 
-             _reg_table[i] = nullptr; 
-        }
+        if( _reg_modified[i] )
+            res->add_reg( i, new vector<SPair>(*_reg_table[i]));
     }
     // Memory semantics 
     for( i = 0; i < mem_write_cnt; i++){
         std:tie(addr, tmp) = _mem_table[i];
-        res->add_mem(addr, tmp);
+        res->add_mem(addr, new vector<SPair>(*tmp));
     }
     
     _mem_write_cnt = mem_write_cnt; 
@@ -347,15 +372,21 @@ Semantics* IRBlock::compute_semantics(){
 IRBlock::~IRBlock(){
     int i;
     for( i = 0; i < NB_REGS_MAX; i++ ){
-        if( _reg_table[i] != nullptr )
+        if( _reg_table[i] != nullptr ){
             delete _reg_table[i];
+            _reg_table[i] = nullptr; 
+        }
     }
     for( i = 0; i < NB_TMP_MAX; i++ ){
-        if( _tmp_table[i] != nullptr )
+        if( _tmp_table[i] != nullptr ){
             delete _tmp_table[i];
+            _tmp_table[i] = nullptr; 
+        }
     }
     for( i = 0; i < _mem_write_cnt; i++ ){
-        if( _mem_table[i].second != nullptr)
+        if( _mem_table[i].second != nullptr){
             delete _mem_table[i].second; 
+            _mem_table[i].second = nullptr; 
+        }
     }
 }
