@@ -25,7 +25,7 @@ Install ROPGenerator
 --------------------
 You can download the source and run 
 
-	$ python setup.py install
+	$ python setup.py install --user 
 	$ ROPGenerator
 
     
