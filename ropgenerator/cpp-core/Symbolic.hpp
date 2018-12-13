@@ -16,7 +16,9 @@ class SymArg{
     ArgType _type; 
     int _id; 
     int _size;
-    int _low, _high; 
+    int _low, _high;
+    protected:
+        cst_t _value; 
     public: 
         SymArg(ArgType t, int i, int s);
         SymArg(ArgType t, int i, int s, int l, int h);
@@ -26,7 +28,7 @@ class SymArg{
         int low();
         int high();
         // From child classes 
-        virtual cst_t value(); 
+        virtual cst_t value();
 };
 
 class ArgEmpty: public SymArg{
@@ -34,11 +36,9 @@ class ArgEmpty: public SymArg{
         ArgEmpty();
 };
 
-class ArgCst: public SymArg{
-    cst_t _value; 
+class ArgCst: public SymArg {
     public:
         ArgCst(cst_t v, int s);
-        cst_t value(); 
 };
 
 class ArgReg: public SymArg{
@@ -75,22 +75,22 @@ class IRInstruction{
 
 class IRBlock{
     vector<class IRInstruction> _instr;
-    vector<SPair*>* _reg_table[NB_REGS_MAX];
+    vector<SPair>* _reg_table[NB_REGS_MAX];
     bool _reg_modified[NB_REGS_MAX];
-    vector<SPair*>* _tmp_table[NB_TMP_MAX];
-    pair<ExprObjectPtr, vector<SPair*>*> _mem_table[NB_MEM_MAX]; //<addr, list of spairs>
+    vector<SPair>* _tmp_table[NB_TMP_MAX];
+    pair<ExprObjectPtr, vector<SPair>*> _mem_table[NB_MEM_MAX]; //<addr, list of spairs>
     public:
         IRBlock();
         bool add_instr(IRInstruction ins);
         Semantics* compute_semantics();
     private:
         inline ExprObjectPtr full_reg_assignment(ExprObjectPtr expr, ExprObjectPtr prev, SymArg& reg);
-        vector<SPair*>* full_reg_assignment(vector<SPair*>* spairs, SymArg& reg);
-        vector<SPair*>* arg_to_spairs(SymArg& arg);
+        vector<SPair>* full_reg_assignment(vector<SPair>* spairs, SymArg& reg);
+        vector<SPair>* arg_to_spairs(SymArg& arg);
         
-        void execute_stm(vector<SPair*>* src1, vector<SPair*>* dst, int &memory_writes_cnt, int size);
-        vector<SPair*>* execute_calculation(IROperation op,vector<SPair*>* src1, vector<SPair*>*src2);
-        vector<SPair*>* execute_ldm(SPair& pair, int size, int mem_write_cnt);
+        void execute_stm(vector<SPair>* src1, vector<SPair>* dst, int &memory_writes_cnt, int size);
+        vector<SPair>* execute_calculation(IROperation op,vector<SPair>* src1, vector<SPair>*src2);
+        vector<SPair>* execute_ldm(SPair& pair, int size, int mem_write_cnt);
         
 };
 
