@@ -135,8 +135,10 @@ bool ExprMem::lthan(ExprPtr other){
 const char* binop_to_str[] = {"+","-","*","/","&","|","^","%", "<>"}; 
 // Constructor 
 ExprBinop::ExprBinop( Binop o, ExprObjectPtr l, ExprObjectPtr r): Expr(EXPR_BINOP), _op(o), _left(l), _right(r){
-    if( l->expr_ptr()->size() != r->expr_ptr()->size() )
+    if( l->expr_ptr()->size() != r->expr_ptr()->size() ){
+        std::cout << l << " + " << r; 
         throw "Different sizes when initializing ExprBinop"; 
+    }
     set_size(l->expr_ptr()->size()); 
 }
 // Accessor
@@ -238,7 +240,13 @@ bool ExprUnop::lthan(ExprPtr other){
 ////////////////////////////////////////////////////////////////////////
 // ExprExtract
 // Constructor 
-ExprExtract::ExprExtract( ExprObjectPtr a, int h, int l): Expr(EXPR_EXTRACT), _arg(a), _low(l), _high(h){
+ExprExtract::ExprExtract( ExprObjectPtr a, int h, int l): Expr(EXPR_EXTRACT), _arg(a), _high(h), _low(l){
+    if( h < l )
+        throw "Invalid Extract() expression: high < low !";
+    else if( h >= a->expr_ptr()->size())
+        throw "Invalid Extract() expression: high >= size !";
+    else if( l < 0)
+        throw "Invalid Extract() expression: low < 0 !";
     set_size(h-l+1);
 }
 // Operators  
@@ -337,6 +345,7 @@ void ExprObject::simplify(){
             _expr_ptr->lower_object_ptr()->simplify();
             _expr_ptr->upper_object_ptr()->simplify();
             _expr_ptr = simplify_unknown(_expr_ptr);
+            _expr_ptr = simplify_pattern(_expr_ptr); 
             _expr_ptr = simplify_constant_folding(_expr_ptr);
             break;
         case EXPR_MEM:
