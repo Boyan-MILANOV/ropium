@@ -29,19 +29,62 @@ void Semantics::print(ostream& os){
     vector<mem_pair>::iterator mit; 
     vector<SPair>::iterator pit; 
     for(it = _regs.begin(); it != _regs.end(); it++ ){
-        os << "Register r" << (*it).first; 
+        os << "\n-- Register r" << (*it).first << endl; 
         for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ )
             (*pit).print(os);
     }
     
     for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
-        os << "Memory [ " << (*mit).first << " ]"; 
+        os << "\n-- Memory [ " << (*mit).first << " ]" << endl; 
         for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ )
             (*pit).print(os);
     }
- }
+}
 
-ostream& operator<< (ostream& os, Semantics s){
-    s.print(os); 
+ostream& operator<< (ostream& os, Semantics* s){
+    s->print(os); 
     return os; 
+}
+
+Semantics::~Semantics(){
+    vector<reg_pair>::iterator it;
+    vector<mem_pair>::iterator mit;
+    for(it = _regs.begin(); it != _regs.end(); it++ ){
+        delete (*it).second; 
+    }
+    
+    for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
+        delete (*mit).second;
+    }
+}
+
+// Simplifications 
+void Semantics::simplify_expressions(){
+    vector<reg_pair>::iterator it;
+    vector<mem_pair>::iterator mit;
+    vector<SPair>::iterator pit; 
+    for(it = _regs.begin(); it != _regs.end(); it++ ){
+        for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ )
+            (*pit).expr()->simplify(); 
+    }
+    
+    for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
+        for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ )
+            (*pit).expr()->simplify(); 
+    }
+}
+
+void Semantics::simplify_conditions(){
+    vector<reg_pair>::iterator it;
+    vector<mem_pair>::iterator mit;
+    vector<SPair>::iterator pit; 
+    for(it = _regs.begin(); it != _regs.end(); it++ ){
+        for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ )
+            (*pit).cond()->simplify(); 
+    }
+    
+    for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
+        for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ )
+            (*pit).cond()->simplify(); 
+    }
 }

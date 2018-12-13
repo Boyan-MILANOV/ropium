@@ -19,7 +19,9 @@ int main(){
         
         // Execute
         s = block->compute_semantics();
-        std::cout << *s;  
+        s->simplify_expressions(); 
+        s->simplify_conditions(); 
+        std::cout << s;  
         delete s;
         delete block; 
     }
