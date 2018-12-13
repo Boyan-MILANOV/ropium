@@ -30,7 +30,8 @@ class Semantics{
         void add_reg(int num, vector<SPair>* pairs);
         void add_mem(ExprObjectPtr addr, vector<SPair>* pairs);
         vector<reg_pair> regs();
-        vector<mem_pair> mem(); 
+        vector<mem_pair> mem();
+        vector<SPair>* get_reg(int num);
         void print(ostream& os);
         ~Semantics(); 
         // Simplification functions
