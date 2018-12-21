@@ -72,6 +72,9 @@ bool IRBlock::add_instr(IRInstruction ins){
         return true;
 }
 
+vector<ExprObjectPtr> IRBlock::mem_writes(){return _mem_writes;}
+vector<ExprObjectPtr> IRBlock::mem_reads(){return _mem_reads;}
+
 /* Translate an arg to a list of its possible values (SPairs)
  * If the low/high fields of arg don't match its size, the 
  * possible values are adjusted with Extract()
@@ -213,6 +216,7 @@ void IRBlock::execute_stm(vector<SPair>* src1, vector<SPair>* dst, int& mem_writ
     for( addr = dst->begin(); addr != dst->end(); addr++){
         if( mem_write_cnt >= NB_MEM_MAX )
             throw "Too many memory writes!";
+        _mem_writes.push_back((*addr).expr()); // Update list of mem writes  
         tmp = new vector<SPair>();        
         // Get values for this write 
         size = src1->front().expr()->expr_ptr()->size(); // We assume all values have the same size 
@@ -253,7 +257,7 @@ vector<SPair>* IRBlock::execute_ldm(SPair& spair, int size, int mem_write_cnt){
     CondObjectPtr equal_cond, nequal_cond;
     vector<SPair>::iterator it; 
     
-    
+    _mem_reads.push_back(addr); // Update list of mem reads 
     res = new vector<SPair>(); 
     // For each memory access
     for( i = mem_write_cnt-1; i >= 0; i--){

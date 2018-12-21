@@ -80,9 +80,13 @@ class IRBlock{
     vector<SPair>* _tmp_table[NB_TMP_MAX];
     pair<ExprObjectPtr, vector<SPair>*> _mem_table[NB_MEM_MAX]; //<addr, list of spairs>
     int _mem_write_cnt; 
+    vector<ExprObjectPtr> _mem_writes; 
+    vector<ExprObjectPtr> _mem_reads; 
     public:
         IRBlock();
         bool add_instr(IRInstruction ins);
+        vector<ExprObjectPtr> mem_writes();
+        vector<ExprObjectPtr> mem_reads();
         Semantics* compute_semantics();
         ~IRBlock();
     private:

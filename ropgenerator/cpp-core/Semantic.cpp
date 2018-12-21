@@ -4,11 +4,15 @@
 SPair::SPair(ExprObjectPtr e, CondObjectPtr c): _expr(e), _cond(c){};
 ExprObjectPtr SPair::expr(){return _expr;}
 CondObjectPtr SPair::cond(){return _cond;}
+ExprPtr SPair::expr_ptr(){return _expr->expr_ptr();}
+CondPtr SPair::cond_ptr(){return _cond->cond_ptr();}
+
 void SPair::set_cond(CondObjectPtr cond){ _cond = cond; }
 void SPair::print(ostream& os){
     os << "\n\tExpr: " << _expr; 
     os << "\n\tCond: " << _cond << endl; 
 }
+
 
 // Semantics 
 Semantics::Semantics(){

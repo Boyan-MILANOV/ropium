@@ -4,8 +4,7 @@
 #include <iostream>
 #include <memory>
 
-#define PTRCAST(t,p) static_pointer_cast<t>(p)
-#define NB_REGS_MAX 64
+#define NB_REGS_MAX 32
 
 using namespace std; 
 
@@ -44,6 +43,8 @@ class Expr{
         virtual void compute_polynom();
         virtual bool equal(shared_ptr<Expr> other){throw "Wrong class to call this method";} 
         virtual bool lthan(shared_ptr<Expr> other){throw "Wrong class to call this method";} 
+        virtual tuple<bool,int,cst_t> is_reg_increment();
+        virtual tuple<bool, cst_t> is_reg_increment(int num);
         // Destructor
         ~Expr();
         
@@ -132,6 +133,7 @@ class ExprCst: public Expr{
         void compute_polynom();
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
+        
 }; 
 
 // Register Expression 
@@ -147,6 +149,8 @@ class ExprReg: public Expr{
         void print(ostream& os);
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
+        virtual tuple<bool,int,cst_t> is_reg_increment();
+        virtual tuple<bool, cst_t> is_reg_increment(int num);
 }; 
 
 // Memory Expression 
@@ -184,7 +188,8 @@ class ExprBinop: public Expr{
         void compute_polynom();
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
-        
+        virtual tuple<bool,int,cst_t> is_reg_increment();
+        virtual tuple<bool, cst_t> is_reg_increment(int num);
 };
 
 // Unary Operation Expression 

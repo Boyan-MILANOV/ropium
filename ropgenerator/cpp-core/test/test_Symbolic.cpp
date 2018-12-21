@@ -1,11 +1,11 @@
-#include "Symbolic.hpp"
+#include "../Symbolic.hpp"
 
 int main(){
     IRBlock* block;
     Semantics * s;
     int i; 
     
-    for( i = 0; i < 500000; i++){
+    for( i = 0; i < 5; i++){
         block = new IRBlock();
         // Add instructions
         block->add_instr(IRInstruction(IR_ADD, ArgReg(0,32), ArgReg(1,32), ArgReg(2,32))); 
@@ -21,7 +21,7 @@ int main(){
         s = block->compute_semantics();
         s->simplify_expressions(); 
         //s->simplify_conditions(); 
-        //std::cout << s;  
+        std::cout << s;  
         delete s;
         delete block; 
     }
