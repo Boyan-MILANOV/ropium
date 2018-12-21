@@ -14,6 +14,8 @@ class SPair{
         SPair(ExprObjectPtr e, CondObjectPtr c);
         ExprObjectPtr expr();
         CondObjectPtr cond();
+        ExprPtr expr_ptr(); 
+        CondPtr cond_ptr();
         void set_cond(CondObjectPtr cond); 
         // IO
         void print(ostream& os); 

@@ -58,6 +58,7 @@ CondEval Cond::eval(){
     else
         return EVAL_UNKNOWN;
 }
+bool Cond::is_true(){return _type == COND_TRUE;}
 void Cond::print(ostream& os){os << "???";}
 ostream& operator<< (ostream& os, Cond c){
     c.print(os);

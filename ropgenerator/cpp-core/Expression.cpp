@@ -35,6 +35,14 @@ void Expr::compute_polynom(){
     _polynom = nullptr;
 }
 
+tuple<bool, int, cst_t> Expr::is_reg_increment(){
+    return make_tuple(false,-1,0); 
+}
+
+tuple<bool, cst_t> Expr::is_reg_increment(int num){
+    return make_tuple(false,0);
+}
+
 // Destructor
 Expr::~Expr(){
     if( _polynom )
@@ -103,6 +111,14 @@ bool ExprReg::lthan(ExprPtr other){
 }
 
 int ExprReg::num(){return _num;}
+
+tuple<bool, int, cst_t> ExprReg::is_reg_increment(){
+    return make_tuple(true, _num, 0); 
+}
+
+tuple<bool, cst_t> ExprReg::is_reg_increment(int num){
+    return make_tuple((num == _num), 0);
+}
 
 ////////////////////////////////////////////////////////////////////////
 //// ExprMem
@@ -204,6 +220,36 @@ bool ExprBinop::lthan(ExprPtr other){
             return ( _right->expr_ptr()->lthan(other->right_expr_ptr()));
     else
         return _type < other->type();
+}
+
+tuple<bool, int, cst_t> ExprBinop::is_reg_increment(){
+    cst_t factor; 
+    if( _op != OP_ADD && _op != OP_SUB)
+        return make_tuple(false, -1, 0);
+    factor = (_op == OP_ADD) ? 1 : -1 ;
+    if( _left->expr_ptr()->type() == EXPR_CST &&
+        _right->expr_ptr()->type() == EXPR_REG)
+        return make_tuple(true, _right->expr_ptr()->num(), factor * _left->expr_ptr()->value());
+    else if(    _right->expr_ptr()->type() == EXPR_CST &&
+                _left->expr_ptr()->type() == EXPR_REG)
+        return make_tuple(true, _left->expr_ptr()->num(), factor * _right->expr_ptr()->value());
+    else
+        return make_tuple(false, -1, 0);
+}
+
+tuple<bool, cst_t> ExprBinop::is_reg_increment(int num){
+    cst_t factor; 
+    if( _op != OP_ADD && _op != OP_SUB)
+        return make_tuple(false, 0);
+    factor = (_op == OP_ADD) ? 1 : -1 ;
+    if( _left->expr_ptr()->type() == EXPR_CST &&
+        _right->expr_ptr()->type() == EXPR_REG)
+        return make_tuple((_right->expr_ptr()->num() == num), factor * _left->expr_ptr()->value());
+    else if(    _right->expr_ptr()->type() == EXPR_CST &&
+                _left->expr_ptr()->type() == EXPR_REG)
+        return make_tuple((_left->expr_ptr()->num() == num), factor * _right->expr_ptr()->value());
+    else
+        return make_tuple(false, 0);    
 }
 
 ////////////////////////////////////////////////////////////////////////

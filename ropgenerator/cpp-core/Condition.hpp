@@ -29,6 +29,7 @@ class Cond{
         Cond(CondType t);
         CondType type();
         virtual CondEval eval();
+        bool is_true(); 
         // Modifiers 
         virtual shared_ptr<Cond> invert(){throw "Method invert() should have been overwritten";};
         // Misc
