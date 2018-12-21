@@ -41,6 +41,8 @@ class Architecture{
         string name(); 
         int ip(); 
         int sp(); 
+        int octets();
+        int bits();
         int min_page_size();
         EndiannessType endianness();
         int nb_regs(); 

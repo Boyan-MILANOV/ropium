@@ -1,12 +1,13 @@
 #include "Constraint.hpp"
 #include "Architecture.hpp"
+#include <algorithm>
 
 // SubConstraint
 SubConstraint::SubConstraint(SubConstraintType t): _type(t){}
 SubConstraintType SubConstraint::type(){return _type;}
 
 // ConstrReturn
-ConstrReturn::ConstrReturn(r=false, j=false, c=false): SubConstraint(CONSTR_RETURN), _ret(r), _jmp(j), _call(c){}
+ConstrReturn::ConstrReturn(bool r=false, bool j=false, bool c=false): SubConstraint(CONSTR_RETURN), _ret(r), _jmp(j), _call(c){}
 bool ConstrReturn::ret(){return _ret;}
 bool ConstrReturn::jmp(){return _jmp;}
 bool ConstrReturn::call(){return _call;}
@@ -23,7 +24,7 @@ ConstrBadBytes::ConstrBadBytes(vector<unsigned char> bb): SubConstraint(CONSTR_B
 bool ConstrBadBytes::verify_address(addr_t a){
     // Check if each byte of the address is not in bad bytes list
     int i; 
-    for( i = 0; i < curr_arch()->octets() ){
+    for( i = 0; i < curr_arch()->octets(); i++ ){
         if( std::find(_bad_bytes.begin(), _bad_bytes.end(), (unsigned char)((a >> i)&0xFF)) != _bad_bytes.end())
             return false;
     }
@@ -33,10 +34,10 @@ bool ConstrBadBytes::verify_address(addr_t a){
 pair<ConstrEval,CondObjectPtr> ConstrBadBytes::verify(Gadget* g){
     vector<addr_t>::iterator it; 
     for( it = g->addresses()->begin(); it != g->addresses()->end(); it++){
-        if( ! verify_address(*a))
-            return make_pair<EVAL_INVALID, nullptr>;
+        if( ! verify_address(*it))
+            return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
     }
-    return make_pair<EVAL_VALID, nullptr>;
+    return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
 }
 
 SubConstraint* ConstrBadBytes::copy(){
@@ -70,7 +71,7 @@ SubConstraint* ConstrKeepRegs::copy(){
 
 
 // ConstrValidRead
-ConstrValidRead::ConstrValidRead()SubConstraint(CONSTR_VALID_READ{}
+ConstrValidRead::ConstrValidRead(): SubConstraint(CONSTR_VALID_READ){}
 void ConstrValidRead::add_addr( ExprObjectPtr a){
     _addresses.push_back(a);
 }
@@ -79,11 +80,11 @@ pair<ConstrEval,CondObjectPtr> ConstrValidRead::verify(Gadget* g){
     vector<ExprObjectPtr>::iterator it;
     CondObjectPtr tmp; 
     if( _addresses.size() == 0 )
-        return make_pair<EVAL_TRUE, nullptr>;
+        return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
     tmp = NewCondTrue();
     for( it = _addresses.begin(); it != _addresses.end(); it++ )
         tmp = tmp && NewCondPointer(COND_VALID_READ, (*it));
-    return make_pair<EVAL_MAYBE, tmp>;
+    return make_pair(EVAL_MAYBE, tmp);
 }
 
 SubConstraint* ConstrValidRead::copy(){
@@ -95,7 +96,7 @@ SubConstraint* ConstrValidRead::copy(){
 }
 
 // ConstrValidWrite
-ConstrValidWrite::ConstrValidWrite()SubConstraint(CONSTR_VALID_WRITE){}
+ConstrValidWrite::ConstrValidWrite(): SubConstraint(CONSTR_VALID_WRITE){}
 void ConstrValidWrite::add_addr( ExprObjectPtr a){
     _addresses.push_back(a);
 }
@@ -104,11 +105,11 @@ pair<ConstrEval,CondObjectPtr> ConstrValidWrite::verify(Gadget* g){
     vector<ExprObjectPtr>::iterator it;
     CondObjectPtr tmp; 
     if( _addresses.size() == 0 )
-        return make_pair<EVAL_TRUE, nullptr>;
+        return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
     tmp = NewCondTrue();
     for( it = _addresses.begin(); it != _addresses.end(); it++ )
         tmp = tmp && NewCondPointer(COND_VALID_WRITE, (*it));
-    return make_pair<EVAL_MAYBE, tmp>;
+    return make_pair(EVAL_MAYBE, tmp);
 }
 
 SubConstraint* ConstrValidWrite::copy(){
@@ -123,8 +124,8 @@ SubConstraint* ConstrValidWrite::copy(){
 ConstrSpInc::ConstrSpInc(cst_t i): SubConstraint(CONSTR_SP_INC), _inc(i){}
 pair<ConstrEval,CondObjectPtr> ConstrSpInc::verify(Gadget* g){
     if( !g->known_sp_inc() || g->sp_inc() != _inc )
-        return make_pair<EVAL_INVALID, nullptr>;
-    return make_pair<EVAL_VALID, nullptr>;
+        return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
+    return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
 }
 
 SubConstraint* ConstrSpInc::copy(){

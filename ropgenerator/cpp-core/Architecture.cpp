@@ -11,6 +11,8 @@ Architecture::Architecture(ArchType at, string n, int i, int s, int o,
 string Architecture::name(){return _name;}
 int Architecture::ip(){return _ip;}
 int Architecture::sp(){return _sp;}
+int Architecture::octets(){return _octets;}
+int Architecture::bits(){return _bits;}
 int Architecture::min_page_size(){return _min_page_size;}
 EndiannessType Architecture::endianness(){return _endianness;}
 int Architecture::nb_regs(){return _nb_regs;}

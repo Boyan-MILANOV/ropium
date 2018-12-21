@@ -16,7 +16,7 @@ class Gadget{
     string _asm_str, _hex_str;
     int _nb_instr, _nb_instr_ir; 
     int _sp_inc; 
-    bool _valid_sp_inc; 
+    bool _known_sp_inc; 
     int _reg_modified[NB_REGS_MAX]; 
     vector<ExprObjectPtr> _mem_read; 
     vector<ExprObjectPtr> _mem_write; 
@@ -35,6 +35,7 @@ class Gadget{
         int nb_instr();
         int nb_instr_ir(); 
         int sp_inc(); 
+        bool known_sp_inc();
         vector<ExprObjectPtr>* mem_read(); 
         vector<ExprObjectPtr>* mem_write(); 
         RetType ret_type();
