@@ -1,8 +1,9 @@
 #ifndef CONSTRAINT_H
 #define CONSTRAINT_H
 
-#include "Expression.h"
-#include "Condition.h"
+#include "Expression.hpp"
+#include "Condition.hpp"
+#include "Gadget.hpp"
 #include <vector>
 
 using std::vector;
@@ -19,12 +20,12 @@ class SubConstraint{
         SubConstraintType type();
         // Functions of child classes
         virtual SubConstraint* copy(){throw "Should not be called here";}
-}
+};
 
 class ConstrReturn: public SubConstraint{
     bool _ret, _jmp, _call; 
     public: 
-        ConstrReturn(r=false, j=false, c=false);
+        ConstrReturn(bool r, bool j, bool c);
         bool ret(); 
         bool jmp();
         bool call();
@@ -33,7 +34,7 @@ class ConstrReturn: public SubConstraint{
 };
 
 class ConstrBadBytes: public SubConstraint{
-    vector<unsigned char> bad_bytes; 
+    vector<unsigned char> _bad_bytes; 
     public:
         ConstrBadBytes();
         ConstrBadBytes(vector<unsigned char> bb);
@@ -43,7 +44,7 @@ class ConstrBadBytes: public SubConstraint{
 };
 
 class ConstrKeepRegs: public SubConstraint{
-    bool regs[NB_REGS_MAX];
+    bool _regs[NB_REGS_MAX];
     public:
         ConstrKeepRegs();
         bool get(int num);
@@ -75,7 +76,7 @@ class ConstrSpInc: public SubConstraint{
     cst_t _inc;
     public:
         ConstrSpInc(cst_t i);
-        bool verify(Gadget* g);
+        pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         virtual SubConstraint* copy();
 };
 
@@ -96,6 +97,6 @@ class Constraint{
         void update(SubConstraint* c);
         void remove(SubConstraintType t);
         ~Constraint();
-}
+};
 
 #endif
