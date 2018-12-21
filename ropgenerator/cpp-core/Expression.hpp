@@ -212,17 +212,17 @@ class ExprUnop: public Expr{
 
 // Extraction Expression 
 class ExprExtract: public Expr{
-    ExprObjectPtr _arg; 
-    int _low, _high; 
-    public: 
-        // Constructor 
+    ExprObjectPtr _arg;
+    int _low, _high;
+    public:
+        // Constructor
         ExprExtract( ExprObjectPtr a, int high, int low);
         // Accessors and modifiers
         int low();
         int high();
         ExprPtr arg_expr_ptr();
         ExprObjectPtr arg_object_ptr();
-        // Misc 
+        // Misc
         void print(ostream& os);
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
@@ -230,16 +230,16 @@ class ExprExtract: public Expr{
 
 // Concatenate Expression
 class ExprConcat: public Expr{
-    ExprObjectPtr _upper, _lower; 
+    ExprObjectPtr _upper, _lower;
     public: 
         // Constructor
         ExprConcat( ExprObjectPtr u, ExprObjectPtr l );
-        // Accessors and modifiers 
+        // Accessors and modifiers
         ExprObjectPtr upper_object_ptr();
         ExprObjectPtr lower_object_ptr();
         ExprPtr upper_expr_ptr();
         ExprPtr lower_expr_ptr();
-        // Misc 
+        // Misc
         void print(ostream& os);
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
