@@ -148,4 +148,5 @@ CondObjectPtr operator|| (CondObjectPtr p1, CondObjectPtr p2);
 CondObjectPtr operator! (CondObjectPtr p1);
 
 CondObjectPtr NewCondTrue();
+CondObjectPtr NewCondPointer(CondType t, ExprObjectPtr a);
 #endif 
