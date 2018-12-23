@@ -87,6 +87,7 @@ class IRBlock{
         bool add_instr(IRInstruction ins);
         vector<ExprObjectPtr> mem_writes();
         vector<ExprObjectPtr> mem_reads();
+        bool reg_modified(int num);
         Semantics* compute_semantics();
         ~IRBlock();
     private:
@@ -97,6 +98,9 @@ class IRBlock{
         void execute_stm(vector<SPair>* src1, vector<SPair>* dst, int &memory_writes_cnt);
         vector<SPair>* execute_calculation(IROperation op,vector<SPair>* src1, vector<SPair>*src2);
         vector<SPair>* execute_ldm(SPair& pair, int size, int mem_write_cnt);
+        
+        inline void assign_reg_table(int num, vector<SPair>* val);
+        inline void assign_tmp_table(int num, vector<SPair>* val);
         
 };
 

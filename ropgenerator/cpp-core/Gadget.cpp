@@ -1,5 +1,6 @@
 #include "Gadget.hpp"
 #include "Architecture.hpp"
+#include "Expression.hpp"
 
 // Constructor 
 Gadget::Gadget(IRBlock* irblock){
@@ -19,18 +20,8 @@ Gadget::Gadget(IRBlock* irblock){
     // Set the different fields 
     // Get the registers that have been modified 
     for( i = 0; i < NB_REGS_MAX; i++)
-        _reg_modified[i] = false; 
-    for( reg_it = _semantics->regs().begin(); reg_it !=  _semantics->regs().end(); reg_it++ ){
-        // For each register check if it has been modified
-        for( spair_it = reg_it->second->begin(); spair_it != reg_it->second->end(); spair_it++){
-            if( spair_it->cond_ptr()->is_true() &&
-                spair_it->expr_ptr()->type() == EXPR_REG && 
-                spair_it->expr_ptr()->num() == reg_it->first){
-                _reg_modified[reg_it->first] = true; 
-                break; 
-            }
-        }
-    }
+        _reg_modified[i] = irblock->reg_modified(i); 
+        
     // Get the sp_inc 
     _known_sp_inc = false; 
     if( (p = _semantics->get_reg(curr_arch()->sp())) != nullptr){
@@ -78,6 +69,7 @@ Gadget::~Gadget(){
 }
 // Other
 void Gadget::print(ostream& os){
+    int i;
     vector<addr_t>::iterator it; 
     vector<ExprObjectPtr>::iterator pit; 
     os << "Gadget" << endl; 
@@ -98,6 +90,11 @@ void Gadget::print(ostream& os){
     os << "\tWriting memory at: ";
     for( pit = _mem_write.begin(); pit != _mem_write.end(); pit++)
         os << "\n\t\t" << *pit; 
+    os << endl; 
+    os << "\tModified registers: ";
+    for( i = 0; i < NB_REGS_MAX; i++)
+        if( _reg_modified[i])
+            os << i << " "; 
     os << endl; 
 }
 

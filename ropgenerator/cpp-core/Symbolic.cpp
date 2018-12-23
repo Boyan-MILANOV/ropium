@@ -74,6 +74,19 @@ bool IRBlock::add_instr(IRInstruction ins){
 
 vector<ExprObjectPtr> IRBlock::mem_writes(){return _mem_writes;}
 vector<ExprObjectPtr> IRBlock::mem_reads(){return _mem_reads;}
+bool IRBlock::reg_modified(int num){return _reg_modified[num];}
+
+inline void IRBlock::assign_reg_table(int num, vector<SPair>* val){
+    if( _reg_table[num] != nullptr )
+        delete _reg_table[num]; 
+    _reg_table[num] = val; 
+    _reg_modified[num] = true;
+}
+inline void IRBlock::assign_tmp_table(int num, vector<SPair>* val){
+    if( _tmp_table[num] != nullptr )
+        delete _tmp_table[num]; 
+    _tmp_table[num] = val; 
+}
 
 /* Translate an arg to a list of its possible values (SPairs)
  * If the low/high fields of arg don't match its size, the 
@@ -91,7 +104,7 @@ vector<SPair>* IRBlock::arg_to_spairs(SymArg& arg ){
     }else if( arg.type() == ARG_TMP){
         res = new vector<SPair>(*_tmp_table[arg.id()]);
     }else if( arg.type() == ARG_REG){
-        if( _reg_modified[arg.id()])
+        if( _reg_modified[arg.id()] || (_reg_table[arg.id()] != nullptr))
             res = new vector<SPair>(*_reg_table[arg.id()]);
         else{
             // We create a new value for it
@@ -314,27 +327,32 @@ Semantics* IRBlock::compute_semantics(){
             src2 = this->arg_to_spairs(*(it->src2()));
             // Compute their combinaison 
             comb = this->execute_calculation(it->op(), src1, src2);
+            delete src1; 
+            delete src2;
             
             if( it->dst()->type() == ARG_REG ){
-                _reg_table[it->dst()->id()] = this->full_reg_assignment(comb, *(it->dst()));
-                _reg_modified[it->dst()->id()] = true; 
+                assign_reg_table(it->dst()->id(), this->full_reg_assignment(comb, *(it->dst())));
+                delete comb; 
             }else if( it->dst()->type() == ARG_TMP )
-                _tmp_table[it->dst()->id()] = comb; 
+                assign_tmp_table(it->dst()->id(), comb); 
             else
                 throw "Invalid arg type for dst in IR calculation instruction"; 
+             
         }else if( it->op() == IR_STR ){
             src1 = this->arg_to_spairs(*(it->src1())); 
             if( it->dst()->type() == ARG_REG ){
-                _reg_table[it->dst()->id()] = this->full_reg_assignment(src1, *(it->dst()));
-                _reg_modified[it->dst()->id()] = true;
+                assign_reg_table(it->dst()->id(), this->full_reg_assignment(src1, *(it->dst())));
+                delete src1; 
             }else if( it->dst()->type() == ARG_TMP )
-                _tmp_table[it->dst()->id()] = src1; 
+                assign_tmp_table(it->dst()->id(),src1); 
             else
                 throw "Invalid arg type for dst in IR_STR instruction"; 
         }else if( it->op() == IR_STM ){
             src1 = this->arg_to_spairs(*(it->src1()));
             dst = this->arg_to_spairs(*(it->dst()));
             execute_stm(src1, dst, mem_write_cnt);
+            delete src1; 
+            delete dst; 
         }else if( it->op() == IR_LDM){
             src1 = this->arg_to_spairs(*(it->src1()));
             mem = new vector<SPair>();
@@ -345,12 +363,12 @@ Semantics* IRBlock::compute_semantics(){
                 delete tmp;
                 tmp = nullptr;  
             }
+            delete src1; 
             if( it->dst()->type() == ARG_REG ){
-                _reg_table[it->dst()->id()] = this->full_reg_assignment(mem, *(it->dst()));
-                _reg_modified[it->dst()->id()] = true; 
+                assign_reg_table(it->dst()->id(), this->full_reg_assignment(mem, *(it->dst())));
                 delete mem; 
             }else if( it->dst()->type() == ARG_TMP )
-                _tmp_table[it->dst()->id()] = mem; 
+                assign_tmp_table(it->dst()->id(), mem); 
             else
                 throw "Invalid arg type for dst in IR_LDM instruction"; 
         }

@@ -5,7 +5,6 @@
 int main(){
     IRBlock* block;
     Gadget *gadget; 
-    Semantics* s;
     int i; 
     
     set_arch(ARCH_X86); 
