@@ -7,11 +7,15 @@ Gadget::Gadget(IRBlock* irblock){
     vector<SPair>::iterator spair_it; 
     vector<SPair>* p;
     int i;
-    bool is_inc; 
-    cst_t inc; 
+    bool is_inc;
+    cst_t inc;
     
     // Get the semantics 
     _semantics = irblock->compute_semantics();
+    //_semantics->simplify_expressions(); 
+    //s_semantics->simplify_conditions(); 
+    //debug
+    
     // Set the different fields 
     // Get the registers that have been modified 
     for( i = 0; i < NB_REGS_MAX; i++)
@@ -47,7 +51,8 @@ Gadget::Gadget(IRBlock* irblock){
     // Get the memory reads and writes from the irblock 
     _mem_read = irblock->mem_reads();
     _mem_write = irblock->mem_writes();
-    
+    // Get the return type 
+    // TODO 
 }
 // Accessors 
 GadgetType Gadget::type(){return _type;}
@@ -70,4 +75,33 @@ void Gadget::add_address(addr_t addr){
 // Destructor 
 Gadget::~Gadget(){
     delete _semantics; 
+}
+// Other
+void Gadget::print(ostream& os){
+    vector<addr_t>::iterator it; 
+    vector<ExprObjectPtr>::iterator pit; 
+    os << "Gadget" << endl; 
+    os << "\tAssembly: " << _asm_str << endl; 
+    os << "\tHex: " << _hex_str << endl; 
+    os << "\tAvailable addresses: "; 
+    for( it = _addresses.begin(); it != _addresses.end(); it++)
+        os << *it; // TODO, format hex 
+    os << endl; 
+    if( _known_sp_inc )
+        os << "\tSP increment: " << _sp_inc << endl; 
+    else
+        os << "\tSP increment: Unknown" << endl; 
+    os << "\tReading memory at: ";
+    for( pit = _mem_read.begin(); pit != _mem_read.end(); pit++)
+        os << "\n\t\t" << *pit; 
+    os << endl; 
+    os << "\tWriting memory at: ";
+    for( pit = _mem_write.begin(); pit != _mem_write.end(); pit++)
+        os << "\n\t\t" << *pit; 
+    os << endl; 
+}
+
+ostream& operator<<(ostream& os, Gadget* g){
+    g->print(os); 
+    return os;
 }

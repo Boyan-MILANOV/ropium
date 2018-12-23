@@ -20,6 +20,7 @@ class SubConstraint{
         SubConstraintType type();
         // Functions of child classes
         virtual SubConstraint* copy(){throw "Should not be called here";}
+        virtual void merge(SubConstraint* c){throw "Should not be called here";}
 };
 
 class ConstrReturn: public SubConstraint{
@@ -31,6 +32,7 @@ class ConstrReturn: public SubConstraint{
         bool call();
         pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         virtual SubConstraint* copy();
+        virtual void merge(SubConstraint* c, bool del);
 };
 
 class ConstrBadBytes: public SubConstraint{
@@ -41,6 +43,7 @@ class ConstrBadBytes: public SubConstraint{
         bool verify_address(addr_t a);
         pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         virtual SubConstraint* copy();
+        virtual void merge(SubConstraint* c, bool del);
 };
 
 class ConstrKeepRegs: public SubConstraint{
@@ -52,6 +55,7 @@ class ConstrKeepRegs: public SubConstraint{
         void remove_reg(int num);
         pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         virtual SubConstraint* copy();
+        virtual void merge(SubConstraint* c, bool del);
 };
 
 class ConstrValidRead: public SubConstraint{
@@ -61,6 +65,7 @@ class ConstrValidRead: public SubConstraint{
         void add_addr( ExprObjectPtr a);
         pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         virtual SubConstraint* copy();
+        virtual void merge(SubConstraint* c, bool del);
 };
 
 class ConstrValidWrite: public SubConstraint{
@@ -70,6 +75,7 @@ class ConstrValidWrite: public SubConstraint{
         void add_addr( ExprObjectPtr a);
         pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         virtual SubConstraint* copy();
+        virtual void merge(SubConstraint* c, bool del);
 };
 
 class ConstrSpInc: public SubConstraint{
@@ -83,7 +89,7 @@ class ConstrSpInc: public SubConstraint{
 // Constraint class (collection of subconstraints)
 class Constraint{
     ConstrReturn* constr_return; 
-    ConstrKeepRegs* constr_regs_not_modified;
+    ConstrKeepRegs* constr_keep_regs;
     ConstrBadBytes* constr_bad_bytes;
     ConstrValidRead * constr_valid_read;
     ConstrValidWrite * constr_valid_write;
@@ -93,9 +99,12 @@ class Constraint{
         // Accessors 
         SubConstraint* get(SubConstraintType t);
         // Modifiers
-        void add(SubConstraint* c);
+        void add(SubConstraint* c, bool del);
         void update(SubConstraint* c);
         void remove(SubConstraintType t);
+        // Copy
+        Constraint* copy();
+        // Destructor 
         ~Constraint();
 };
 

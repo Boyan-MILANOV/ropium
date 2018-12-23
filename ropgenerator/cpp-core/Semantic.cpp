@@ -61,12 +61,15 @@ ostream& operator<< (ostream& os, Semantics* s){
 Semantics::~Semantics(){
     vector<reg_pair>::iterator it;
     vector<mem_pair>::iterator mit;
+    
     for(it = _regs.begin(); it != _regs.end(); it++ ){
         delete (*it).second; 
+        (*it).second = nullptr; 
     }
     
     for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
         delete (*mit).second;
+        (*mit).second = nullptr; 
     }
 }
 

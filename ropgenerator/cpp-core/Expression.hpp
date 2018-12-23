@@ -29,9 +29,11 @@ class Expr{
         ExprAsPolynom* _polynom;
         bool _computed_polynom;
     public:
+        bool _is_polynom; 
+    public:
         // Constructors
-        Expr(ExprType t);
-        Expr(ExprType t, int s);
+        Expr(ExprType t, bool i);
+        Expr(ExprType t, int s, bool i);
         // Accessors and modifiers 
         int size();
         int set_size(int s);
@@ -41,6 +43,8 @@ class Expr{
         virtual ExprAsPolynom* polynom();
         void set_polynom(ExprAsPolynom* p);
         virtual void compute_polynom();
+        bool computed_polynom();
+        bool is_polynom();
         virtual bool equal(shared_ptr<Expr> other){throw "Wrong class to call this method";} 
         virtual bool lthan(shared_ptr<Expr> other){throw "Wrong class to call this method";} 
         virtual tuple<bool,int,cst_t> is_reg_increment();

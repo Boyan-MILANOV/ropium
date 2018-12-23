@@ -6,8 +6,8 @@ using namespace std;
 ////////////////////////////////////////////////////////////////////////
 //// Expr
 // Constructors
-Expr::Expr(ExprType t): _type(t),_size(-1), _polynom(nullptr), _computed_polynom(false){}
-Expr::Expr(ExprType t, int s): _type(t),_size(s), _polynom(nullptr), _computed_polynom(false){}
+Expr::Expr(ExprType t, bool i=false): _type(t),_size(-1), _polynom(nullptr), _computed_polynom(false), _is_polynom(i){}
+Expr::Expr(ExprType t, int s, bool i=false): _type(t),_size(s), _polynom(nullptr), _computed_polynom(false), _is_polynom(i){}
 // Accessors and modifiers
 int Expr::size(){return _size;}
 int Expr::set_size(int s){return (_size=s); }
@@ -30,6 +30,15 @@ ExprAsPolynom * Expr::polynom(){
         compute_polynom();
     return _polynom; 
 }
+
+bool Expr::computed_polynom(){
+    return _computed_polynom; 
+}
+
+bool Expr::is_polynom(){
+    return _is_polynom; 
+}
+
 void Expr::compute_polynom(){
     _computed_polynom = true;
     _polynom = nullptr;
@@ -53,7 +62,7 @@ Expr::~Expr(){
 ////////////////////////////////////////////////////////////////////////
 //// ExprCst
 // Constructor 
-ExprCst::ExprCst(cst_t v, int s):Expr(EXPR_CST, s),_value(v) {}
+ExprCst::ExprCst(cst_t v, int s):Expr(EXPR_CST, s, true),_value(v) {}
 // Accessors and modifiers 
 cst_t ExprCst::value(){return _value;}
 // Operators
@@ -84,7 +93,7 @@ bool ExprCst::lthan(ExprPtr other){
 ////////////////////////////////////////////////////////////////////////
 //// ExprReg
 // Constructor 
-ExprReg::ExprReg(int n, int s): Expr(EXPR_REG, s),_num(n){}
+ExprReg::ExprReg(int n, int s): Expr(EXPR_REG, s, true),_num(n){}
 // Operators
 void ExprReg::print(ostream& os){  
     os << "r" << _num;  
@@ -179,6 +188,8 @@ void ExprBinop::compute_polynom(){
     
     if( _computed_polynom )
         return; 
+    else
+        _computed_polynom = true; 
         
     // Supported operators for polynoms 
     if( _op != OP_ADD && _op != OP_SUB && 
@@ -362,44 +373,52 @@ bool ExprObject::equal(ExprObjectPtr other){
     return _expr_ptr->equal(other->expr_ptr());
 }
 void ExprObject::simplify(){
+    ExprPtr saved = nullptr; 
     if( _simplified )
         return; 
         
-    switch( _expr_ptr->type() ){
-        case EXPR_UNOP:
-            _expr_ptr->arg_object_ptr()->simplify();
-            _expr_ptr = simplify_unknown(_expr_ptr);
-            _expr_ptr = simplify_constant_folding(_expr_ptr);
-            break;
-        case EXPR_BINOP:
-            _expr_ptr->left_object_ptr()->simplify(); 
-            _expr_ptr->right_object_ptr()->simplify(); 
-            canonize(_expr_ptr);
-            _expr_ptr = simplify_unknown(_expr_ptr);
-            _expr_ptr = simplify_constant_folding(_expr_ptr);
-            _expr_ptr = simplify_neutral_element(_expr_ptr);
-            _expr_ptr = simplify_polynom_factorization(_expr_ptr);
-            break;
-        case EXPR_EXTRACT:
-            _expr_ptr->arg_object_ptr()->simplify();
-            _expr_ptr = simplify_unknown(_expr_ptr);
-            _expr_ptr = simplify_constant_folding(_expr_ptr);
-            _expr_ptr = simplify_pattern(_expr_ptr);
-            _expr_ptr = simplify_neutral_element(_expr_ptr);
-            break;
-        case EXPR_CONCAT:
-            _expr_ptr->lower_object_ptr()->simplify();
-            _expr_ptr->upper_object_ptr()->simplify();
-            _expr_ptr = simplify_unknown(_expr_ptr);
-            _expr_ptr = simplify_pattern(_expr_ptr); 
-            _expr_ptr = simplify_constant_folding(_expr_ptr);
-            break;
-        case EXPR_MEM:
-            _expr_ptr->addr_object_ptr()->simplify(); 
-            _expr_ptr = simplify_unknown(_expr_ptr);
-            break;
-        default:
-            break;
+    while( saved != _expr_ptr ){
+        saved = _expr_ptr;
+        switch( _expr_ptr->type() ){
+            case EXPR_UNOP:
+                _expr_ptr->arg_object_ptr()->simplify();
+                _expr_ptr = simplify_unknown(_expr_ptr);
+                _expr_ptr = simplify_constant_folding(_expr_ptr);
+                break;
+            case EXPR_BINOP:
+                // Check if _expr_ptr comes from a polynom, is yes it is the best 
+                // simplification we can do 
+                if( _expr_ptr->is_polynom() )
+                    break;
+                _expr_ptr->left_object_ptr()->simplify(); 
+                _expr_ptr->right_object_ptr()->simplify(); 
+                canonize(_expr_ptr);
+                _expr_ptr = simplify_unknown(_expr_ptr);
+                _expr_ptr = simplify_constant_folding(_expr_ptr);
+                _expr_ptr = simplify_neutral_element(_expr_ptr);
+                _expr_ptr = simplify_polynom_factorization(_expr_ptr);
+                break;
+            case EXPR_EXTRACT:
+                _expr_ptr->arg_object_ptr()->simplify();
+                _expr_ptr = simplify_unknown(_expr_ptr);
+                _expr_ptr = simplify_constant_folding(_expr_ptr);
+                _expr_ptr = simplify_pattern(_expr_ptr);
+                _expr_ptr = simplify_neutral_element(_expr_ptr);
+                break;
+            case EXPR_CONCAT:
+                _expr_ptr->lower_object_ptr()->simplify();
+                _expr_ptr->upper_object_ptr()->simplify();
+                _expr_ptr = simplify_unknown(_expr_ptr);
+                _expr_ptr = simplify_pattern(_expr_ptr); 
+                _expr_ptr = simplify_constant_folding(_expr_ptr);
+                break;
+            case EXPR_MEM:
+                _expr_ptr->addr_object_ptr()->simplify(); 
+                _expr_ptr = simplify_unknown(_expr_ptr);
+                break;
+            default:
+                break;
+        }
     }
     _expr_ptr->compute_polynom(); 
     _simplified = true;

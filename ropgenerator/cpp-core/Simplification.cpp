@@ -114,7 +114,10 @@ ExprPtr simplify_polynom_factorization(ExprPtr p){
     ExprAsPolynom* polynom; 
 
     if( p->type() != EXPR_BINOP )
-        return p; 
+        return p;
+    // Check if we already have computed the polynom
+    if( p->is_polynom() )
+        return p;
     
     polynom = p->polynom();
     if( polynom)
@@ -330,11 +333,12 @@ ExprPtr ExprAsPolynom::to_expr(int expr_size){
         }
     }
     // Const
-    if( not_null )
+    if( not_null && _polynom[_len-1] != 0)
         tmp = make_shared<ExprObject>(make_shared<ExprCst>(_polynom[_len-1], expr_size)) + tmp;
     else
         tmp = make_shared<ExprObject>(make_shared<ExprCst>(_polynom[_len-1], expr_size));
     tmp->expr_ptr()->set_polynom(copy());
+    tmp->expr_ptr()->_is_polynom = true; 
     return tmp->expr_ptr(); 
 }
 // Destructor 
