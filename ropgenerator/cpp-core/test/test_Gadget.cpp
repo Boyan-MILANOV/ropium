@@ -1,10 +1,14 @@
 #include "../Symbolic.hpp"
+#include "../Gadget.hpp"
+#include "../Architecture.hpp"
 
 int main(){
     IRBlock* block;
-    Semantics * s;
+    Gadget *gadget; 
+    Semantics* s;
     int i; 
     
+    set_arch(ARCH_X86); 
     for( i = 0; i < 1; i++){
         block = new IRBlock();
         // Add instructions
@@ -17,17 +21,13 @@ int main(){
         block->add_instr(IRInstruction(IR_STM, ArgReg(7,32), ArgEmpty(), ArgReg(8,32)));
         block->add_instr(IRInstruction(IR_LDM, ArgReg(9,32), ArgEmpty(), ArgReg(10,32)));
         
-        // Execute
-        s = block->compute_semantics();
-        s = nullptr; 
-        s = block->compute_semantics();
-        s = nullptr; 
-        s = block->compute_semantics();
-        s->simplify_expressions(); 
-        s->simplify_conditions(); 
-        std::cout << s;  
-        delete s;
+        gadget = new Gadget(block);
+        cout << gadget->semantics(); 
+        cout << gadget; 
         delete block; 
+        delete gadget; 
+        
+        
     }
     return 0; 
 }

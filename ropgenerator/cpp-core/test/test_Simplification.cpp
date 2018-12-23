@@ -1,4 +1,4 @@
-#include "Expression.hpp"
+#include "../Expression.hpp"
 ////////////////////////////////////////////////////////////////////////
 int main(){
     // Test function 
@@ -12,6 +12,8 @@ int main(){
         e4 = ExprObjectPtr(new ExprObject (ExprPtr(new ExprCst(6, 64))));
         e3 = e1 + (e2+e4) - e5*e4;
         //e3 = e1 +(e2+e4);
+        //e3 = e2+e4; 
+        //e3 = e5*e4;
         //cout << e3 << endl; 
         e3->simplify(); 
         //cout << e3 << endl; 

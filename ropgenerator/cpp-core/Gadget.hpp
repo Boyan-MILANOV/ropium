@@ -7,7 +7,7 @@ using std::vector;
 using std::string; 
 
 enum GadgetType{ REGULAR, INT80, SYSCALL}; 
-enum RetType{ RET, CALL, JMP};
+enum RetType{ RET, CALL, JMP, UNKNOWN};
 using addr_t= unsigned long long; 
 
 class Gadget{
@@ -44,8 +44,10 @@ class Gadget{
         void add_address(addr_t addr); 
         // Destructor 
         ~Gadget();
+        // Other
+        void print(ostream& os);
     private:
 };
 
-
+ostream& operator<<(ostream& os, Gadget* g);
 #endif
