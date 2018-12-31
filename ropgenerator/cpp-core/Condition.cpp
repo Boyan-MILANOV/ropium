@@ -28,6 +28,7 @@ CondType invert_cond_type(CondType c){
     }
 }
 
+// Usefull functions 
 bool is_compare_cond(CondType c){
     return (c == COND_EQ || c == COND_NEQ || c == COND_LE || c == COND_LT ); 
 }
