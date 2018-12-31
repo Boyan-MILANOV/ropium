@@ -1,3 +1,37 @@
+/*                      ROPGenerator - Conditions 
+  
+ * Different kinds of conditions are supported by ROPGenerator:
+ *  - Logical constants (true, false)
+ *  - Arithmetic comparisons ( <, <=, ==, !=)
+ *  - Logical operations ( &&, ||, ~ )
+ *  - Memory access (valid read/write operations)
+  
+ * Each kind of condition has their own class, which inherits from the 
+ * parent class 'Cond'. However to facilitate memory managment, we prefer
+ * to manipulate shared pointers to expressions, aliased as 'CondPtr'. 
+  
+ * But for optimisation purposes, we will not use CondPtr directly but we will
+ * wrap them in 'CondObject' instances. CondObject is a class that basically
+ * stores an CondPtr and implements the simplification routines used to 
+ * simplify the condition it stores. 
+  
+ * Again, for memory managment reasons, CondObject will be manipulated as 
+ * shared pointer, aliased as 'CondObjectPtr'. CondObjectPtr should be 
+ * the only class used to create and manipulate conditions (not CondObject, 
+ * CondPtr, or Cond). 
+
+ * You can use NewCondTrue(), NewCondPointer(), ... functions in order to create 
+ * new CondObjectPtr instances in a convenient way. 
+  
+ * You can use the standards ==, <=, ... operators on ExprObjectPtr instances to 
+ * create new arithmetic conditions.
+ 
+ * You can use the standards &&, ||, ... operators on CondObjectPtr instances to
+ * create new logical conditions. 
+
+ */ 
+
+
 #ifndef CONDITION_H
 #define CONDITION_H
 
@@ -8,7 +42,8 @@ using namespace std;
 // Types of conditions
 enum CondType{COND_TRUE, COND_FALSE, COND_EQ, COND_NEQ, COND_LT, COND_LE, 
               COND_AND, COND_OR, COND_NOT, COND_VALID_READ, COND_VALID_WRITE};
-              
+
+// Useful functions
 CondType invert_cond_type(CondType c);
 bool is_compare_cond(CondType c);
 bool is_binlogic_cond(CondType c);
@@ -16,7 +51,11 @@ bool is_unlogic_cond(CondType c);
 bool is_pointer_cond(CondType c);
 bool is_const_cond(CondType c);
 
-// Evaluation of the value of a condition 
+/* Evaluation of the value of a condition
+ * EVAL_TRUE means that the condition is ALWAYS true 
+ * EVAL_FALSE means that it is ALWAYS false
+ * EVAL_UNKNOWN means that well... we don't know
+ */ 
 enum CondEval{EVAL_TRUE, EVAL_FALSE, EVAL_UNKNOWN};
 
 class CondObject;
