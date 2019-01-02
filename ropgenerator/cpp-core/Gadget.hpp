@@ -11,6 +11,7 @@ enum RetType{ RET, CALL, JMP, UNKNOWN};
 using addr_t= unsigned long long; 
 
 class Gadget{
+    int _id; 
     GadgetType _type; 
     vector<addr_t> _addresses; 
     string _asm_str, _hex_str;
@@ -26,8 +27,9 @@ class Gadget{
     
     public:
         // Constructor 
-        Gadget(IRBlock* irblock); 
+        Gadget(int id, IRBlock* irblock); 
         // Accessors 
+        int id(); 
         GadgetType type(); 
         vector<addr_t>* addresses(); 
         string asm_str();
