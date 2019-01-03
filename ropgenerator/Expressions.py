@@ -615,7 +615,7 @@ class OpExpr(Expr):
             elif( isinstance(right, ConstExpr) and right.value == 1 ):
                 res = left        
             elif( isinstance(right, ConstExpr) and right.value == 0 ):
-				res = ConstExpr(0, left.size)
+                                res = ConstExpr(0, left.size)
         
         elif( op == Op.XOR ):
             if( isinstance(left, ConstExpr) and left.value == 0 ):
@@ -706,16 +706,20 @@ class OpExpr(Expr):
         if( self.op == Op.ADD ):
             left = self.args[0].toArray()
             right = self.args[1].toArray()
+            if( left == None or right == None):
+                return []
             if( left == [] or right == []):
                 return []
-            res = [left[i]+right[i] for i in range(0, Arch.ssaRegCount+1) ]
+            if(len(left) != len(right)):
+                return []
+            res = [left[i]+right[i] for i in range(0, Arch.ssaRegCount+1) if len(left) > i and len(right) > i]
             return res
         elif( self.op == Op.SUB ):
             left = self.args[0].toArray()
             right = self.args[1].toArray()
             if( left == [] or right == []):
                 return []
-            res = [left[i]-right[i] for i in range(0, Arch.ssaRegCount+1) ]
+            res = [left[i]+right[i] for i in range(0, Arch.ssaRegCount+1) if len(left) > i and len(right) > i]
             return res
         elif( self.op == Op.MUL):
             if( isinstance(self.args[0], ConstExpr)):
@@ -1076,10 +1080,10 @@ class ITE(Expr):
         return "ITE(%s,%s,%s)" % ( self.cond, self.args[0], self.args[1])
         
     def replaceReg( self, reg, expr ):
-        return ITE( self.cond.replaceReg(reg,expr), self.args[0].replaceReg(reg,expr), self.args[1].replaceReg(reg,expr))
+        return ITE( self.cond, self.args[0].replaceReg(reg,expr), self.args[1].replaceReg(reg,expr))
         
     def replaceMemAcc( self, addr, expr ):
-        return ITE( self.cond.replaceMemAcc(addr,expr), self.iftrue.replaceMemAcc(addr,expr), self.iffalse.replaceMemAcc(addr,expr)) 
+        return ITE( self.cond, self.args[0].replaceMemAcc(addr,expr), self.args[1].replaceMemAcc(addr,expr)) 
         
     def __eq__(self, other):
         if( not isinstance( other, ITE )):

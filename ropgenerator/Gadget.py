@@ -140,7 +140,7 @@ class Gadget:
                         addr = p.expr.addr
                         (isInc, inc) = addr.isRegIncrement(sp_num)    
                         # Normal ret if the final value of the IP is value that was in memory before the last modification of SP ( i.e final_IP = MEM[final_sp - size_of_a_register )        
-                        if( isInc and inc == (self.spInc - (Arch.currentArch.octets)) ):
+                        if( isInc and  self.spInc and inc == (self.spInc - (Arch.currentArch.octets)) ):
                             self.retType = RetType.RET
                             self.retValue = p.expr
                     elif( isinstance(p.expr, SSAExpr )):
