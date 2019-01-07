@@ -48,6 +48,7 @@ class Gadget{
         ~Gadget();
         // Other
         void print(ostream& os);
+        bool lthan(Gadget* other);
     private:
 };
 

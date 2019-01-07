@@ -2,6 +2,7 @@
 #include "Architecture.hpp"
 #include "Expression.hpp"
 #include <algorithm>
+#include <cstring>
 
 // SubConstraint
 SubConstraint::SubConstraint(SubConstraintType t): _type(t){}
@@ -314,5 +315,97 @@ Constraint::~Constraint(){
         delete constr_valid_write; 
     if( constr_sp_inc != nullptr )
         delete constr_sp_inc; 
+}
+
+/*
+ * ASSERTIONS 
+ */ 
+
+SubAssertion::SubAssertion(SubAssertionType t): _type(t){}
+SubAssertionType SubAssertion::type(){return _type;}
+
+// AssertRegsEqual
+AssertRegsEqual::AssertRegsEqual(): SubAssertion(ASSERT_REGS_EQUAL){
+    std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
+}       
+AssertRegsEqual::AssertRegsEqual( bool array[NB_REGS_MAX][NB_REGS_MAX]): SubAssertion(ASSERT_REGS_EQUAL){
+    std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
+}       
+
+bool AssertRegsEqual::validate( CondObjectPtr* c){}
+SubAssertion* AssertRegsEqual::copy(){
+    return new AssertRegsEqual(_regs);
+}
+
+// AssertRegsNoOverlap
+AssertRegsNoOverlap::AssertRegsNoOverlap(): SubAssertion(ASSERT_REGS_NO_OVERLAP){
+    std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
+}
+
+AssertRegsNoOverlap::AssertRegsNoOverlap(bool array[NB_REGS_MAX][NB_REGS_MAX]): SubAssertion(ASSERT_REGS_NO_OVERLAP){
+    std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
+}
+
+bool AssertRegsNoOverlap::validate( CondObjectPtr* c){}
+
+SubAssertion* AssertRegsNoOverlap::copy(){
+    return new AssertRegsNoOverlap(_regs);
+}
+
+// AssertValidRead
+AssertValidRead::AssertValidRead(): SubAssertion(ASSERT_VALID_READ){
+    std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
+}
+AssertValidRead::AssertValidRead(bool* array): SubAssertion(ASSERT_VALID_READ){
+    std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX);
+}
+bool validate( CondObjectPtr* c){}
+SubAssertion* AssertValidRead::copy(){
+    return new AssertValidRead(_regs);
+}
+
+
+// AssertValidWrite
+AssertValidWrite::AssertValidWrite(): SubAssertion(ASSERT_VALID_WRITE){
+    std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
+}
+AssertValidWrite::AssertValidWrite(bool* array): SubAssertion(ASSERT_VALID_WRITE){
+    std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX);
+}
+bool validate( CondObjectPtr* c);
+SubAssertion* AssertValidWrite::copy(){
+    return new AssertValidWrite(_regs);
+}
+
+// 
+AssertRegSupTo::AssertRegSupTo(): SubAssertion(ASSERT_REG_SUP_TO){
+    std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
+}
+AssertRegSupTo::AssertRegSupTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX]):SubAssertion(ASSERT_REG_SUP_TO){
+    int i; 
+    for ( i = 0; i < NB_REGS_MAX; i++){
+        _regs[i] = regs[i];
+        _limit[i] = limit[i];
+    }
+}
+bool AssertRegSupTo::validate( CondObjectPtr* c){}
+SubAssertion* AssertRegSupTo::copy(){
+    return new AssertRegSupTo(_regs, _limit); 
+}
+
+
+AssertRegInfTo::AssertRegInfTo(): SubAssertion(ASSERT_REG_INF_TO){
+    std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
+}
+AssertRegInfTo::AssertRegInfTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX]): SubAssertion(ASSERT_REG_INF_TO){
+    int i; 
+    for ( i = 0; i < NB_REGS_MAX; i++){
+        _regs[i] = regs[i];
+        _limit[i] = limit[i];
+    }
+}
+bool AssertRegInfTo::validate( CondObjectPtr* c){}
+SubAssertion* AssertRegInfTo::copy(){
+    return new AssertRegInfTo(_regs, _limit); 
 }
 
