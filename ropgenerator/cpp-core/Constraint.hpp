@@ -20,7 +20,7 @@ class SubConstraint{
         SubConstraintType type();
         // Functions of child classes
         virtual SubConstraint* copy(){throw "Should not be called here";}
-        virtual void merge(SubConstraint* c){throw "Should not be called here";}
+        virtual void merge(SubConstraint* c, bool del){throw "SHould not be called here";}
 };
 
 class ConstrReturn: public SubConstraint{
@@ -84,6 +84,7 @@ class ConstrSpInc: public SubConstraint{
         ConstrSpInc(cst_t i);
         pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         virtual SubConstraint* copy();
+        virtual void merge(SubConstraint* c, bool del);
 };
 
 // Constraint class (collection of subconstraints)
@@ -102,10 +103,87 @@ class Constraint{
         void add(SubConstraint* c, bool del);
         void update(SubConstraint* c);
         void remove(SubConstraintType t);
-        // Copy
-        Constraint* copy();
-        // Destructor 
+        Constraint* copy(); 
         ~Constraint();
 };
+
+/* 
+ * ASSERTIONS
+ */ 
+ 
+enum SubAssertionType: int {    ASSERT_REGS_EQUAL=0, ASSERT_REGS_NO_OVERLAP, ASSERT_VALID_READ, 
+                                ASSERT_VALID_WRITE, ASSERT_REG_SUP_TO, ASSERT_REG_INF_TO};
+
+class SubAssertion{
+    SubAssertionType _type; 
+    public: 
+        SubAssertion(SubAssertionType t);
+        SubAssertionType type();
+        // Functions of child classes
+        virtual SubAssertion* copy(){throw "Should not be called here";}
+};
+
+class AssertRegsEqual: public SubAssertion{
+    public: 
+        bool _regs[NB_REGS_MAX][NB_REGS_MAX];
+    public:
+        AssertRegsEqual();
+        AssertRegsEqual( bool array[NB_REGS_MAX][NB_REGS_MAX]);
+        bool validate( CondObjectPtr* c);
+        virtual SubAssertion* copy(); 
+};
+
+class AssertRegsNoOverlap: SubAssertion{
+    public: 
+        bool _regs[NB_REGS_MAX][NB_REGS_MAX];
+    public: 
+        AssertRegsNoOverlap();
+        AssertRegsNoOverlap( bool array[NB_REGS_MAX][NB_REGS_MAX]);
+        bool validate( CondObjectPtr* c);
+        virtual SubAssertion* copy(); 
+};
+
+class AssertValidRead: SubAssertion{
+    public: 
+        bool _regs[NB_REGS_MAX];
+    public: 
+        AssertValidRead();
+        AssertValidRead(bool* array);
+        bool validate( CondObjectPtr* c);
+        virtual SubAssertion* copy();
+};
+
+class AssertValidWrite: SubAssertion{
+    public:
+        bool _regs[NB_REGS_MAX];
+    public: 
+        AssertValidWrite();
+        AssertValidWrite(bool* array);
+        bool validate( CondObjectPtr* c);
+        virtual SubAssertion* copy();
+};
+
+class AssertRegSupTo: SubAssertion{
+    public: 
+        bool _regs[NB_REGS_MAX];
+        cst_t _limit[NB_REGS_MAX];
+    public: 
+        AssertRegSupTo(); 
+        AssertRegSupTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX]);
+        bool validate( CondObjectPtr* c);
+        virtual SubAssertion* copy();
+};
+
+class AssertRegInfTo: SubAssertion{
+    public: 
+        bool _regs[NB_REGS_MAX];
+        cst_t _limit[NB_REGS_MAX];
+    public: 
+        AssertRegInfTo(); 
+        AssertRegInfTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX]);
+        bool validate( CondObjectPtr* c);
+        virtual SubAssertion* copy();
+};
+
 
 #endif

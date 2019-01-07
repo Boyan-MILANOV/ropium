@@ -99,6 +99,14 @@ void Gadget::print(ostream& os){
             os << i << " "; 
     os << endl; 
 }
+bool Gadget::lthan(Gadget* other){
+    if( _known_sp_inc && other->known_sp_inc() &&
+        _sp_inc < other->sp_inc() )
+        return true; 
+    if( _nb_instr == other->nb_instr() )
+        return _nb_instr_ir < other->nb_instr_ir();
+    return _nb_instr < other->nb_instr(); 
+}
 
 ostream& operator<<(ostream& os, Gadget* g){
     g->print(os); 

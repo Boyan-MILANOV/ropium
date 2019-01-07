@@ -72,7 +72,7 @@ string ROPChain::to_str_console(int bits, vector<unsigned char> bad_bytes){
     for(it = _chain.begin(); it != _chain.end(); it++){
         if( *it >= 0 ){
             // Gadget 
-            ss << 
+            
         }else{
             // Padding 
         }
