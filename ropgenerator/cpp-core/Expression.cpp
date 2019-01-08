@@ -366,7 +366,7 @@ ExprUnknown::ExprUnknown(): Expr(EXPR_UNKNOWN){};
 
 ////////////////////////////////////////////////////////////////////////
 // ExprObject
-ExprObject::ExprObject(ExprPtr p): _expr_ptr(p), _simplified(false){}
+ExprObject::ExprObject(ExprPtr p): _expr_ptr(p), _simplified(false), _filtered(false){}
 ExprPtr ExprObject::expr_ptr(){return _expr_ptr;}
 Expr ExprObject::expr(){return *_expr_ptr;}
 bool ExprObject::equal(ExprObjectPtr other){
@@ -424,6 +424,39 @@ void ExprObject::simplify(){
     _simplified = true;
 }
 
+bool ExprObject::filter(){
+    bool unknown = false; 
+    if( _filtered )
+        return _expr_ptr->type() == EXPR_UNKNOWN; 
+    _filtered = true;   
+     
+    switch(_expr_ptr->type()){
+        case EXPR_CST:
+        case EXPR_REG:
+            break;
+        case EXPR_MEM:
+            if( _expr_ptr->addr_object_ptr()->filter())
+                unknown = true; 
+            else
+                unknown = ( ! supported_address(_expr_ptr->addr_expr_ptr()) );
+            break; 
+        case EXPR_BINOP:
+            if( _expr_ptr->left_object_ptr()->filter() ||
+                _expr_ptr->right_object_ptr()->filter() )
+                unknown = true; 
+            else
+                unknown = ( ! supported_binop(_expr_ptr));
+          break;
+        default:
+            unknown = true; 
+    }
+    if( unknown ){
+        _expr_ptr = special_NewExprPtrUnknown();
+        return true; 
+    }else
+        return false; 
+}
+
 ////////////////////////////////////////////////////////////////////////
 //// Support to use operators at ExprObjectPtr  level :) 
 // IO
@@ -476,6 +509,14 @@ ExprObjectPtr NewExprCst(cst_t value, int size){
 ExprObjectPtr NewExprMem(ExprObjectPtr addr, int s){
     return make_shared<ExprObject>(make_shared<ExprMem>(addr, s));
 }
-
+ExprObjectPtr g_expr_unknown = make_shared<ExprObject>(make_shared<ExprUnknown>());
+ExprObjectPtr NewExprUnknown(){
+    return g_expr_unknown;
+}
+// Create new ExprPtr for ExprUnknown, ONLY INTERNAL USAGE
+ExprPtr g_expr_ptr_unknown = make_shared<ExprUnknown>();
+ExprPtr special_NewExprPtrUnknown(){
+    return g_expr_ptr_unknown; 
+}
 
 

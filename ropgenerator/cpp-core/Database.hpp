@@ -10,6 +10,7 @@ using std::vector;
 #include "Condition.hpp"
 #include "Gadget.hpp"
 
+using std::unique_ptr; 
 
 enum QueryType {
     CST,            /* constant */
@@ -30,38 +31,44 @@ class CSTList{
 };
 
 class REGList{
-    CSTList* _regs[NB_REGS_MAX]; 
+    CSTList* _values[COUNT_NB_BINOP][NB_REGS_MAX];
     public: 
         REGList(); 
-        void add(int reg_num, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets); 
+        void add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets); 
         ~REGList();
 };
 
-/* T should be CSTList ou REGList ou un autre MEMList */ 
-template <typename T> class MEMList{
-    unordered_map<cst_t, T*>* _addresses[NB_REGS_MAX]; 
+
+class MEMList{
+    unordered_map<cst_t, unique_ptr<CSTList>>* _addresses[COUNT_NB_BINOP][NB_REGS_MAX]; 
     public: 
         MEMList(); 
-        void add(int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets );
+        void add(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets );
         ~MEMList();
 };
 
+template<class T>
+class MEMDict{
+    unordered_map<cst_t, unique_ptr<T>>* _addresses[NB_REGS_MAX]; 
+    public:  
+        MEMDict();
+        void add_cst(int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets );
+        void add_reg(int addr_reg, cst_t addr_cst, int reg, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets );
+        void add_mem(int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets );
+        ~MEMDict();
+};
 
 
 class Database{
     vector<Gadget*> _gadgets; 
     /* reg <- expr */ 
     CSTList* cst_to_reg[NB_REGS_MAX];
-    REGList* reg_mul_cst_to_reg[NB_REGS_MAX];
-    REGList* reg_div_cst_to_reg[NB_REGS_MAX];
-    REGList* reg_add_cst_to_reg[NB_REGS_MAX];
-    MEMList<CSTList>* mem_add_cst_to_reg[NB_REGS_MAX]; 
+    REGList* reg_cst_to_reg[NB_REGS_MAX];
+    MEMList* mem_cst_to_reg[NB_REGS_MAX]; 
     /* mem <- expr */ 
-    MEMList<CSTList> cst_to_mem; 
-    MEMList<REGList> reg_mul_cst_to_mem; 
-    MEMList<REGList> reg_div_cst_to_mem; 
-    MEMList<REGList> reg_add_cst_to_mem; 
-    MEMList<MEMList<CSTList>> mem_add_cst_to_mem; 
+    MEMDict<CSTList> cst_to_mem; 
+    MEMDict<REGList> reg_cst_to_mem; 
+    MEMDict<MEMList> mem_cst_to_mem; 
     // TODO Syscalls and INT80 
 
     public: 

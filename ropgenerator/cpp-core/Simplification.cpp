@@ -14,11 +14,12 @@
 */
 
 void canonize(ExprPtr p){
-    /* Canonize for binop
+    /* Canonize for symetrical binops
      * Lowest priority goes on the left
      * Priorities are the values of the enum ExprType ;) 
     */
-    if( p->type() != EXPR_BINOP || p->binop() == OP_SUB)
+    if( p->type() != EXPR_BINOP || p->binop() == OP_SUB || p->binop() == OP_DIV ||
+        p->binop() == OP_MOD || p->binop() == OP_BSH)
         return;
     else if( p->right_expr_ptr()->lthan( p->left_expr_ptr()))
         p->exchange_args();
@@ -433,3 +434,64 @@ CondPtr simplify_compare_polynom(CondPtr p){
 }
 
 CondPtr simplify_redundancy(CondPtr p);
+
+
+/*---------------------------------------------------------------
+ *              Filtering expressions  
+ *---------------------------------------------------------------*/ 
+bool supported_address(ExprPtr addr){
+    return  
+            // Reg 
+            ( addr->type() == EXPR_REG ) || 
+            // Reg +/- cst 
+            (addr->type() == EXPR_BINOP && (addr->binop() == OP_ADD || addr->binop() == OP_SUB) 
+                    && addr->left_expr_ptr()->type() == EXPR_CST && addr->right_expr_ptr()->type() == EXPR_REG);
+}
+
+bool supported_binop(ExprPtr expr){
+    // cst +* reg|mem
+    if( expr->binop() == OP_ADD || expr->binop() == OP_MUL )
+        if ( expr->left_expr_ptr()->type() == EXPR_CST )
+            if( expr->right_expr_ptr()->type() == EXPR_REG )
+                return true; 
+            else if(expr->right_expr_ptr()->type() == EXPR_MEM )
+                return supported_address(expr->right_expr_ptr()->addr_expr_ptr());
+    // reg|mem -/(bsh) cst 
+    else if( expr->binop() == OP_SUB || expr->binop() == OP_DIV || expr->binop() == OP_BSH)
+        if( expr->right_expr_ptr()->type() == EXPR_CST )
+            if( expr->left_expr_ptr()->type() == EXPR_REG )
+                return true; 
+            else if(expr->left_expr_ptr()->type() == EXPR_MEM )
+                return supported_address(expr->left_expr_ptr()->addr_expr_ptr());
+
+    return false; 
+}
+
+/*---------------------------------------------------------------
+ *              Filtering conditions 
+ *---------------------------------------------------------------*/  
+bool supported_compared_expr(ExprPtr expr){
+    // cst or reg 
+    if( expr->type() == EXPR_CST || expr->type() == EXPR_REG)
+        return true; 
+    // reg +- cst
+    else if(    expr->type() == EXPR_BINOP && 
+                (expr->binop() == OP_ADD || expr->binop() == OP_SUB ) &&
+                (expr->left_expr_ptr()->type() == EXPR_CST || expr->right_expr_ptr()->type() == EXPR_CST)
+            )
+        return true; 
+    return false; 
+}
+
+bool supported_valid_pointer_expr(ExprPtr expr){
+    // reg 
+    if( expr->type() == EXPR_REG )
+        return true; 
+    // reg +- cst 
+    else if(    expr->type() == EXPR_BINOP && 
+                (expr->binop() == OP_ADD || expr->binop() == OP_SUB ) &&
+                (expr->left_expr_ptr()->type() == EXPR_CST || expr->right_expr_ptr()->type() == EXPR_CST)
+            )
+        return true; 
+    return false; 
+}
