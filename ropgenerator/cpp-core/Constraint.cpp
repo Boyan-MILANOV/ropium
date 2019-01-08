@@ -16,6 +16,17 @@ bool ConstrReturn::call(){return _call;}
 SubConstraint* ConstrReturn::copy(){
     return new ConstrReturn(_ret, _jmp, _call);
 }
+
+pair<ConstrEval,CondObjectPtr> ConstrReturn::verify(Gadget* g){
+    if  (( _ret && (g->ret_type() == RET))  || 
+        ( _jmp && (g->ret_type() == JMP))  ||
+        ( _call && (g->ret_type() == CALL)))
+        return g->ret_pre_cond()->cond_ptr()->type() == COND_TRUE ? make_pair(EVAL_VALID, g->ret_pre_cond()):
+                                                        make_pair(EVAL_MAYBE, g->ret_pre_cond());
+    else
+        return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
+}
+
 void ConstrReturn::merge(SubConstraint* c, bool del=false){
     if( c->type() != CONSTR_RETURN )
         throw "Invalid sub constraint type when merging";
@@ -78,7 +89,11 @@ void ConstrKeepRegs::remove_reg(int num){
         _regs[num] = false; 
 }
 pair<ConstrEval,CondObjectPtr> ConstrKeepRegs::verify(Gadget* g){
-    //TODO
+    bool * modified = g->modified_regs();
+    for( int i = 0; i < NB_REGS_MAX; i++)
+        if( _regs[i] && modified[i] )
+            return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
+    return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
 }
 
 SubConstraint* ConstrKeepRegs::copy(){
@@ -213,19 +228,34 @@ SubConstraint* Constraint::get(SubConstraintType t){
 void Constraint::add(SubConstraint* c, bool del=false){
     switch(c->type()){
         case CONSTR_RETURN:
-            constr_return->merge(c, del);
+            if( constr_return != nullptr )
+                constr_return->merge(c, del);
+            else
+                constr_return = (ConstrReturn*)c; 
             break;
         case CONSTR_BAD_BYTES:
-            constr_bad_bytes->merge(c,del); 
+            if( constr_bad_bytes != nullptr )
+                constr_bad_bytes->merge(c,del); 
+            else
+                constr_bad_bytes = (ConstrBadBytes*)c; 
             break;
         case CONSTR_KEEP_REGS: 
-            constr_keep_regs->merge(c, del);
+            if( constr_keep_regs != nullptr )
+                constr_keep_regs->merge(c, del);
+            else
+                constr_keep_regs = (ConstrKeepRegs*)c; 
             break;
         case CONSTR_VALID_READ: 
-            constr_valid_read->merge(c,del);
+            if( constr_keep_regs != nullptr )
+                constr_valid_read->merge(c,del);
+            else
+                constr_valid_read = (ConstrValidRead*)c; 
             break;
         case CONSTR_VALID_WRITE: 
-            constr_valid_write->merge(c,del);
+            if( constr_valid_write != nullptr )
+                constr_valid_write->merge(c,del);
+            else
+                constr_valid_write = (ConstrValidWrite*)c; 
             break;
         default:
             throw "UNknown or unsupported SubConstraintType";
@@ -351,7 +381,9 @@ AssertRegsNoOverlap::AssertRegsNoOverlap(bool array[NB_REGS_MAX][NB_REGS_MAX]): 
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
 }
 
-bool AssertRegsNoOverlap::validate( CondObjectPtr* c){}
+bool AssertRegsNoOverlap::validate( CondObjectPtr* c){
+    //TODO
+}
 
 SubAssertion* AssertRegsNoOverlap::copy(){
     return new AssertRegsNoOverlap(_regs);
@@ -364,7 +396,9 @@ AssertValidRead::AssertValidRead(): SubAssertion(ASSERT_VALID_READ){
 AssertValidRead::AssertValidRead(bool* array): SubAssertion(ASSERT_VALID_READ){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX);
 }
-bool validate( CondObjectPtr* c){}
+bool AssertValidRead::validate( CondObjectPtr* c){
+    // TODO
+}
 SubAssertion* AssertValidRead::copy(){
     return new AssertValidRead(_regs);
 }
@@ -377,12 +411,14 @@ AssertValidWrite::AssertValidWrite(): SubAssertion(ASSERT_VALID_WRITE){
 AssertValidWrite::AssertValidWrite(bool* array): SubAssertion(ASSERT_VALID_WRITE){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX);
 }
-bool validate( CondObjectPtr* c);
+bool AssertValidWrite::validate( CondObjectPtr* c){
+    // TODO 
+}
 SubAssertion* AssertValidWrite::copy(){
     return new AssertValidWrite(_regs);
 }
 
-// 
+// AssertRegSupTo
 AssertRegSupTo::AssertRegSupTo(): SubAssertion(ASSERT_REG_SUP_TO){
     std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
 }
@@ -393,7 +429,9 @@ AssertRegSupTo::AssertRegSupTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX])
         _limit[i] = limit[i];
     }
 }
-bool AssertRegSupTo::validate( CondObjectPtr* c){}
+bool AssertRegSupTo::validate( CondObjectPtr* c){
+    // TODO
+}
 SubAssertion* AssertRegSupTo::copy(){
     return new AssertRegSupTo(_regs, _limit); 
 }
@@ -409,7 +447,9 @@ AssertRegInfTo::AssertRegInfTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX])
         _limit[i] = limit[i];
     }
 }
-bool AssertRegInfTo::validate( CondObjectPtr* c){}
+bool AssertRegInfTo::validate( CondObjectPtr* c){
+    // TODO
+}
 SubAssertion* AssertRegInfTo::copy(){
     return new AssertRegInfTo(_regs, _limit); 
 }

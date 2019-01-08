@@ -18,10 +18,11 @@ class Gadget{
     int _nb_instr, _nb_instr_ir; 
     int _sp_inc; 
     bool _known_sp_inc; 
-    int _reg_modified[NB_REGS_MAX]; 
+    bool _reg_modified[NB_REGS_MAX]; 
     vector<ExprObjectPtr> _mem_read; 
     vector<ExprObjectPtr> _mem_write; 
     RetType _ret_type;
+    CondObjectPtr _ret_pre_cond; 
     Semantics * _semantics;  
     bool unknown_sp_inc, unknown_ret_type; 
     
@@ -38,9 +39,11 @@ class Gadget{
         int nb_instr_ir(); 
         int sp_inc(); 
         bool known_sp_inc();
+        bool* modified_regs();
         vector<ExprObjectPtr>* mem_read(); 
         vector<ExprObjectPtr>* mem_write(); 
         RetType ret_type();
+        CondObjectPtr ret_pre_cond();
         Semantics * semantics(); 
         // Modifiers
         void add_address(addr_t addr); 

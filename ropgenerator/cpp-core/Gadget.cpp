@@ -56,9 +56,11 @@ int Gadget::nb_instr(){return _nb_instr;}
 int Gadget::nb_instr_ir(){return _nb_instr_ir;}
 int Gadget::sp_inc(){return _sp_inc;}
 bool Gadget::known_sp_inc(){return _known_sp_inc;}
+bool* Gadget::modified_regs(){return _reg_modified;}
 vector<ExprObjectPtr>* Gadget::mem_read(){return &_mem_read;} 
 vector<ExprObjectPtr>* Gadget::mem_write(){return &_mem_write;} 
 RetType Gadget::ret_type(){return _ret_type;}
+CondObjectPtr Gadget::ret_pre_cond(){return _ret_pre_cond;}
 Semantics* Gadget::semantics(){return _semantics;}
 // Modifiers
 void Gadget::add_address(addr_t addr){
