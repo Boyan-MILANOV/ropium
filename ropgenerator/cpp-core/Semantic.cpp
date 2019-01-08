@@ -74,36 +74,41 @@ Semantics::~Semantics(){
 }
 
 // Simplifications 
-void Semantics::simplify_expressions(){
+void Semantics::simplify(){
     vector<reg_pair>::iterator it;
     vector<mem_pair>::iterator mit;
     vector<SPair>::iterator pit; 
     for(it = _regs.begin(); it != _regs.end(); it++ ){
-        for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ )
+        for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ ){
             (*pit).expr()->simplify(); 
+            (*pit).cond()->simplify(); 
+        }
     }
     
     for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
-        for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ )
+        for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ ){
             (*pit).expr()->simplify(); 
-    }
-}
-
-void Semantics::simplify_conditions(){
-    vector<reg_pair>::iterator it;
-    vector<mem_pair>::iterator mit;
-    vector<SPair>::iterator pit; 
-    for(it = _regs.begin(); it != _regs.end(); it++ ){
-        for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ )
             (*pit).cond()->simplify(); 
-    }
-    
-    for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
-        for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ )
-            (*pit).cond()->simplify(); 
+        }
     }
 }
 
 // Filtering
-void Semantics::filter_expressions(){}
-void Semantics::filter_conditions(){}
+void Semantics::filter(){
+    vector<reg_pair>::iterator it;
+    vector<mem_pair>::iterator mit;
+    vector<SPair>::iterator pit; 
+    for(it = _regs.begin(); it != _regs.end(); it++ ){
+        for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ ){
+            (*pit).expr()->filter(); 
+            (*pit).cond()->filter(); 
+        }
+    }
+    
+    for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
+        for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ ){
+            (*pit).expr()->filter(); 
+            (*pit).cond()->filter(); 
+        }
+    }
+}
