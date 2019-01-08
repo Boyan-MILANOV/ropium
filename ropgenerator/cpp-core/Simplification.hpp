@@ -39,7 +39,6 @@ ExprPtr simplify_polynom_factorization(ExprPtr p);
 ExprPtr simplify_neutral_element(ExprPtr p);
 ExprPtr simplify_pattern(ExprPtr p);
 
-
 /*---------------------------------------------------------------
  *              Simplifications on Conditions 
  *---------------------------------------------------------------*/ 
@@ -49,4 +48,17 @@ CondPtr simplify_neutral_element(CondPtr p);
 CondPtr simplify_compare_polynom(CondPtr p);
 CondPtr simplify_redundancy(CondPtr p);
  
+ 
+/*---------------------------------------------------------------
+ *              Filtering expressions  
+ *---------------------------------------------------------------*/ 
+bool supported_address(ExprPtr addr);
+bool supported_binop(ExprPtr expr);
+
+/*---------------------------------------------------------------
+ *              Filtering conditions 
+ *---------------------------------------------------------------*/  
+bool supported_compared_expr(ExprPtr expr);
+bool supported_valid_pointer_expr(ExprPtr expr); 
+
 #endif 

@@ -38,7 +38,10 @@ class Semantics{
         ~Semantics(); 
         // Simplification functions
         void simplify_expressions();
-        void simplify_conditions();  
+        void simplify_conditions();
+        // Filter expressions/conditions 
+        void filter_expressions();
+        void filter_conditions();
 };
 
 ostream& operator<< (ostream& os, Semantics *s);

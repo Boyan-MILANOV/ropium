@@ -22,6 +22,9 @@ CondType invert_cond_type(CondType c){
         case COND_FALSE:
             return COND_TRUE;
             break;
+        case COND_UNKNOWN:
+            return COND_UNKNOWN;
+            break;
         default:
             throw "CondType not supported by invert_cond()";
         
@@ -139,10 +142,19 @@ CondPtr CondPointer::invert(){
 void CondPointer::print(ostream& os){  
     os << condtype_to_str[_type] << "(" << _arg << ")";  
 }
+
+////////////////////////////////////////////////////////////////////////
+//CondUnknown
+
+CondUnknown::CondUnknown(): Cond(COND_UNKNOWN){}
+void CondUnknown::print(ostream& os){
+    os << "unkwown";
+}
+
 ////////////////////////////////////////////////////////////////////////
 // CondObject (wrapper around Cond)
 // Constructors 
-CondObject::CondObject(CondPtr p):_cond_ptr(p), _simplified(false){}
+CondObject::CondObject(CondPtr p):_cond_ptr(p), _simplified(false), _filtered(false){}
 // Accessors, modifiers
 CondPtr CondObject::cond_ptr(){return _cond_ptr;}
 Cond CondObject::cond(){return *_cond_ptr;}
@@ -166,6 +178,31 @@ void CondObject::simplify(){
     }
     
     _simplified = true;
+}
+
+bool CondObject::filter(){
+    bool unknown = false; 
+    if( _filtered )
+        return true; 
+    _filtered = true; 
+    
+    if(  is_const_cond(_cond_ptr->type()) ){
+        unknown = true; 
+    }else if( is_compare_cond(_cond_ptr->type()) ){
+        unknown = !supported_compared_expr(_cond_ptr->left_expr_ptr()) || 
+                  !supported_compared_expr(_cond_ptr->right_expr_ptr()); 
+    }else if( is_binlogic_cond(_cond_ptr->type()) ){
+        unknown = ( _cond_ptr->left_condobject_ptr()->filter() ||
+                    _cond_ptr->right_condobject_ptr()->filter() );
+    }else if( is_pointer_cond(_cond_ptr->type())){
+        unknown = !supported_valid_pointer_expr(_cond_ptr->arg_expr_ptr()); 
+    }
+     
+    if( unknown ){
+        _cond_ptr = special_NewCondPtrUnknown(); 
+    }else
+        return false; 
+    
 }
 
 // ExprObjectPtr level manipulation 
@@ -210,4 +247,12 @@ CondObjectPtr NewCondTrue(){
 CondObjectPtr NewCondPointer(CondType t, ExprObjectPtr a){
     return make_shared<CondObject>(make_shared<CondPointer>(t, a));
 }
-
+/* To avoid creating thousands of CondUnknown that are the same */ 
+CondObjectPtr g_cond_unknown = make_shared<CondObject>(make_shared<CondUnknown>());
+CondObjectPtr NewCondUnknown(){
+    return g_cond_unknown;
+}
+CondPtr g_condptr_unknown = make_shared<CondUnknown>(); 
+CondPtr special_NewCondPtrUnknown(){
+    return g_condptr_unknown; 
+}

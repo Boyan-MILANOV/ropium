@@ -41,7 +41,7 @@ using namespace std;
 
 // Types of conditions
 enum CondType{COND_TRUE, COND_FALSE, COND_EQ, COND_NEQ, COND_LT, COND_LE, 
-              COND_AND, COND_OR, COND_NOT, COND_VALID_READ, COND_VALID_WRITE};
+              COND_AND, COND_OR, COND_NOT, COND_VALID_READ, COND_VALID_WRITE, COND_UNKNOWN};
 
 // Useful functions
 CondType invert_cond_type(CondType c);
@@ -100,6 +100,7 @@ class CondObject{
     protected:
         CondPtr _cond_ptr; 
         bool _simplified; // If the condition has been simplified 
+        bool _filtered; 
     public:
         // Constructors 
         CondObject(CondPtr p);
@@ -108,8 +109,7 @@ class CondObject{
         Cond cond();
         // Misc
         void simplify();
-        
-         
+        bool filter(); 
 };
 using CondObjectPtr = shared_ptr<CondObject>;
 
@@ -172,6 +172,12 @@ class CondPointer: public Cond{
         void print(ostream& os);
 };
 
+class CondUnknown: public Cond{
+    public:
+        CondUnknown();
+        void print(ostream& os);
+};
+
 ////////////////////////////////////////////////////////////////////////
 // ExprObjectPtr level manipulation 
 // IO
@@ -189,4 +195,7 @@ CondObjectPtr operator! (CondObjectPtr p1);
 
 CondObjectPtr NewCondTrue();
 CondObjectPtr NewCondPointer(CondType t, ExprObjectPtr a);
+CondObjectPtr NewCondUnknown();
+// Create new ExprPtr for COND_UNKNOWN, ONLY INTERNAL USAGE
+CondPtr special_NewCondPtrUnknown(); 
 #endif 

@@ -44,11 +44,11 @@
 using namespace std; 
 
 /* Types of expressions */  
-enum ExprType {EXPR_CST, EXPR_REG, EXPR_MEM, EXPR_UNOP, EXPR_BINOP, EXPR_EXTRACT, EXPR_CONCAT, EXPR_UNKNOWN}; 
+enum ExprType {EXPR_CST=0, EXPR_REG, EXPR_MEM, EXPR_UNOP, EXPR_BINOP, EXPR_EXTRACT, EXPR_CONCAT, EXPR_UNKNOWN}; 
 
 /* Unary and binary operators between expressions */  
-enum Unop {OP_NEG};
-enum Binop {OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_AND, OP_OR, OP_XOR, OP_MOD, OP_BSH }; 
+enum Unop {OP_NEG, COUNT_NB_UNOP};
+enum Binop {OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_AND, OP_OR, OP_XOR, OP_MOD, OP_BSH, COUNT_NB_BINOP }; 
 
 /* Type used to store the values for ExprCst */ 
 using cst_t= long long;  
@@ -144,7 +144,8 @@ using ExprPtr = shared_ptr<Expr>;
 class ExprObject{
     protected:
         ExprPtr _expr_ptr; 
-        bool _simplified; // If the expression has been simplified 
+        bool _simplified; // If the expression has been simplified
+        bool _filtered;  
     public:
         // Constructors 
         ExprObject(ExprPtr p);
@@ -153,6 +154,7 @@ class ExprObject{
         Expr expr();
         // Misc
         void simplify();
+        bool filter();
         bool equal(ExprObjectPtr other);
          
 };
@@ -175,7 +177,9 @@ ExprObjectPtr operator~ (ExprObjectPtr p1);
 // Create new instances 
 ExprObjectPtr NewExprCst(cst_t value, int size);
 ExprObjectPtr NewExprMem(ExprObjectPtr addr, int s);
-
+ExprObjectPtr NewExprUnknown();
+// Create new ExprPtr for ExprUnknown, ONLY INTERNAL USAGE
+ExprPtr special_NewExprPtrUnknown(); 
 
 /*                  - Expr* classes                     */ 
 // Constant Expression 
@@ -308,5 +312,7 @@ class ExprUnknown: public Expr{
     public:
         ExprUnknown();
 }; 
+
+
 
 #endif 

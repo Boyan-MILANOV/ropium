@@ -103,3 +103,7 @@ void Semantics::simplify_conditions(){
             (*pit).cond()->simplify(); 
     }
 }
+
+// Filtering
+void Semantics::filter_expressions(){}
+void Semantics::filter_conditions(){}
