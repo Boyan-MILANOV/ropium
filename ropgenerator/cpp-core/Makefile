@@ -2,7 +2,8 @@
 CC = g++
 #CC_FLAGS = -std=c++11 -Wall -Wextra -pedantic 
 CC_FLAGS = -std=c++11 -fpermissive 
- 
+CC_INC = include
+
 # File names
 SOURCES = $(wildcard *.cpp)
 OBJECTS = $(SOURCES:.cpp=.o)
@@ -11,7 +12,7 @@ OBJECTS = $(SOURCES:.cpp=.o)
 all: $(OBJECTS)	
 
 %.o: %.cpp
-	$(CC) -c $(CC_FLAGS) $< -o $@
+	$(CC) -c $(CC_FLAGS) -I$(CC_INC) $< -o $@
  
 # To remove generated files
 clean:

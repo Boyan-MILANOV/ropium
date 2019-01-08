@@ -53,8 +53,10 @@ class MEMDict{
     public:  
         MEMDict();
         void add_cst(int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets );
-        void add_reg(int addr_reg, cst_t addr_cst, int reg, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets );
-        void add_mem(int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets );
+        void add_reg(   int addr_reg, cst_t addr_cst, int reg, cst_t cst, Binop op, int gadget_num, \
+                        CondObjectPtr pre_cond, vector<Gadget*> gadgets );
+        void add_mem(   int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, \
+                        Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets );
         ~MEMDict();
 };
 
