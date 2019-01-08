@@ -21,6 +21,10 @@ class SubConstraint{
         // Functions of child classes
         virtual SubConstraint* copy(){throw "Should not be called here";}
         virtual void merge(SubConstraint* c, bool del){throw "SHould not be called here";}
+        // From ConstrBadBytes
+        vector<unsigned char>* bad_bytes(){throw "Should not be called here";}
+        // From ValidPoitner
+        vector<ExprObjectPtr>* addresses(){throw "Should not be called here";}
 };
 
 class ConstrReturn: public SubConstraint{
@@ -40,6 +44,7 @@ class ConstrBadBytes: public SubConstraint{
     public:
         ConstrBadBytes();
         ConstrBadBytes(vector<unsigned char> bb);
+        vector<unsigned char>* bad_bytes(); 
         bool verify_address(addr_t a);
         pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         virtual SubConstraint* copy();
@@ -62,6 +67,7 @@ class ConstrValidRead: public SubConstraint{
     vector<ExprObjectPtr> _addresses;
     public:
         ConstrValidRead();
+        vector<ExprObjectPtr>* addresses(); 
         void add_addr( ExprObjectPtr a);
         pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         virtual SubConstraint* copy();
@@ -72,6 +78,7 @@ class ConstrValidWrite: public SubConstraint{
     vector<ExprObjectPtr> _addresses;
     public:
         ConstrValidWrite();
+        vector<ExprObjectPtr>* addresses(); 
         void add_addr( ExprObjectPtr a);
         pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         virtual SubConstraint* copy();

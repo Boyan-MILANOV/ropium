@@ -29,8 +29,9 @@ void ConstrReturn::merge(SubConstraint* c, bool del=false){
 // ConstrBadBytes
 ConstrBadBytes::ConstrBadBytes(vector<unsigned char> bb): SubConstraint(CONSTR_BAD_BYTES){
     _bad_bytes = bb;
-    
 }
+
+vector<unsigned char>* ConstrBadBytes::bad_bytes(){return &_bad_bytes;} 
 
 bool ConstrBadBytes::verify_address(addr_t a){
     // Check if each byte of the address is not in bad bytes list
@@ -58,7 +59,7 @@ SubConstraint* ConstrBadBytes::copy(){
 void ConstrBadBytes::merge(SubConstraint* c, bool del=false){
     if( c->type() != CONSTR_BAD_BYTES )
         throw "Invalid sub constraint type when merging";
-    // TODO CONCATENATE VECTORS ! 
+    _bad_bytes.insert(_bad_bytes.end(), c->bad_bytes()->begin(), c->bad_bytes()->end()); 
     if( del )
         delete c; 
 }
@@ -104,6 +105,8 @@ void ConstrValidRead::add_addr( ExprObjectPtr a){
     _addresses.push_back(a);
 }
 
+vector<ExprObjectPtr>* ConstrValidRead::addresses(){return &_addresses;}
+
 pair<ConstrEval,CondObjectPtr> ConstrValidRead::verify(Gadget* g){
     vector<ExprObjectPtr>::iterator it;
     CondObjectPtr tmp; 
@@ -126,7 +129,7 @@ SubConstraint* ConstrValidRead::copy(){
 void ConstrValidRead::merge(SubConstraint* c, bool del=false){
     if( c->type() != CONSTR_VALID_READ )
         throw "Invalid sub constraint type when merging";
-    // TODO CONCATENATE TWO VECTORS 
+    _addresses.insert(_addresses.end(), c->addresses()->begin(), c->addresses()->end());
     if( del )
         delete c; 
 }
@@ -136,6 +139,8 @@ ConstrValidWrite::ConstrValidWrite(): SubConstraint(CONSTR_VALID_WRITE){}
 void ConstrValidWrite::add_addr( ExprObjectPtr a){
     _addresses.push_back(a);
 }
+
+vector<ExprObjectPtr>* ConstrValidWrite::addresses(){return &_addresses;}
 
 pair<ConstrEval,CondObjectPtr> ConstrValidWrite::verify(Gadget* g){
     vector<ExprObjectPtr>::iterator it;
@@ -159,7 +164,7 @@ SubConstraint* ConstrValidWrite::copy(){
 void ConstrValidWrite::merge(SubConstraint* c, bool del=false){
     if( c->type() != CONSTR_VALID_WRITE )
         throw "Invalid sub constraint type when merging";
-    // TODO CONCATENATE TWO VECTORS 
+    _addresses.insert(_addresses.end(), c->addresses()->begin(), c->addresses()->end());
     if( del )
         delete c; 
 }
