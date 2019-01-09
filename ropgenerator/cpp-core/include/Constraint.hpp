@@ -106,7 +106,7 @@ class Constraint{
         void add(SubConstraint* c, bool del);
         void update(SubConstraint* c);
         void remove(SubConstraintType t);
-        CondObjectPtr verify(Gadget* g); // TODO 
+        CondObjectPtr verify(Gadget* g);
         Constraint* copy(); 
         ~Constraint();
 };
@@ -126,6 +126,7 @@ class SubAssertion{
         SubAssertion(SubAssertionType t);
         SubAssertionType type();
         // Functions of child classes
+        virtual bool validate(CondObjectPtr c){throw "Should not be called here";}
         virtual SubAssertion* copy(){throw "Should not be called here";}
         virtual void merge(SubAssertion* a, bool del){throw "SHould not be called here";}
         // From AssertRegsEqual
