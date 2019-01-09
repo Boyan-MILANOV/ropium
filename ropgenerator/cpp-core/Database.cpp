@@ -20,6 +20,7 @@ int find_insert_index(vector<int> gadget_list, int gadget_num, vector<Gadget*> g
 }
 
 /* CSTList */ 
+CSTList::CSTList(){} 
 void CSTList::add(cst_t val, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets){
     int insert_idx = find_insert_index(_values[val], gadget_num, gadgets);
     _values[val].insert(_values.at(val).begin()+insert_idx, gadget_num);
