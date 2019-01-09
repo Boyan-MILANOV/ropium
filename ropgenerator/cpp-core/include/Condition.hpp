@@ -194,6 +194,7 @@ CondObjectPtr operator|| (CondObjectPtr p1, CondObjectPtr p2);
 CondObjectPtr operator! (CondObjectPtr p1);
 
 CondObjectPtr NewCondTrue();
+CondObjectPtr NewCondFalse();
 CondObjectPtr NewCondPointer(CondType t, ExprObjectPtr a);
 CondObjectPtr NewCondUnknown();
 // Create new ExprPtr for COND_UNKNOWN, ONLY INTERNAL USAGE

@@ -162,7 +162,7 @@ Cond CondObject::cond(){return *_cond_ptr;}
 void CondObject::simplify(){
     if( _simplified )
         return;
-    
+    // TODO IN SIMPLIFY R1 + 4 < 8 --> R1 < 4 
     if( is_compare_cond(_cond_ptr->type()) ){
         _cond_ptr->left_exprobject_ptr()->simplify();
         _cond_ptr->right_exprobject_ptr()->simplify();
@@ -243,6 +243,9 @@ CondObjectPtr operator! (CondObjectPtr p1){
 
 CondObjectPtr NewCondTrue(){
     return make_shared<CondObject>(make_shared<CondConst>(COND_TRUE));
+}
+CondObjectPtr NewCondFalse(){
+    return make_shared<CondObject>(make_shared<CondConst>(COND_FALSE));
 }
 CondObjectPtr NewCondPointer(CondType t, ExprObjectPtr a){
     return make_shared<CondObject>(make_shared<CondPointer>(t, a));

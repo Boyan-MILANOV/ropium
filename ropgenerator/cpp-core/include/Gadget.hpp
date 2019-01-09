@@ -7,24 +7,29 @@ using std::vector;
 using std::string; 
 
 enum GadgetType{ REGULAR, INT80, SYSCALL}; 
-enum RetType{ RET, CALL, JMP, UNKNOWN};
+enum RetType{ RET_RET, RET_CALL, RET_JMP, RET_UNKNOWN};
 using addr_t= unsigned long long; 
 
 class Gadget{
+    /* General */ 
     int _id; 
-    GadgetType _type; 
-    vector<addr_t> _addresses; 
     string _asm_str, _hex_str;
+    GadgetType _type; 
+    Semantics * _semantics;
+    vector<addr_t> _addresses; 
     int _nb_instr, _nb_instr_ir; 
+    /* Stack pointer */ 
     int _sp_inc; 
     bool _known_sp_inc; 
+    /* Modified memory/regs */ 
     bool _reg_modified[NB_REGS_MAX]; 
     vector<ExprObjectPtr> _mem_read; 
-    vector<ExprObjectPtr> _mem_write; 
+    vector<ExprObjectPtr> _mem_write;
+    /* Return */  
     RetType _ret_type;
+    int _ret_reg; 
     CondObjectPtr _ret_pre_cond; 
-    Semantics * _semantics;  
-    bool unknown_sp_inc, unknown_ret_type; 
+    
     
     public:
         // Constructor 

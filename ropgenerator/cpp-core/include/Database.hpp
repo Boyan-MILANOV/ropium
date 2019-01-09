@@ -13,11 +13,9 @@ using std::vector;
 using std::unique_ptr; 
 
 enum QueryType {
-    CST,            /* constant */
-    REG_MUL_CST,    /* reg*cst */
-    REG_DIV_CST,    /* reg/cst */
-    REG_ADD_CST,    /* reg+cst */
-    MEM_ADD_CST,    /* mem[reg+cst]+cst*/
+    Q_CST,            /* constant */
+    Q_REG_BINOP_CST,    /* reg op cst */
+    Q_MEM_BINOP_CST,    /* mem op cst */
     Q_SYSCALL,        /* syscall */ 
     Q_INT80           /* int80 */
 };
@@ -37,7 +35,6 @@ class REGList{
         void add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets); 
         ~REGList();
 };
-
 
 class MEMList{
     unordered_map<cst_t, unique_ptr<CSTList>>* _addresses[COUNT_NB_BINOP][NB_REGS_MAX]; 
@@ -60,17 +57,16 @@ class MEMDict{
         ~MEMDict();
 };
 
-
 class Database{
     vector<Gadget*> _gadgets; 
     /* reg <- expr */ 
     CSTList* cst_to_reg[NB_REGS_MAX];
-    REGList* reg_cst_to_reg[NB_REGS_MAX];
-    MEMList* mem_cst_to_reg[NB_REGS_MAX]; 
+    REGList* reg_binop_cst_to_reg[NB_REGS_MAX];
+    MEMList* mem_binop_cst_to_reg[NB_REGS_MAX]; 
     /* mem <- expr */ 
     MEMDict<CSTList> cst_to_mem; 
-    MEMDict<REGList> reg_cst_to_mem; 
-    MEMDict<MEMList> mem_cst_to_mem; 
+    MEMDict<REGList> reg_binop_cst_to_mem; 
+    MEMDict<MEMList> mem_binop_cst_to_mem; 
     // TODO Syscalls and INT80 
 
     public: 
@@ -79,8 +75,5 @@ class Database{
         Gadget* get_gadget(int num);
         ~Database(); 
 };
-
-
-
 
 #endif 

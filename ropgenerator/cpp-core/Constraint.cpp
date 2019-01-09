@@ -1,6 +1,7 @@
 #include "Constraint.hpp"
 #include "Architecture.hpp"
 #include "Expression.hpp"
+#include "Condition.hpp"
 #include <algorithm>
 #include <cstring>
 
@@ -18,9 +19,9 @@ SubConstraint* ConstrReturn::copy(){
 }
 
 pair<ConstrEval,CondObjectPtr> ConstrReturn::verify(Gadget* g){
-    if  (( _ret && (g->ret_type() == RET))  || 
-        ( _jmp && (g->ret_type() == JMP))  ||
-        ( _call && (g->ret_type() == CALL)))
+    if  (( _ret && (g->ret_type() == RET_RET))  || 
+        ( _jmp && (g->ret_type() == RET_JMP))  ||
+        ( _call && (g->ret_type() == RET_CALL)))
         return g->ret_pre_cond()->cond_ptr()->type() == COND_TRUE ? make_pair(EVAL_VALID, g->ret_pre_cond()):
                                                         make_pair(EVAL_MAYBE, g->ret_pre_cond());
     else
@@ -367,7 +368,23 @@ AssertRegsEqual::AssertRegsEqual( bool array[NB_REGS_MAX][NB_REGS_MAX]): SubAsse
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
 }       
 
-bool AssertRegsEqual::validate( CondObjectPtr* c){}
+void AssertRegsEqual::add(int reg1, int reg2){
+    _regs[reg1][reg2] = true; 
+    _regs[reg2][reg1] = true; 
+}
+
+/* Precondition: c is an equal comparison */ 
+bool AssertRegsEqual::validate( CondObjectPtr c){
+    int l_reg, r_reg, l_inc, r_inc; 
+    bool l_is_inc, r_is_inc; 
+    std::tie(l_is_inc, l_reg, l_inc) = c->cond_ptr()->left_expr_ptr()->is_reg_increment(); 
+    std::tie(r_is_inc, r_reg, r_inc) = c->cond_ptr()->right_expr_ptr()->is_reg_increment(); 
+    if( (!l_is_inc) || (!r_is_inc) || (l_inc != r_inc) )
+        return false; 
+    else
+        return _regs[l_reg][r_reg]; 
+}
+
 SubAssertion* AssertRegsEqual::copy(){
     return new AssertRegsEqual(_regs);
 }
@@ -381,8 +398,21 @@ AssertRegsNoOverlap::AssertRegsNoOverlap(bool array[NB_REGS_MAX][NB_REGS_MAX]): 
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
 }
 
-bool AssertRegsNoOverlap::validate( CondObjectPtr* c){
-    //TODO
+void AssertRegsNoOverlap::add(int reg1, int reg2){
+    _regs[reg1][reg2] = true; 
+    _regs[reg2][reg1] = true; 
+}
+
+/* Pre-condition: condition is !=, <= , or < */ 
+bool AssertRegsNoOverlap::validate( CondObjectPtr c){
+    int l_reg, r_reg, l_inc, r_inc; 
+    bool l_is_inc, r_is_inc; 
+    std::tie(l_is_inc, l_reg, l_inc) = c->cond_ptr()->left_expr_ptr()->is_reg_increment(); 
+    std::tie(r_is_inc, r_reg, r_inc) = c->cond_ptr()->right_expr_ptr()->is_reg_increment(); 
+    if( !l_is_inc || !r_is_inc )
+        return false; 
+    else
+        return _regs[l_reg][r_reg]; 
 }
 
 SubAssertion* AssertRegsNoOverlap::copy(){
@@ -396,9 +426,26 @@ AssertValidRead::AssertValidRead(): SubAssertion(ASSERT_VALID_READ){
 AssertValidRead::AssertValidRead(bool* array): SubAssertion(ASSERT_VALID_READ){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX);
 }
-bool AssertValidRead::validate( CondObjectPtr* c){
-    // TODO
+
+void AssertValidRead::add(int reg){
+    _regs[reg] = true; 
+} 
+
+// 4092 IS ARBITRARY HERE 
+/* if ebp is valid then ebp +- MAX_VALID... is also valid */ 
+#define MAX_VALID_READ_OFFSET 4092 
+
+/* Pre-condition: condition is CondValidRead */ 
+bool AssertValidRead::validate( CondObjectPtr c){
+    int reg, inc; 
+    bool is_inc; 
+    std::tie(is_inc, reg, inc) = c->cond_ptr()->arg_expr_ptr()->is_reg_increment(); 
+    if( is_inc && inc < MAX_VALID_READ_OFFSET && inc > -MAX_VALID_READ_OFFSET){
+        return _regs[reg];
+    }else
+        return false; 
 }
+
 SubAssertion* AssertValidRead::copy(){
     return new AssertValidRead(_regs);
 }
@@ -411,8 +458,21 @@ AssertValidWrite::AssertValidWrite(): SubAssertion(ASSERT_VALID_WRITE){
 AssertValidWrite::AssertValidWrite(bool* array): SubAssertion(ASSERT_VALID_WRITE){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX);
 }
-bool AssertValidWrite::validate( CondObjectPtr* c){
-    // TODO 
+
+void AssertValidWrite::add(int reg){
+    _regs[reg] = true; 
+} 
+
+#define MAX_VALID_WRITE_OFFSET 4092
+/* Pre-condition: condition is CondValidWrite */ 
+bool AssertValidWrite::validate( CondObjectPtr c){
+    int reg, inc; 
+    bool is_inc; 
+    std::tie(is_inc, reg, inc) = c->cond_ptr()->arg_expr_ptr()->is_reg_increment(); 
+    if( is_inc && inc < MAX_VALID_WRITE_OFFSET && inc > MAX_VALID_WRITE_OFFSET ){
+        return _regs[reg];
+    }else
+        return false; 
 }
 SubAssertion* AssertValidWrite::copy(){
     return new AssertValidWrite(_regs);
@@ -429,9 +489,27 @@ AssertRegSupTo::AssertRegSupTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX])
         _limit[i] = limit[i];
     }
 }
-bool AssertRegSupTo::validate( CondObjectPtr* c){
-    // TODO
+void AssertRegSupTo::add(int reg, cst_t cst ){
+    _regs[reg] = true; 
+    _limit[reg] = cst; 
 }
+
+/* Pre-condition: condition is < or <= */ 
+bool AssertRegSupTo::validate( CondObjectPtr c){
+    if( c->cond_ptr()->left_expr_ptr()->type() == EXPR_CST && 
+        c->cond_ptr()->right_expr_ptr()->type() == EXPR_REG){
+        if( c->cond_ptr()->type() == COND_LT )
+            return  _regs[c->cond_ptr()->right_expr_ptr()->num()] &&
+                    _limit[c->cond_ptr()->right_expr_ptr()->num()] < c->cond_ptr()->left_expr_ptr()->value(); 
+        else if( c->cond_ptr()->type() == COND_LE )
+            return _regs[c->cond_ptr()->right_expr_ptr()->num()] &&
+                    _limit[c->cond_ptr()->right_expr_ptr()->num()] <= c->cond_ptr()->left_expr_ptr()->value()+1; 
+        else
+            throw "Error, unexpected cond type !!!";
+    }else
+        return false; 
+}
+
 SubAssertion* AssertRegSupTo::copy(){
     return new AssertRegSupTo(_regs, _limit); 
 }
@@ -447,8 +525,25 @@ AssertRegInfTo::AssertRegInfTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX])
         _limit[i] = limit[i];
     }
 }
-bool AssertRegInfTo::validate( CondObjectPtr* c){
-    // TODO
+void AssertRegInfTo::add(int reg, cst_t cst ){
+    _regs[reg] = true; 
+    _limit[reg] = cst; 
+}
+
+/* Pre-condition: condition is < or <= */ 
+bool AssertRegInfTo::validate( CondObjectPtr c){
+    if( c->cond_ptr()->left_expr_ptr()->type() == EXPR_REG && 
+        c->cond_ptr()->right_expr_ptr()->type() == EXPR_CST){
+        if( c->cond_ptr()->type() == COND_LT )
+            return  _regs[c->cond_ptr()->right_expr_ptr()->num()] &&
+                    _limit[c->cond_ptr()->right_expr_ptr()->num()] < c->cond_ptr()->left_expr_ptr()->value(); 
+        else if( c->cond_ptr()->type() == COND_LE )
+            return _regs[c->cond_ptr()->right_expr_ptr()->num()] &&
+                    _limit[c->cond_ptr()->right_expr_ptr()->num()] <= c->cond_ptr()->left_expr_ptr()->value()-1; 
+        else
+            throw "Error, unexpected cond type !!!";
+    }else
+        return false; 
 }
 SubAssertion* AssertRegInfTo::copy(){
     return new AssertRegInfTo(_regs, _limit); 
