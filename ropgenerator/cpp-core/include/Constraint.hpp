@@ -128,6 +128,10 @@ class SubAssertion{
         SubAssertionType type();
         // Functions of child classes
         virtual SubAssertion* copy(){throw "Should not be called here";}
+        // From AssertRegsEqual
+        virtual void add(int reg1, int reg2){throw "Should not be called here";}
+        // From AssertValidRead
+        void add(int reg); 
 };
 
 class AssertRegsEqual: public SubAssertion{
@@ -136,7 +140,8 @@ class AssertRegsEqual: public SubAssertion{
     public:
         AssertRegsEqual();
         AssertRegsEqual( bool array[NB_REGS_MAX][NB_REGS_MAX]);
-        bool validate( CondObjectPtr* c);
+        void add(int reg1, int reg2);
+        bool validate( CondObjectPtr c);
         virtual SubAssertion* copy(); 
 };
 
@@ -146,7 +151,8 @@ class AssertRegsNoOverlap: SubAssertion{
     public: 
         AssertRegsNoOverlap();
         AssertRegsNoOverlap( bool array[NB_REGS_MAX][NB_REGS_MAX]);
-        bool validate( CondObjectPtr* c);
+        void add(int reg1, int reg2);
+        bool validate( CondObjectPtr c);
         virtual SubAssertion* copy(); 
 };
 
@@ -156,7 +162,8 @@ class AssertValidRead: SubAssertion{
     public: 
         AssertValidRead();
         AssertValidRead(bool* array);
-        bool validate( CondObjectPtr* c);
+        void add(int reg); 
+        bool validate( CondObjectPtr c);
         virtual SubAssertion* copy();
 };
 
@@ -166,7 +173,8 @@ class AssertValidWrite: SubAssertion{
     public: 
         AssertValidWrite();
         AssertValidWrite(bool* array);
-        bool validate( CondObjectPtr* c);
+        void add(int reg); 
+        bool validate( CondObjectPtr c);
         virtual SubAssertion* copy();
 };
 
@@ -177,7 +185,8 @@ class AssertRegSupTo: SubAssertion{
     public: 
         AssertRegSupTo(); 
         AssertRegSupTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX]);
-        bool validate( CondObjectPtr* c);
+        void add(int reg, cst_t cst ); 
+        bool validate( CondObjectPtr c);
         virtual SubAssertion* copy();
 };
 
@@ -188,7 +197,8 @@ class AssertRegInfTo: SubAssertion{
     public: 
         AssertRegInfTo(); 
         AssertRegInfTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX]);
-        bool validate( CondObjectPtr* c);
+        void add(int reg, cst_t cst ); 
+        bool validate( CondObjectPtr c);
         virtual SubAssertion* copy();
 };
 

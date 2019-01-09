@@ -7,7 +7,7 @@ Gadget::Gadget(int id, IRBlock* irblock): _id(id){
     vector<reg_pair>::iterator reg_it; 
     vector<SPair>::iterator spair_it; 
     vector<SPair>* p;
-    int i;
+    int i, ret_reg;
     bool is_inc;
     cst_t inc;
     
@@ -42,8 +42,37 @@ Gadget::Gadget(int id, IRBlock* irblock): _id(id){
     // Get the memory reads and writes from the irblock 
     _mem_read = irblock->mem_reads();
     _mem_write = irblock->mem_writes();
-    // Get the return type 
-    // TODO 
+    // Get the return type
+    // Test for call
+    // TODO
+    // Test for ret/jmp 
+    _ret_type = RET_UNKNOWN; 
+    if( _known_sp_inc && ((p = _semantics->get_reg(curr_arch()->ip())) != nullptr)){
+        for( spair_it = p->begin(); spair_it != p->end(); spair_it++){
+            // Is it jmp ? 
+            std::tie(is_inc, ret_reg, inc) = spair_it->expr_ptr()->is_reg_increment();
+            if( is_inc ){
+                _ret_reg = ret_reg;  
+                _ret_type = RET_JMP;
+                _ret_pre_cond = spair_it->cond();  
+                break;
+            }else if( spair_it->expr_ptr()->type() == EXPR_MEM ){
+                std::tie(is_inc, inc) = spair_it->expr_ptr()->addr_expr_ptr()->is_reg_increment(curr_arch()->sp());
+                if( is_inc && (inc == _sp_inc - curr_arch()->octets())){
+                    _ret_type = RET_RET; 
+                    _ret_reg = -1; 
+                    _ret_pre_cond = spair_it->cond(); 
+                    break; 
+                }
+            }
+        }
+    }
+    if( _ret_type == RET_UNKNOWN ){
+        _ret_reg = -1; 
+        _ret_pre_cond = NewCondFalse(); 
+    }
+    
+    
 }
 
 // Accessors 
