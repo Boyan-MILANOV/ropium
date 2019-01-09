@@ -78,7 +78,7 @@ Gadget::Gadget(int id, IRBlock* irblock): _id(id){
 // Accessors 
 int Gadget::id(){return _id;}
 GadgetType Gadget::type(){return _type;}
-vector<addr_t>* Gadget::addresses(){return &_addresses;}
+vector<addr_t> Gadget::addresses(){return _addresses;}
 string Gadget::asm_str(){return _asm_str;}
 string Gadget::hex_str(){return _hex_str;}
 int Gadget::nb_instr(){return _nb_instr;}

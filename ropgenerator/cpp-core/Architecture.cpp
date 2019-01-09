@@ -47,17 +47,17 @@ Architecture arch_X64 = Architecture(
 );
 
 // global variable for selected architecture 
-Architecture* current_arch; 
+Architecture* g_current_arch; 
 
 // Module wide functions to set global variables 
 bool set_arch(ArchType a){
     if( a == ARCH_X86 )
-        current_arch = &arch_X86; 
+        g_current_arch = &arch_X86; 
     else if( a == ARCH_X64 )
-        current_arch = &arch_X64; 
+        g_current_arch = &arch_X64; 
     else
         return false; 
     return true; 
 }
 
-Architecture* curr_arch(){ return current_arch;}
+Architecture* curr_arch(){ return g_current_arch;}

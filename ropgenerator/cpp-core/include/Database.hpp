@@ -76,4 +76,7 @@ class Database{
         ~Database(); 
 };
 
+Database* gadget_db();
+void set_gadget_db();  
+
 #endif 
