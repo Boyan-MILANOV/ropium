@@ -1,4 +1,7 @@
 #include "ROPChain.hpp"
+#include "Database.hpp"
+#include <cstdio>
+#include <algorithm>
 
 ROPChain::ROPChain(){}
 // Accessors
@@ -65,7 +68,28 @@ bool ROPChain::lthan(ROPChain* other){
     return _len < other->len(); 
 }
 
-string ROPChain::to_str_console(int bits, vector<unsigned char> bad_bytes){
+// String representation 
+string valid_addr_string(int octets, Gadget* g, vector<unsigned char> bad_bytes){
+    int i;
+    vector<addr_t>::iterator it; 
+    char addr[32], format[32];
+    // Get format (32 or 64 bits)
+    snprintf(format, sizeof(format), "%%%02dx", octets*2);
+    for( it = g->addresses().begin(); it != g->addresses().end(); it++){
+        // Test if bad bytes inside 
+        for( i=0; i < octets; i++)
+            if (std::find( bad_bytes.begin(), bad_bytes.end(), (unsigned char)( ((*it) >> i) & 0xff)) != bad_bytes.end())
+                break;
+        if( i == octets ){
+            // Found one ! Get the addr string 
+            snprintf(addr, sizeof(addr), format, *it);
+            return "0x"+string(addr);
+        }
+    }
+    throw "Error, No valid address found for the gadget to print ! :( ";
+}
+
+string ROPChain::to_str_console(int octets, vector<unsigned char> bad_bytes){
     stringstream ss;
     vector<int>::iterator it; 
     

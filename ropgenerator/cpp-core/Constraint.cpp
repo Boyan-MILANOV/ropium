@@ -57,7 +57,7 @@ bool ConstrBadBytes::verify_address(addr_t a){
 
 pair<ConstrEval,CondObjectPtr> ConstrBadBytes::verify(Gadget* g){
     vector<addr_t>::iterator it; 
-    for( it = g->addresses()->begin(); it != g->addresses()->end(); it++){
+    for( it = g->addresses().begin(); it != g->addresses().end(); it++){
         if( ! verify_address(*it))
             return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
     }
@@ -247,6 +247,8 @@ SubAssertionType SubAssertion::type(){return _type;}
 // AssertRegsEqual
 AssertRegsEqual::AssertRegsEqual(): SubAssertion(ASSERT_REGS_EQUAL){
     std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
+    for( int i =0; i < NB_REGS_MAX; i++)
+        _regs[i][i] = true; 
 }       
 AssertRegsEqual::AssertRegsEqual( bool array[NB_REGS_MAX][NB_REGS_MAX]): SubAssertion(ASSERT_REGS_EQUAL){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
@@ -288,6 +290,8 @@ void AssertRegsEqual::merge(SubAssertion* a, bool del){
 // AssertRegsNoOverlap
 AssertRegsNoOverlap::AssertRegsNoOverlap(): SubAssertion(ASSERT_REGS_NO_OVERLAP){
     std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
+    for( int i =0; i < NB_REGS_MAX; i++)
+        _regs[i][i] = true; 
 }
 
 AssertRegsNoOverlap::AssertRegsNoOverlap(bool array[NB_REGS_MAX][NB_REGS_MAX]): SubAssertion(ASSERT_REGS_NO_OVERLAP){

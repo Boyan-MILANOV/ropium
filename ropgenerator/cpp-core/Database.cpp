@@ -119,3 +119,7 @@ template <class T> MEMDict<T>::~MEMDict(){
 }
 
 // TODO Implement Database class 
+
+
+Database * g_gadget_db; 
+
