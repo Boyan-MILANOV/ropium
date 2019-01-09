@@ -199,158 +199,42 @@ SubConstraint* ConstrSpInc::copy(){
 
 // Constraint class (collection of subconstraints)
 Constraint::Constraint(){
-    constr_return =  nullptr; 
-    constr_keep_regs = nullptr; 
-    constr_bad_bytes = nullptr; 
-    constr_valid_read = nullptr; 
-    constr_valid_write = nullptr; 
-    constr_sp_inc = nullptr; 
+    std::memset(_constr, 0, sizeof(SubConstraint*)*COUNT_NB_CONSTR); 
 }
 // Accessors 
 SubConstraint* Constraint::get(SubConstraintType t){
-    switch(t){
-        case CONSTR_RETURN:
-            return constr_return; 
-        case CONSTR_BAD_BYTES:
-            return constr_bad_bytes; 
-        case CONSTR_KEEP_REGS: 
-            return constr_keep_regs; 
-        case CONSTR_VALID_READ:
-            return constr_valid_read; 
-        case CONSTR_VALID_WRITE:
-            return constr_valid_write;
-        case CONSTR_SP_INC:
-            return constr_sp_inc; 
-        default:
-            throw "UNknown SubConstraintTYpe";
-    }
+    return _constr[t];
 }
 // Modifiers
 void Constraint::add(SubConstraint* c, bool del=false){
-    switch(c->type()){
-        case CONSTR_RETURN:
-            if( constr_return != nullptr )
-                constr_return->merge(c, del);
-            else
-                constr_return = (ConstrReturn*)c; 
-            break;
-        case CONSTR_BAD_BYTES:
-            if( constr_bad_bytes != nullptr )
-                constr_bad_bytes->merge(c,del); 
-            else
-                constr_bad_bytes = (ConstrBadBytes*)c; 
-            break;
-        case CONSTR_KEEP_REGS: 
-            if( constr_keep_regs != nullptr )
-                constr_keep_regs->merge(c, del);
-            else
-                constr_keep_regs = (ConstrKeepRegs*)c; 
-            break;
-        case CONSTR_VALID_READ: 
-            if( constr_keep_regs != nullptr )
-                constr_valid_read->merge(c,del);
-            else
-                constr_valid_read = (ConstrValidRead*)c; 
-            break;
-        case CONSTR_VALID_WRITE: 
-            if( constr_valid_write != nullptr )
-                constr_valid_write->merge(c,del);
-            else
-                constr_valid_write = (ConstrValidWrite*)c; 
-            break;
-        default:
-            throw "UNknown or unsupported SubConstraintType";
-    }
+    if( _constr[c->type()] != nullptr )
+        _constr[c->type()]->merge(c, del);
+    else
+        _constr[c->type()] = c; 
 }
-
 
 void Constraint::update(SubConstraint* c){
-    switch(c->type()){
-        case CONSTR_RETURN:
-            delete constr_return; 
-            constr_return = (ConstrReturn*)c;  
-            break;
-        case CONSTR_BAD_BYTES:
-            delete constr_bad_bytes; 
-            constr_bad_bytes = (ConstrBadBytes*)c;  
-            break;
-        case CONSTR_KEEP_REGS: 
-            delete constr_keep_regs; 
-            constr_keep_regs = (ConstrKeepRegs*)c; 
-            break;
-        case CONSTR_VALID_READ:
-            delete constr_valid_read; 
-            constr_valid_read = (ConstrValidRead*)c; 
-            break;
-        case CONSTR_VALID_WRITE:
-            delete constr_valid_write; 
-            constr_valid_write = (ConstrValidWrite*)c;
-            break;
-        case CONSTR_SP_INC:
-            delete constr_sp_inc; 
-            constr_sp_inc = (ConstrSpInc*)c; 
-            break; 
-        default:
-            throw "UNknown SubConstraintTYpe";
-    }
+    delete _constr[c->type()];
+    _constr[c->type()] = c; 
 }
+
 void Constraint::remove(SubConstraintType t){
-    switch(t){
-        case CONSTR_RETURN:
-            delete constr_return; 
-            constr_return = nullptr;  
-            break;
-        case CONSTR_BAD_BYTES:
-            delete constr_bad_bytes; 
-            constr_bad_bytes = nullptr;  
-            break;
-        case CONSTR_KEEP_REGS: 
-            delete constr_keep_regs; 
-            constr_keep_regs = nullptr; 
-            break;
-        case CONSTR_VALID_READ:
-            delete constr_valid_read; 
-            constr_valid_read = nullptr; 
-            break;
-        case CONSTR_VALID_WRITE:
-            delete constr_valid_write; 
-            constr_valid_write = nullptr;
-            break;
-        case CONSTR_SP_INC:
-            delete constr_sp_inc; 
-            constr_sp_inc = nullptr; 
-            break; 
-        default:
-            throw "UNknown SubConstraintTYpe";
-    }
+    delete _constr[t];
+    _constr[t] = nullptr; 
 }
 
 // Copy 
 Constraint* Constraint::copy(){
     Constraint * res = new Constraint();
-    res->add(constr_return->copy());
-    res->add(constr_bad_bytes->copy());
-    res->add(constr_keep_regs->copy());
-    res->add(constr_valid_read->copy());
-    res->add(constr_valid_write->copy());
-    res->add(constr_sp_inc->copy());
+    for( int i = 0; i < COUNT_NB_CONSTR; i++)
+        res->add(_constr[i]->copy());
     return res; 
 }
 
 // Destructor 
 Constraint::~Constraint(){
-    if( constr_return != nullptr )
-        delete constr_return;
-    if( constr_bad_bytes != nullptr )
-        delete constr_bad_bytes;
-    if( constr_keep_regs != nullptr )
-        delete constr_keep_regs; 
-    if( constr_valid_read != nullptr )
-        delete constr_valid_read; 
-    if( constr_valid_write != nullptr )
-        delete constr_valid_write; 
-    if( constr_sp_inc != nullptr )
-        delete constr_sp_inc; 
+    for( int i = 0; i < COUNT_NB_CONSTR; i++)
+        delete _constr[i];
 }
 
 /*
@@ -367,6 +251,8 @@ AssertRegsEqual::AssertRegsEqual(): SubAssertion(ASSERT_REGS_EQUAL){
 AssertRegsEqual::AssertRegsEqual( bool array[NB_REGS_MAX][NB_REGS_MAX]): SubAssertion(ASSERT_REGS_EQUAL){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
 }       
+
+bool ** AssertRegsEqual::regs(){return (bool**)_regs;}
 
 void AssertRegsEqual::add(int reg1, int reg2){
     _regs[reg1][reg2] = true; 
@@ -389,6 +275,16 @@ SubAssertion* AssertRegsEqual::copy(){
     return new AssertRegsEqual(_regs);
 }
 
+void AssertRegsEqual::merge(SubAssertion* a, bool del){
+    if( a->type() != _type )
+        throw "Merging wrong assertion !!";
+    for( int i=0; i<NB_REGS_MAX; i++)
+        for( int j=0; j<NB_REGS_MAX; j++)
+            _regs[i][j] |= a->regs()[i][j];
+    if( del )
+        delete a; 
+}
+
 // AssertRegsNoOverlap
 AssertRegsNoOverlap::AssertRegsNoOverlap(): SubAssertion(ASSERT_REGS_NO_OVERLAP){
     std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
@@ -397,6 +293,8 @@ AssertRegsNoOverlap::AssertRegsNoOverlap(): SubAssertion(ASSERT_REGS_NO_OVERLAP)
 AssertRegsNoOverlap::AssertRegsNoOverlap(bool array[NB_REGS_MAX][NB_REGS_MAX]): SubAssertion(ASSERT_REGS_NO_OVERLAP){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
 }
+
+bool ** AssertRegsNoOverlap::regs(){return (bool**)_regs;}
 
 void AssertRegsNoOverlap::add(int reg1, int reg2){
     _regs[reg1][reg2] = true; 
@@ -419,6 +317,16 @@ SubAssertion* AssertRegsNoOverlap::copy(){
     return new AssertRegsNoOverlap(_regs);
 }
 
+void AssertRegsNoOverlap::merge(SubAssertion* a, bool del){
+    if( a->type() != _type )
+        throw "Merging wrong assertion !!";
+    for( int i=0; i<NB_REGS_MAX; i++)
+        for( int j=0; j<NB_REGS_MAX; j++)
+            _regs[i][j] |= a->regs()[i][j];
+    if( del )
+        delete a; 
+}
+
 // AssertValidRead
 AssertValidRead::AssertValidRead(): SubAssertion(ASSERT_VALID_READ){
     std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
@@ -426,6 +334,8 @@ AssertValidRead::AssertValidRead(): SubAssertion(ASSERT_VALID_READ){
 AssertValidRead::AssertValidRead(bool* array): SubAssertion(ASSERT_VALID_READ){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX);
 }
+
+bool* AssertValidRead::reg(){return _regs;}
 
 void AssertValidRead::add(int reg){
     _regs[reg] = true; 
@@ -450,6 +360,14 @@ SubAssertion* AssertValidRead::copy(){
     return new AssertValidRead(_regs);
 }
 
+void AssertValidRead::merge(SubAssertion* a, bool del){
+    if( a->type() != _type )
+        throw "Merging wrong assertion !!";
+    for( int i=0; i<NB_REGS_MAX; i++)
+        _regs[i] |= a->reg()[i];
+    if( del )
+        delete a; 
+}
 
 // AssertValidWrite
 AssertValidWrite::AssertValidWrite(): SubAssertion(ASSERT_VALID_WRITE){
@@ -458,6 +376,8 @@ AssertValidWrite::AssertValidWrite(): SubAssertion(ASSERT_VALID_WRITE){
 AssertValidWrite::AssertValidWrite(bool* array): SubAssertion(ASSERT_VALID_WRITE){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX);
 }
+
+bool* AssertValidWrite::reg(){return _regs;}
 
 void AssertValidWrite::add(int reg){
     _regs[reg] = true; 
@@ -478,6 +398,15 @@ SubAssertion* AssertValidWrite::copy(){
     return new AssertValidWrite(_regs);
 }
 
+void AssertValidWrite::merge(SubAssertion* a, bool del){
+    if( a->type() != _type )
+        throw "Merging wrong assertion !!";
+    for( int i=0; i<NB_REGS_MAX; i++)
+        _regs[i] |= a->reg()[i];
+    if( del )
+        delete a; 
+}
+
 // AssertRegSupTo
 AssertRegSupTo::AssertRegSupTo(): SubAssertion(ASSERT_REG_SUP_TO){
     std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
@@ -489,6 +418,9 @@ AssertRegSupTo::AssertRegSupTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX])
         _limit[i] = limit[i];
     }
 }
+bool* AssertRegSupTo::reg(){return _regs;}
+cst_t* AssertRegSupTo::limit(){return _limit;}
+
 void AssertRegSupTo::add(int reg, cst_t cst ){
     _regs[reg] = true; 
     _limit[reg] = cst; 
@@ -514,7 +446,19 @@ SubAssertion* AssertRegSupTo::copy(){
     return new AssertRegSupTo(_regs, _limit); 
 }
 
+void AssertRegSupTo::merge(SubAssertion* a, bool del){
+    if( a->type() != _type )
+        throw "Merging wrong assertion !!";
+    for( int i=0; i<NB_REGS_MAX; i++){
+        _regs[i] |= a->reg()[i];
+        if( a->limit()[i] > _limit[i] )
+            _limit[i] = a->limit()[i]; 
+    }
+    if( del )
+        delete a; 
+}
 
+// AssertRegInfTo
 AssertRegInfTo::AssertRegInfTo(): SubAssertion(ASSERT_REG_INF_TO){
     std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
 }
@@ -525,6 +469,9 @@ AssertRegInfTo::AssertRegInfTo(bool regs[NB_REGS_MAX], cst_t limit[NB_REGS_MAX])
         _limit[i] = limit[i];
     }
 }
+bool* AssertRegInfTo::reg(){return _regs;}
+cst_t* AssertRegInfTo::limit(){return _limit;}
+
 void AssertRegInfTo::add(int reg, cst_t cst ){
     _regs[reg] = true; 
     _limit[reg] = cst; 
@@ -547,5 +494,55 @@ bool AssertRegInfTo::validate( CondObjectPtr c){
 }
 SubAssertion* AssertRegInfTo::copy(){
     return new AssertRegInfTo(_regs, _limit); 
+}
+
+void AssertRegInfTo::merge(SubAssertion* a, bool del){
+    if( a->type() != _type )
+        throw "Merging wrong assertion !!";
+    for( int i=0; i<NB_REGS_MAX; i++){
+        _regs[i] |= a->reg()[i];
+        if( a->limit()[i] < _limit[i] )
+            _limit[i] = a->limit()[i]; 
+    }
+    if( del )
+        delete a; 
+}
+
+// Assertion class (collection of subassertions)
+Assertion::Assertion(){
+    std::memset(_assert, 0, COUNT_NB_ASSERT*sizeof(SubAssertion*)); 
+}
+
+void Assertion::add(SubAssertion* c, bool del=false){
+    if( _assert[c->type()] != nullptr )
+        _assert[c->type()]->merge(c, del);
+    else
+        _assert[c->type()] = c; 
+}
+
+void Assertion::update(SubAssertion* c){
+    delete _assert[c->type()]; 
+    _assert[c->type()] = c; 
+}
+
+void Assertion::remove(SubAssertionType t){
+    delete _assert[t]; 
+    _assert[t] = nullptr; 
+}
+
+bool Assertion::validate(CondObjectPtr c){
+    // TODO 
+}
+
+Assertion* Assertion::copy(){
+    Assertion * res = new Assertion();
+    for( int i = 0; i < COUNT_NB_ASSERT; i++)
+        res->add(_assert[i]->copy());
+    return res; 
+}
+
+Assertion::~Assertion(){
+    for( int i = 0; i < COUNT_NB_ASSERT; i++)
+        delete _assert[i]; 
 }
 

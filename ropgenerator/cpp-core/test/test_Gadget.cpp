@@ -1,6 +1,6 @@
-#include "../Symbolic.hpp"
-#include "../Gadget.hpp"
-#include "../Architecture.hpp"
+#include "Symbolic.hpp"
+#include "Gadget.hpp"
+#include "Architecture.hpp"
 
 int main(){
     IRBlock* block;
@@ -20,7 +20,7 @@ int main(){
         block->add_instr(IRInstruction(IR_STM, ArgReg(7,32), ArgEmpty(), ArgReg(8,32)));
         block->add_instr(IRInstruction(IR_LDM, ArgReg(9,32), ArgEmpty(), ArgReg(10,32)));
         
-        gadget = new Gadget(block);
+        gadget = new Gadget(0, block);
         cout << gadget->semantics(); 
         cout << gadget; 
         delete block; 
