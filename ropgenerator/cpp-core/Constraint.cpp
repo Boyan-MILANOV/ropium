@@ -477,7 +477,7 @@ void AssertRegInfTo::add(int reg, cst_t cst ){
     _limit[reg] = cst; 
 }
 
-/* Pre-condition: condition is < or <= */ 
+/* Pre-condition: condition is < or <= or != */ 
 bool AssertRegInfTo::validate( CondObjectPtr c){
     if( c->cond_ptr()->left_expr_ptr()->type() == EXPR_REG && 
         c->cond_ptr()->right_expr_ptr()->type() == EXPR_CST){
@@ -531,7 +531,24 @@ void Assertion::remove(SubAssertionType t){
 }
 
 bool Assertion::validate(CondObjectPtr c){
-    // TODO 
+    switch(c->cond_ptr()->type()){
+        case COND_TRUE:
+            return true; 
+        case COND_EQ:
+            return (_assert[ASSERT_REGS_EQUAL] != nullptr) && _assert[ASSERT_REGS_EQUAL]->validate(c);
+        case COND_NEQ:
+        case COND_LT:
+        case COND_LE:
+            return (_assert[ASSERT_REGS_NO_OVERLAP] != nullptr) && _assert[ASSERT_REGS_NO_OVERLAP]->validate(c);
+        case COND_AND:
+            return  validate(c->cond_ptr()->left_condobject_ptr()) && 
+                    validate(c->cond_ptr()->right_condobject_ptr());
+        case COND_OR:
+            return  validate(c->cond_ptr()->left_condobject_ptr()) && 
+                    validate(c->cond_ptr()->right_condobject_ptr());
+        default:
+            return false; 
+    }
 }
 
 Assertion* Assertion::copy(){
