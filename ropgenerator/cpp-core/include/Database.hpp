@@ -51,13 +51,13 @@ class MEMList{
 
 template<class T>
 class MEMDict{
-    unordered_map<cst_t, unique_ptr<T>>* _addresses[NB_REGS_MAX]; 
+    unordered_map<cst_t, unique_ptr<T>>* _addresses[COUNT_NB_BINOP][NB_REGS_MAX]; 
     public:  
         MEMDict();
-        void add_cst(int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets );
-        void add_reg(   int addr_reg, cst_t addr_cst, int reg, cst_t cst, Binop op, int gadget_num, \
+        void add_cst(Binop addr_op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets );
+        void add_reg(Binop addr_op, int addr_reg, cst_t addr_cst, int reg, cst_t cst, Binop op, int gadget_num, \
                         CondObjectPtr pre_cond, vector<Gadget*>& gadgets );
-        void add_mem(   int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, \
+        void add_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, \
                         Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets );
         ~MEMDict();
 };
