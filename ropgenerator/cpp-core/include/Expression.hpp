@@ -311,6 +311,7 @@ class ExprConcat: public Expr{
 class ExprUnknown: public Expr{
     public:
         ExprUnknown();
+        void print(ostream& os);
 }; 
 
 

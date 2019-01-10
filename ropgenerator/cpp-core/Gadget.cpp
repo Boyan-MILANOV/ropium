@@ -3,7 +3,7 @@
 #include "Expression.hpp"
 
 // Constructor 
-Gadget::Gadget(int id, IRBlock* irblock): _id(id){
+Gadget::Gadget(IRBlock* irblock){
     vector<reg_pair>::iterator reg_it; 
     vector<SPair>::iterator spair_it; 
     vector<SPair>* p;
@@ -13,9 +13,8 @@ Gadget::Gadget(int id, IRBlock* irblock): _id(id){
     
     // Get the semantics 
     _semantics = irblock->compute_semantics();
-    //_semantics->simplify_expressions(); 
-    //s_semantics->simplify_conditions(); 
-    //debug
+    _semantics->simplify(); 
+    _semantics->filter();
     
     // Set the different fields 
     // Get the registers that have been modified 
@@ -76,7 +75,6 @@ Gadget::Gadget(int id, IRBlock* irblock): _id(id){
 }
 
 // Accessors 
-int Gadget::id(){return _id;}
 GadgetType Gadget::type(){return _type;}
 vector<addr_t> Gadget::addresses(){return _addresses;}
 string Gadget::asm_str(){return _asm_str;}

@@ -26,7 +26,7 @@ using mem_pair=pair<ExprObjectPtr, vector<SPair>*>;
 
 class Semantics{
     vector<reg_pair> _regs;
-    vector<mem_pair> _mem; 
+    vector<mem_pair> _mem;
     public: 
         Semantics();
         void add_reg(int num, vector<SPair>* pairs);

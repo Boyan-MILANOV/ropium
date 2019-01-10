@@ -23,6 +23,7 @@ class SubConstraint{
         // Functions of child classes
         virtual SubConstraint* copy(){throw "Should not be called here";}
         virtual void merge(SubConstraint* c, bool del){throw "SHould not be called here";}
+        virtual pair<ConstrEval,CondObjectPtr> verify(Gadget* g){throw "SHould not be called here";}
         // From ConstrBadBytes
         vector<unsigned char>* bad_bytes(){throw "Should not be called here";}
         // From ValidPoitner
