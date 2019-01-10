@@ -146,6 +146,30 @@ template <class T> void MEMDict<T>::add_mem(Binop addr_op, int addr_reg, cst_t a
     t->add(op, mem_reg, mem_cst, cst, gadget_num, pre_cond, gadgets);
 }
 
+template <class T> vector<int> MEMDict<T>::find_cst(Binop addr_op, int addr_reg, cst_t addr_cst, cst_t cst, 
+                                            Constraint* c, Assertion* a, int n){
+    if( _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
+        return vector<int>();
+    else
+        return _addresses[addr_op][addr_reg]->at(addr_cst)->find(cst, c, a, n);
+}
+
+template <class T> vector<int> MEMDict<T>::find_reg(Binop addr_op, int addr_reg, cst_t addr_cst, int reg, cst_t cst, 
+                                            Binop op, Constraint* c, Assertion* a, int n){
+    if( _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
+        return vector<int>();
+    else
+        return _addresses[addr_op][addr_reg]->at(addr_cst)->find(op, reg, cst, c, a, n);
+}
+
+template <class T> vector<int> MEMDict<T>::find_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int src_reg, 
+                                            cst_t src_cst, cst_t cst, Binop op, Constraint* c, Assertion* a, int n){
+    if( _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
+        return vector<int>();
+    else
+        return _addresses[addr_op][addr_reg]->at(addr_cst)->find(op, src_reg, src_cst, cst, c, a, n);
+}
+
 template <class T> MEMDict<T>::~MEMDict(){
     for( int j=0; j < COUNT_NB_BINOP; j++)
         for( int i = 0; i < NB_REGS_MAX; i++)
@@ -295,6 +319,43 @@ void Database::add(Gadget* g){
 Gadget* Database::get(int num){
     return _gadgets.at(num); 
 }
+
+vector<int> Database::find_cst_to_reg(int reg_dest, cst_t cst, Constraint* c, Assertion* a, int n){
+    if( _cst_to_reg[reg_dest] != nullptr )
+        return _cst_to_reg[reg_dest]->find(cst, c, a, n);
+    else
+        return vector<int>();
+}
+
+vector<int> Database::find_reg_binop_cst_to_reg(int reg_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n){
+    if( _reg_binop_cst_to_reg[reg_dest] != nullptr )
+        return _reg_binop_cst_to_reg[reg_dest]->find(op, reg, cst, c, a, n);
+    else
+        return vector<int>();
+}
+
+vector<int> Database::find_mem_binop_cst_to_reg(int reg_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n){
+    if( _mem_binop_cst_to_reg[reg_dest] != nullptr )
+        return _mem_binop_cst_to_reg[reg_dest]->find(op, addr_reg, addr_cst, cst, c, a, n);
+    else
+        return vector<int>();
+}
+
+vector<int> Database::find_cst_to_mem(  Binop op_dest, int reg_dest, cst_t cst_dest, cst_t cst, 
+                                        Constraint* c, Assertion* a, int n){
+    return _cst_to_mem.find_cst(op_dest, reg_dest, cst_dest, cst, c, a, n);
+
+}
+vector<int> Database::find_reg_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int reg,
+                                    cst_t cst, Constraint* c, Assertion* a, int n){
+    return _reg_binop_cst_to_mem.find_reg(op_dest, reg_dest, cst_dest, reg, cst, op, c, a, n);
+}
+
+vector<int> Database::find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int addr_reg,
+                                    cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n){
+    return _mem_binop_cst_to_mem.find_mem( op_dest, reg_dest, cst_dest, addr_reg, addr_cst, cst, op, c, a, n);
+}
+
 
 Database::~Database(){
     for( int i = 0; i < NB_REGS_MAX; i++){

@@ -59,6 +59,12 @@ class MEMDict{
                         CondObjectPtr pre_cond, vector<Gadget*>& gadgets );
         void add_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, \
                         Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets );
+        vector<int> find_cst(Binop addr_op, int addr_reg, cst_t addr_cst, cst_t cst, 
+                                            Constraint* c, Assertion* a, int n);
+        vector<int> find_reg(Binop addr_op, int addr_reg, cst_t addr_cst, int reg, cst_t cst, 
+                                            Binop op, Constraint* c, Assertion* a, int n);
+        vector<int> find_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int src_reg, 
+                                            cst_t src_cst, cst_t cst, Binop op, Constraint* c, Assertion* a, int n);
         ~MEMDict();
 };
 
@@ -78,6 +84,13 @@ class Database{
         Database(); 
         void add(Gadget* g); 
         Gadget* get(int num);
+        vector<int> find_cst_to_reg(int reg_dest, cst_t cst, Constraint* c, Assertion* a, int n); 
+        vector<int> find_reg_binop_cst_to_reg(int reg_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n);
+        vector<int> find_mem_binop_cst_to_reg(int reg_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n);
+        vector<int> find_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, cst_t cst, Constraint* c, Assertion* a, int n); 
+        vector<int> find_reg_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n);
+        vector<int> find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n);
+        
         ~Database(); 
 };
 

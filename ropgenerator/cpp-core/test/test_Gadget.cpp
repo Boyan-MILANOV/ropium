@@ -8,7 +8,7 @@ int main(){
     int i; 
     
     set_arch(ARCH_X86); 
-    for( i = 0; i < 1; i++){
+    for( i = 0; i < 10000; i++){
         block = new IRBlock();
         // Add instructions
         block->add_instr(IRInstruction(IR_ADD, ArgReg(0,32), ArgReg(1,32), ArgReg(2,32))); 

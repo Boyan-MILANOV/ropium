@@ -1,6 +1,7 @@
 #include "Gadget.hpp"
 #include "Architecture.hpp"
 #include "Expression.hpp"
+#include "CommonUtils.hpp"
 
 // Constructor 
 Gadget::Gadget(IRBlock* irblock){
@@ -108,7 +109,7 @@ void Gadget::print(ostream& os){
     os << "\tHex: " << _hex_str << endl; 
     os << "\tAvailable addresses: "; 
     for( it = _addresses.begin(); it != _addresses.end(); it++)
-        os << *it; // TODO, format hex 
+        os << value_to_hex_str(curr_arch()->octets(), *it);
     os << endl; 
     if( _known_sp_inc )
         os << "\tSP increment: " << _sp_inc << endl; 
