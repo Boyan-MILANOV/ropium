@@ -71,8 +71,8 @@ class Database{
 
     public: 
         Database(); 
-        void add_gadget(Gadget* g); 
-        Gadget* get_gadget(int num);
+        void add(Gadget* g); 
+        Gadget* get(int num);
         ~Database(); 
 };
 

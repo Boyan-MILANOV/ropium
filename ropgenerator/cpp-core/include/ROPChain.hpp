@@ -34,6 +34,7 @@ class ROPChain{
         bool lthan(ROPChain* other); 
         // IO
         string to_str_console(int bits, vector<unsigned char> bad_bytes); 
+        string to_str_python(int octets, vector<unsigned char> bad_bytes, bool init, bool no_tab); 
 }; 
 
 #endif 
