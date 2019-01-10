@@ -106,7 +106,7 @@ class Constraint{
         void add(SubConstraint* c, bool del);
         void update(SubConstraint* c);
         void remove(SubConstraintType t);
-        CondObjectPtr verify(Gadget* g);
+        pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
         Constraint* copy(); 
         ~Constraint();
 };

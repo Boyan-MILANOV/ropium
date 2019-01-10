@@ -27,6 +27,27 @@ void CSTList::add(cst_t val, int gadget_num, CondObjectPtr pre_cond, vector<Gadg
     _pre_conds[val].insert(_pre_conds.at(val).begin()+insert_idx, pre_cond);
     
 }
+vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int n=1){
+    vector<int> res; 
+    Gadget* g; 
+    CondObjectPtr constr_cond, both_cond;
+    ConstrEval eval;  
+    if( _values.count(val) == 0)
+        return res; 
+    for( int i = 0; i < _values.at(val).size() && res.size() < n; i++){
+        g = gadget_db()->get(_values[val].at(i));
+        // Verify constraint 
+        std::tie(eval, constr_cond) = constr->verify(g); 
+        if( eval == EVAL_VALID || eval == EVAL_MAYBE){
+            // Check with assertion on pre-condition 
+            both_cond = constr_cond && _pre_conds[val].at(i);
+            if( assert->validate(both_cond) )
+                res.push_back(_values[val].at(i));
+        }
+    }
+    return res; 
+}
+
 
 /* REGList */ 
 REGList::REGList(){
@@ -37,6 +58,11 @@ void REGList::add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPt
     if( _values[op][reg_num] == nullptr )
         _values[op][reg_num] = new CSTList();
     _values[op][reg_num]->add(cst, gadget_num, pre_cond, gadgets);
+}
+vector<int> REGList::find(Binop op, int reg_num, cst_t cst, Constraint* constr, Assertion* assert, int n=1){
+    if( _values[op][reg_num] == nullptr )
+        return vector<int>();
+    return _values[op][reg_num]->find(cst, constr, assert, n);
 }
  
 REGList::~REGList(){
@@ -61,6 +87,15 @@ void MEMList::add(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_
         _addresses[op][addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<CSTList>(t)));
     }
     _addresses[op][addr_reg]->at(addr_cst)->add(cst, gadget_num, pre_cond, gadgets);
+}
+
+vector<int> MEMList::find(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* constr, Assertion* assert, int n=1){
+    if( _addresses[op][addr_reg] == nullptr )
+        return vector<int>();
+    else if( _addresses[op][addr_reg]->count(addr_cst) == 0 )
+        return vector<int>();
+    else
+        return _addresses[op][addr_reg]->at(addr_cst)->find(cst, constr, assert, n);
 }
 
 MEMList::~MEMList(){

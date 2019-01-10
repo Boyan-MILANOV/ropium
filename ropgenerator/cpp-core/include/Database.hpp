@@ -9,6 +9,7 @@ using std::vector;
 #include "Expression.hpp"
 #include "Condition.hpp"
 #include "Gadget.hpp"
+#include "Constraint.hpp"
 
 using std::unique_ptr; 
 
@@ -26,6 +27,8 @@ class CSTList{
     public:
         CSTList(); 
         void add(cst_t val, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets);
+        vector<int> find(cst_t val, Constraint* constr, Assertion* assert, int n);
+        
 };
 
 class REGList{
@@ -33,6 +36,7 @@ class REGList{
     public: 
         REGList(); 
         void add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets); 
+        vector<int> find(Binop op, int reg_num, cst_t cst, Constraint* constr, Assertion* assert, int n);
         ~REGList();
 };
 
@@ -41,6 +45,7 @@ class MEMList{
     public: 
         MEMList(); 
         void add(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*> gadgets );
+        vector<int> find(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* constr, Assertion* assert, int n);
         ~MEMList();
 };
 

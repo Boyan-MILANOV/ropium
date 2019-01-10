@@ -231,6 +231,10 @@ Constraint* Constraint::copy(){
     return res; 
 }
 
+pair<ConstrEval,CondObjectPtr> Constraint::verify(Gadget* g){
+    // TODO 
+}
+
 // Destructor 
 Constraint::~Constraint(){
     for( int i = 0; i < COUNT_NB_CONSTR; i++)
