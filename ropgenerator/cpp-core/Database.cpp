@@ -107,49 +107,49 @@ MEMList::~MEMList(){
 
 /* MEMDict */ 
 template <class T> MEMDict<T>::MEMDict(){
-    std::memset(_addresses, 0, sizeof(unordered_map<cst_t, unique_ptr<T>>*)*NB_REGS_MAX);
+    std::memset(_addresses, 0, sizeof(unordered_map<cst_t, unique_ptr<T>>*)*NB_REGS_MAX*COUNT_NB_BINOP);
 }
 
 /* For expressions of type mem + cst */ 
-template <class T> void MEMDict<T>::add_cst(int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets ){
+template <class T> void MEMDict<T>::add_cst(Binop addr_op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets ){
     T* t;
-    if( _addresses[addr_reg] == nullptr )
-        _addresses[addr_reg] = new unordered_map<cst_t, unique_ptr<T>>; 
-    if( _addresses[addr_reg]->count(addr_cst) == 0 ){
+    if( _addresses[addr_op][addr_reg] == nullptr )
+        _addresses[addr_op][addr_reg] = new unordered_map<cst_t, unique_ptr<T>>; 
+    if( _addresses[addr_op][addr_reg]->count(addr_cst) == 0 ){
         t = new T(); 
-        _addresses[addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<T>(t)));
+        _addresses[addr_op][addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<T>(t)));
     }
     t->add(cst, gadget_num, pre_cond, gadgets);
 }
 
 /* To store mem <- reg */ 
-template <class T> void MEMDict<T>::add_reg(int addr_reg, cst_t addr_cst, int reg, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets ){
+template <class T> void MEMDict<T>::add_reg(Binop addr_op, int addr_reg, cst_t addr_cst, int reg, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets ){
     T* t;
-    if( _addresses[addr_reg] == nullptr )
-        _addresses[addr_reg] = new unordered_map<cst_t, unique_ptr<T>>; 
-    if( _addresses[addr_reg].count(addr_cst) == 0 ){
+    if( _addresses[addr_op][addr_reg] == nullptr )
+        _addresses[addr_op][addr_reg] = new unordered_map<cst_t, unique_ptr<T>>; 
+    if( _addresses[addr_op][addr_reg]->count(addr_cst) == 0 ){
         t = new T(); 
-        _addresses[addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<T>(t)));
+        _addresses[addr_op][addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<T>(t)));
     }
     t->add(op, reg, cst, gadget_num, pre_cond, gadgets);
 }
 
 /* To store mem <- mem */ 
-template <class T> void MEMDict<T>::add_mem(int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets ){
+template <class T> void MEMDict<T>::add_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets ){
     T* t;
-    if( _addresses[addr_reg] == nullptr )
-        _addresses[addr_reg] = new unordered_map<cst_t, unique_ptr<T>>; 
-    if( _addresses[addr_reg].count(addr_cst) == 0 ){
+    if( _addresses[addr_op][addr_reg] == nullptr )
+        _addresses[addr_op][addr_reg] = new unordered_map<cst_t, unique_ptr<T>>; 
+    if( _addresses[addr_op][addr_reg]->count(addr_cst) == 0 ){
         t = new T(); 
-        _addresses[addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<T>(t)));
+        _addresses[addr_op][addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<T>(t)));
     }
     t->add(op, mem_reg, mem_cst, cst, gadget_num, pre_cond, gadgets);
 }
 
 template <class T> MEMDict<T>::~MEMDict(){
-    for( int i = 0; i < NB_REGS_MAX; i++)
-        if( _addresses[i] != nullptr )
-            delete _addresses[i];
+    for( int j=0; j < COUNT_NB_BINOP; j++)
+        for( int i = 0; i < NB_REGS_MAX; i++)
+            delete _addresses[j][i];
 }
 
 // TODO Implement Database class 
@@ -164,7 +164,9 @@ void Database::add(Gadget* g){
     vector<reg_pair>::iterator rit; 
     vector<mem_pair>::iterator mit; 
     vector<SPair>::iterator sit; 
-    int reg; 
+    int reg, addr_reg;
+    cst_t addr_cst;  
+    Binop addr_op; 
     int num = _gadgets.size(); 
     /* Add gadget to the list */ 
     _gadgets.push_back(g);
@@ -224,7 +226,70 @@ void Database::add(Gadget* g){
     }
     
     /* Get semantics for ... -> mem */ 
-    // TODO 
+    /* Note : This is very similar to the code above for registers, but I keep it 
+     * duplicated because the two cases might differ in the future */ 
+    for( mit = g->semantics()->mem().begin(); mit != g->semantics()->mem().end(); mit++){
+        /* Get address where we write */
+        tmp = (*mit).first->expr_ptr();
+        if( tmp->type() == EXPR_REG ){
+            addr_reg = tmp->num(); 
+            addr_cst = 0; 
+            addr_op = OP_ADD; 
+        }else if(   tmp->type() == EXPR_BINOP &&
+                    tmp->left_expr_ptr()->type() == EXPR_CST &&
+                    tmp->right_expr_ptr()->type() == EXPR_REG){
+            addr_reg = tmp->right_expr_ptr()->num(); 
+            addr_cst = tmp->left_expr_ptr()->value();
+            addr_op = tmp->binop(); 
+        }else // Not supported for memory addresses 
+            continue;
+            
+        /* Get possible values */ 
+        for( sit = (*mit).second->begin(); sit != (*mit).second->end(); sit++ ){
+            // cst -> mem ? 
+            if( sit->expr_ptr()->type() == EXPR_CST ){
+                _cst_to_mem.add_cst(addr_op, addr_reg, addr_cst, sit->expr_ptr()->value(), num, sit->cond(), _gadgets);
+            } // reg -> mem ? 
+            else if( sit->expr_ptr()->type() == EXPR_REG ){
+                _reg_binop_cst_to_mem.add_reg(addr_op, addr_reg, addr_cst,sit->expr_ptr()->num(), 0, OP_ADD, num, sit->cond(), _gadgets);
+            } 
+            else if( sit->expr_ptr()->type() == EXPR_BINOP ){
+                // reg binop cst -> mem
+                /* We don't check if left is the constant because expressions should be 
+                 * canonized */ 
+                if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_REG &&
+                    sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
+                    if( _reg_binop_cst_to_reg[reg] == nullptr )
+                        _reg_binop_cst_to_reg[reg] = new REGList();
+                    _reg_binop_cst_to_mem.add_reg( addr_op, addr_reg, addr_cst,  
+                        sit->expr_ptr()->left_expr_ptr()->num(),
+                        sit->expr_ptr()->right_expr_ptr()->value(),
+                        sit->expr_ptr()->binop(),
+                        num, sit->cond(), _gadgets
+                        );
+                } // mem binop cst -> mem
+                else if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_MEM &&
+                         sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
+                    // Check if mem is a binop itself ;)
+                    tmp =  sit->expr_ptr()->left_expr_ptr();
+                    if( tmp->type() == EXPR_BINOP &&
+                        tmp->left_expr_ptr()->type() == EXPR_REG &&
+                        tmp->right_expr_ptr()->type() == EXPR_CST){
+                        if( _mem_binop_cst_to_reg[reg] == nullptr){
+                            _mem_binop_cst_to_reg[reg] = new MEMList(); 
+                        }
+                        _mem_binop_cst_to_mem.add_mem(addr_op, addr_reg, addr_cst, 
+                            tmp->left_expr_ptr()->num(),
+                            tmp->right_expr_ptr()->value(),
+                            sit->expr_ptr()->right_expr_ptr()->value(),
+                            tmp->binop(),
+                            num, sit->cond(), _gadgets
+                            );
+                    }
+                }
+            } 
+        }
+    }
 } 
 
 Gadget* Database::get(int num){
