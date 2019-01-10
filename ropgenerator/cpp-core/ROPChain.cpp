@@ -1,6 +1,7 @@
 #include "ROPChain.hpp"
 #include "Database.hpp"
-#include <cstdio>
+#include "CommonUtils.hpp"
+#include "IO.hpp"
 #include <algorithm>
 
 ROPChain::ROPChain(){}
@@ -69,21 +70,16 @@ bool ROPChain::lthan(ROPChain* other){
 }
 
 // String representation 
-string valid_addr_string(int octets, Gadget* g, vector<unsigned char> bad_bytes){
+string valid_addr_str(int octets, Gadget* g, vector<unsigned char> bad_bytes){
     int i;
     vector<addr_t>::iterator it; 
-    char addr[32], format[32];
-    // Get format (32 or 64 bits)
-    snprintf(format, sizeof(format), "%%%02dx", octets*2);
     for( it = g->addresses().begin(); it != g->addresses().end(); it++){
         // Test if bad bytes inside 
         for( i=0; i < octets; i++)
             if (std::find( bad_bytes.begin(), bad_bytes.end(), (unsigned char)( ((*it) >> i) & 0xff)) != bad_bytes.end())
                 break;
         if( i == octets ){
-            // Found one ! Get the addr string 
-            snprintf(addr, sizeof(addr), format, *it);
-            return "0x"+string(addr);
+            return value_to_hex_str(octets, *it);
         }
     }
     throw "Error, No valid address found for the gadget to print ! :( ";
@@ -92,15 +88,53 @@ string valid_addr_string(int octets, Gadget* g, vector<unsigned char> bad_bytes)
 string ROPChain::to_str_console(int octets, vector<unsigned char> bad_bytes){
     stringstream ss;
     vector<int>::iterator it; 
+    int padd_num; 
     
     for(it = _chain.begin(); it != _chain.end(); it++){
         if( *it >= 0 ){
             // Gadget 
-            
+            ss << "\n\t" << str_special(valid_addr_str(octets, gadget_db()->get(*it), bad_bytes)) << " (" << 
+                str_bold(gadget_db()->get(*it)->asm_str()) << ")";
         }else{
             // Padding 
+            padd_num = -1*(*it)-1; 
+            ss << "\n\t" << value_to_hex_str(octets, _padding_values.at(padd_num)) << " (" << 
+            _padding_comments.at(padd_num) << ")"; 
         }
-        
+    } 
+    return ss.str(); 
+}
+
+string ROPChain::to_str_python(int octets, vector<unsigned char> bad_bytes, bool init=true, bool no_tab=false){
+    stringstream ss;
+    vector<int>::iterator it; 
+    int padd_num; 
+    string tab, pack, endian, p; 
+    
+    tab = no_tab ? "" : "\t"; 
+    p = "p"; 
+    if( octets == 4 )
+        endian = "'<I'";
+    else if( octets == 8 )
+        endian = "'<Q'";
+    else
+        return string("Doesn't support printing for non 4 or 8 octets");
+    pack = p + " += pack(" + endian + ","; 
+    
+    if( init )
+        ss << tab << "from struct import pack\n" << tab << p << "+= ''";   
+    
+    for(it = _chain.begin(); it != _chain.end(); it++){
+        if( *it >= 0 ){
+            // Gadget 
+            ss << "\n" << tab << pack << str_special(valid_addr_str(octets, gadget_db()->get(*it), bad_bytes)) <<
+                ") # " << str_bold(gadget_db()->get(*it)->asm_str());
+        }else{
+            // Padding 
+            padd_num = -1*(*it)-1; 
+            ss << "\n" << tab << pack << value_to_hex_str(octets, _padding_values.at(padd_num)) << ") # " << 
+            _padding_comments.at(padd_num); 
+        }
     } 
     return ss.str(); 
 }
