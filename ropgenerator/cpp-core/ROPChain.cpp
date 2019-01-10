@@ -12,11 +12,11 @@ int ROPChain::nb_instr(){return _nb_instr;}
 int ROPChain::nb_instr_ir(){return _nb_instr_ir;}
 
 // Modifiers
-void ROPChain::add_gadget(Gadget* g){
-    _chain.push_back(g->id());
+void ROPChain::add_gadget(int g){
+    _chain.push_back(g);
     _len++; 
-    _nb_instr += g->nb_instr();
-    _nb_instr_ir += g->nb_instr_ir(); 
+    _nb_instr += gadget_db()->get(g)->nb_instr();
+    _nb_instr_ir += gadget_db()->get(g)->nb_instr_ir();
     _nb_gadgets++; 
 }
 
@@ -135,6 +135,6 @@ string ROPChain::to_str_python(int octets, vector<unsigned char> bad_bytes, bool
             ss << "\n" << tab << pack << value_to_hex_str(octets, _padding_values.at(padd_num)) << ") # " << 
             _padding_comments.at(padd_num); 
         }
-    } 
+    }
     return ss.str(); 
 }
