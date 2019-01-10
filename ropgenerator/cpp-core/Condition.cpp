@@ -180,15 +180,14 @@ void CondObject::simplify(){
     _simplified = true;
 }
 
+/* Return true if unknown */ 
 bool CondObject::filter(){
     bool unknown = false; 
     if( _filtered )
-        return true; 
+        return (_cond_ptr->type() == COND_UNKNOWN); 
     _filtered = true; 
     
-    if(  is_const_cond(_cond_ptr->type()) ){
-        unknown = true; 
-    }else if( is_compare_cond(_cond_ptr->type()) ){
+    if( is_compare_cond(_cond_ptr->type()) ){
         unknown = !supported_compared_expr(_cond_ptr->left_expr_ptr()) || 
                   !supported_compared_expr(_cond_ptr->right_expr_ptr()); 
     }else if( is_binlogic_cond(_cond_ptr->type()) ){
@@ -199,7 +198,8 @@ bool CondObject::filter(){
     }
      
     if( unknown ){
-        _cond_ptr = special_NewCondPtrUnknown(); 
+        _cond_ptr = special_NewCondPtrUnknown();
+        return true; 
     }else
         return false; 
     
@@ -241,16 +241,17 @@ CondObjectPtr operator! (CondObjectPtr p1){
 }
 
 
+CondObjectPtr g_cond_true = make_shared<CondObject>(make_shared<CondConst>(COND_TRUE));
 CondObjectPtr NewCondTrue(){
-    return make_shared<CondObject>(make_shared<CondConst>(COND_TRUE));
+    return g_cond_true; 
 }
+CondObjectPtr g_cond_false = make_shared<CondObject>(make_shared<CondConst>(COND_FALSE));
 CondObjectPtr NewCondFalse(){
-    return make_shared<CondObject>(make_shared<CondConst>(COND_FALSE));
+    return g_cond_false; 
 }
 CondObjectPtr NewCondPointer(CondType t, ExprObjectPtr a){
     return make_shared<CondObject>(make_shared<CondPointer>(t, a));
 }
-/* To avoid creating thousands of CondUnknown that are the same */ 
 CondObjectPtr g_cond_unknown = make_shared<CondObject>(make_shared<CondUnknown>());
 CondObjectPtr NewCondUnknown(){
     return g_cond_unknown;

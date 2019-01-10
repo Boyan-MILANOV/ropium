@@ -232,7 +232,24 @@ Constraint* Constraint::copy(){
 }
 
 pair<ConstrEval,CondObjectPtr> Constraint::verify(Gadget* g){
-    // TODO 
+    ConstrEval eval; 
+    CondObjectPtr cond; 
+    CondObjectPtr res_cond = NewCondTrue(); 
+    if( g->type() == INT80 or g->type() == SYSCALL )
+        return make_pair(EVAL_VALID, NewCondTrue());
+    for( int i = 0; i < COUNT_NB_CONSTR; i++){
+        if( _constr[i] != nullptr ){
+            std:tie(eval, cond) = _constr[i]->verify(g);
+            if( eval == EVAL_INVALID )
+                return make_pair(EVAL_INVALID, NewCondFalse());
+            else if( eval == EVAL_VALID)
+                return make_pair(EVAL_VALID, NewCondTrue());
+            else{
+                res_cond = res_cond && cond; 
+            }
+        }
+    }
+    return make_pair(EVAL_MAYBE, res_cond);
 }
 
 // Destructor 

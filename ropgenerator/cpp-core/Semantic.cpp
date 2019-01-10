@@ -101,7 +101,7 @@ void Semantics::filter(){
     for(it = _regs.begin(); it != _regs.end(); it++ ){
         for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ ){
             (*pit).expr()->filter(); 
-            (*pit).cond()->filter(); 
+            (*pit).cond()->filter();
         }
     }
     

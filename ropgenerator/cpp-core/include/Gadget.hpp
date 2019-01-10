@@ -12,7 +12,6 @@ using addr_t= unsigned long long;
 
 class Gadget{
     /* General */ 
-    int _id; 
     string _asm_str, _hex_str;
     GadgetType _type; 
     Semantics * _semantics;
@@ -33,7 +32,7 @@ class Gadget{
     
     public:
         // Constructor 
-        Gadget(int id, IRBlock* irblock); 
+        Gadget(IRBlock* irblock); 
         // Accessors 
         int id(); 
         GadgetType type(); 
