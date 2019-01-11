@@ -89,11 +89,10 @@ setup(  name='ropgenerator',
         ],    
         packages=['ropgenerator'],
         scripts=[],
-        install_requires=[],
         keywords='rop generator chain gadget semantic automated exploit ropchain',
         zip_safe = False,
         data_files=[], 
-        setup_requires=['pybind11>=2.2'],
+        install_requires=['pybind11>=2.2'],
         # Cpp compilation 
         ext_modules=[
             Extension(
