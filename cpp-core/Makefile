@@ -1,7 +1,7 @@
 # Declaration of variables
 CC = g++
 #CC_FLAGS = -std=c++11 -Wall -Wextra -pedantic 
-CC_FLAGS = -std=c++11 -fpermissive 
+CC_FLAGS = -std=c++11 -fpermissive -O3 -fPIC
 CC_INC = include
 
 # File names
@@ -9,11 +9,14 @@ SOURCES = $(wildcard *.cpp)
 OBJECTS = $(SOURCES:.cpp=.o)
  
 # To obtain object files
-all: $(OBJECTS)	
+all: $(OBJECTS)	libropgenerator
 
 %.o: %.cpp
 	$(CC) -c $(CC_FLAGS) -I$(CC_INC) $< -o $@
- 
+
+libropgenerator:
+	$(CC) $(CC_FLAGS) -shared -o libropgenerator.so $(OBJECTS)
+	
 # To remove generated files
 clean:
 	rm -f $(OBJECTS)
