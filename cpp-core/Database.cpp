@@ -176,7 +176,7 @@ template <class T> MEMDict<T>::~MEMDict(){
             delete _addresses[j][i];
 }
 
-// TODO Implement Database class 
+/* Database */ 
 Database::Database(){
     std::memset( _cst_to_reg, 0, sizeof(CSTList*)*NB_REGS_MAX);
     std::memset( _reg_binop_cst_to_reg, 0, sizeof(REGList*)*NB_REGS_MAX);
@@ -366,8 +366,7 @@ Database::~Database(){
 }
 
 
-
-
+/* Global database variable to be used by ROPGenerator */ 
 Database * g_gadget_db = nullptr; 
 Database * gadget_db(){return g_gadget_db;}
 
