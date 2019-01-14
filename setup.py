@@ -104,7 +104,7 @@ setup(  name='ropgenerator',
         # Cpp compilation 
         ext_modules=[
             Extension(
-                'ropgenerator.core2_',
+                'ropgenerator.core_',
                 get_cpp_files(),
                 include_dirs=[
                     # Path to pybind11 headers
