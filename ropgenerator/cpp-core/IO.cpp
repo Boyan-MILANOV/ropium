@@ -37,7 +37,7 @@ void verbose(string s){
 }
 void banner(vector<string> s){
     char c = '_'; 
-    int max_len = 0; 
+    unsigned int max_len = 0; 
     vector<string>::iterator it; 
     string res = ""; 
     for( it = s.begin(); it != s.end(); it++){

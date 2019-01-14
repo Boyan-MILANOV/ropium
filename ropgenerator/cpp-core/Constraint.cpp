@@ -239,7 +239,7 @@ pair<ConstrEval,CondObjectPtr> Constraint::verify(Gadget* g){
         return make_pair(EVAL_VALID, NewCondTrue());
     for( int i = 0; i < COUNT_NB_CONSTR; i++){
         if( _constr[i] != nullptr ){
-            std:tie(eval, cond) = _constr[i]->verify(g);
+            std::tie(eval, cond) = _constr[i]->verify(g);
             if( eval == EVAL_INVALID )
                 return make_pair(EVAL_INVALID, NewCondFalse());
             else if( eval == EVAL_VALID)
