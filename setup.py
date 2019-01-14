@@ -46,6 +46,14 @@ def cpp_flag(compiler):
         raise RuntimeError('Unsupported compiler -- at least C++11 support '
                            'is needed!')
 
+def get_cpp_files():
+    """ Return the list of C files to compile 
+    """ 
+    core_dir = os.path.dirname(os.path.abspath(__file__))+'/ropgenerator/cpp-core/'
+    print("Core dir " + str(core_dir))
+    res = [core_dir+f for f in os.listdir(core_dir) if f.endswith(".cpp")]
+    print("[+] cpp files: " + str(res) )
+    return res
 
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
@@ -96,20 +104,17 @@ setup(  name='ropgenerator',
         # Cpp compilation 
         ext_modules=[
             Extension(
-                '_ropgenerato_core',
-                [os.path.join(os.path.dirname(__file__), 'python-bindings/PythonAPI.cpp')],
+                'ropgenerator.core2_',
+                get_cpp_files(),
                 include_dirs=[
                     # Path to pybind11 headers
                     str(get_pybind_include()),
                     str(get_pybind_include(user=True)),
-                    "cpp-core/include/"
+                    "ropgenerator/cpp-core/include/"
                 ],
-                libraries=['cpp-core/libropgenerator.so'],
                 language='c++'
             ),
         ],
         cmdclass={'build_ext': BuildExt}
-
     )
-
 
