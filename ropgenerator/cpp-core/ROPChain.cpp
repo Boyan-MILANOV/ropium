@@ -31,7 +31,7 @@ void ROPChain::add_padding(cst_t value, string comment="Padding", int n=1){
     _padding_comments.push_back(comment); 
     // Add to the chain 
     _len += n; 
-    for( ;n--; n>0)
+    for( ;n>0; n--)
         _chain.push_back(-1*num);
 }
 
@@ -61,11 +61,13 @@ void ROPChain::add_chain(ROPChain* other){
 
 // Sort
 bool ROPChain::lthan(ROPChain* other){
-    if( _len == other->len() )
-        if( _nb_instr == other->nb_instr() )
+    if( _len == other->len() ){
+        if( _nb_instr == other->nb_instr() ){
             if( _nb_instr_ir >= other->nb_instr_ir() )
                 return false; 
+        }
         return _nb_instr < other->nb_instr(); 
+    }
     return _len < other->len(); 
 }
 

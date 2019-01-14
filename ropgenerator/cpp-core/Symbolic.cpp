@@ -67,9 +67,10 @@ IRBlock::IRBlock(): _mem_write_cnt(0){
 bool IRBlock::add_instr(IRInstruction ins){
     if( _instr.size() == NB_INSTR_MAX )
         return false;
-    else
+    else{
         _instr.push_back(ins);
         return true;
+    }
 }
 
 vector<ExprObjectPtr> IRBlock::mem_writes(){return _mem_writes;}
@@ -221,7 +222,7 @@ vector<SPair>* IRBlock::execute_calculation(IROperation op, vector<SPair>* src1,
 void IRBlock::execute_stm(vector<SPair>* src1, vector<SPair>* dst, int& mem_write_cnt){
     int i;
     vector<SPair>::iterator value, addr, it;
-    vector<SPair> *tmp, *prev, *tmp2;
+    vector<SPair> *tmp, *prev;
     ExprObjectPtr prev_addr; 
     CondObjectPtr no_overwrite_cond; 
     int size; 
@@ -382,7 +383,7 @@ Semantics* IRBlock::compute_semantics(){
     }
     // Memory semantics 
     for( i = 0; i < mem_write_cnt; i++){
-        std:tie(addr, tmp) = _mem_table[i];
+        std::tie(addr, tmp) = _mem_table[i];
         res->add_mem(addr, new vector<SPair>(*tmp));
     }
     

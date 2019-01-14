@@ -275,7 +275,7 @@ class ExprUnop: public Expr{
 // Extraction Expression 
 class ExprExtract: public Expr{
     ExprObjectPtr _arg;
-    int _low, _high;
+    int _high, _low;
     public:
         // Constructor
         ExprExtract( ExprObjectPtr a, int high, int low);

@@ -119,7 +119,7 @@ template <class T> void MEMDict<T>::add_cst(Binop addr_op, int addr_reg, cst_t a
         t = new T(); 
         _addresses[addr_op][addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<T>(t)));
     }
-    t->add(cst, gadget_num, pre_cond, gadgets);
+   _addresses[addr_op][addr_reg]->at(addr_cst)->add(cst, gadget_num, pre_cond, gadgets);
 }
 
 /* To store mem <- reg */ 
@@ -131,7 +131,7 @@ template <class T> void MEMDict<T>::add_reg(Binop addr_op, int addr_reg, cst_t a
         t = new T(); 
         _addresses[addr_op][addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<T>(t)));
     }
-    t->add(op, reg, cst, gadget_num, pre_cond, gadgets);
+    _addresses[addr_op][addr_reg]->at(addr_cst)->add(op, reg, cst, gadget_num, pre_cond, gadgets);
 }
 
 /* To store mem <- mem */ 
@@ -143,7 +143,7 @@ template <class T> void MEMDict<T>::add_mem(Binop addr_op, int addr_reg, cst_t a
         t = new T(); 
         _addresses[addr_op][addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<T>(t)));
     }
-    t->add(op, mem_reg, mem_cst, cst, gadget_num, pre_cond, gadgets);
+    _addresses[addr_op][addr_reg]->at(addr_cst)->add(op, mem_reg, mem_cst, cst, gadget_num, pre_cond, gadgets);
 }
 
 template <class T> vector<int> MEMDict<T>::find_cst(Binop addr_op, int addr_reg, cst_t addr_cst, cst_t cst, 

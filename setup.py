@@ -73,6 +73,8 @@ class BuildExt(build_ext):
             opts.append(cpp_flag(self.compiler))
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
+            opts.append('-Wno-delete-non-virtual-dtor')
+            opts.append('-O3')
         elif ct == 'msvc':
             opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
         for ext in self.extensions:
@@ -96,7 +98,7 @@ setup(  name='ropgenerator',
         "Topic :: Security",
         ],    
         packages=['ropgenerator'],
-        scripts=[],
+        scripts=['ROPGenerator'],
         keywords='rop generator chain gadget semantic automated exploit ropchain',
         zip_safe = False,
         data_files=[], 
@@ -104,7 +106,7 @@ setup(  name='ropgenerator',
         # Cpp compilation 
         ext_modules=[
             Extension(
-                'ropgenerator.core_',
+                'ropgenerator_core_',
                 get_cpp_files(),
                 include_dirs=[
                     # Path to pybind11 headers
