@@ -7,7 +7,7 @@ using namespace pybind11::literals;
 #include "Symbolic.hpp"
 
 
-PYBIND11_MODULE(_ropgenerator_core, m){
+PYBIND11_MODULE(core_, m){
     /* IO Bindings */ 
     m.def("info", &info);
     m.def("notify", &notify);
