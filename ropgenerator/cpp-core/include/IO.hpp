@@ -21,8 +21,8 @@ void notify(string s);
 void error(string s);
 void fatal(string s);
 void verbose(string s);
-void banner(vector<string> s);
 
+string banner(vector<string> s);
 string str_bold(string s);
 string str_special(string s);
 string str_payload(string s);

@@ -1,9 +1,11 @@
 #include "IO.hpp"
 #include <iostream>
 #include <cstdio>
+#include <sstream>
 
 using std::cout; 
 using std::endl; 
+using std::stringstream;
 
 // Colors 
 string g_ROPGENERATOR_COLOR_ANSI = DEFAULT_ROPGENERATOR_COLOR_ANSI;
@@ -35,18 +37,6 @@ void verbose(string s){
     if( g_VERBOSE )
         cout << str_ropg("\t\t> ") << s << endl; 
 }
-void banner(vector<string> s){
-    char c = '_'; 
-    unsigned int max_len = 0; 
-    vector<string>::iterator it; 
-    string res = ""; 
-    for( it = s.begin(); it != s.end(); it++){
-        res += *it + "\n"; 
-        if( it->length() > max_len )
-            max_len = it->length(); 
-    }
-    cout << "\t" + string(max_len, c) + "\n" + res + string(max_len, c) + "\n"; 
-}
 
 // String coloration 
 string str_bold(string s){
@@ -66,6 +56,21 @@ string str_exploit(string s){
 }
 string str_semantic(string s){
     return g_SEMANTIC_MODE_ANSI + s + g_END_COLOR_ANSI; 
+}
+
+string banner(vector<string> s){
+    char c = '_'; 
+    unsigned int max_len = 0; 
+    vector<string>::iterator it; 
+    string res = ""; 
+    stringstream ss; 
+    for( it = s.begin(); it != s.end(); it++){
+        res += *it + "\n"; 
+        if( it->length() > max_len )
+            max_len = it->length(); 
+    }
+    ss << "\t" << string(max_len, c) << "\n" << res << string(max_len, c) << "\n";
+    return ss.str();
 }
 
 void remove_substr(string s, string sub ){
