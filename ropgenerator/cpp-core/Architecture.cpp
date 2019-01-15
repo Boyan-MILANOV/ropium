@@ -6,7 +6,7 @@ Architecture::Architecture(ArchType at, string n, int i, int s, int o,
             int b, int m, EndiannessType t, int nb, vector<int> ig): 
             _type(at), _name(n), _ip(i), _sp(s), _octets(o), _bits(b),
             _min_page_size(m), _endianness(t), _nb_regs(nb), _ignored_regs(ig)
-            {} 
+            {}
             
 string Architecture::name(){return _name;}
 int Architecture::ip(){return _ip;}
@@ -47,7 +47,7 @@ Architecture arch_X64 = Architecture(
 );
 
 // global variable for selected architecture 
-Architecture* g_current_arch; 
+Architecture* g_current_arch = nullptr; 
 
 // Module wide functions to set global variables 
 bool set_arch(ArchType a){
@@ -61,3 +61,12 @@ bool set_arch(ArchType a){
 }
 
 Architecture* curr_arch(){ return g_current_arch;}
+
+// global variable for selected bintype
+BinType g_current_bin_type = BIN_UNKNOWN; 
+bool set_bin_type(BinType t){
+    g_current_bin_type = t; 
+}
+BinType curr_bin_type(){
+    return g_current_bin_type; 
+}

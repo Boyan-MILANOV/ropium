@@ -15,12 +15,13 @@ enum EndiannessType{ ENDIAN_LITTLE, ENDIAN_BIG};
 
 enum RegX86 : int { X86_EAX=0, X86_EBX, X86_ECX, X86_EDX, X86_ESI, X86_EDI, X86_ESP,
                X86_EIP, X86_EBP, X86_ZF, X86_CF, X86_SF, X86_PF, X86_AF, X86_OF, 
-               X86_NB_REGS }; 
-
+               X86_NB_REGS };
+                             
 enum RegX64 : int {X64_RAX=0, X64_RBX, X64_RCX, X64_RDX, X64_RSI, X64_RDI, 
                     X64_RSP, X64_RBP, X64_RIP, X64_R8, X64_R9, X64_R10,
                     X64_R11, X64_R12, X64_R13, X64_R14, X64_R15, X64_SF, 
                     X64_ZF, X64_AF, X64_CF, X64_DF, X64_ES, X64_FS, X64_NB_REGS};
+
 
 enum ArchType {ARCH_X86, ARCH_X64};
 
@@ -53,5 +54,11 @@ class Architecture{
 // Module wide functions to set global variables 
 bool set_arch(ArchType a);
 Architecture* curr_arch();
+
+// Types of binaries 
+
+enum BinType {BIN_X86_ELF, BIN_X64_ELF, BIN_X86_PE, BIN_X64_PE, BIN_UNKNOWN};
+bool set_bin_type(BinType t);
+BinType curr_bin_type(); 
 
 #endif

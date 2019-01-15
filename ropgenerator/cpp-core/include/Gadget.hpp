@@ -2,9 +2,11 @@
 #define GADGET_H
 
 #include "Symbolic.hpp"
+#include <memory>
 
 using std::vector; 
 using std::string; 
+using std::shared_ptr;
 
 enum GadgetType{ REGULAR, INT80, SYSCALL}; 
 enum RetType{ RET_RET, RET_CALL, RET_JMP, RET_UNKNOWN};
@@ -32,7 +34,7 @@ class Gadget{
     
     public:
         // Constructor 
-        Gadget(IRBlock* irblock); 
+        Gadget(shared_ptr<IRBlock> irblock); 
         // Accessors 
         int id(); 
         GadgetType type(); 

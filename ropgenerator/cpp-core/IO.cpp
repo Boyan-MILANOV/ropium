@@ -23,7 +23,7 @@ void info(string s){
     cout << "[" << str_ropg("+") << "] " << s; 
 }
 void notify(string s){
-    cout << "\t" << str_ropg("%") << s << endl; 
+    cout << "\t" << str_ropg("% ") << s << endl; 
 }
 void error(string s){
     cout << "\n\t" << str_bold(s) << endl; 
@@ -65,11 +65,11 @@ string banner(vector<string> s){
     string res = ""; 
     stringstream ss; 
     for( it = s.begin(); it != s.end(); it++){
-        res += *it + "\n"; 
+        res += *it + "\n\t"; 
         if( it->length() > max_len )
             max_len = it->length(); 
     }
-    ss << "\t" << string(max_len, c) << "\n" << res << string(max_len, c) << "\n";
+    ss << "\t" << str_bold(string(max_len, c)) << "\n\n\t" << res << str_bold(string(max_len, c)) << "\n";
     return ss.str();
 }
 
