@@ -50,9 +50,7 @@ def get_cpp_files():
     """ Return the list of C files to compile 
     """ 
     core_dir = os.path.dirname(os.path.abspath(__file__))+'/ropgenerator/cpp-core/'
-    print("Core dir " + str(core_dir))
     res = [core_dir+f for f in os.listdir(core_dir) if f.endswith(".cpp")]
-    print("[+] cpp files: " + str(res) )
     return res
 
 class BuildExt(build_ext):
@@ -74,7 +72,7 @@ class BuildExt(build_ext):
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
             opts.append('-Wno-delete-non-virtual-dtor')
-            opts.append('-O3')
+            opts.append('-O3') # Maximum optimisation 
         elif ct == 'msvc':
             opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
         for ext in self.extensions:
@@ -97,12 +95,12 @@ setup(  name='ropgenerator',
         "Environment :: Console",
         "Topic :: Security",
         ],    
-        packages=['ropgenerator'],
+        packages=['ropgenerator', 'ropgenerator.main', 'ropgenerator.core'],
         scripts=['ROPGenerator'],
         keywords='rop generator chain gadget semantic automated exploit ropchain',
         zip_safe = False,
         data_files=[], 
-        install_requires=['pybind11>=2.2'],
+        install_requires=['prompt_toolkit>=2.0'],
         # Cpp compilation 
         ext_modules=[
             Extension(

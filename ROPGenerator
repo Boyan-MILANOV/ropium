@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
 
-import ropgenerator.Main as Main
+import ropgenerator.main.Main as Main
 
 Main.main()
