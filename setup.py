@@ -72,7 +72,7 @@ class BuildExt(build_ext):
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
             opts.append('-Wno-delete-non-virtual-dtor')
-            opts.append('-O3') # Maximum optimisation 
+            opts.append('-O0') # Maximum optimisation DEBUG 
         elif ct == 'msvc':
             opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
         for ext in self.extensions:
@@ -100,7 +100,7 @@ setup(  name='ropgenerator',
         keywords='rop generator chain gadget semantic automated exploit ropchain',
         zip_safe = False,
         data_files=[], 
-        install_requires=['prompt_toolkit>=2.0'],
+        install_requires=['prompt_toolkit>=2.0', 'python-magic'],
         # Cpp compilation 
         ext_modules=[
             Extension(

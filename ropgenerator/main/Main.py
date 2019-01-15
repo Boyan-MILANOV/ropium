@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from ropgenerator.core.IO import *
+from ropgenerator.main.Load import load 
 from prompt_toolkit import PromptSession, ANSI
 
 
@@ -33,7 +34,7 @@ helpStr += '\n\t' + str_bold(CMD_EXIT) + ': \t\texit ROPGenerator'
 
 
 def main():
-    print(str_ropg(str_bold(ASCII_art)))
+    #print(str_ropg(str_bold(ASCII_art)))
     #initLogs()
     finish = False
     promptSession = PromptSession(ANSI(u"("+ str_ropg(u'main') +u")> "))
@@ -49,8 +50,7 @@ def main():
                 continue
 
             if( command == CMD_LOAD ):
-                #load(args[1:])
-                print(str_special("Work in progess... ;)"))
+                load(args[1:])
             elif( command == CMD_EXIT ):
                 finish = True
             elif( command == CMD_HELP ):

@@ -4,7 +4,7 @@
 #include "CommonUtils.hpp"
 
 // Constructor 
-Gadget::Gadget(IRBlock* irblock){
+Gadget::Gadget(shared_ptr<IRBlock> irblock){
     vector<reg_pair>::iterator reg_it; 
     vector<SPair>::iterator spair_it; 
     vector<SPair>* p;

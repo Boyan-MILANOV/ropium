@@ -7,6 +7,7 @@ using namespace pybind11::literals;
 #include "IO.hpp"
 #include "Expression.hpp"
 #include "Symbolic.hpp"
+#include "Architecture.hpp"
 
 
 PYBIND11_MODULE(ropgenerator_core_, m){
@@ -73,7 +74,46 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     py::class_<IRInstruction>(m, "IRInstruction")
         .def(py::init<IROperation, SymArg, SymArg, SymArg>());
         
+    py::class_<IRBlock>(m, "IRBlock")
+        .def(py::init<>())
+        .def("add_instr", &IRBlock::add_instr);
+        
+    /* Architecture bindings */ 
     
+    py::enum_<ArchType>(m, "ArchType", py::arithmetic(), "Arch Type")
+        .value("ARCH_X86", ARCH_X86)
+        .value("ARCH_X64", ARCH_X64);
+        
+    m.def("set_arch", &set_arch);
+    
+    py::enum_<RegX86>(m, "RegX86", py::arithmetic(), "X86 Registers")
+        .value("EAX",X86_EAX).value("EBX",X86_EBX)
+        .value("ECX",X86_ECX).value("EDX",X86_EDX)
+        .value("ESI",X86_ESI).value("EDI",X86_EDX)
+        .value("ESP",X86_ESP).value("EIP",X86_EIP)
+        .value("EBP",X86_EBP).value("ZF",X86_ZF)
+        .value("CF",X86_CF).value("SF",X86_SF)
+        .value("PF",X86_PF).value("AF",X86_AF)
+        .value("OF", X86_OF);
+        
+    py::enum_<RegX64>(m, "RegX64", py::arithmetic(), "X64 Registers")
+        .value("RAX",X64_RAX).value("RBX",X64_RBX).value("RCX",X64_RCX)
+        .value("RDX",X64_RDX).value("RSI",X64_RSI).value("RDI",X64_RDI)
+        .value("RSP",X64_RSP).value("RBP",X64_RBP).value("RIP",X64_RIP)
+        .value("R8",X64_R8).value("R9",X64_R9).value("R10",X64_R10)
+        .value("R11",X64_R11).value("R12",X64_R12).value("R13",X64_R13)
+        .value("R14",X64_R14).value("R15",X64_R15).value("SF",X64_SF)
+        .value("ZF",X64_ZF).value("AF",X64_AF).value("CF",X64_CF)
+        .value("DF",X64_DF).value("ES",X64_ES).value("FS",X64_FS);
+    
+    py::enum_<BinType>(m, "BinType", py::arithmetic(), "Binary Type")
+        .value("BIN_X86_ELF", BIN_X86_ELF)
+        .value("BIN_X64_ELF", BIN_X64_ELF)
+        .value("BIN_X86_PE", BIN_X86_PE)
+        .value("BIN_X64_PE", BIN_X64_PE)
+        .value("BIN_UNKNOWN", BIN_UNKNOWN);
+    
+    m.def("set_bin_type", &set_bin_type);
     
     /* Database Bindings */ 
     
