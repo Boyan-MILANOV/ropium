@@ -1,10 +1,11 @@
 #ifndef ARCHITECTURE_H
-#include <string>
-#include <vector>
-
 #define ARCHITECTURE_H
 
+#include <string>
+#include <vector>
+#include <memory>
 
+using std::shared_ptr; 
 using std::string; 
 using std::vector;
 
@@ -58,7 +59,7 @@ Architecture* curr_arch();
 // Types of binaries 
 
 enum BinType {BIN_X86_ELF, BIN_X64_ELF, BIN_X86_PE, BIN_X64_PE, BIN_UNKNOWN};
-bool set_bin_type(BinType t);
+void set_bin_type(BinType t);
 BinType curr_bin_type(); 
 
 #endif
