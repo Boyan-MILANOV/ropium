@@ -8,6 +8,7 @@ Architecture::Architecture(ArchType at, string n, int i, int s, int o,
             _min_page_size(m), _endianness(t), _nb_regs(nb), _ignored_regs(ig)
             {}
             
+ArchType Architecture::type(){return _type;}
 string Architecture::name(){return _name;}
 int Architecture::ip(){return _ip;}
 int Architecture::sp(){return _sp;}
@@ -64,7 +65,7 @@ Architecture* curr_arch(){ return g_current_arch;}
 
 // global variable for selected bintype
 BinType g_current_bin_type = BIN_UNKNOWN; 
-bool set_bin_type(BinType t){
+void set_bin_type(BinType t){
     g_current_bin_type = t; 
 }
 BinType curr_bin_type(){

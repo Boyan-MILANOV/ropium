@@ -56,19 +56,19 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def(py::init<int, int>());
 
     py::enum_<IROperation>(m, "IROperation", py::arithmetic(), "IR Operation")
-        .value("add",IR_ADD)
-        .value("and",IR_AND)
-        .value("bsh",IR_BSH)
-        .value("div",IR_DIV)
-        .value("ldm",IR_LDM)
-        .value("mod",IR_MOD)
-        .value("mul",IR_MUL)
-        .value("nop",IR_NOP)
-        .value("or",IR_OR)
-        .value("stm",IR_STM)
-        .value("ldm",IR_LDM)
-        .value("sub",IR_SUB) 
-        .value("xor",IR_XOR)
+        .value("ADD",IR_ADD)
+        .value("AND",IR_AND)
+        .value("BSH",IR_BSH)
+        .value("DIV",IR_DIV)
+        .value("LDM",IR_LDM)
+        .value("MOD",IR_MOD)
+        .value("MUL",IR_MUL)
+        .value("NOP",IR_NOP)
+        .value("OR",IR_OR)
+        .value("STM",IR_STM)
+        .value("LDM",IR_LDM)
+        .value("SUB",IR_SUB) 
+        .value("XOR",IR_XOR)
         .export_values(); 
         
     py::class_<IRInstruction>(m, "IRInstruction")
@@ -82,9 +82,24 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     
     py::enum_<ArchType>(m, "ArchType", py::arithmetic(), "Arch Type")
         .value("ARCH_X86", ARCH_X86)
-        .value("ARCH_X64", ARCH_X64);
+        .value("ARCH_X64", ARCH_X64)
+        .export_values();
         
+    py::enum_<EndiannessType>(m, "EndianessType", py::arithmetic(), "Endianness")
+        .value("ENDIAN_LITTLE", ENDIAN_LITTLE)
+        .value("ENDIAN_BIG", ENDIAN_BIG)
+        .export_values();
+    
+    py::class_<Architecture>(m, "Architecture")
+        .def(py::init<ArchType, string, int, int, int, int, int, EndiannessType, int, vector<int>>())
+        .def("_type_", &Architecture::type)
+        .def("bits", &Architecture::bits)
+        .def("octets", &Architecture::octets);
+    
     m.def("set_arch", &set_arch);
+    m.def("curr_arch_bits", [](){return curr_arch()->bits();});
+    m.def("curr_arch_type", [](){return curr_arch()->type();});
+    
     
     py::enum_<RegX86>(m, "RegX86", py::arithmetic(), "X86 Registers")
         .value("EAX",X86_EAX).value("EBX",X86_EBX)
@@ -94,7 +109,8 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("EBP",X86_EBP).value("ZF",X86_ZF)
         .value("CF",X86_CF).value("SF",X86_SF)
         .value("PF",X86_PF).value("AF",X86_AF)
-        .value("OF", X86_OF);
+        .value("OF", X86_OF)
+        .export_values();
         
     py::enum_<RegX64>(m, "RegX64", py::arithmetic(), "X64 Registers")
         .value("RAX",X64_RAX).value("RBX",X64_RBX).value("RCX",X64_RCX)
@@ -104,14 +120,16 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("R11",X64_R11).value("R12",X64_R12).value("R13",X64_R13)
         .value("R14",X64_R14).value("R15",X64_R15).value("SF",X64_SF)
         .value("ZF",X64_ZF).value("AF",X64_AF).value("CF",X64_CF)
-        .value("DF",X64_DF).value("ES",X64_ES).value("FS",X64_FS);
+        .value("DF",X64_DF).value("ES",X64_ES).value("FS",X64_FS)
+        .export_values();
     
     py::enum_<BinType>(m, "BinType", py::arithmetic(), "Binary Type")
         .value("BIN_X86_ELF", BIN_X86_ELF)
         .value("BIN_X64_ELF", BIN_X64_ELF)
         .value("BIN_X86_PE", BIN_X86_PE)
         .value("BIN_X64_PE", BIN_X64_PE)
-        .value("BIN_UNKNOWN", BIN_UNKNOWN);
+        .value("BIN_UNKNOWN", BIN_UNKNOWN)
+        .export_values();
     
     m.def("set_bin_type", &set_bin_type);
     

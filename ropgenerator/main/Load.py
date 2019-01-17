@@ -10,6 +10,7 @@ from magic import from_file
 
 from ropgenerator.core.IO import *
 from ropgenerator.core.Architecture import *
+from ropgenerator.core.Symbolic import raw_to_IRBlock
 
 # Command options
 OPTION_ARCH = '--arch'
@@ -69,7 +70,7 @@ def getPlatformInfo(filename):
     else:
         return None 
 
-def getGadgets(filename):
+def get_gadgets(filename):
     """
     Returns a list of gadgets extracted from a file 
     Precondition: the file exists 
@@ -178,9 +179,11 @@ def load(args):
     # initScanner(filename)
     
     # # Extract the gadget list 
-    gadgetList = getGadgets(filename)
-    if( not gadgetList ):
+    gadget_list = get_gadgets(filename)
+    if( not gadget_list ):
         return 
+    for( raw, addr) in gadget_list:
+        irblock = raw_to_IRBlock(raw)
         
     # # Build the gadget database
     # # (we mix the list so that charging bar
