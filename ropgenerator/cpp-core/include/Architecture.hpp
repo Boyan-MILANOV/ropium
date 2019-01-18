@@ -21,7 +21,8 @@ enum RegX86 : int { X86_EAX=0, X86_EBX, X86_ECX, X86_EDX, X86_ESI, X86_EDI, X86_
 enum RegX64 : int {X64_RAX=0, X64_RBX, X64_RCX, X64_RDX, X64_RSI, X64_RDI, 
                     X64_RSP, X64_RBP, X64_RIP, X64_R8, X64_R9, X64_R10,
                     X64_R11, X64_R12, X64_R13, X64_R14, X64_R15, X64_SF, 
-                    X64_ZF, X64_AF, X64_CF, X64_DF, X64_ES, X64_FS, X64_NB_REGS};
+                    X64_ZF, X64_AF, X64_CF, X64_DF, X64_ES, X64_FS, X64_OF, 
+                    X64_PF, X64_NB_REGS};
 
 
 enum ArchType {ARCH_X86, ARCH_X64};

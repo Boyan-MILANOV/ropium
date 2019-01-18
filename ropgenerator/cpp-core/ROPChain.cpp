@@ -1,6 +1,7 @@
 #include "ROPChain.hpp"
 #include "Database.hpp"
 #include "CommonUtils.hpp"
+#include "Exception.hpp"
 #include "IO.hpp"
 #include <algorithm>
 
@@ -84,7 +85,7 @@ string valid_addr_str(int octets, Gadget* g, vector<unsigned char> bad_bytes){
             return value_to_hex_str(octets, *it);
         }
     }
-    throw "Error, No valid address found for the gadget to print ! :( ";
+    throw_exception("In valid_addr_str: Error, No valid address found for the gadget to print ! :( ");
 }
 
 string ROPChain::to_str_console(int octets, vector<unsigned char> bad_bytes){

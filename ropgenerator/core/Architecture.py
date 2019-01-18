@@ -48,4 +48,6 @@ map_x64_reg_names = {
 "df":RegX64.DF,
 "es":RegX64.ES,
 "fs":RegX64.FS,
+"of":RegX64.OF,
+"pf":RegX64.PF
 }

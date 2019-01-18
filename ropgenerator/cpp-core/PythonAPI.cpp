@@ -1,6 +1,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/complex.h>
+#include <pybind11/iostream.h>
+
 namespace py = pybind11;
 using namespace pybind11::literals;
 
@@ -8,6 +10,7 @@ using namespace pybind11::literals;
 #include "Expression.hpp"
 #include "Symbolic.hpp"
 #include "Architecture.hpp"
+#include "Gadget.hpp"
 
 
 PYBIND11_MODULE(ropgenerator_core_, m){
@@ -40,18 +43,20 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("reg", ARG_REG)
         .value("tmp", ARG_TMP)
         .export_values();
-
-    py::class_<ArgEmpty>(m, "ArgEmpty")
+    
+    py::class_<SymArg>(m, "SymArg");
+    
+    py::class_<ArgEmpty, SymArg>(m, "ArgEmpty")
         .def(py::init<>());
 
-    py::class_<ArgCst>(m, "ArgCst")
+    py::class_<ArgCst, SymArg>(m, "ArgCst")
         .def(py::init<cst_t, int>());
 
-    py::class_<ArgReg>(m, "ArgReg")
+    py::class_<ArgReg, SymArg>(m, "ArgReg")
         .def(py::init<int, int, int, int>())
         .def(py::init<int, int>());
 
-    py::class_<ArgTmp>(m, "ArgTmp")
+    py::class_<ArgTmp, SymArg>(m, "ArgTmp")
         .def(py::init<int, int, int, int>())
         .def(py::init<int, int>());
 
@@ -67,16 +72,27 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("OR",IR_OR)
         .value("STM",IR_STM)
         .value("LDM",IR_LDM)
+        .value("STR",IR_STR)
         .value("SUB",IR_SUB) 
         .value("XOR",IR_XOR)
+        .value("UNKNOWN", IR_UNKNOWN)
         .export_values(); 
         
     py::class_<IRInstruction>(m, "IRInstruction")
         .def(py::init<IROperation, SymArg, SymArg, SymArg>());
         
-    py::class_<IRBlock>(m, "IRBlock")
+    py::class_<IRBlock, shared_ptr<IRBlock>>(m, "IRBlock")
         .def(py::init<>())
         .def("add_instr", &IRBlock::add_instr);
+        
+    m.def("print_irblock", [](shared_ptr<IRBlock> b){
+        py::scoped_ostream_redirect stream(
+        std::cout, // std::ostream&
+        py::module::import("sys").attr("stdout") // Python output
+        );
+        (*b).print(std::cout);
+        }
+    );
         
     /* Architecture bindings */ 
     
@@ -121,6 +137,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("R14",X64_R14).value("R15",X64_R15).value("SF",X64_SF)
         .value("ZF",X64_ZF).value("AF",X64_AF).value("CF",X64_CF)
         .value("DF",X64_DF).value("ES",X64_ES).value("FS",X64_FS)
+        .value("OF",X64_OF).value("PF",X64_PF)
         .export_values();
     
     py::enum_<BinType>(m, "BinType", py::arithmetic(), "Binary Type")
@@ -132,6 +149,19 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .export_values();
     
     m.def("set_bin_type", &set_bin_type);
+    
+    /* Gadget Bindings */ 
+    
+    py::class_<Gadget, shared_ptr<Gadget>>(m, "Gadget")
+        .def(py::init<shared_ptr<IRBlock>>());
+    m.def("print_gadget", [](shared_ptr<Gadget> g){
+        py::scoped_ostream_redirect stream(
+        std::cout, // std::ostream&
+        py::module::import("sys").attr("stdout") // Python output
+        );
+        (*g).print(std::cout);
+        }
+    );
     
     /* Database Bindings */ 
     

@@ -29,32 +29,37 @@ class SymArg{
         int high();
         // From child classes 
         virtual cst_t value();
+        void print(ostream& os);
 };
 
 class ArgEmpty: public SymArg{
     public:
         ArgEmpty();
+        void print(ostream& os);
 };
 
 class ArgCst: public SymArg {
     public:
         ArgCst(cst_t v, int s);
+        void print(ostream& os);
 };
 
 class ArgReg: public SymArg{
     public:
         ArgReg(int n, int s);
         ArgReg(int n, int s, int h, int l);
+        void print(ostream& os);
 };
 
 class ArgTmp: public SymArg{
     public:
         ArgTmp( int n, int s);
         ArgTmp( int n, int s, int h, int l); 
+        void print(ostream& os);
 };
 
 // Operation types: 
-enum IROperation{IR_ADD, IR_AND, IR_BSH, IR_DIV, IR_LDM, IR_MOD, IR_MUL, IR_NOP, IR_OR, IR_STM, IR_STR, IR_SUB, IR_XOR};
+enum IROperation{IR_ADD, IR_AND, IR_BSH, IR_DIV, IR_LDM, IR_MOD, IR_MUL, IR_NOP, IR_OR, IR_STM, IR_STR, IR_SUB, IR_XOR, IR_UNKNOWN};
 
 // IR Instruction
 class IRInstruction{
@@ -66,6 +71,7 @@ class IRInstruction{
         SymArg* src1();
         SymArg* src2();
         SymArg* dst();
+        void print(ostream& os);
 };
 
 // IR Block
@@ -89,10 +95,13 @@ class IRBlock{
         vector<ExprObjectPtr> mem_reads();
         bool reg_modified(int num);
         Semantics* compute_semantics();
+        void print(ostream& os);
         ~IRBlock();
     private:
         inline ExprObjectPtr full_reg_assignment(ExprObjectPtr expr, ExprObjectPtr prev, SymArg& reg);
         vector<SPair>* full_reg_assignment(vector<SPair>* spairs, SymArg& reg);
+        inline ExprObjectPtr full_tmp_assignment(ExprObjectPtr expr, SymArg& tmp);
+        vector<SPair>* full_tmp_assignment(vector<SPair>* spairs, SymArg& tmp);
         vector<SPair>* arg_to_spairs(SymArg& arg);
         
         void execute_stm(vector<SPair>* src1, vector<SPair>* dst, int &memory_writes_cnt);
@@ -101,7 +110,6 @@ class IRBlock{
         
         inline void assign_reg_table(int num, vector<SPair>* val);
         inline void assign_tmp_table(int num, vector<SPair>* val);
-        
 };
 
 #endif 

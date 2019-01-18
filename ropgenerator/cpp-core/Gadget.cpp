@@ -127,8 +127,10 @@ void Gadget::print(ostream& os){
     for( i = 0; i < NB_REGS_MAX; i++)
         if( _reg_modified[i])
             os << i << " "; 
-    os << endl; 
+    _semantics->print(os);
+    os << endl;
 }
+
 bool Gadget::lthan(Gadget* other){
     if( _known_sp_inc && other->known_sp_inc() &&
         _sp_inc < other->sp_inc() )

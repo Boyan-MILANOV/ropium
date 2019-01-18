@@ -2,6 +2,7 @@
 #include "Architecture.hpp"
 #include "Expression.hpp"
 #include "Condition.hpp"
+#include "Exception.hpp"
 #include <algorithm>
 #include <cstring>
 
@@ -30,7 +31,7 @@ pair<ConstrEval,CondObjectPtr> ConstrReturn::verify(Gadget* g){
 
 void ConstrReturn::merge(SubConstraint* c, bool del=false){
     if( c->type() != CONSTR_RETURN )
-        throw "Invalid sub constraint type when merging";
+        throw_exception("ConstrReturn : Invalid sub constraint type when merging");
     _ret = ((ConstrReturn*)c)->ret() || _ret; 
     _jmp = ((ConstrReturn*)c)->jmp() || _jmp; 
     _call = ((ConstrReturn*)c)->call() || _call; 
@@ -70,7 +71,7 @@ SubConstraint* ConstrBadBytes::copy(){
 
 void ConstrBadBytes::merge(SubConstraint* c, bool del=false){
     if( c->type() != CONSTR_BAD_BYTES )
-        throw "Invalid sub constraint type when merging";
+        throw_exception("ConstrBadBytes : Invalid sub constraint type when merging");
     _bad_bytes.insert(_bad_bytes.end(), c->bad_bytes()->begin(), c->bad_bytes()->end()); 
     if( del )
         delete c; 
@@ -108,7 +109,7 @@ SubConstraint* ConstrKeepRegs::copy(){
 void ConstrKeepRegs::merge(SubConstraint* c, bool del=false){
     int i;
     if( c->type() != CONSTR_KEEP_REGS )
-        throw "Invalid sub constraint type when merging";
+        throw_exception("ConstrKeepRegs : Invalid sub constraint type when merging");
     for( i = 0; i < NB_REGS_MAX; i++)
         _regs[i] = _regs[i] || ((ConstrKeepRegs*)c)->get(i); 
     if( del )
@@ -144,7 +145,7 @@ SubConstraint* ConstrValidRead::copy(){
 
 void ConstrValidRead::merge(SubConstraint* c, bool del=false){
     if( c->type() != CONSTR_VALID_READ )
-        throw "Invalid sub constraint type when merging";
+       throw_exception("ConstrValidRead : Invalid sub constraint type when merging");
     _addresses.insert(_addresses.end(), c->addresses()->begin(), c->addresses()->end());
     if( del )
         delete c; 
@@ -179,7 +180,7 @@ SubConstraint* ConstrValidWrite::copy(){
 
 void ConstrValidWrite::merge(SubConstraint* c, bool del=false){
     if( c->type() != CONSTR_VALID_WRITE )
-        throw "Invalid sub constraint type when merging";
+       throw_exception("ConstrValidWrite : Invalid sub constraint type when merging");
     _addresses.insert(_addresses.end(), c->addresses()->begin(), c->addresses()->end());
     if( del )
         delete c; 
@@ -300,7 +301,7 @@ SubAssertion* AssertRegsEqual::copy(){
 
 void AssertRegsEqual::merge(SubAssertion* a, bool del){
     if( a->type() != _type )
-        throw "Merging wrong assertion !!";
+        throw_exception("RegsEsqul: Merging wrong assertion !!");
     for( int i=0; i<NB_REGS_MAX; i++)
         for( int j=0; j<NB_REGS_MAX; j++)
             _regs[i][j] |= a->regs()[i][j];
@@ -344,7 +345,7 @@ SubAssertion* AssertRegsNoOverlap::copy(){
 
 void AssertRegsNoOverlap::merge(SubAssertion* a, bool del){
     if( a->type() != _type )
-        throw "Merging wrong assertion !!";
+        throw_exception("NoOverlap: Merging wrong assertion !!");
     for( int i=0; i<NB_REGS_MAX; i++)
         for( int j=0; j<NB_REGS_MAX; j++)
             _regs[i][j] |= a->regs()[i][j];
@@ -387,7 +388,7 @@ SubAssertion* AssertValidRead::copy(){
 
 void AssertValidRead::merge(SubAssertion* a, bool del){
     if( a->type() != _type )
-        throw "Merging wrong assertion !!";
+        throw_exception("AssertValidRead: Merging wrong assertion !!");
     for( int i=0; i<NB_REGS_MAX; i++)
         _regs[i] |= a->reg()[i];
     if( del )
@@ -425,7 +426,7 @@ SubAssertion* AssertValidWrite::copy(){
 
 void AssertValidWrite::merge(SubAssertion* a, bool del){
     if( a->type() != _type )
-        throw "Merging wrong assertion !!";
+        throw_exception("AssertValidWrite: Merging wrong assertion !!");
     for( int i=0; i<NB_REGS_MAX; i++)
         _regs[i] |= a->reg()[i];
     if( del )
@@ -462,7 +463,7 @@ bool AssertRegSupTo::validate( CondObjectPtr c){
             return _regs[c->cond_ptr()->right_expr_ptr()->num()] &&
                     _limit[c->cond_ptr()->right_expr_ptr()->num()] <= c->cond_ptr()->left_expr_ptr()->value()+1; 
         else
-            throw "Error, unexpected cond type !!!";
+            throw_exception("RegSupTo: Error, unexpected cond type !!!");
     }else
         return false; 
 }
@@ -473,7 +474,7 @@ SubAssertion* AssertRegSupTo::copy(){
 
 void AssertRegSupTo::merge(SubAssertion* a, bool del){
     if( a->type() != _type )
-        throw "Merging wrong assertion !!";
+        throw_exception("RegSupTo: Merging wrong assertion !!");
     for( int i=0; i<NB_REGS_MAX; i++){
         _regs[i] |= a->reg()[i];
         if( a->limit()[i] > _limit[i] )
@@ -513,7 +514,7 @@ bool AssertRegInfTo::validate( CondObjectPtr c){
             return _regs[c->cond_ptr()->right_expr_ptr()->num()] &&
                     _limit[c->cond_ptr()->right_expr_ptr()->num()] <= c->cond_ptr()->left_expr_ptr()->value()-1; 
         else
-            throw "Error, unexpected cond type !!!";
+            throw_exception("RegInfTo: Error, unexpected cond type !!!");
     }else
         return false; 
 }
@@ -523,7 +524,7 @@ SubAssertion* AssertRegInfTo::copy(){
 
 void AssertRegInfTo::merge(SubAssertion* a, bool del){
     if( a->type() != _type )
-        throw "Merging wrong assertion !!";
+        throw_exception("RegInfTo: Merging wrong assertion !!");
     for( int i=0; i<NB_REGS_MAX; i++){
         _regs[i] |= a->reg()[i];
         if( a->limit()[i] < _limit[i] )

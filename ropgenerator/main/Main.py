@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 from ropgenerator.core.IO import *
 from ropgenerator.main.Load import load 

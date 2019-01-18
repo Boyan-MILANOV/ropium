@@ -7,10 +7,12 @@ import subprocess
 from base64 import b16decode
 from random import shuffle, random, randrange, Random
 from magic import from_file
+from datetime import datetime
 
 from ropgenerator.core.IO import *
 from ropgenerator.core.Architecture import *
 from ropgenerator.core.Symbolic import raw_to_IRBlock
+from ropgenerator.core.Gadget import *
 
 # Command options
 OPTION_ARCH = '--arch'
@@ -182,9 +184,25 @@ def load(args):
     gadget_list = get_gadgets(filename)
     if( not gadget_list ):
         return 
-    for( raw, addr) in gadget_list:
-        irblock = raw_to_IRBlock(raw)
         
+    # Analyse gadgets 
+    start_time = datetime.now()
+    dup = dict()
+    count = 0
+    for( addr, raw) in gadget_list:
+        if( raw in dup ):
+            count += 1
+            continue
+        dup[raw] = True
+        print("DEBUG, trying: \\x" + '\\x'.join("{:02x}".format(ord(c)) for c in raw))
+        irblock = raw_to_IRBlock(raw)
+        if( not irblock is None ): 
+            gadget = Gadget(irblock)
+        
+    end_time = datetime.now()
+    print("Time: " + str(end_time-start_time))
+    print("Duplicates: " + str(count))
+    
     # # Build the gadget database
     # # (we mix the list so that charging bar
     # # appears to grow steadily )
