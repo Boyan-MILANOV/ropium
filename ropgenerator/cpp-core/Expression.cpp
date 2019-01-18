@@ -1,5 +1,6 @@
 #include "Expression.hpp" 
 #include "Simplification.hpp"
+#include "Exception.hpp"
 
 using namespace std; 
 
@@ -89,6 +90,11 @@ bool ExprCst::lthan(ExprPtr other){
     else
         return _type < other->type();
 }
+// Convert the expression size
+ExprObjectPtr ExprCst::convert(int size){
+    return NewExprCst(_value, size);
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 //// ExprReg
@@ -129,6 +135,11 @@ tuple<bool, cst_t> ExprReg::is_reg_increment(int num){
     return make_tuple((num == _num), 0);
 }
 
+// Convert the expression size
+ExprObjectPtr ExprReg::convert(int size){
+    return NewExprReg(_num, size);
+}
+
 ////////////////////////////////////////////////////////////////////////
 //// ExprMem
 // Constructor 
@@ -154,6 +165,12 @@ bool ExprMem::lthan(ExprPtr other){
         return _type < other->type();
 }
 
+
+// Convert the expression size
+ExprObjectPtr ExprMem::convert(int size){
+    return NewExprMem(_addr, size);
+}
+
 ////////////////////////////////////////////////////////////////////////
 //// ExprBinop
 // To string, needs to match the enum in Expression.hpp !!
@@ -161,8 +178,8 @@ const char* binop_to_str[] = {"+","-","*","/","&","|","^","%", "<>"};
 // Constructor 
 ExprBinop::ExprBinop( Binop o, ExprObjectPtr l, ExprObjectPtr r): Expr(EXPR_BINOP), _op(o), _left(l), _right(r){
     if( l->expr_ptr()->size() != r->expr_ptr()->size() ){
-        std::cout << l << " + " << r; 
-        throw "Different sizes when initializing ExprBinop"; 
+        throw_exception(ExceptionFormatter() << "Different sizes when initializing ExprBinop: " << l << 
+        " and " << r << "(sizes: " << l->expr_ptr()->size() << " and " << r->expr_ptr()->size() << ") " >> ExceptionFormatter::to_str); 
     }
     set_size(l->expr_ptr()->size()); 
 }
@@ -262,6 +279,14 @@ tuple<bool, cst_t> ExprBinop::is_reg_increment(int num){
     else
         return make_tuple(false, 0);    
 }
+// Convert the expression size
+ExprObjectPtr ExprBinop::convert(int size){
+    if( _op == OP_BSH )
+        //return NewExprBinop(_op, _left->convert(size), _right); DEBUG ??? 
+        return NewExprBinop(_op, _left->convert(size), _right->convert(size));
+    else
+        return NewExprBinop(_op, _left->convert(size), _right->convert(size));
+}
 
 ////////////////////////////////////////////////////////////////////////
 //// ExprUnop
@@ -293,17 +318,23 @@ bool ExprUnop::lthan(ExprPtr other){
         return _type < other->type();
 }
 
+// Convert the expression size
+ExprObjectPtr ExprUnop::convert(int size){
+    return NewExprUnop(_op, _arg->convert(size));
+}
 
 ////////////////////////////////////////////////////////////////////////
 // ExprExtract
 // Constructor 
 ExprExtract::ExprExtract( ExprObjectPtr a, int h, int l): Expr(EXPR_EXTRACT), _arg(a), _high(h), _low(l){
     if( h < l )
-        throw "Invalid Extract() expression: high < low !";
-    else if( h >= a->expr_ptr()->size())
-        throw "Invalid Extract() expression: high >= size !";
-    else if( l < 0)
-        throw "Invalid Extract() expression: low < 0 !";
+        throw_exception("Invalid Extract() expression: high < low !");
+    else if( h >= a->expr_ptr()->size()){
+        // DEBUG
+        std::cout << _arg << endl << _high << endl << _low << endl; 
+        throw_exception("Invalid Extract() expression: high >= size !");
+    }else if( l < 0)
+        throw_exception("Invalid Extract() expression: low < 0 !");
     set_size(h-l+1);
 }
 // Operators  
@@ -327,6 +358,14 @@ bool ExprExtract::lthan(ExprPtr other){
         return _arg->expr_ptr()->lthan(other->arg_expr_ptr());
     else
         return _type < other->type();
+}
+
+// Convert the expression size
+ExprObjectPtr ExprExtract::convert(int size){
+    if( _low + size <= _arg->expr_ptr()->size())
+        return NewExprExtract(_arg, _low+size-1, _low );
+    else
+        return Concat(NewExprCst(0,size-_high), NewExprExtract(_arg, _low+size-1-_high, _low));
 }
 
 /////////////////////////////////////////////////////////////////////////
@@ -360,11 +399,26 @@ bool ExprConcat::lthan(ExprPtr other){
         return _type < other->type();
 }
 
+// Convert the expression size
+ExprObjectPtr ExprConcat::convert(int size){
+    if( size <= _lower->expr_ptr()->size() )
+        return _lower->convert(size);
+    else if( size <= _size )
+        return NewExprConcat(_upper->convert(size - _lower->expr_ptr()->size()), _lower);
+    else
+        return NewExprConcat(NewExprCst(0, size-_size), NewExprConcat(_upper, _lower));
+}
+
 ////////////////////////////////////////////////////////////////////////
 // ExprUnknown
-ExprUnknown::ExprUnknown(): Expr(EXPR_UNKNOWN){};
+ExprUnknown::ExprUnknown(int size=-1): Expr(EXPR_UNKNOWN){
+    set_size(size);
+};
 void ExprUnknown::print(ostream& os){  
     os << "unknown";  
+}
+ExprObjectPtr ExprUnknown::convert(int size){
+    return NewExprUnknown(size);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -460,6 +514,10 @@ bool ExprObject::filter(){
         return false; 
 }
 
+ExprObjectPtr ExprObject::convert(int size){
+    return _expr_ptr->convert(size);
+}
+
 ////////////////////////////////////////////////////////////////////////
 //// Support to use operators at ExprObjectPtr  level :) 
 // IO
@@ -509,12 +567,30 @@ ExprObjectPtr operator~ (ExprObjectPtr p1){
 ExprObjectPtr NewExprCst(cst_t value, int size){
     return make_shared<ExprObject>(make_shared<ExprCst>(value, size));
 }
+ExprObjectPtr NewExprReg(int n, int size){
+    return make_shared<ExprObject>(make_shared<ExprReg>(n, size));
+}
 ExprObjectPtr NewExprMem(ExprObjectPtr addr, int s){
     return make_shared<ExprObject>(make_shared<ExprMem>(addr, s));
 }
-ExprObjectPtr g_expr_unknown = make_shared<ExprObject>(make_shared<ExprUnknown>());
-ExprObjectPtr NewExprUnknown(){
-    return g_expr_unknown;
+ExprObjectPtr NewExprBinop(Binop op, ExprObjectPtr left, ExprObjectPtr right){
+    return make_shared<ExprObject>(make_shared<ExprBinop>(op, left, right));
+}
+ExprObjectPtr NewExprUnop(Unop op, ExprObjectPtr arg){
+    return make_shared<ExprObject>(make_shared<ExprUnop>(op, arg));
+}
+ExprObjectPtr NewExprExtract(ExprObjectPtr arg, int high, int low){
+    return make_shared<ExprObject>(make_shared<ExprExtract>(arg, high, low));
+}
+ExprObjectPtr NewExprConcat(ExprObjectPtr upper, ExprObjectPtr lower){
+    return make_shared<ExprObject>(make_shared<ExprConcat>(upper, lower));
+}
+ExprObjectPtr g_expr_unknown = make_shared<ExprObject>(make_shared<ExprUnknown>(-1));
+ExprObjectPtr NewExprUnknown(int size=-1){
+    if( size == -1 )
+        return g_expr_unknown;
+    else
+        return make_shared<ExprObject>(make_shared<ExprUnknown>(size));
 }
 // Create new ExprPtr for ExprUnknown, ONLY INTERNAL USAGE
 ExprPtr g_expr_ptr_unknown = make_shared<ExprUnknown>();

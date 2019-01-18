@@ -37,6 +37,7 @@
 
 #include <iostream>
 #include <memory>
+#include <cstdint>
 
 /* Maximum number of registers */ 
 #define NB_REGS_MAX 32
@@ -51,7 +52,7 @@ enum Unop {OP_NEG, COUNT_NB_UNOP};
 enum Binop {OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_AND, OP_OR, OP_XOR, OP_MOD, OP_BSH, COUNT_NB_BINOP }; 
 
 /* Type used to store the values for ExprCst */ 
-using cst_t= long long;  
+using cst_t=int64_t;  
 
 /* Declaration of some classes for compilation */ 
 class ExprObject;
@@ -99,6 +100,8 @@ class Expr{
         // Check if the expression is REG +- CST 
         virtual tuple<bool,int,cst_t> is_reg_increment();
         virtual tuple<bool, cst_t> is_reg_increment(int num);
+        // Convert the expression size
+        virtual shared_ptr<ExprObject> convert(int size){throw "Wrong class to call this method";} 
         // Destructor
         ~Expr();
         
@@ -156,7 +159,7 @@ class ExprObject{
         void simplify();
         bool filter();
         bool equal(ExprObjectPtr other);
-         
+        ExprObjectPtr convert(int size);
 };
 /* ExprObjectPtr level manipulation */ 
 // IO
@@ -176,8 +179,13 @@ ExprObjectPtr Concat (ExprObjectPtr p1, ExprObjectPtr p2);
 ExprObjectPtr operator~ (ExprObjectPtr p1);
 // Create new instances 
 ExprObjectPtr NewExprCst(cst_t value, int size);
+ExprObjectPtr NewExprReg(int n, int size);
 ExprObjectPtr NewExprMem(ExprObjectPtr addr, int s);
-ExprObjectPtr NewExprUnknown();
+ExprObjectPtr NewExprBinop(Binop op, ExprObjectPtr left, ExprObjectPtr right);
+ExprObjectPtr NewExprUnop(Unop op, ExprObjectPtr arg);
+ExprObjectPtr NewExprExtract(ExprObjectPtr arg, int high, int low);
+ExprObjectPtr NewExprConcat(ExprObjectPtr upper, ExprObjectPtr lower);
+ExprObjectPtr NewExprUnknown(int size);
 // Create new ExprPtr for ExprUnknown, ONLY INTERNAL USAGE
 ExprPtr special_NewExprPtrUnknown(); 
 
@@ -195,7 +203,8 @@ class ExprCst: public Expr{
         void compute_polynom();
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
-        
+        // Convert the expression size
+        ExprObjectPtr convert(int size);
 }; 
 
 // Register Expression 
@@ -213,6 +222,8 @@ class ExprReg: public Expr{
         bool lthan(ExprPtr other);
         virtual tuple<bool,int,cst_t> is_reg_increment();
         virtual tuple<bool, cst_t> is_reg_increment(int num);
+        // Convert the expression size
+        ExprObjectPtr convert(int size);
 }; 
 
 // Memory Expression 
@@ -228,7 +239,8 @@ class ExprMem: public Expr{
         void print(ostream& os);
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
-        
+        // Convert the expression size
+        ExprObjectPtr convert(int size);
 }; 
 
 // Binary Operation Expression 
@@ -252,6 +264,8 @@ class ExprBinop: public Expr{
         bool lthan(ExprPtr other);
         virtual tuple<bool,int,cst_t> is_reg_increment();
         virtual tuple<bool, cst_t> is_reg_increment(int num);
+        // Convert the expression size
+        ExprObjectPtr convert(int size);
 };
 
 // Unary Operation Expression 
@@ -269,7 +283,8 @@ class ExprUnop: public Expr{
         void print(ostream& os);
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
-        
+        // Convert the expression size
+        ExprObjectPtr convert(int size);
 }; 
 
 // Extraction Expression 
@@ -288,6 +303,8 @@ class ExprExtract: public Expr{
         void print(ostream& os);
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
+        // Convert the expression size
+        ExprObjectPtr convert(int size);
 }; 
 
 // Concatenate Expression
@@ -305,13 +322,17 @@ class ExprConcat: public Expr{
         void print(ostream& os);
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
+        // Convert the expression size
+        ExprObjectPtr convert(int size);
 };
 
 // Unknown/Unsupported Expression 
 class ExprUnknown: public Expr{
     public:
-        ExprUnknown();
+        ExprUnknown(int size);
         void print(ostream& os);
+        // Convert the expression size
+        ExprObjectPtr convert(int size);
 }; 
 
 

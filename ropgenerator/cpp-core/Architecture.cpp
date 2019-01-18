@@ -44,7 +44,7 @@ Architecture arch_X64 = Architecture(
     0x1000, 
     ENDIAN_LITTLE, 
     X64_NB_REGS, 
-    {X64_SF, X64_ZF, X64_AF, X64_CF, X64_DF, X64_ES, X64_FS}
+    {X64_SF, X64_ZF, X64_AF, X64_CF, X64_DF, X64_ES, X64_FS, X64_OF, X64_PF}
 );
 
 // global variable for selected architecture 

@@ -1,11 +1,13 @@
 #include "Symbolic.hpp"
+#include "Exception.hpp"
+#include <exception>
 
 using namespace std; 
 
 // Arguments for REIL-type of operations 
 SymArg::SymArg(ArgType t, int i, int s): _type(t), _id(i), _size(s){
     _low = 0; 
-    _high = _size-1; 
+    _high = _size-1;
 }
 SymArg::SymArg(ArgType t, int i, int s, int h, int l): _type(t), _id(i), _size(s),  _high(h), _low(l){}
 ArgType SymArg::type(){return _type;}
@@ -19,6 +21,25 @@ cst_t SymArg::value(){
     else
         return _value; 
 }
+void SymArg::print(ostream& os){
+    switch(_type){
+        case ARG_EMPTY:
+            os << "EMPTY";
+            return; 
+        case ARG_CST:
+            os << "CST(" << ((ArgCst*)this)->value() << ", " << _size << ")"; 
+            return;
+        case ARG_REG:
+            os << "REG(" << _id << "," << _size << ")[" << _high << ":" << _low << "]";
+            return;
+        case ARG_TMP:
+            os << "TMP(" << _id << "," << _size << ")[" << _high << ":" << _low << "]";
+            return;
+        default:
+            return; 
+    }
+}
+
 
 ArgEmpty::ArgEmpty(): SymArg(ARG_EMPTY, -1, -1){}
 
@@ -38,6 +59,60 @@ IROperation IRInstruction::op(){return _op;}
 SymArg* IRInstruction::src1(){return &_src1;}
 SymArg* IRInstruction::src2(){return &_src2;}
 SymArg* IRInstruction::dst(){return &_dst;}
+void IRInstruction::print(ostream& os){
+    switch(_op){
+        case IR_ADD:
+            os << "ADD";
+            break;
+        case IR_AND:
+            os << "AND";
+            break;
+        case IR_BSH:
+            os << "BSH";
+            break;
+        case IR_DIV:
+            os << "DIV";
+            break;
+        case IR_LDM:
+            os << "LDM";
+            break;
+        case IR_MOD:
+            os << "MOD";
+            break;
+        case IR_MUL:
+            os << "MUL";
+            break;
+        case IR_NOP:
+            os << "NOP";
+            break;
+        case IR_OR:
+            os << "OR";
+            break;
+        case IR_STM:
+            os << "STM";
+            break;
+        case IR_STR:
+            os << "STR";
+            break;
+        case IR_SUB:
+            os << "SUB";
+            break;
+        case IR_XOR:
+            os << "XOR";
+            break;
+        case IR_UNKNOWN:
+            os << "UNKNOWN";
+            break;
+        default:
+            break;
+    }
+    os << "   [";
+    _src1.print(os); os << ",  ";
+    _src2.print(os); os << ",  ";
+    _dst.print(os); 
+    os << " ]\n";
+}
+
 
 // Some useful functions 
 bool is_calculation_instr(IRInstruction& instr){
@@ -93,6 +168,7 @@ inline void IRBlock::assign_tmp_table(int num, vector<SPair>* val){
  * If the low/high fields of arg don't match its size, the 
  * possible values are adjusted with Extract()
  */ 
+ 
 vector<SPair>* IRBlock::arg_to_spairs(SymArg& arg ){
     vector<SPair>* res, *res2;
     ExprObjectPtr expr; 
@@ -130,11 +206,26 @@ vector<SPair>* IRBlock::arg_to_spairs(SymArg& arg ){
         return res; 
 }
 
+#define MAX_VALUES_PER_ARG 30
+struct too_many_values: public std::exception{
+	const char * what () const throw (){
+    	return "Too many values for one symbolic argument";
+    }
+};
+
 /* We assign 'expr' to argument 'reg' that has the previous value 'prev'
  * If expr is smaller than prev, then we use the low/high fields of reg to 
  * know where to insert it in the previous value using a Concat() expression
  */ 
 inline ExprObjectPtr IRBlock::full_reg_assignment(ExprObjectPtr expr, ExprObjectPtr prev, SymArg& reg){
+    // Check if we need to convert prev
+    if( expr->expr_ptr()->size() != reg.high()-reg.low()+1 ){
+        std::cout << "DEBUG converting for full_reg" << endl;
+        expr = expr->convert(reg.high()-reg.low()+1);
+        std::cout << expr << endl;
+        std::cout << expr->expr_ptr()->size() << endl;
+    }
+        
     if( reg.low() == 0 && reg.high() == reg.size()-1)
         return expr; 
     else if( reg.low() == 0 ){
@@ -154,16 +245,52 @@ vector<SPair>* IRBlock::full_reg_assignment(vector<SPair>* spairs, SymArg& reg){
     vector<SPair>::iterator p, p2; 
     vector<SPair>* res, *prev;
     SymArg full_reg = ArgReg(reg.id(), reg.size()); 
-    if( spairs->empty() || ( reg.low() == 0 && reg.high() == reg.size()-1))
+    if( spairs->empty() || 
+        (( reg.low() == 0 && reg.high() == reg.size()-1) && 
+        (spairs->at(0).expr()->expr_ptr()->size() == reg.size())
+        )
+    )
         return new vector<SPair>(*spairs); 
+        
     res = new vector<SPair>();
     prev = arg_to_spairs(full_reg); // We discard high/low because we want the full value ! 
     for(p = spairs->begin(); p != spairs->end(); p++ ){
-        for(p2 = prev->begin(); p2 != prev->end(); p2++ )
+        for(p2 = prev->begin(); p2 != prev->end(); p2++ ){
+            if( res->size() >= MAX_VALUES_PER_ARG ){
+                delete prev; 
+                delete res; 
+                throw too_many_values();
+            }
             res->push_back(SPair(full_reg_assignment((*p).expr(), (*p2).expr(), reg), (*p).cond()));
+        }
     }
     delete prev; 
     return res; 
+}
+
+/* Same than full_reg but for tmp values */ 
+inline ExprObjectPtr IRBlock::full_tmp_assignment(ExprObjectPtr expr, SymArg& tmp){
+    if( tmp.size() == expr->expr_ptr()->size() )
+        return expr; 
+    else{
+        return expr->expr_ptr()->convert(tmp.size());
+    }
+}
+
+vector<SPair>* IRBlock::full_tmp_assignment(vector<SPair>* spairs, SymArg& tmp){
+    vector<SPair>::iterator p; 
+    vector<SPair>* res;
+    if( spairs->empty() || (spairs->at(0).expr()->expr_ptr()->size() == tmp.size()))
+        return new vector<SPair>(*spairs); 
+    res = new vector<SPair>();
+    for(p = spairs->begin(); p != spairs->end(); p++ ){
+        if( res->size() >= MAX_VALUES_PER_ARG ){
+            delete res;
+            throw too_many_values();
+        }
+        res->push_back(SPair(full_tmp_assignment((*p).expr(), tmp), (*p).cond()));
+    }
+    return res;
 }
 
 /* Returns the possible values for a calculation expression */ 
@@ -308,6 +435,12 @@ vector<SPair>* IRBlock::execute_ldm(SPair& spair, int size, int mem_write_cnt){
     return res; 
 }
 
+vector<SPair>* arg_to_unknown(SymArg& arg){
+    vector<SPair> *res = new vector<SPair>();
+    res->push_back(SPair(NewExprUnknown(arg.size()), NewCondTrue()));
+    return res;
+}
+
 /* Symbolically executes the list of IRInstructions and returns a poitner tp
  * a Semantics instance containing this IRBlock semantics
  * 
@@ -317,61 +450,84 @@ vector<SPair>* IRBlock::execute_ldm(SPair& spair, int size, int mem_write_cnt){
 Semantics* IRBlock::compute_semantics(){
     vector<class IRInstruction>::iterator it; 
     Semantics* res;
-    vector<SPair>* src1, *src2, *comb, *dst, *mem, *tmp;
+    vector<SPair>* src1=nullptr, *src2=nullptr, *comb=nullptr, *dst=nullptr, *mem=nullptr, *tmp=nullptr;
     vector<SPair>::iterator pit;
     ExprObjectPtr addr; 
     int mem_write_cnt = 0, i; 
     for( it = _instr.begin(); it != _instr.end(); ++it){
-        if( is_calculation_instr((*it))){
-            // Get src1 and src2
-            src1 = this->arg_to_spairs(*(it->src1())); 
-            src2 = this->arg_to_spairs(*(it->src2()));
-            // Compute their combinaison 
-            comb = this->execute_calculation(it->op(), src1, src2);
-            delete src1; 
-            delete src2;
-            
-            if( it->dst()->type() == ARG_REG ){
-                assign_reg_table(it->dst()->id(), this->full_reg_assignment(comb, *(it->dst())));
-                delete comb; 
-            }else if( it->dst()->type() == ARG_TMP )
-                assign_tmp_table(it->dst()->id(), comb); 
-            else
-                throw "Invalid arg type for dst in IR calculation instruction"; 
-             
-        }else if( it->op() == IR_STR ){
-            src1 = this->arg_to_spairs(*(it->src1())); 
-            if( it->dst()->type() == ARG_REG ){
-                assign_reg_table(it->dst()->id(), this->full_reg_assignment(src1, *(it->dst())));
+        //DEBUG 
+        it->print(std::cout);
+        try{
+            if( is_calculation_instr((*it))){
+                // Get src1 and src2
+                src1 = this->arg_to_spairs(*(it->src1())); 
+                src2 = this->arg_to_spairs(*(it->src2()));
+                // Compute their combinaison 
+                comb = this->execute_calculation(it->op(), src1, src2);
+                delete src1; src1 = nullptr;
+                delete src2; src2 = nullptr;
+                
+                if( it->dst()->type() == ARG_REG ){
+                    assign_reg_table(it->dst()->id(), this->full_reg_assignment(comb, *(it->dst())));
+                    delete comb; comb = nullptr;
+                }else if( it->dst()->type() == ARG_TMP ){
+                    assign_tmp_table(it->dst()->id(), this->full_tmp_assignment(comb, *(it->dst()))); 
+                    delete comb; comb = nullptr;
+                }else
+                    throw "Invalid arg type for dst in IR calculation instruction"; 
+                 
+            }else if( it->op() == IR_STR ){
+                src1 = this->arg_to_spairs(*(it->src1())); 
+                if( it->dst()->type() == ARG_REG ){
+                    assign_reg_table(it->dst()->id(), this->full_reg_assignment(src1, *(it->dst())));
+                    delete src1; src1 = nullptr;
+                }else if( it->dst()->type() == ARG_TMP ){
+                    assign_tmp_table(it->dst()->id(), this->full_tmp_assignment(src1, *(it->dst())));
+                    delete src1; src1 = nullptr;
+                }else
+                    throw "Invalid arg type for dst in IR_STR instruction"; 
+            }else if( it->op() == IR_STM ){
+                src1 = this->arg_to_spairs(*(it->src1()));
+                dst = this->arg_to_spairs(*(it->dst()));
+                execute_stm(src1, dst, mem_write_cnt);
+                delete src1; src1 = nullptr;
+                delete dst; dst = nullptr;
+            }else if( it->op() == IR_LDM){
+                src1 = this->arg_to_spairs(*(it->src1()));
+                mem = new vector<SPair>();
+                // For all possible read address values, get the semantics  
+                for(pit = src1->begin(); pit != src1->end(); pit++){
+                    tmp = execute_ldm(*pit, it->dst()->size(), mem_write_cnt);
+                    mem->insert(mem->end(), std::make_move_iterator(tmp->begin()), std::make_move_iterator(tmp->end()));
+                    delete tmp;
+                    tmp = nullptr;  
+                }
                 delete src1; 
-            }else if( it->dst()->type() == ARG_TMP )
-                assign_tmp_table(it->dst()->id(),src1); 
-            else
-                throw "Invalid arg type for dst in IR_STR instruction"; 
-        }else if( it->op() == IR_STM ){
-            src1 = this->arg_to_spairs(*(it->src1()));
-            dst = this->arg_to_spairs(*(it->dst()));
-            execute_stm(src1, dst, mem_write_cnt);
-            delete src1; 
-            delete dst; 
-        }else if( it->op() == IR_LDM){
-            src1 = this->arg_to_spairs(*(it->src1()));
-            mem = new vector<SPair>();
-            // For all possible read address values, get the semantics  
-            for(pit = src1->begin(); pit != src1->end(); pit++){
-                tmp = execute_ldm(*pit, it->dst()->size(), mem_write_cnt);
-                mem->insert(mem->end(), std::make_move_iterator(tmp->begin()), std::make_move_iterator(tmp->end()));
-                delete tmp;
-                tmp = nullptr;  
+                if( it->dst()->type() == ARG_REG ){
+                    assign_reg_table(it->dst()->id(), this->full_reg_assignment(mem, *(it->dst())));
+                    delete mem; mem = nullptr;
+                }else if( it->dst()->type() == ARG_TMP ){
+                    assign_tmp_table(it->dst()->id(), this->full_tmp_assignment(mem, *(it->dst()))); 
+                    delete mem; mem = nullptr;
+                }else
+                    throw "Invalid arg type for dst in IR_LDM instruction"; 
+            }else if( it->op() == IR_UNKNOWN ){
+                if( it->dst()->type() == ARG_REG ){
+                    assign_reg_table(it->dst()->id(), arg_to_unknown(*(it->dst())));
+                }else if( it->dst()->type() == ARG_TMP ){
+                    assign_tmp_table(it->dst()->id(), arg_to_unknown(*(it->dst())));
+                }else
+                    throw "Invalid arg type for dst in IR_UNKNOWN instruction"; 
+                
             }
-            delete src1; 
-            if( it->dst()->type() == ARG_REG ){
-                assign_reg_table(it->dst()->id(), this->full_reg_assignment(mem, *(it->dst())));
-                delete mem; 
-            }else if( it->dst()->type() == ARG_TMP )
-                assign_tmp_table(it->dst()->id(), mem); 
-            else
-                throw "Invalid arg type for dst in IR_LDM instruction"; 
+        }catch(too_many_values& e){
+            delete src1;
+            delete src2; 
+            delete mem;
+            delete comb; 
+            delete tmp;
+            delete dst;
+            return new Semantics(); // DEBUG faire remonter l'erreur et annuler le gadget pour opti ;) 
         }
     }
     // Fill the semantic object and return it
@@ -389,6 +545,14 @@ Semantics* IRBlock::compute_semantics(){
     
     _mem_write_cnt = mem_write_cnt; 
     return res; 
+}
+
+
+void IRBlock::print(ostream& os){
+    vector<class IRInstruction>::iterator it; 
+    for( it = _instr.begin(); it != _instr.end(); ++it){
+        it->print(os);
+    }
 }
 
 

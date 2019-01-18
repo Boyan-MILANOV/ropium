@@ -1,6 +1,6 @@
 #include "CommonUtils.hpp"
 #include <cstdio>
-
+#include <sstream>
 
 using std::string; 
 
@@ -12,3 +12,5 @@ string value_to_hex_str(int octets, addr_t addr){
     snprintf(res, sizeof(addr), format, addr);
     return "0x"+string(res);
 }
+
+

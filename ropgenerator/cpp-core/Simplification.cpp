@@ -1,5 +1,7 @@
 #include "Expression.hpp"
 #include "Simplification.hpp"
+#include "Exception.hpp"
+
 /*---------------------------------------------------------------
  *              Simplifications on Expressions 
  *---------------------------------------------------------------*/ 
@@ -198,8 +200,10 @@ ExprPtr simplify_pattern(ExprPtr p){
             // Extract( Concat(X,Y), a, b ) where a,b in X only
             if( p->low() == bound && p->high() == p->arg_expr_ptr()->size()-1)
                 return p->arg_expr_ptr()->upper_expr_ptr(); 
-            else if( p->low() > bound )
-                return make_shared<ExprExtract>(p->arg_expr_ptr()->upper_object_ptr(), p->high(), p->low());
+            else if( p->low() > bound ){
+                return make_shared<ExprExtract>(p->arg_expr_ptr()->upper_object_ptr(), p->high()-bound, p->low()-bound);
+                
+            }
         }
     
     }     
@@ -243,7 +247,7 @@ bool ExprAsPolynom::equal(ExprAsPolynom* other){
 CondEval ExprAsPolynom::compare(ExprAsPolynom* other, CondType comp){
     int i;
     if( other->len() != _len )
-        throw "Comparing polynoms of different length!";
+        throw_exception("Comparing polynoms of different length!");
     for( i = 0; i < _len; i++)
         if( _polynom[i] != other->polynom()[i])
             break;
@@ -273,10 +277,10 @@ ExprAsPolynom* ExprAsPolynom::merge_op(ExprAsPolynom* other, Binop op){
             func = [](int a, int b)->int{return a*b;};
             break;
         default:
-            throw "Invalid ExprType in merge_op!";
+            throw_exception("Invalid ExprType in merge_op!");
     }
     if( other->len() != _len )
-        throw "Merging polynoms of different length!";
+        throw_exception("Merging polynoms of different length!");
     for( i = 0; i < _len; i++)
         res->polynom()[i] = func(_polynom[i], other->polynom()[i]); 
     return res; 

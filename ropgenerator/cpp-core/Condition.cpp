@@ -1,5 +1,6 @@
 #include "Condition.hpp"
 #include "Simplification.hpp"
+#include "Exception.hpp"
 
 // Condition types 
 CondType invert_cond_type(CondType c){
@@ -26,8 +27,7 @@ CondType invert_cond_type(CondType c){
             return COND_UNKNOWN;
             break;
         default:
-            throw "CondType not supported by invert_cond()";
-        
+            throw_exception("CondType not supported by invert_cond()");
     }
 }
 

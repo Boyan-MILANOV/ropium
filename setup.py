@@ -72,7 +72,8 @@ class BuildExt(build_ext):
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
             opts.append('-Wno-delete-non-virtual-dtor')
-            opts.append('-O0') # Maximum optimisation DEBUG 
+            opts.append("-g3") # Maximum optimisation DEBUG
+            opts.append("-O0") # Fast compile DEBUG  
         elif ct == 'msvc':
             opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
         for ext in self.extensions:
