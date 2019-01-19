@@ -86,6 +86,7 @@ void Semantics::simplify(){
     }
     
     for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
+        (*mit).first->simplify();
         for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ ){
             (*pit).expr()->simplify(); 
             (*pit).cond()->simplify();
@@ -106,6 +107,7 @@ void Semantics::filter(){
     }
     
     for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
+        (*mit).first->filter();
         for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ ){
             (*pit).expr()->filter(); 
             (*pit).cond()->filter(); 

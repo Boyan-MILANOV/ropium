@@ -1,5 +1,6 @@
 #include "Symbolic.hpp"
 #include "Exception.hpp"
+#include "Architecture.hpp"
 #include <exception>
 
 using namespace std; 
@@ -220,10 +221,7 @@ struct too_many_values: public std::exception{
 inline ExprObjectPtr IRBlock::full_reg_assignment(ExprObjectPtr expr, ExprObjectPtr prev, SymArg& reg){
     // Check if we need to convert prev
     if( expr->expr_ptr()->size() != reg.high()-reg.low()+1 ){
-        std::cout << "DEBUG converting for full_reg" << endl;
         expr = expr->convert(reg.high()-reg.low()+1);
-        std::cout << expr << endl;
-        std::cout << expr->expr_ptr()->size() << endl;
     }
         
     if( reg.low() == 0 && reg.high() == reg.size()-1)
@@ -299,6 +297,8 @@ vector<SPair>* IRBlock::execute_calculation(IROperation op, vector<SPair>* src1,
     vector<SPair>::iterator arg1, arg2; 
     for( arg1 = src1->begin(); arg1 != src1->end(); arg1++){
         for( arg2 = src2->begin(); arg2 != src2->end(); arg2++){
+            if( res->size() > MAX_VALUES_PER_ARG )
+                throw too_many_values();
             // Compute their combinaison 
             switch(op){
                 case IR_ADD:
@@ -338,7 +338,7 @@ vector<SPair>* IRBlock::execute_calculation(IROperation op, vector<SPair>* src1,
     return res; 
 }
 
-/* Executes a IR_STR instruction
+/* Executes a IR_STM instruction
  * src1 are the possible stored values
  * dst are the possible store addresses
  * mem_write_cnt = the number of stores done so far
@@ -456,8 +456,14 @@ Semantics* IRBlock::compute_semantics(){
     int mem_write_cnt = 0, i; 
     for( it = _instr.begin(); it != _instr.end(); ++it){
         //DEBUG 
-        it->print(std::cout);
+        //it->print(std::cout);
         try{
+            // Skip instructions setting ignored registers 
+            if( it->dst()->type() == ARG_REG && 
+                curr_arch()->is_ignored_reg(it->dst()->id())){
+                continue;
+            }
+            // Execute instruction
             if( is_calculation_instr((*it))){
                 // Get src1 and src2
                 src1 = this->arg_to_spairs(*(it->src1())); 
@@ -466,7 +472,6 @@ Semantics* IRBlock::compute_semantics(){
                 comb = this->execute_calculation(it->op(), src1, src2);
                 delete src1; src1 = nullptr;
                 delete src2; src2 = nullptr;
-                
                 if( it->dst()->type() == ARG_REG ){
                     assign_reg_table(it->dst()->id(), this->full_reg_assignment(comb, *(it->dst())));
                     delete comb; comb = nullptr;
@@ -475,7 +480,6 @@ Semantics* IRBlock::compute_semantics(){
                     delete comb; comb = nullptr;
                 }else
                     throw "Invalid arg type for dst in IR calculation instruction"; 
-                 
             }else if( it->op() == IR_STR ){
                 src1 = this->arg_to_spairs(*(it->src1())); 
                 if( it->dst()->type() == ARG_REG ){

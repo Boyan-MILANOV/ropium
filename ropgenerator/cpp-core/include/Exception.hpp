@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string>
 
+
 class ExceptionFormatter{
 public:
     ExceptionFormatter() {}

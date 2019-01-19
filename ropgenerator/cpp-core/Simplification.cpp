@@ -181,11 +181,12 @@ ExprPtr simplify_pattern(ExprPtr p){
     int bound; 
     
     if( p->type() == EXPR_CONCAT ){
-        // Concat(X[a:b], X[b-1:c]) = X[a:c] 
+        // Concat(X[a:b], X[b-1:c]) = X[a:c]         
         if( p->upper_expr_ptr()->type() == EXPR_EXTRACT && 
             p->lower_expr_ptr()->type() == EXPR_EXTRACT &&
-            p->lower_expr_ptr()->arg_expr_ptr()->equal(p->lower_expr_ptr()->arg_expr_ptr()) && 
+            p->lower_expr_ptr()->arg_expr_ptr()->equal(p->upper_expr_ptr()->arg_expr_ptr()) && 
             p->upper_expr_ptr()->low() == p->lower_expr_ptr()->high() + 1)
+            
             return make_shared<ExprExtract>(p->lower_expr_ptr()->arg_object_ptr(), 
                                             p->upper_expr_ptr()->high(),
                                             p->lower_expr_ptr()->low());
@@ -204,12 +205,18 @@ ExprPtr simplify_pattern(ExprPtr p){
                 return make_shared<ExprExtract>(p->arg_expr_ptr()->upper_object_ptr(), p->high()-bound, p->low()-bound);
                 
             }
+        // Extract(Extract(X,a,b), c, d) with a > c > d > b
+        }else if( p->arg_expr_ptr()->type() == EXPR_EXTRACT ){
+            if( p->arg_expr_ptr()->high() >= p->high() && 
+                p->arg_expr_ptr()->low() <= p->low() )
+                return make_shared<ExprExtract>(p->arg_expr_ptr()->arg_object_ptr(),
+                                p->arg_expr_ptr()->low()+p->high(),
+                                p->arg_expr_ptr()->low()+p->low());
         }
     
     }     
     return p;
 }
-
 
 ////////////////////////////////////////////////////////////////////////
 // ExprAsPolynom
@@ -448,8 +455,10 @@ bool supported_address(ExprPtr addr){
             // Reg 
             ( addr->type() == EXPR_REG ) || 
             // Reg +/- cst 
-            (addr->type() == EXPR_BINOP && (addr->binop() == OP_ADD || addr->binop() == OP_SUB) 
-                    && addr->left_expr_ptr()->type() == EXPR_CST && addr->right_expr_ptr()->type() == EXPR_REG);
+            (addr->type() == EXPR_BINOP && (addr->binop() == OP_ADD || addr->binop() == OP_SUB)  
+                    && (addr->left_expr_ptr()->type() == EXPR_CST) 
+                    && (addr->right_expr_ptr()->type() == EXPR_REG)
+            );
 }
 
 bool supported_binop(ExprPtr expr){
