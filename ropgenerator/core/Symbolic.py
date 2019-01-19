@@ -59,6 +59,13 @@ ReilMnemonic.DIV: IROperation.DIV
 def barf_operation_to_IR(mnemonic):
     return map_op_to_IR.get(mnemonic, None)
 
+class RegNotSupported(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+        
+    def __str__(self):
+        return msg
+
 def barf_operand_to_IR(operand, alias_mapper):
     if( isinstance(operand, ReilImmediateOperand )):
         if( operand._immediate > sys.maxint ): # DEBUG 
@@ -87,7 +94,7 @@ def barf_operand_to_IR(operand, alias_mapper):
             else:
                 raise Exception("Error")
             if( reg_num is None ):
-                raise Exception("Error, could not get register: " + reg_str)
+                raise RegNotSupported("Error, could not get register: " + reg_str)
             # Return the right operand 
             if( operand.size == curr_arch_bits() ):
                 return ArgReg(reg_num, operand.size)
@@ -115,42 +122,45 @@ def raw_to_IRBlock(raw):
     res = IRBlock()
     # Translate instruction by instruction 
     # TODO 
-    for instr in irsb:
-        print(instr) # DEBUG 
-        i = None
-        if( instr.mnemonic == ReilMnemonic.NOP):
-            pass
-        elif( is_calculation_instr(instr.mnemonic)):
-            i = IRInstruction(barf_operation_to_IR(instr.mnemonic),
-                                        barf_operand_to_IR(instr.operands[0], alias_mapper),
-                                        barf_operand_to_IR(instr.operands[1], alias_mapper),
-                                        barf_operand_to_IR(instr.operands[2], alias_mapper));
-                                        
-        elif( is_load_instr(instr.mnemonic)):
-            i = IRInstruction(IROperation.LDM,
-                                        barf_operand_to_IR(instr.operands[0], alias_mapper),
-                                        ArgEmpty(),
-                                        barf_operand_to_IR(instr.operands[2], alias_mapper));
-                                        
-        elif( is_store_instr(instr.mnemonic)):
-            i = IRInstruction(IROperation.STM,
-                                        barf_operand_to_IR(instr.operands[0], alias_mapper),
-                                        ArgEmpty(),
-                                        barf_operand_to_IR(instr.operands[2], alias_mapper));
-        elif( is_put_instr(instr.mnemonic)):
-            i = IRInstruction(IROperation.STR, 
-                                        barf_operand_to_IR(instr.operands[0], alias_mapper),
-                                        ArgEmpty(),
-                                        barf_operand_to_IR(instr.operands[2], alias_mapper));
-        elif( instr.mnemonic == ReilMnemonic.BISZ ):
-            i = IRInstruction(IROperation.UNKNOWN,
-                                        ArgEmpty(),
-                                        ArgEmpty(),
-                                        barf_operand_to_IR(instr.operands[2], alias_mapper));
-        elif( instr.mnemonic == ReilMnemonic.JCC ):
-            pass
-        else:
-            return None 
-        if( i ):
-            res.add_instr(i)
+    try:
+        for instr in irsb:
+            #print(instr) # DEBUG 
+            i = None
+            if( instr.mnemonic == ReilMnemonic.NOP):
+                pass
+            elif( is_calculation_instr(instr.mnemonic)):
+                i = IRInstruction(barf_operation_to_IR(instr.mnemonic),
+                                            barf_operand_to_IR(instr.operands[0], alias_mapper),
+                                            barf_operand_to_IR(instr.operands[1], alias_mapper),
+                                            barf_operand_to_IR(instr.operands[2], alias_mapper));
+                                            
+            elif( is_load_instr(instr.mnemonic)):
+                i = IRInstruction(IROperation.LDM,
+                                            barf_operand_to_IR(instr.operands[0], alias_mapper),
+                                            ArgEmpty(),
+                                            barf_operand_to_IR(instr.operands[2], alias_mapper));
+                                            
+            elif( is_store_instr(instr.mnemonic)):
+                i = IRInstruction(IROperation.STM,
+                                            barf_operand_to_IR(instr.operands[0], alias_mapper),
+                                            ArgEmpty(),
+                                            barf_operand_to_IR(instr.operands[2], alias_mapper));
+            elif( is_put_instr(instr.mnemonic)):
+                i = IRInstruction(IROperation.STR, 
+                                            barf_operand_to_IR(instr.operands[0], alias_mapper),
+                                            ArgEmpty(),
+                                            barf_operand_to_IR(instr.operands[2], alias_mapper));
+            elif( instr.mnemonic == ReilMnemonic.BISZ ):
+                i = IRInstruction(IROperation.UNKNOWN,
+                                            ArgEmpty(),
+                                            ArgEmpty(),
+                                            barf_operand_to_IR(instr.operands[2], alias_mapper));
+            elif( instr.mnemonic == ReilMnemonic.JCC ):
+                pass
+            else:
+                return None 
+            if( i ):
+                res.add_instr(i)
+    except RegNotSupported:
+        return None
     return res

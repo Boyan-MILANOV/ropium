@@ -194,7 +194,7 @@ def load(args):
             count += 1
             continue
         dup[raw] = True
-        print("DEBUG, trying: \\x" + '\\x'.join("{:02x}".format(ord(c)) for c in raw))
+        #print("DEBUG, trying: \\x" + '\\x'.join("{:02x}".format(ord(c)) for c in raw))
         irblock = raw_to_IRBlock(raw)
         if( not irblock is None ): 
             gadget = Gadget(irblock)

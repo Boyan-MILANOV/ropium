@@ -137,7 +137,12 @@ tuple<bool, cst_t> ExprReg::is_reg_increment(int num){
 
 // Convert the expression size
 ExprObjectPtr ExprReg::convert(int size){
-    return NewExprReg(_num, size);
+    if( size < _size )
+        return Extract(NewExprReg(_num, size), size-1, 0);
+    else if( size > _size )
+        return Concat(NewExprCst(0,size-_size), NewExprReg(_num, _size));
+    else
+        return NewExprReg(_num, _size);
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -177,7 +182,7 @@ ExprObjectPtr ExprMem::convert(int size){
 const char* binop_to_str[] = {"+","-","*","/","&","|","^","%", "<>"}; 
 // Constructor 
 ExprBinop::ExprBinop( Binop o, ExprObjectPtr l, ExprObjectPtr r): Expr(EXPR_BINOP), _op(o), _left(l), _right(r){
-    if( l->expr_ptr()->size() != r->expr_ptr()->size() ){
+    if( o != OP_BSH && l->expr_ptr()->size() != r->expr_ptr()->size() ){
         throw_exception(ExceptionFormatter() << "Different sizes when initializing ExprBinop: " << l << 
         " and " << r << "(sizes: " << l->expr_ptr()->size() << " and " << r->expr_ptr()->size() << ") " >> ExceptionFormatter::to_str); 
     }
@@ -282,8 +287,7 @@ tuple<bool, cst_t> ExprBinop::is_reg_increment(int num){
 // Convert the expression size
 ExprObjectPtr ExprBinop::convert(int size){
     if( _op == OP_BSH )
-        //return NewExprBinop(_op, _left->convert(size), _right); DEBUG ??? 
-        return NewExprBinop(_op, _left->convert(size), _right->convert(size));
+        return NewExprBinop(_op, _left->convert(size), _right);
     else
         return NewExprBinop(_op, _left->convert(size), _right->convert(size));
 }
@@ -329,10 +333,9 @@ ExprObjectPtr ExprUnop::convert(int size){
 ExprExtract::ExprExtract( ExprObjectPtr a, int h, int l): Expr(EXPR_EXTRACT), _arg(a), _high(h), _low(l){
     if( h < l )
         throw_exception("Invalid Extract() expression: high < low !");
-    else if( h >= a->expr_ptr()->size()){
-        // DEBUG
-        std::cout << _arg << endl << _high << endl << _low << endl; 
-        throw_exception("Invalid Extract() expression: high >= size !");
+    else if( h >= a->expr_ptr()->size()){ 
+        throw_exception(ExceptionFormatter() << "Invalid Extract() expression: high >= size ! in "
+            << a << "(high:" << h << ", low:" << l << ")\n" >> ExceptionFormatter::to_str);
     }else if( l < 0)
         throw_exception("Invalid Extract() expression: low < 0 !");
     set_size(h-l+1);
@@ -365,7 +368,8 @@ ExprObjectPtr ExprExtract::convert(int size){
     if( _low + size <= _arg->expr_ptr()->size())
         return NewExprExtract(_arg, _low+size-1, _low );
     else
-        return Concat(NewExprCst(0,size-_high), NewExprExtract(_arg, _low+size-1-_high, _low));
+        return Concat(NewExprCst(0,size- (_arg->expr_ptr()->size()- _low)), 
+                      NewExprExtract(_arg, _arg->expr_ptr()->size()-1, _low));
 }
 
 /////////////////////////////////////////////////////////////////////////
