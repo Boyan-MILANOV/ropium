@@ -11,6 +11,7 @@ using namespace pybind11::literals;
 #include "Symbolic.hpp"
 #include "Architecture.hpp"
 #include "Gadget.hpp"
+#include "Database.hpp"
 
 
 PYBIND11_MODULE(ropgenerator_core_, m){
@@ -165,6 +166,9 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     
     /* Database Bindings */ 
     
+    m.def("gadget_db_add", [](shared_ptr<Gadget> g){return gadget_db()->add(g);});
+    m.def("gadget_db_get", [](int n){return gadget_db()->get(n);});
+    m.def("init_gadget_db", &init_gadget_db);
     
 }
 

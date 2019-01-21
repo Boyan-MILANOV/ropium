@@ -13,9 +13,10 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     cst_t inc;
     
     // Get the semantics 
-    _semantics = irblock->compute_semantics();
+    _semantics = irblock->compute_semantics(); 
     _semantics->simplify(); 
-    _semantics->filter();
+        /* DEBUG
+    _semantics->filter(); */ 
     
     // Set the different fields 
     // Get the registers that have been modified 
@@ -131,7 +132,7 @@ void Gadget::print(ostream& os){
     os << endl;
 }
 
-bool Gadget::lthan(Gadget* other){
+bool Gadget::lthan(shared_ptr<Gadget> other){
     if( _known_sp_inc && other->known_sp_inc() &&
         _sp_inc < other->sp_inc() )
         return true; 

@@ -13,6 +13,7 @@ from ropgenerator.core.IO import *
 from ropgenerator.core.Architecture import *
 from ropgenerator.core.Symbolic import raw_to_IRBlock
 from ropgenerator.core.Gadget import *
+from ropgenerator.core.Database import gadget_db_add, init_gadget_db
 
 # Command options
 OPTION_ARCH = '--arch'
@@ -186,10 +187,16 @@ def load(args):
         return 
         
     # Analyse gadgets 
+    init_gadget_db();
     start_time = datetime.now()
     dup = dict()
     count = 0
+    debug_cnt = 0
     for( addr, raw) in gadget_list:
+        #DEBUG
+        print("GAdget : " + str(debug_cnt))
+        debug_cnt += 1
+        ( addr, raw) = gadget_list[2]
         if( raw in dup ):
             count += 1
             continue
@@ -198,6 +205,8 @@ def load(args):
         irblock = raw_to_IRBlock(raw)
         if( not irblock is None ): 
             gadget = Gadget(irblock)
+            gadget_db_add(gadget)
+        return 
         
     end_time = datetime.now()
     print("Time: " + str(end_time-start_time))

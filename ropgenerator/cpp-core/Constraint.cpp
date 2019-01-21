@@ -19,7 +19,7 @@ SubConstraint* ConstrReturn::copy(){
     return new ConstrReturn(_ret, _jmp, _call);
 }
 
-pair<ConstrEval,CondObjectPtr> ConstrReturn::verify(Gadget* g){
+pair<ConstrEval,CondObjectPtr> ConstrReturn::verify(shared_ptr<Gadget> g){
     if  (( _ret && (g->ret_type() == RET_RET))  || 
         ( _jmp && (g->ret_type() == RET_JMP))  ||
         ( _call && (g->ret_type() == RET_CALL)))
@@ -56,7 +56,7 @@ bool ConstrBadBytes::verify_address(addr_t a){
     return true;
 }
 
-pair<ConstrEval,CondObjectPtr> ConstrBadBytes::verify(Gadget* g){
+pair<ConstrEval,CondObjectPtr> ConstrBadBytes::verify(shared_ptr<Gadget> g){
     vector<addr_t>::iterator it; 
     for( it = g->addresses().begin(); it != g->addresses().end(); it++){
         if( ! verify_address(*it))
@@ -90,7 +90,7 @@ void ConstrKeepRegs::remove_reg(int num){
     if( num < NB_REGS_MAX && num >= 0 )
         _regs[num] = false; 
 }
-pair<ConstrEval,CondObjectPtr> ConstrKeepRegs::verify(Gadget* g){
+pair<ConstrEval,CondObjectPtr> ConstrKeepRegs::verify(shared_ptr<Gadget> g){
     bool * modified = g->modified_regs();
     for( int i = 0; i < NB_REGS_MAX; i++)
         if( _regs[i] && modified[i] )
@@ -124,7 +124,7 @@ void ConstrValidRead::add_addr( ExprObjectPtr a){
 
 vector<ExprObjectPtr>* ConstrValidRead::addresses(){return &_addresses;}
 
-pair<ConstrEval,CondObjectPtr> ConstrValidRead::verify(Gadget* g){
+pair<ConstrEval,CondObjectPtr> ConstrValidRead::verify(shared_ptr<Gadget> g){
     vector<ExprObjectPtr>::iterator it;
     CondObjectPtr tmp; 
     if( _addresses.size() == 0 )
@@ -159,7 +159,7 @@ void ConstrValidWrite::add_addr( ExprObjectPtr a){
 
 vector<ExprObjectPtr>* ConstrValidWrite::addresses(){return &_addresses;}
 
-pair<ConstrEval,CondObjectPtr> ConstrValidWrite::verify(Gadget* g){
+pair<ConstrEval,CondObjectPtr> ConstrValidWrite::verify(shared_ptr<Gadget> g){
     vector<ExprObjectPtr>::iterator it;
     CondObjectPtr tmp; 
     if( _addresses.size() == 0 )
@@ -188,7 +188,7 @@ void ConstrValidWrite::merge(SubConstraint* c, bool del=false){
 
 // ConstrSpInc
 ConstrSpInc::ConstrSpInc(cst_t i): SubConstraint(CONSTR_SP_INC), _inc(i){}
-pair<ConstrEval,CondObjectPtr> ConstrSpInc::verify(Gadget* g){
+pair<ConstrEval,CondObjectPtr> ConstrSpInc::verify(shared_ptr<Gadget> g){
     if( !g->known_sp_inc() || g->sp_inc() != _inc )
         return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
     return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
@@ -232,7 +232,7 @@ Constraint* Constraint::copy(){
     return res; 
 }
 
-pair<ConstrEval,CondObjectPtr> Constraint::verify(Gadget* g){
+pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g){
     ConstrEval eval; 
     CondObjectPtr cond; 
     CondObjectPtr res_cond = NewCondTrue(); 

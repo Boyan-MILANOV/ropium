@@ -23,7 +23,7 @@ class SubConstraint{
         // Functions of child classes
         virtual SubConstraint* copy(){throw "Should not be called here";}
         virtual void merge(SubConstraint* c, bool del){throw "SHould not be called here";}
-        virtual pair<ConstrEval,CondObjectPtr> verify(Gadget* g){throw "SHould not be called here";}
+        virtual pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g){throw "SHould not be called here";}
         // From ConstrBadBytes
         vector<unsigned char>* bad_bytes(){throw "Should not be called here";}
         // From ValidPoitner
@@ -37,7 +37,7 @@ class ConstrReturn: public SubConstraint{
         bool ret(); 
         bool jmp();
         bool call();
-        pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         virtual SubConstraint* copy();
         virtual void merge(SubConstraint* c, bool del);
 };
@@ -49,7 +49,7 @@ class ConstrBadBytes: public SubConstraint{
         ConstrBadBytes(vector<unsigned char> bb);
         vector<unsigned char>* bad_bytes(); 
         bool verify_address(addr_t a);
-        pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         virtual SubConstraint* copy();
         virtual void merge(SubConstraint* c, bool del);
 };
@@ -61,7 +61,7 @@ class ConstrKeepRegs: public SubConstraint{
         bool get(int num);
         void add_reg(int num);
         void remove_reg(int num);
-        pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         virtual SubConstraint* copy();
         virtual void merge(SubConstraint* c, bool del);
 };
@@ -72,7 +72,7 @@ class ConstrValidRead: public SubConstraint{
         ConstrValidRead();
         vector<ExprObjectPtr>* addresses(); 
         void add_addr( ExprObjectPtr a);
-        pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         virtual SubConstraint* copy();
         virtual void merge(SubConstraint* c, bool del);
 };
@@ -83,7 +83,7 @@ class ConstrValidWrite: public SubConstraint{
         ConstrValidWrite();
         vector<ExprObjectPtr>* addresses(); 
         void add_addr( ExprObjectPtr a);
-        pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         virtual SubConstraint* copy();
         virtual void merge(SubConstraint* c, bool del);
 };
@@ -92,7 +92,7 @@ class ConstrSpInc: public SubConstraint{
     cst_t _inc;
     public:
         ConstrSpInc(cst_t i);
-        pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         virtual SubConstraint* copy();
 };
 
@@ -107,7 +107,7 @@ class Constraint{
         void add(SubConstraint* c, bool del);
         void update(SubConstraint* c);
         void remove(SubConstraintType t);
-        pair<ConstrEval,CondObjectPtr> verify(Gadget* g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         Constraint* copy(); 
         ~Constraint();
 };
