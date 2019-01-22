@@ -117,7 +117,7 @@ def raw_to_IRBlock(raw):
         pass 
     (irsb,string) = raw_to_REIL(raw, disassembler, ir_translator)
     if( irsb is None ):
-        return None 
+        return (None, string) 
     
     res = IRBlock()
     # Translate instruction by instruction 
@@ -158,9 +158,9 @@ def raw_to_IRBlock(raw):
             elif( instr.mnemonic == ReilMnemonic.JCC ):
                 pass
             else:
-                return None 
+                return (None, string) 
             if( i ):
                 res.add_instr(i)
     except RegNotSupported:
-        return None
-    return res
+        return (None, string)
+    return (res, string)

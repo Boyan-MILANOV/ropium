@@ -32,7 +32,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("remove_colors",&remove_colors);
 
     m.def("charging_bar", &charging_bar, "nb_iter"_a, "curr_iter"_a,
-        "bar_len"_a=30, "msg"_a="", "c"_a="\u2588");
+        "bar_len"_a=30, "msg"_a=" ", "c"_a="\u2588");
     
     m.def("disable_colors", &disable_colors);
     m.def("enable_colors", &enable_colors);
@@ -154,15 +154,20 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     /* Gadget Bindings */ 
     
     py::class_<Gadget, shared_ptr<Gadget>>(m, "Gadget")
-        .def(py::init<shared_ptr<IRBlock>>());
+        .def(py::init<shared_ptr<IRBlock>>())
+        .def("set_asm_str", &Gadget::set_asm_str)
+        .def("set_hex_str", &Gadget::set_hex_str);
+        
+        
     m.def("print_gadget", [](shared_ptr<Gadget> g){
         py::scoped_ostream_redirect stream(
-        std::cout, // std::ostream&
-        py::module::import("sys").attr("stdout") // Python output
+            std::cout, // std::ostream&
+            py::module::import("sys").attr("stdout") // Python output
         );
         (*g).print(std::cout);
         }
     );
+    
     
     /* Database Bindings */ 
     
