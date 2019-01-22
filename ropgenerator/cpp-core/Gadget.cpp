@@ -16,8 +16,7 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     _semantics = irblock->compute_semantics(); 
 
     _semantics->simplify(); 
-                /* DEBUG
-    _semantics->filter(); */ 
+    _semantics->filter(); 
     
     // Set the different fields 
     // Get the registers that have been modified 

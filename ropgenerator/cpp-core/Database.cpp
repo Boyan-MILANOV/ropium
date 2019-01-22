@@ -57,9 +57,7 @@ REGList::REGList(){
 void REGList::add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets){
     if( _values[op][reg_num] == nullptr )
         _values[op][reg_num] = new CSTList();
-    cout << "DEBUG, adding in reglist" << endl;
     _values[op][reg_num]->add(cst, gadget_num, pre_cond, gadgets);
-    cout << "DBUG, done in reglist" << endl;
 }
 vector<int> REGList::find(Binop op, int reg_num, cst_t cst, Constraint* constr, Assertion* assert, int n=1){
     if( _values[op][reg_num] == nullptr )
@@ -197,21 +195,10 @@ int Database::add(shared_ptr<Gadget> g){
     /* Add gadget to the list */ 
     _gadgets.push_back(g);
     
-    
-    cout << g->semantics(); 
-    
-    for( rit = g->semantics()->regs().begin(); rit != g->semantics()->regs().end(); rit++){
-        reg = (*rit).first;
-        std::cout << "DEBUG " << reg << endl;
-    }
-    
-    
-    
     /* Get semantics for ... -> reg */ 
     for( rit = g->semantics()->regs().begin(); rit != g->semantics()->regs().end(); rit++){
         reg = (*rit).first;
         /* Get possible values */ 
-        cout << "DEBUG mooore" << endl; 
         for( sit = (*rit).second->begin(); sit != (*rit).second->end(); sit++ ){
             // cst -> reg ? 
             if( sit->expr_ptr()->type() == EXPR_CST ){
@@ -260,10 +247,8 @@ int Database::add(shared_ptr<Gadget> g){
                     }
                 }
             } 
-            cout << "DEBUG, ouf!" << endl;
         }
     }
-    cout << "DEBUG finiiished " << endl;
     
     /* Get semantics for ... -> mem */ 
     /* Note : This is very similar to the code above for registers, but I keep it 

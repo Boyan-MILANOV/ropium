@@ -25,8 +25,8 @@ void Semantics::add_reg(int num, vector<SPair> *pairs){
 void Semantics::add_mem(ExprObjectPtr addr, vector<SPair> *pairs){
     _mem.push_back(make_pair(addr, pairs));
 }
-vector<reg_pair> Semantics::regs(){return _regs;}
-vector<mem_pair> Semantics::mem(){return _mem;}
+vector<reg_pair>& Semantics::regs(){return _regs;}
+vector<mem_pair>& Semantics::mem(){return _mem;}
 vector<SPair>* Semantics::get_reg(int num){
     vector<reg_pair>::iterator it;
     for(it = _regs.begin(); it != _regs.end(); it++ ){
