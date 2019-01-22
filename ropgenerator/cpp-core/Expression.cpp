@@ -597,7 +597,7 @@ ExprObjectPtr NewExprUnknown(int size=-1){
         return make_shared<ExprObject>(make_shared<ExprUnknown>(size));
 }
 // Create new ExprPtr for ExprUnknown, ONLY INTERNAL USAGE
-ExprPtr g_expr_ptr_unknown = make_shared<ExprUnknown>();
+ExprPtr g_expr_ptr_unknown = make_shared<ExprUnknown>(-1);
 ExprPtr special_NewExprPtrUnknown(){
     return g_expr_ptr_unknown; 
 }

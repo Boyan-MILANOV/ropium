@@ -73,7 +73,7 @@ bool ROPChain::lthan(ROPChain* other){
 }
 
 // String representation 
-string valid_addr_str(int octets, Gadget* g, vector<unsigned char> bad_bytes){
+string valid_addr_str(int octets, shared_ptr<Gadget> g, vector<unsigned char> bad_bytes){
     int i;
     vector<addr_t>::iterator it; 
     for( it = g->addresses().begin(); it != g->addresses().end(); it++){

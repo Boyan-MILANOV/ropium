@@ -3,7 +3,7 @@
 #include <memory>
 #include <utility>
 
-int find_insert_index(vector<int> gadget_list, int gadget_num, vector<Gadget*> gadgets){
+int find_insert_index(vector<int> gadget_list, int gadget_num, vector<shared_ptr<Gadget>> gadgets){
     int count= gadget_list.size(); 
     int first = 0; 
     int curr; 
@@ -21,15 +21,15 @@ int find_insert_index(vector<int> gadget_list, int gadget_num, vector<Gadget*> g
 
 /* CSTList */ 
 CSTList::CSTList(){} 
-void CSTList::add(cst_t val, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets){
+void CSTList::add(cst_t val, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets){
     int insert_idx = find_insert_index(_values[val], gadget_num, gadgets);
-    _values[val].insert(_values.at(val).begin()+insert_idx, gadget_num);
-    _pre_conds[val].insert(_pre_conds.at(val).begin()+insert_idx, pre_cond);
+    _values[val].insert(_values[val].begin()+insert_idx, gadget_num);
+    _pre_conds[val].insert(_pre_conds[val].begin()+insert_idx, pre_cond);
     
 }
 vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int n=1){
     vector<int> res; 
-    Gadget* g; 
+    shared_ptr<Gadget> g; 
     CondObjectPtr constr_cond, both_cond;
     ConstrEval eval;  
     if( _values.count(val) == 0)
@@ -54,7 +54,7 @@ REGList::REGList(){
     std::memset(_values, 0, sizeof(CSTList*)*NB_REGS_MAX*COUNT_NB_BINOP);
 }
 
-void REGList::add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets){
+void REGList::add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets){
     if( _values[op][reg_num] == nullptr )
         _values[op][reg_num] = new CSTList();
     _values[op][reg_num]->add(cst, gadget_num, pre_cond, gadgets);
@@ -78,7 +78,7 @@ MEMList::MEMList(){
 }
 
 /* For expressions of type mem + cst */ 
-void MEMList::add(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets ){
+void MEMList::add(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets ){
     CSTList *t; 
     if( _addresses[op][addr_reg] == nullptr )
         _addresses[op][addr_reg] = new unordered_map<cst_t, unique_ptr<CSTList>>; 
@@ -111,7 +111,7 @@ template <class T> MEMDict<T>::MEMDict(){
 }
 
 /* For expressions of type mem + cst */ 
-template <class T> void MEMDict<T>::add_cst(Binop addr_op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets ){
+template <class T> void MEMDict<T>::add_cst(Binop addr_op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets ){
     T* t;
     if( _addresses[addr_op][addr_reg] == nullptr )
         _addresses[addr_op][addr_reg] = new unordered_map<cst_t, unique_ptr<T>>; 
@@ -123,7 +123,7 @@ template <class T> void MEMDict<T>::add_cst(Binop addr_op, int addr_reg, cst_t a
 }
 
 /* To store mem <- reg */ 
-template <class T> void MEMDict<T>::add_reg(Binop addr_op, int addr_reg, cst_t addr_cst, int reg, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets ){
+template <class T> void MEMDict<T>::add_reg(Binop addr_op, int addr_reg, cst_t addr_cst, int reg, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets ){
     T* t;
     if( _addresses[addr_op][addr_reg] == nullptr )
         _addresses[addr_op][addr_reg] = new unordered_map<cst_t, unique_ptr<T>>; 
@@ -135,7 +135,7 @@ template <class T> void MEMDict<T>::add_reg(Binop addr_op, int addr_reg, cst_t a
 }
 
 /* To store mem <- mem */ 
-template <class T> void MEMDict<T>::add_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<Gadget*>& gadgets ){
+template <class T> void MEMDict<T>::add_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets ){
     T* t;
     if( _addresses[addr_op][addr_reg] == nullptr )
         _addresses[addr_op][addr_reg] = new unordered_map<cst_t, unique_ptr<T>>; 
@@ -183,7 +183,7 @@ Database::Database(){
     std::memset( _mem_binop_cst_to_reg, 0, sizeof(MEMList*)*NB_REGS_MAX);
 }
  
-void Database::add(Gadget* g){
+int Database::add(shared_ptr<Gadget> g){
     ExprPtr tmp; 
     vector<reg_pair>::iterator rit; 
     vector<mem_pair>::iterator mit; 
@@ -215,14 +215,14 @@ void Database::add(Gadget* g){
                 // reg binop cst -> reg
                 /* We don't check if left is the constant because expressions should be 
                  * canonized */ 
-                if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_REG &&
-                    sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
+                if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_CST &&
+                    sit->expr_ptr()->right_expr_ptr()->type() == EXPR_REG){
                     if( _reg_binop_cst_to_reg[reg] == nullptr )
                         _reg_binop_cst_to_reg[reg] = new REGList();
                     _reg_binop_cst_to_reg[reg]->add(
                         sit->expr_ptr()->binop(), 
-                        sit->expr_ptr()->left_expr_ptr()->num(),
-                        sit->expr_ptr()->right_expr_ptr()->value(),
+                        sit->expr_ptr()->left_expr_ptr()->value(),
+                        sit->expr_ptr()->right_expr_ptr()->num(),
                         num, sit->cond(), _gadgets
                         );
                 } // mem binop cst -> reg 
@@ -233,6 +233,7 @@ void Database::add(Gadget* g){
                     if( tmp->type() == EXPR_BINOP &&
                         tmp->left_expr_ptr()->type() == EXPR_REG &&
                         tmp->right_expr_ptr()->type() == EXPR_CST){
+                        
                         if( _mem_binop_cst_to_reg[reg] == nullptr){
                             _mem_binop_cst_to_reg[reg] = new MEMList(); 
                         }
@@ -314,9 +315,10 @@ void Database::add(Gadget* g){
             } 
         }
     }
+    return _gadgets.size()-1;
 } 
 
-Gadget* Database::get(int num){
+shared_ptr<Gadget> Database::get(int num){
     return _gadgets.at(num); 
 }
 
@@ -369,4 +371,8 @@ Database::~Database(){
 /* Global database variable to be used by ROPGenerator */ 
 Database * g_gadget_db = nullptr; 
 Database * gadget_db(){return g_gadget_db;}
-
+bool init_gadget_db(){
+    if( g_gadget_db != nullptr )
+        delete g_gadget_db;
+    return (g_gadget_db = new Database()) != nullptr;
+}
