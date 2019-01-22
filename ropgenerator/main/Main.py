@@ -3,6 +3,8 @@
 
 from ropgenerator.core.IO import *
 from ropgenerator.main.Load import load 
+from ropgenerator.core.Database import *
+from ropgenerator.core.Gadget import *
 from prompt_toolkit import PromptSession, ANSI
 
 
@@ -66,6 +68,8 @@ def main():
                 #if( not exploit_mode()):
                 #    finish = True
                 print(str_special("Work in progess... ;)"))
+            elif( command == "test" ):
+                print_gadget(gadget_db_get(int(args[1])))
             else:
                 error("Unknown command '{}'".format(command))
             if( command != None ):

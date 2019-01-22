@@ -53,6 +53,8 @@ class Gadget{
         Semantics * semantics(); 
         // Modifiers
         void add_address(addr_t addr); 
+        void set_asm_str(string s);
+        void set_hex_str(string s);
         // Destructor 
         ~Gadget();
         // Other
