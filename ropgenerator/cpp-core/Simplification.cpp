@@ -17,13 +17,13 @@
 
 void canonize(ExprPtr p){
     /* Canonize for symetrical binops
-     * Lowest priority goes on the left
+     * Lowest priority goes on the right
      * Priorities are the values of the enum ExprType ;) 
     */
     if( p->type() != EXPR_BINOP || p->binop() == OP_SUB || p->binop() == OP_DIV ||
         p->binop() == OP_MOD || p->binop() == OP_BSH)
         return;
-    else if( p->right_expr_ptr()->lthan( p->left_expr_ptr()))
+    else if( p->left_expr_ptr()->lthan( p->right_expr_ptr()))
         p->exchange_args();
 }
 
@@ -134,37 +134,38 @@ ExprPtr simplify_neutral_element(ExprPtr p){
     // Neutral for binary operations 
     if( p->type() == EXPR_BINOP ){
         // Neutral elements for BINOP are only constants 
-        if( p->left_expr_ptr()->type() != EXPR_CST )
+        if( p->right_expr_ptr()->type() != EXPR_CST )
             return p; 
-        val = p->left_expr_ptr()->value();
+        val = p->right_expr_ptr()->value();
         switch(p->binop()){
             case OP_ADD:
             case OP_SUB:
-                return ( val == 0 )? p->right_expr_ptr() : p; 
+                return ( val == 0 )? p->left_expr_ptr() : p; 
             case OP_MUL:
                 if( val == 0 )
-                    return p->left_expr_ptr();
+                    return p->right_expr_ptr();
                 else
-                    return ( val == 1 )? p->right_expr_ptr() : p; 
+                    return ( val == 1 )? p->left_expr_ptr() : p; 
             case OP_DIV:
-                return ( val == 1 )? p->right_expr_ptr() : p; 
+                return ( val == 1 )? p->left_expr_ptr() : p; 
             case OP_AND:
                 if( val == (1 << (p->size()-1) ))
-                    return p->right_expr_ptr();
+                    return p->left_expr_ptr();
                 else if( val == 0 )
-                    return p->left_expr_ptr(); 
-                return p;
+                    return p->right_expr_ptr(); 
+                else
+                    return p;
                 break;
             case OP_OR:
                 if( val == (1 << (p->size()-1) )) // 0xfffff... 
-                    return p->left_expr_ptr();
-                return ( val == 0 )? p->right_expr_ptr() : p; 
+                    return p->right_expr_ptr();
+                return ( val == 0 )? p->left_expr_ptr() : p; 
             case OP_XOR:
                 if( val == (1 << (p->size()-1) ))
-                    return make_shared<ExprUnop>(OP_NEG, p->right_object_ptr());
-                return ( val == 0 )? p->right_expr_ptr() : p; 
+                    return make_shared<ExprUnop>(OP_NEG, p->left_object_ptr());
+                return ( val == 0 )? p->left_expr_ptr() : p; 
             case OP_MOD:
-                return ( val == 1 )? p->left_expr_ptr() : p;
+                return ( val == 1 )? make_shared<ExprCst>(0,p->left_expr_ptr()->size()) : p;
             default:
                 return p;
         }
@@ -346,7 +347,7 @@ ExprPtr ExprAsPolynom::to_expr(int expr_size){
     }
     // Const
     if( not_null && _polynom[_len-1] != 0)
-        tmp = make_shared<ExprObject>(make_shared<ExprCst>(_polynom[_len-1], expr_size)) + tmp;
+        tmp = tmp + make_shared<ExprObject>(make_shared<ExprCst>(_polynom[_len-1], expr_size));
     else
         tmp = make_shared<ExprObject>(make_shared<ExprCst>(_polynom[_len-1], expr_size));
     tmp->expr_ptr()->set_polynom(copy());
@@ -456,27 +457,19 @@ bool supported_address(ExprPtr addr){
             ( addr->type() == EXPR_REG ) || 
             // Reg +/- cst 
             (addr->type() == EXPR_BINOP && (addr->binop() == OP_ADD || addr->binop() == OP_SUB)  
-                    && (addr->left_expr_ptr()->type() == EXPR_CST) 
-                    && (addr->right_expr_ptr()->type() == EXPR_REG)
+                    && (addr->right_expr_ptr()->type() == EXPR_CST) 
+                    && (addr->left_expr_ptr()->type() == EXPR_REG)
             );
 }
 
 bool supported_binop(ExprPtr expr){
-    // cst +* reg|mem
-    if( expr->binop() == OP_ADD || expr->binop() == OP_MUL )
-        if ( expr->left_expr_ptr()->type() == EXPR_CST )
-            if( expr->right_expr_ptr()->type() == EXPR_REG )
-                return true; 
-            else if(expr->right_expr_ptr()->type() == EXPR_MEM )
-                return supported_address(expr->right_expr_ptr()->addr_expr_ptr());
-    // reg|mem -/(bsh) cst 
-    else if( expr->binop() == OP_SUB || expr->binop() == OP_DIV || expr->binop() == OP_BSH)
-        if( expr->right_expr_ptr()->type() == EXPR_CST )
+    // reg|mem OP cst 
+    if ( expr->right_expr_ptr()->type() == EXPR_CST ){
             if( expr->left_expr_ptr()->type() == EXPR_REG )
                 return true; 
             else if(expr->left_expr_ptr()->type() == EXPR_MEM )
                 return supported_address(expr->left_expr_ptr()->addr_expr_ptr());
-
+    }
     return false; 
 }
 
