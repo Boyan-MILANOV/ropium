@@ -57,7 +57,9 @@ REGList::REGList(){
 void REGList::add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets){
     if( _values[op][reg_num] == nullptr )
         _values[op][reg_num] = new CSTList();
+    cout << "DEBUG, adding in reglist" << endl;
     _values[op][reg_num]->add(cst, gadget_num, pre_cond, gadgets);
+    cout << "DBUG, done in reglist" << endl;
 }
 vector<int> REGList::find(Binop op, int reg_num, cst_t cst, Constraint* constr, Assertion* assert, int n=1){
     if( _values[op][reg_num] == nullptr )
@@ -195,10 +197,21 @@ int Database::add(shared_ptr<Gadget> g){
     /* Add gadget to the list */ 
     _gadgets.push_back(g);
     
+    
+    cout << g->semantics(); 
+    
+    for( rit = g->semantics()->regs().begin(); rit != g->semantics()->regs().end(); rit++){
+        reg = (*rit).first;
+        std::cout << "DEBUG " << reg << endl;
+    }
+    
+    
+    
     /* Get semantics for ... -> reg */ 
     for( rit = g->semantics()->regs().begin(); rit != g->semantics()->regs().end(); rit++){
         reg = (*rit).first;
         /* Get possible values */ 
+        cout << "DEBUG mooore" << endl; 
         for( sit = (*rit).second->begin(); sit != (*rit).second->end(); sit++ ){
             // cst -> reg ? 
             if( sit->expr_ptr()->type() == EXPR_CST ){
@@ -221,34 +234,36 @@ int Database::add(shared_ptr<Gadget> g){
                         _reg_binop_cst_to_reg[reg] = new REGList();
                     _reg_binop_cst_to_reg[reg]->add(
                         sit->expr_ptr()->binop(), 
-                        sit->expr_ptr()->left_expr_ptr()->value(),
                         sit->expr_ptr()->right_expr_ptr()->num(),
+                        sit->expr_ptr()->left_expr_ptr()->value(),
                         num, sit->cond(), _gadgets
                         );
                 } // mem binop cst -> reg 
-                else if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_MEM &&
-                         sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
+                else if( sit->expr_ptr()->right_expr_ptr()->type() == EXPR_MEM &&
+                         sit->expr_ptr()->left_expr_ptr()->type() == EXPR_CST){
                     // Check if mem is a binop itself ;)
-                    tmp =  sit->expr_ptr()->left_expr_ptr();
+                    tmp =  sit->expr_ptr()->right_expr_ptr();
                     if( tmp->type() == EXPR_BINOP &&
-                        tmp->left_expr_ptr()->type() == EXPR_REG &&
-                        tmp->right_expr_ptr()->type() == EXPR_CST){
+                        tmp->left_expr_ptr()->type() == EXPR_CST &&
+                        tmp->right_expr_ptr()->type() == EXPR_REG){
                         
                         if( _mem_binop_cst_to_reg[reg] == nullptr){
                             _mem_binop_cst_to_reg[reg] = new MEMList(); 
                         }
                         _mem_binop_cst_to_reg[reg]->add(
                             tmp->binop(),
-                            tmp->left_expr_ptr()->num(),
-                            tmp->right_expr_ptr()->value(),
-                            sit->expr_ptr()->right_expr_ptr()->value(),
+                            tmp->right_expr_ptr()->num(),
+                            tmp->left_expr_ptr()->value(),
+                            sit->expr_ptr()->left_expr_ptr()->value(),
                             num, sit->cond(), _gadgets
                             );
                     }
                 }
             } 
+            cout << "DEBUG, ouf!" << endl;
         }
     }
+    cout << "DEBUG finiiished " << endl;
     
     /* Get semantics for ... -> mem */ 
     /* Note : This is very similar to the code above for registers, but I keep it 
