@@ -14,8 +14,9 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     
     // Get the semantics 
     _semantics = irblock->compute_semantics(); 
+
     _semantics->simplify(); 
-        /* DEBUG
+                /* DEBUG
     _semantics->filter(); */ 
     
     // Set the different fields 
