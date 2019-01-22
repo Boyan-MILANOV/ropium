@@ -196,7 +196,6 @@ def load(args):
         #DEBUG
         print("GAdget : " + str(debug_cnt))
         debug_cnt += 1
-        ( addr, raw) = gadget_list[2]
         if( raw in dup ):
             count += 1
             continue
@@ -206,7 +205,6 @@ def load(args):
         if( not irblock is None ): 
             gadget = Gadget(irblock)
             gadget_db_add(gadget)
-        return 
         
     end_time = datetime.now()
     print("Time: " + str(end_time-start_time))
