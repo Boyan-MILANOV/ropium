@@ -116,6 +116,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("set_arch", &set_arch);
     m.def("curr_arch_bits", [](){return curr_arch()->bits();});
     m.def("curr_arch_type", [](){return curr_arch()->type();});
+    m.def("curr_arch_ip", [](){return curr_arch()->ip();});
     
     
     py::enum_<RegX86>(m, "RegX86", py::arithmetic(), "X86 Registers")

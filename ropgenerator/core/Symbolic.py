@@ -2,7 +2,7 @@ from ropgenerator_core_ import \
 ArgType, ArgEmpty, ArgCst, ArgReg, ArgTmp, \
 IROperation, IRInstruction, IRBlock, print_irblock
 
-from ropgenerator.core.Architecture import ArchType, map_x86_reg_names, map_x64_reg_names, curr_arch_type, curr_arch_bits
+from ropgenerator.core.Architecture import *
 
 from barf.core.reil import ReilMnemonic, ReilImmediateOperand, ReilRegisterOperand
 from barf.arch import ARCH_X86_MODE_32
@@ -156,7 +156,17 @@ def raw_to_IRBlock(raw):
                                             ArgEmpty(),
                                             barf_operand_to_IR(instr.operands[2], alias_mapper));
             elif( instr.mnemonic == ReilMnemonic.JCC ):
-                pass
+                if( isinstance(instr.operands[0], ReilImmediateOperand) and 
+                        instr.operands[0]._immediate != 0):
+                    i = IRInstruction(IROperation.STR,
+                                        barf_operand_to_IR(instr.operands[2], alias_mapper),
+                                        ArgEmpty(),
+                                        ArgReg(curr_arch_ip(), curr_arch_bits()));
+                else:
+                    i = IRInstruction(IROperation.UNKNOWN,
+                                            ArgEmpty(),
+                                            ArgEmpty(),
+                                            ArgReg(curr_arch_ip(), curr_arch_bits()));
             else:
                 return (None, string) 
             if( i ):
