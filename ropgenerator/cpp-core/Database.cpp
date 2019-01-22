@@ -215,33 +215,33 @@ int Database::add(shared_ptr<Gadget> g){
                 // reg binop cst -> reg
                 /* We don't check if left is the constant because expressions should be 
                  * canonized */ 
-                if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_CST &&
-                    sit->expr_ptr()->right_expr_ptr()->type() == EXPR_REG){
+                if( sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST &&
+                    sit->expr_ptr()->left_expr_ptr()->type() == EXPR_REG){
                     if( _reg_binop_cst_to_reg[reg] == nullptr )
                         _reg_binop_cst_to_reg[reg] = new REGList();
                     _reg_binop_cst_to_reg[reg]->add(
                         sit->expr_ptr()->binop(), 
-                        sit->expr_ptr()->right_expr_ptr()->num(),
-                        sit->expr_ptr()->left_expr_ptr()->value(),
+                        sit->expr_ptr()->left_expr_ptr()->num(),
+                        sit->expr_ptr()->right_expr_ptr()->value(),
                         num, sit->cond(), _gadgets
                         );
                 } // mem binop cst -> reg 
-                else if( sit->expr_ptr()->right_expr_ptr()->type() == EXPR_MEM &&
-                         sit->expr_ptr()->left_expr_ptr()->type() == EXPR_CST){
+                else if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_MEM &&
+                         sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
                     // Check if mem is a binop itself ;)
-                    tmp =  sit->expr_ptr()->right_expr_ptr();
+                    tmp =  sit->expr_ptr()->left_expr_ptr();
                     if( tmp->type() == EXPR_BINOP &&
-                        tmp->left_expr_ptr()->type() == EXPR_CST &&
-                        tmp->right_expr_ptr()->type() == EXPR_REG){
+                        tmp->right_expr_ptr()->type() == EXPR_CST &&
+                        tmp->left_expr_ptr()->type() == EXPR_REG){
                         
                         if( _mem_binop_cst_to_reg[reg] == nullptr){
                             _mem_binop_cst_to_reg[reg] = new MEMList(); 
                         }
                         _mem_binop_cst_to_reg[reg]->add(
                             tmp->binop(),
-                            tmp->right_expr_ptr()->num(),
-                            tmp->left_expr_ptr()->value(),
-                            sit->expr_ptr()->left_expr_ptr()->value(),
+                            tmp->left_expr_ptr()->num(),
+                            tmp->right_expr_ptr()->value(),
+                            sit->expr_ptr()->right_expr_ptr()->value(),
                             num, sit->cond(), _gadgets
                             );
                     }
@@ -261,10 +261,10 @@ int Database::add(shared_ptr<Gadget> g){
             addr_cst = 0; 
             addr_op = OP_ADD; 
         }else if(   tmp->type() == EXPR_BINOP &&
-                    tmp->left_expr_ptr()->type() == EXPR_CST &&
-                    tmp->right_expr_ptr()->type() == EXPR_REG){
-            addr_reg = tmp->right_expr_ptr()->num(); 
-            addr_cst = tmp->left_expr_ptr()->value();
+                    tmp->right_expr_ptr()->type() == EXPR_CST &&
+                    tmp->left_expr_ptr()->type() == EXPR_REG){
+            addr_reg = tmp->left_expr_ptr()->num(); 
+            addr_cst = tmp->right_expr_ptr()->value();
             addr_op = tmp->binop(); 
         }else // Not supported for memory addresses 
             continue;
