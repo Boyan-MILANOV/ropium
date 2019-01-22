@@ -121,7 +121,7 @@ void charging_bar(int nb_iter, int curr_iter, int bar_len=30, string msg="", str
             nb_iter = 1; 
         for( int n = 0; n < curr_iter/div; n++ )
             full_part += c; 
-        empty_part = string(bar_len-full_part.size(), ' ');
+        empty_part = string(bar_len-(curr_iter/div), ' ');
         snprintf(buff, sizeof(buff), "%03d%%", percent); 
         percent_part = buff; 
         // Write 

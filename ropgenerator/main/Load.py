@@ -191,19 +191,21 @@ def load(args):
     start_time = datetime.now()
     dup = dict()
     count = 0
-    debug_cnt = 0
+    total = 0
     for( addr, raw) in gadget_list:
-        #DEBUG
-        print("GAdget : " + str(debug_cnt))
-        debug_cnt += 1
+        total += 1
+        charging_bar(len(gadget_list), total)
         if( raw in dup ):
             count += 1
             continue
         dup[raw] = True
-        #print("DEBUG, trying: \\x" + '\\x'.join("{:02x}".format(ord(c)) for c in raw))
-        irblock = raw_to_IRBlock(raw)
+        #print("DEBUG, trying: \\x" + '\\x'.join("{:02x}".format(ord(c)) for c in raw) )
+        (irblock, asm_instr_list) = raw_to_IRBlock(raw)
         if( not irblock is None ): 
             gadget = Gadget(irblock)
+            gadget.set_asm_str('; '.join(str(i) for i in asm_instr_list) )
+            gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(ord(c)) for c in raw))
+            # DEBUG until python3 gadget.add_address(addr)
             gadget_db_add(gadget)
         
     end_time = datetime.now()

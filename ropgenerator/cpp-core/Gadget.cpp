@@ -95,6 +95,12 @@ Semantics* Gadget::semantics(){return _semantics;}
 void Gadget::add_address(addr_t addr){
     _addresses.push_back(addr);
 }
+void Gadget::set_asm_str(string s){
+    _asm_str = s;
+}
+void Gadget::set_hex_str(string s){
+    _hex_str = s;
+}
 
 // Destructor 
 Gadget::~Gadget(){
