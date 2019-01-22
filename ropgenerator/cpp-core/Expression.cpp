@@ -1,6 +1,7 @@
 #include "Expression.hpp" 
 #include "Simplification.hpp"
 #include "Exception.hpp"
+#include "Architecture.hpp"
 
 using namespace std; 
 
@@ -102,7 +103,8 @@ ExprObjectPtr ExprCst::convert(int size){
 ExprReg::ExprReg(int n, int s): Expr(EXPR_REG, s, true),_num(n){}
 // Operators
 void ExprReg::print(ostream& os){  
-    os << "r" << _num;  
+    //os << "r" << _num;  
+    os << curr_arch()->reg_name(_num);
 }
 // Polynom
 void ExprReg::compute_polynom(){

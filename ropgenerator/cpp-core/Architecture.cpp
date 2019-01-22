@@ -3,9 +3,10 @@
 
 // Architecture class 
 Architecture::Architecture(ArchType at, string n, int i, int s, int o, 
-            int b, int m, EndiannessType t, int nb, vector<int> ig): 
+            int b, int m, EndiannessType t, int nb, vector<int> ig, vector<string> reg_names): 
             _type(at), _name(n), _ip(i), _sp(s), _octets(o), _bits(b),
-            _min_page_size(m), _endianness(t), _nb_regs(nb), _ignored_regs(ig)
+            _min_page_size(m), _endianness(t), _nb_regs(nb), _ignored_regs(ig),
+            _reg_names(reg_names)
             {}
             
 ArchType Architecture::type(){return _type;}
@@ -22,8 +23,13 @@ bool Architecture::is_ignored_reg( int num ){
     return ( std::find(_ignored_regs.begin(), _ignored_regs.end(), num) != 
             _ignored_regs.end());
 }
+string Architecture::reg_name(int num){
+    return _reg_names.at(num);
+}
 
 // X86
+vector<string> RegX86Names = {"eax","ebx","ecx","edx","esi","edi","esp","eip","ebp",
+    "zf","cf","sf","pf","af","of"};
 Architecture arch_X86 = Architecture(
     ARCH_X86, 
     "X86",
@@ -32,10 +38,14 @@ Architecture arch_X86 = Architecture(
     0x1000, 
     ENDIAN_LITTLE, 
     X86_NB_REGS, 
-    {X86_AF, X86_CF, X86_ZF, X86_SF, X86_PF}
+    {X86_AF, X86_CF, X86_ZF, X86_SF, X86_PF},
+    RegX86Names
 );
 
 // X64 
+vector<string> RegX64Names = {"rax","rbx","rcx","rdx","rsi","rdi","rsp","rbp","rip",
+    "r8","r9","r10","r11","r12","r13","r14","r15","sf","zf","af","cf","df","es","fs",
+    "of","pf"};
 Architecture arch_X64 = Architecture(
     ARCH_X64, 
     "X64",
@@ -44,7 +54,8 @@ Architecture arch_X64 = Architecture(
     0x1000, 
     ENDIAN_LITTLE, 
     X64_NB_REGS, 
-    {X64_SF, X64_ZF, X64_AF, X64_CF, X64_DF, X64_ES, X64_FS, X64_OF, X64_PF}
+    {X64_SF, X64_ZF, X64_AF, X64_CF, X64_DF, X64_ES, X64_FS, X64_OF, X64_PF},
+    RegX64Names
 );
 
 // global variable for selected architecture 

@@ -108,7 +108,8 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .export_values();
     
     py::class_<Architecture>(m, "Architecture")
-        .def(py::init<ArchType, string, int, int, int, int, int, EndiannessType, int, vector<int>>())
+        .def(py::init<ArchType, string, int, int, int, int, int, 
+            EndiannessType, int, vector<int>, vector<string>>())
         .def("_type_", &Architecture::type)
         .def("bits", &Architecture::bits)
         .def("octets", &Architecture::octets);

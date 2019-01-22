@@ -1,4 +1,5 @@
 #include "Semantic.hpp"
+#include "Architecture.hpp"
 
 // SPair
 SPair::SPair(ExprObjectPtr e, CondObjectPtr c): _expr(e), _cond(c){};
@@ -41,7 +42,7 @@ void Semantics::print(ostream& os){
     vector<mem_pair>::iterator mit; 
     vector<SPair>::iterator pit; 
     for(it = _regs.begin(); it != _regs.end(); it++ ){
-        os << "\n-- Register r" << (*it).first << endl; 
+        os << "\n-- Register " << curr_arch()->reg_name((*it).first) << endl; 
         for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ )
             (*pit).print(os);
     }
