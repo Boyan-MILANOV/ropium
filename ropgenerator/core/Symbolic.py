@@ -17,6 +17,7 @@ def raw_to_REIL(asmStr, disassembler, ir_translator):
     """
     Translate assembly into REIL
     """
+    
     index = 0
     instr = []
     try:

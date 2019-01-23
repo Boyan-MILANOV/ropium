@@ -2,6 +2,7 @@
 #include "Exception.hpp"
 #include "Architecture.hpp"
 #include <exception>
+#include <cstring>
 
 using namespace std; 
 
@@ -447,16 +448,38 @@ vector<SPair>* arg_to_unknown(SymArg& arg){
  * !!! This function should be called only once per IRBlock or the program will
  * likely crash 
  */ 
-Semantics* IRBlock::compute_semantics(){
+Semantics* IRBlock::compute_semantics(bool discard_ignored_regs){
     vector<class IRInstruction>::iterator it; 
     Semantics* res;
     vector<SPair>* src1=nullptr, *src2=nullptr, *comb=nullptr, *dst=nullptr, *mem=nullptr, *tmp=nullptr;
     vector<SPair>::iterator pit;
     ExprObjectPtr addr; 
-    int mem_write_cnt = 0, i; 
+    int mem_write_cnt = 0, i, instr_count; 
+    bool *instr_table;
+    
+    // If no instruction, return 
+    if( _instr.empty() )
+        return new Semantics();
+    
+    // Check if we ignore some instructions or not 
+    discard_ignored_regs = false; // DEBUG
+    instr_table = new bool[_instr.size()];
+    if( discard_ignored_regs )
+        this->filter_instructions(instr_table, _instr.size());
+    else
+        memset(instr_table, true, _instr.size()); // DEBUG TRUE
+    
+    // Do symbolic execution 
+    instr_count = 0;
     for( it = _instr.begin(); it != _instr.end(); ++it){
         //DEBUG 
         //it->print(std::cout);
+        
+        // If ignored, continue
+        if( ! instr_table[instr_count++] ){
+            continue;
+        }
+        // Else, execute
         try{
             // Skip instructions setting ignored registers 
             if( it->dst()->type() == ARG_REG && 
@@ -478,8 +501,10 @@ Semantics* IRBlock::compute_semantics(){
                 }else if( it->dst()->type() == ARG_TMP ){
                     assign_tmp_table(it->dst()->id(), this->full_tmp_assignment(comb, *(it->dst()))); 
                     delete comb; comb = nullptr;
-                }else
+                }else{
+                    delete instr_table;
                     throw_exception("Invalid arg type for dst in IR calculation instruction"); 
+                }
             }else if( it->op() == IR_STR ){
                 src1 = this->arg_to_spairs(*(it->src1())); 
                 if( it->dst()->type() == ARG_REG ){
@@ -488,8 +513,10 @@ Semantics* IRBlock::compute_semantics(){
                 }else if( it->dst()->type() == ARG_TMP ){
                     assign_tmp_table(it->dst()->id(), this->full_tmp_assignment(src1, *(it->dst())));
                     delete src1; src1 = nullptr;
-                }else
+                }else{
+                    delete instr_table;
                     throw_exception("Invalid arg type for dst in IR_STR instruction"); 
+                }
             }else if( it->op() == IR_STM ){
                 src1 = this->arg_to_spairs(*(it->src1()));
                 dst = this->arg_to_spairs(*(it->dst()));
@@ -513,15 +540,19 @@ Semantics* IRBlock::compute_semantics(){
                 }else if( it->dst()->type() == ARG_TMP ){
                     assign_tmp_table(it->dst()->id(), this->full_tmp_assignment(mem, *(it->dst()))); 
                     delete mem; mem = nullptr;
-                }else
+                }else{
+                    delete instr_table;
                     throw_exception("Invalid arg type for dst in IR_LDM instruction"); 
+                }
             }else if( it->op() == IR_UNKNOWN ){
                 if( it->dst()->type() == ARG_REG ){
                     assign_reg_table(it->dst()->id(), arg_to_unknown(*(it->dst())));
                 }else if( it->dst()->type() == ARG_TMP ){
                     assign_tmp_table(it->dst()->id(), arg_to_unknown(*(it->dst())));
-                }else
+                }else{
+                    delete instr_table;
                     throw_exception("Invalid arg type for dst in IR_UNKNOWN instruction"); 
+                }
                 
             }
         }catch(too_many_values& e){
@@ -534,6 +565,7 @@ Semantics* IRBlock::compute_semantics(){
             return new Semantics(); // DEBUG faire remonter l'erreur et annuler le gadget pour opti ;) 
         }
     }
+    
     // Fill the semantic object and return it
     res = new Semantics();
     // Register semantics 
@@ -549,6 +581,36 @@ Semantics* IRBlock::compute_semantics(){
     
     _mem_write_cnt = mem_write_cnt; 
     return res; 
+}
+
+/* Detect tmp arguments that only go to ignored regs and ignore them
+ * as well 
+ * 
+ * After execution, instr_table[i] = false means that we can ignore
+ * this instrution when doing symbolic execution
+ * */ 
+void IRBlock::filter_instructions(bool *instr_table, int len){
+    vector<class IRInstruction>::reverse_iterator it; 
+    bool keep;
+    bool tmp_table[NB_TMP_MAX];
+    int i;
+    
+    memset(tmp_table, false, sizeof(tmp_table));
+    memset(instr_table, false, len);
+    i = len-1;
+    for( it = _instr.rbegin(); it != _instr.rend(); ++it){
+        keep = false;
+        if( it->dst()->type() == ARG_REG ){
+            keep = ! curr_arch()->is_ignored_reg(it->dst()->id());
+        }else if( it->dst()->type() == ARG_TMP ){
+            keep = tmp_table[it->dst()->id()];
+        }
+        if( it->src1()->type() == ARG_TMP )
+            tmp_table[it->src1()->id()] |= keep;
+        if( it->src2()->type() == ARG_TMP )
+            tmp_table[it->src2()->id()] |= keep;
+        instr_table[i--] |= keep;
+    }
 }
 
 

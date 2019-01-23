@@ -14,7 +14,6 @@ void SPair::print(ostream& os){
     os << "\n\tCond: " << _cond << endl; 
 }
 
-
 // Semantics 
 Semantics::Semantics(){
         _regs = vector<reg_pair>();

@@ -94,7 +94,7 @@ class IRBlock{
         vector<ExprObjectPtr> mem_writes();
         vector<ExprObjectPtr> mem_reads();
         bool reg_modified(int num);
-        Semantics* compute_semantics();
+        Semantics* compute_semantics(bool discard_ignored_regs);
         void print(ostream& os);
         ~IRBlock();
     private:
@@ -110,6 +110,8 @@ class IRBlock{
         
         inline void assign_reg_table(int num, vector<SPair>* val);
         inline void assign_tmp_table(int num, vector<SPair>* val);
+        
+        void filter_instructions(bool* instr_table, int len);
 };
 
 #endif 
