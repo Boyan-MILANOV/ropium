@@ -1,9 +1,11 @@
 #ifndef CONSTRAINT_H
 #define CONSTRAINT_H
 
+#include "Exception.hpp"
 #include "Expression.hpp"
 #include "Condition.hpp"
 #include "Gadget.hpp"
+
 #include <vector>
 
 using std::vector;
@@ -21,13 +23,13 @@ class SubConstraint{
         SubConstraint(SubConstraintType t);
         SubConstraintType type();
         // Functions of child classes
-        virtual SubConstraint* copy(){throw "Should not be called here";}
-        virtual void merge(SubConstraint* c, bool del){throw "SHould not be called here";}
-        virtual pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g){throw "SHould not be called here";}
+        virtual SubConstraint* copy(){throw_exception("Should not be called here");}
+        virtual void merge(SubConstraint* c, bool del){throw_exception("SHould not be called here");}
+        virtual pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g){throw_exception("SHould not be called here");}
         // From ConstrBadBytes
-        vector<unsigned char>* bad_bytes(){throw "Should not be called here";}
+        vector<unsigned char>* bad_bytes(){throw_exception( "Should not be called here");}
         // From ValidPoitner
-        vector<ExprObjectPtr>* addresses(){throw "Should not be called here";}
+        vector<ExprObjectPtr>* addresses(){throw_exception("Should not be called here");}
 };
 
 class ConstrReturn: public SubConstraint{
@@ -127,17 +129,17 @@ class SubAssertion{
         SubAssertion(SubAssertionType t);
         SubAssertionType type();
         // Functions of child classes
-        virtual bool validate(CondObjectPtr c){throw "Should not be called here";}
-        virtual SubAssertion* copy(){throw "Should not be called here";}
-        virtual void merge(SubAssertion* a, bool del){throw "SHould not be called here";}
+        virtual bool validate(CondObjectPtr c){throw_exception("Should not be called here");}
+        virtual SubAssertion* copy(){throw_exception("Should not be called here");}
+        virtual void merge(SubAssertion* a, bool del){throw_exception("SHould not be called here");}
         // From AssertRegsEqual
-        virtual void add(int reg1, int reg2){throw "Should not be called here";}
-        virtual bool** regs(){throw "Should not be called here";}
+        virtual void add(int reg1, int reg2){throw_exception("Should not be called here");}
+        virtual bool** regs(){throw_exception("Should not be called here");}
         // From AssertValidRead
-        virtual void add(int reg){throw "Should not be called here";}
-        virtual bool* reg(){throw "Should not be called here";}
+        virtual void add(int reg){throw_exception("Should not be called here");}
+        virtual bool* reg(){throw_exception("Should not be called here");}
         // From AssertRegSupTo
-        virtual cst_t* limit(){throw "Should not be called here";}
+        virtual cst_t* limit(){throw_exception("Should not be called here");}
 };
 
 class AssertRegsEqual: public SubAssertion{

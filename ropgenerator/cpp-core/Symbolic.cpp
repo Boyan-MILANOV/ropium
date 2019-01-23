@@ -18,7 +18,7 @@ int SymArg::low(){return _low;}
 int SymArg::high(){return _high;}
 cst_t SymArg::value(){
     if( _type != ARG_CST )
-        throw "Error, value() should not be called for this class";
+        throw_exception("Error, value() should not be called for this class");
     else
         return _value; 
 }
@@ -192,7 +192,7 @@ vector<SPair>* IRBlock::arg_to_spairs(SymArg& arg ){
             res = new vector<SPair>(*_reg_table[arg.id()]); 
         }
     }else{
-        throw "SymArg type not supported in arg_to_expr()";
+        throw_exception("SymArg type not supported in arg_to_expr()");
     }
     // Translate if low and high specified 
     if( arg.low() != 0 || arg.high() != arg.size()-1){
@@ -331,7 +331,7 @@ vector<SPair>* IRBlock::execute_calculation(IROperation op, vector<SPair>* src1,
                 default:
                     delete res; 
                     res = nullptr; 
-                    throw "Unknown type of calculation in IR in combine_args()";
+                    throw_exception("Unknown type of calculation in IR in combine_args()");
             }
         }
     }
@@ -356,7 +356,7 @@ void IRBlock::execute_stm(vector<SPair>* src1, vector<SPair>* dst, int& mem_writ
     // Get the possible values for the write address 
     for( addr = dst->begin(); addr != dst->end(); addr++){
         if( mem_write_cnt >= NB_MEM_MAX )
-            throw "Too many memory writes!";
+            throw_exception("Too many memory writes!");
         _mem_writes.push_back((*addr).expr()); // Update list of mem writes  
         tmp = new vector<SPair>();        
         // Get values for this write 
@@ -479,7 +479,7 @@ Semantics* IRBlock::compute_semantics(){
                     assign_tmp_table(it->dst()->id(), this->full_tmp_assignment(comb, *(it->dst()))); 
                     delete comb; comb = nullptr;
                 }else
-                    throw "Invalid arg type for dst in IR calculation instruction"; 
+                    throw_exception("Invalid arg type for dst in IR calculation instruction"); 
             }else if( it->op() == IR_STR ){
                 src1 = this->arg_to_spairs(*(it->src1())); 
                 if( it->dst()->type() == ARG_REG ){
@@ -489,7 +489,7 @@ Semantics* IRBlock::compute_semantics(){
                     assign_tmp_table(it->dst()->id(), this->full_tmp_assignment(src1, *(it->dst())));
                     delete src1; src1 = nullptr;
                 }else
-                    throw "Invalid arg type for dst in IR_STR instruction"; 
+                    throw_exception("Invalid arg type for dst in IR_STR instruction"); 
             }else if( it->op() == IR_STM ){
                 src1 = this->arg_to_spairs(*(it->src1()));
                 dst = this->arg_to_spairs(*(it->dst()));
@@ -514,14 +514,14 @@ Semantics* IRBlock::compute_semantics(){
                     assign_tmp_table(it->dst()->id(), this->full_tmp_assignment(mem, *(it->dst()))); 
                     delete mem; mem = nullptr;
                 }else
-                    throw "Invalid arg type for dst in IR_LDM instruction"; 
+                    throw_exception("Invalid arg type for dst in IR_LDM instruction"); 
             }else if( it->op() == IR_UNKNOWN ){
                 if( it->dst()->type() == ARG_REG ){
                     assign_reg_table(it->dst()->id(), arg_to_unknown(*(it->dst())));
                 }else if( it->dst()->type() == ARG_TMP ){
                     assign_tmp_table(it->dst()->id(), arg_to_unknown(*(it->dst())));
                 }else
-                    throw "Invalid arg type for dst in IR_UNKNOWN instruction"; 
+                    throw_exception("Invalid arg type for dst in IR_UNKNOWN instruction"); 
                 
             }
         }catch(too_many_values& e){

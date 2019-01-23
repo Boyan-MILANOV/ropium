@@ -2,6 +2,7 @@
 #include "Architecture.hpp"
 #include "Expression.hpp"
 #include "CommonUtils.hpp"
+#include "Exception.hpp"
 
 // Constructor 
 Gadget::Gadget(shared_ptr<IRBlock> irblock){
@@ -11,7 +12,7 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     int i, ret_reg;
     bool is_inc;
     cst_t inc;
-    
+
     // Get the semantics 
     _semantics = irblock->compute_semantics(); 
     // DEBUG
@@ -72,7 +73,6 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
         _ret_reg = -1; 
         _ret_pre_cond = NewCondFalse(); 
     }
-    
     
 }
 

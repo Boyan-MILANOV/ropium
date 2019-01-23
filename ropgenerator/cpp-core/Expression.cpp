@@ -423,6 +423,13 @@ ExprUnknown::ExprUnknown(int size=-1): Expr(EXPR_UNKNOWN){
 void ExprUnknown::print(ostream& os){  
     os << "unknown";  
 }
+bool ExprUnknown::equal(shared_ptr<Expr> other){
+    return false;
+}
+bool ExprUnknown::lthan(ExprPtr other){
+    return _type < other->type();
+}
+
 ExprObjectPtr ExprUnknown::convert(int size){
     return NewExprUnknown(size);
 }
