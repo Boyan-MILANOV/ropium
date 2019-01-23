@@ -1,5 +1,13 @@
-#!/usr/bin/env python3
-
+#!/usr/bin/env python2
+#debug python3 ! 
+import cProfile, pstats, StringIO
 import ropgenerator.main.Main as Main
 
+pr = cProfile.Profile()
+pr.enable()
 Main.main()
+pr.disable()
+s = StringIO.StringIO()
+ps = pstats.Stats(pr, stream=s).sort_stats('cumulative')
+ps.print_stats(20)
+print s.getvalue()
