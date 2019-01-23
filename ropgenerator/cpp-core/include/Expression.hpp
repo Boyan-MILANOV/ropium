@@ -35,6 +35,8 @@
 #ifndef EXPRESSION_H 
 #define EXPRESSION_H
 
+#include "Exception.hpp"
+
 #include <iostream>
 #include <memory>
 #include <cstdint>
@@ -94,43 +96,43 @@ class Expr{
         bool computed_polynom();
         bool is_polynom();
         // Structural equality (NOT semantic equality)
-        virtual bool equal(shared_ptr<Expr> other){throw "Wrong class to call this method";} 
+        virtual bool equal(shared_ptr<Expr> other){throw_exception("Wrong class to call this method");} 
         // Expression comparison to sort/canonize them (NOT semantic comparison)
-        virtual bool lthan(shared_ptr<Expr> other){throw "Wrong class to call this method";} 
+        virtual bool lthan(shared_ptr<Expr> other){throw_exception("Wrong class to call this method");} 
         // Check if the expression is REG +- CST 
         virtual tuple<bool,int,cst_t> is_reg_increment();
         virtual tuple<bool, cst_t> is_reg_increment(int num);
         // Convert the expression size
-        virtual shared_ptr<ExprObject> convert(int size){throw "Wrong class to call this method";} 
+        virtual shared_ptr<ExprObject> convert(int size){throw_exception("Wrong class to call this method");} 
         // Destructor
         ~Expr();
         
         // Virtual functions of all child classes to avoid heavy casting when manipulating expressions
         // From ExprCst
-        virtual cst_t value(){throw "Wrong class to call this method";}
+        virtual cst_t value(){throw_exception("Wrong class to call this method");}
         // From ExprReg
-        virtual int num(){throw "Wrong class to call this method";}
+        virtual int num(){throw_exception("Wrong class to call this method");}
         // From ExprMem
-        virtual shared_ptr<ExprObject> addr_object_ptr(){throw "Wrong class to call this method";}
-        virtual shared_ptr<Expr> addr_expr_ptr(){throw "Wrong class to call this method";}
+        virtual shared_ptr<ExprObject> addr_object_ptr(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<Expr> addr_expr_ptr(){throw_exception("Wrong class to call this method");}
         // From ExprBinop
-        virtual ExprObjectPtr left_object_ptr(){throw "Wrong class to call this method";}
-        virtual ExprObjectPtr right_object_ptr(){throw "Wrong class to call this method";}
-        virtual shared_ptr<Expr> left_expr_ptr(){throw "Wrong class to call this method";}
-        virtual shared_ptr<Expr> right_expr_ptr(){throw "Wrong class to call this method";}
-        virtual Binop binop(){throw "Wrong class to call this method";}; 
-        virtual Unop unop(){throw "Wrong class to call this method";}
-        virtual void exchange_args(){throw "Wrong class to call this method";} 
+        virtual ExprObjectPtr left_object_ptr(){throw_exception("Wrong class to call this method");}
+        virtual ExprObjectPtr right_object_ptr(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<Expr> left_expr_ptr(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<Expr> right_expr_ptr(){throw_exception("Wrong class to call this method");}
+        virtual Binop binop(){throw_exception("Wrong class to call this method");}; 
+        virtual Unop unop(){throw_exception("Wrong class to call this method");}
+        virtual void exchange_args(){throw_exception("Wrong class to call this method");} 
         // From ExprExtract
-        virtual int low(){throw "Wrong class to call this method";}
-        virtual int high(){throw "Wrong class to call this method";}
-        virtual shared_ptr<Expr> arg_expr_ptr(){throw "Wrong class to call this method";}
-        virtual shared_ptr<ExprObject> arg_object_ptr(){throw "Wrong class to call this method";}
+        virtual int low(){throw_exception("Wrong class to call this method");}
+        virtual int high(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<Expr> arg_expr_ptr(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<ExprObject> arg_object_ptr(){throw_exception("Wrong class to call this method");}
         // From ExprConcat
-        virtual shared_ptr<ExprObject> upper_object_ptr(){throw "Wrong class to call this method";}
-        virtual shared_ptr<ExprObject> lower_object_ptr(){throw "Wrong class to call this method";}
-        virtual shared_ptr<Expr> upper_expr_ptr(){throw "Wrong class to call this method";}
-        virtual shared_ptr<Expr> lower_expr_ptr(){throw "Wrong class to call this method";}
+        virtual shared_ptr<ExprObject> upper_object_ptr(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<ExprObject> lower_object_ptr(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<Expr> upper_expr_ptr(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<Expr> lower_expr_ptr(){throw_exception("Wrong class to call this method");}
 };
 
 // Shared pointer to expressions 
@@ -331,6 +333,8 @@ class ExprUnknown: public Expr{
     public:
         ExprUnknown(int size);
         void print(ostream& os);
+        bool equal(shared_ptr<Expr> other);
+        bool lthan(ExprPtr other);
         // Convert the expression size
         ExprObjectPtr convert(int size);
 }; 

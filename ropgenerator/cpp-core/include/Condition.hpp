@@ -36,6 +36,7 @@
 #define CONDITION_H
 
 #include "Expression.hpp"
+#include "Exception.hpp"
 
 using namespace std; 
 
@@ -70,26 +71,26 @@ class Cond{
         virtual CondEval eval();
         bool is_true(); 
         // Modifiers 
-        virtual shared_ptr<Cond> invert(){throw "Method invert() should have been overwritten";};
+        virtual shared_ptr<Cond> invert(){throw_exception("Method invert() should have been overwritten");};
         // Misc
         virtual void print(ostream& os);
         // From child classes to avoid casting in the code 
         // From CondCompare
-        virtual ExprObjectPtr left_exprobject_ptr(){throw "Wrong class to call this method";}
-        virtual ExprObjectPtr right_exprobject_ptr(){throw "Wrong class to call this method";}
-        virtual ExprPtr left_expr_ptr(){throw "Wrong class to call this method";}
-        virtual ExprPtr right_expr_ptr(){throw "Wrong class to call this method";}
+        virtual ExprObjectPtr left_exprobject_ptr(){throw_exception("Wrong class to call this method");}
+        virtual ExprObjectPtr right_exprobject_ptr(){throw_exception("Wrong class to call this method");}
+        virtual ExprPtr left_expr_ptr(){throw_exception("Wrong class to call this method");}
+        virtual ExprPtr right_expr_ptr(){throw_exception("Wrong class to call this method");}
         // From CondBinLogic
-        virtual CondObjectPtr left_condobject_ptr(){throw "Wrong class to call this method";}
-        virtual CondObjectPtr right_condobject_ptr(){throw "Wrong class to call this method";}
-        virtual shared_ptr<Cond> left_cond_ptr(){throw "Wrong class to call this method";}
-        virtual shared_ptr<Cond> right_cond_ptr(){throw "Wrong class to call this method";}
+        virtual CondObjectPtr left_condobject_ptr(){throw_exception("Wrong class to call this method");}
+        virtual CondObjectPtr right_condobject_ptr(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<Cond> left_cond_ptr(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<Cond> right_cond_ptr(){throw_exception("Wrong class to call this method");}
         // From CondPointer
-        virtual ExprObjectPtr arg_exprobject_ptr(){throw "Wrong class to call this method";}
-        virtual ExprPtr arg_expr_ptr(){throw "Wrong class to call this method";}
+        virtual ExprObjectPtr arg_exprobject_ptr(){throw_exception("Wrong class to call this method");}
+        virtual ExprPtr arg_expr_ptr(){throw_exception("Wrong class to call this method");}
         // From CondUnop
-        virtual CondObjectPtr arg_condobject_ptr(){throw "Wrong class to call this method";}
-        virtual shared_ptr<Cond> arg_cond_ptr(){throw "Wrong class to call this method";}
+        virtual CondObjectPtr arg_condobject_ptr(){throw_exception("Wrong class to call this method");}
+        virtual shared_ptr<Cond> arg_cond_ptr(){throw_exception("Wrong class to call this method");}
 };
 
 using CondPtr = shared_ptr<Cond>;
