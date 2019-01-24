@@ -94,42 +94,59 @@ void Semantics::simplify(){
     }
 }
 
+// Tweaking 
 void Semantics::tweak(bool simplify=true){
     vector<reg_pair>::iterator it;
     vector<mem_pair>::iterator mit;
     vector<SPair>::iterator pit; 
     pair<ExprObjectPtr,CondObjectPtr> pair; 
-    vector<SPair> add;
+    vector<SPair> add, last;
+    bool found_new;
+    
     for(it = _regs.begin(); it != _regs.end(); it++ ){
-        add = vector<SPair>();
-        for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ ){
-            pair = (*pit).expr()->tweak();
-            if( pair.first != nullptr ){
-                if( simplify ){
-                    pair.first->simplify();
-                    pair.second->simplify();
+        found_new = true;
+        last = std::move(*(it->second));
+        while( found_new ){
+            add = vector<SPair>();
+            found_new = false;
+            for( pit = last.begin(); pit != last.end(); pit++ ){
+                pair = (*pit).expr()->tweak();
+                if( pair.first != nullptr ){
+                    found_new = true;
+                    if( simplify ){
+                        pair.first->simplify();
+                        pair.second->simplify();
+                    }
+                    add.push_back(SPair(pair.first, pair.second));
                 }
-                add.push_back(SPair(pair.first, pair.second));
+                // TODO For conditions
             }
-            // TODO For conditions
+            it->second->insert(it->second->end(), add.begin(), add.end());
+            last = std::move(add);
         }
-        it->second->insert(it->second->end(), add.begin(), add.end());
     }
     
     for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
-        add = vector<SPair>();
-        for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ ){
-            pair = (*pit).expr()->tweak(); 
-            if( pair.first != nullptr ){
-                if( simplify ){
-                    pair.first->simplify();
-                    pair.second->simplify();
+        found_new = true;
+        last = std::move(*(mit->second));
+        while( found_new ){
+            add = vector<SPair>();
+            found_new = false;
+            for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ ){
+                pair = (*pit).expr()->tweak(); 
+                if( pair.first != nullptr ){
+                    found_new = true;
+                    if( simplify ){
+                        pair.first->simplify();
+                        pair.second->simplify();
+                    }
+                    add.push_back(SPair(pair.first, pair.second));
                 }
-                add.push_back(SPair(pair.first, pair.second));
+                // TODO for conditions
             }
-            // TODO for conditions
+            mit->second->insert(mit->second->end(), add.begin(), add.end());
+            last = std::move(add);
         }
-        mit->second->insert(mit->second->end(), add.begin(), add.end());
     }
 }
 
