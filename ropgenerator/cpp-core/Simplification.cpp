@@ -19,6 +19,8 @@ void canonize(ExprPtr p){
     /* Canonize for symetrical binops
      * Lowest priority goes on the right
      * Priorities are the values of the enum ExprType ;) 
+     * 
+     * Transform BSH into MUL and DIV when possible
     */
     if( p->type() != EXPR_BINOP || p->binop() == OP_SUB || p->binop() == OP_DIV ||
         p->binop() == OP_MOD || p->binop() == OP_BSH)
@@ -215,7 +217,25 @@ ExprPtr simplify_pattern(ExprPtr p){
                                 p->arg_expr_ptr()->low()+p->low());
         }
     
-    }     
+    }else if( p->type() == EXPR_BINOP ){
+        switch(p->binop()){
+            case OP_DIV:
+                // (X*Y)/Y
+                if( p->right_expr_ptr()->type() == EXPR_CST && 
+                    p->left_expr_ptr()->type() == EXPR_BINOP &&
+                    p->left_expr_ptr()->binop() == OP_MUL && 
+                    p->left_expr_ptr()->right_expr_ptr()->type() == EXPR_CST &&
+                    p->left_expr_ptr()->right_expr_ptr()->value() % p->right_expr_ptr()->value() == 0 ){
+                        
+                    if( p->left_expr_ptr()->right_expr_ptr()->value() >= p->right_expr_ptr()->value() )
+                        return make_shared<ExprBinop>(OP_MUL, p->left_expr_ptr()->left_object_ptr(), NewExprCst( p->left_expr_ptr()->right_expr_ptr()->value()/p->right_expr_ptr()->value(), 
+                                                                                  p->left_expr_ptr()->left_expr_ptr()->size()));
+                }
+                break;
+            default:
+                break;
+        }
+    }
     return p;
 }
 

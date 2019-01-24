@@ -465,6 +465,7 @@ void ExprObject::simplify(){
                 canonize(_expr_ptr);
                 _expr_ptr = simplify_unknown(_expr_ptr);
                 _expr_ptr = simplify_constant_folding(_expr_ptr);
+                _expr_ptr = simplify_pattern(_expr_ptr);
                 _expr_ptr = simplify_neutral_element(_expr_ptr);
                 _expr_ptr = simplify_polynom_factorization(_expr_ptr);
                 break;
