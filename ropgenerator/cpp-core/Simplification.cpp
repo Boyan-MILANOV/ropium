@@ -226,7 +226,6 @@ ExprPtr simplify_pattern(ExprPtr p){
                      NewExprCst( p->arg_expr_ptr()->right_expr_ptr()->value() & (cst_t)(std::pow(2,p->high()+1)-1) ,p->high()+1)
                         );
         }
-    
     }else if( p->type() == EXPR_BINOP ){
         switch(p->binop()){
             case OP_DIV:
@@ -240,6 +239,12 @@ ExprPtr simplify_pattern(ExprPtr p){
                     if( p->left_expr_ptr()->right_expr_ptr()->value() >= p->right_expr_ptr()->value() )
                         return make_shared<ExprBinop>(OP_MUL, p->left_expr_ptr()->left_object_ptr(), NewExprCst( p->left_expr_ptr()->right_expr_ptr()->value()/p->right_expr_ptr()->value(), 
                                                                                   p->left_expr_ptr()->left_expr_ptr()->size()));
+                }
+                break;
+            case OP_XOR:
+                // X XOR X
+                if( p->left_object_ptr()->equal(p->right_object_ptr()) ){
+                    return make_shared<ExprCst>(0, p->size());
                 }
                 break;
             default:
@@ -376,8 +381,10 @@ ExprPtr ExprAsPolynom::to_expr(int expr_size){
         }
     }
     // Const
-    if( not_null && _polynom[_len-1] != 0)
-        tmp = tmp + make_shared<ExprObject>(make_shared<ExprCst>(_polynom[_len-1], expr_size));
+    if( not_null && _polynom[_len-1] > 0)
+        tmp = tmp + NewExprCst(_polynom[_len-1], expr_size);
+    else if( not_null && _polynom[_len-1] < 0)
+        tmp = tmp - NewExprCst(_polynom[_len-1]*-1, expr_size);
     else
         tmp = make_shared<ExprObject>(make_shared<ExprCst>(_polynom[_len-1], expr_size));
     tmp->expr_ptr()->set_polynom(copy());
