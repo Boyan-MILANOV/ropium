@@ -48,6 +48,10 @@ CondPtr simplify_neutral_element(CondPtr p);
 CondPtr simplify_compare_polynom(CondPtr p);
 CondPtr simplify_redundancy(CondPtr p);
  
+/*---------------------------------------------------------------
+ *              Tweaking Expressions 
+ *---------------------------------------------------------------*/ 
+pair<ExprObjectPtr, CondObjectPtr> tweak_expression(ExprPtr p);
  
 /*---------------------------------------------------------------
  *              Filtering expressions  

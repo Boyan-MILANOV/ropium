@@ -1,6 +1,7 @@
 #include "Expression.hpp"
 #include "Simplification.hpp"
 #include "Exception.hpp"
+#include "Architecture.hpp"
 
 #include <cmath>
 
@@ -483,6 +484,136 @@ CondPtr simplify_compare_polynom(CondPtr p){
 }
 
 CondPtr simplify_redundancy(CondPtr p);
+
+
+
+/*----------------------------------------------------------------
+ *                  Expressions tweaking
+ * --------------------------------------------------------------*/
+ 
+pair<ExprObjectPtr, CondObjectPtr> tweak_expression(ExprPtr p){
+    pair<ExprObjectPtr, CondObjectPtr> arg1, arg2; 
+    ExprObjectPtr expr1, expr2;
+    CondObjectPtr cond1, cond2; 
+    
+    switch(p->type()){
+        case EXPR_MEM:
+            arg1 = p->addr_object_ptr()->tweak();
+            if( (arg1.first) != nullptr )
+                return make_pair(NewExprMem(arg1.first, p->size()), arg1.second);
+            break;
+        
+        case EXPR_BINOP:
+            arg1 = p->left_object_ptr()->tweak();
+            arg2 = p->right_object_ptr()->tweak();
+            if( (arg1.first) != nullptr &&  (arg2.first) != nullptr )
+                return make_pair(NewExprBinop(p->binop(), arg1.first, arg2.first), 
+                                arg1.second && arg2.second);
+            else if( (arg1.first) != nullptr && (arg2.first) == nullptr )
+                return make_pair(NewExprBinop(p->binop(), arg1.first, p->right_object_ptr()), 
+                                arg1.second);
+            else if( (arg1.first) == nullptr && (arg2.first) != nullptr )
+                return make_pair(NewExprBinop(p->binop(), p->left_object_ptr(), arg2.first ), 
+                                arg2.second);
+            break;
+        
+        case EXPR_UNOP:
+            arg1 = p->arg_object_ptr()->tweak();
+            if( (arg1.first) != nullptr )
+                return make_pair(NewExprUnop(p->unop(), arg1.first), arg1.second);
+            break;
+        
+        case EXPR_EXTRACT:
+            arg1 = p->arg_object_ptr()->tweak();
+            if( (arg1.first) != nullptr )
+                return make_pair(NewExprExtract(arg1.first, p->high(), p->low()), arg1.second);
+            break;
+            
+        case EXPR_CONCAT:
+            // First tweak arguments 
+            arg1 = p->upper_object_ptr()->tweak();
+            arg2 = p->lower_object_ptr()->tweak();
+            if( (arg1.first) == nullptr ){
+                expr1 = p->upper_object_ptr();
+                cond1 = NewCondTrue();
+            }else{
+                std::tie(expr1, cond1) = arg1; 
+            }
+            if( (arg2.first) == nullptr ){
+                expr2 = p->lower_object_ptr();
+                cond2 = NewCondTrue();
+            }else{
+                std::tie(expr2, cond2) = arg2; 
+            }
+            // Concat(0, Extract(reg, x, 0)) -> reg if reg < 2^x
+            if( expr1->expr_ptr()->type() == EXPR_CST &&
+                expr1->expr_ptr()->value() == 0 &&
+                expr2->expr_ptr()->type() == EXPR_EXTRACT &&
+                expr2->expr_ptr()->low() == 0 && 
+                expr2->expr_ptr()->arg_expr_ptr()->type() == EXPR_REG 
+                ){
+                return make_pair(NewExprReg(expr2->expr_ptr()->arg_expr_ptr()->num(), curr_arch()->bits()), 
+                                 cond1 && cond2 && NewCondCompare(COND_LT, NewExprReg(expr2->expr_ptr()->arg_expr_ptr()->num(),
+                                                                                      curr_arch()->bits()),
+                                                                        NewExprCst(std::pow(2, expr2->expr_ptr()->high()+1),
+                                                                                   curr_arch()->bits())
+                                                                  )
+                                );
+            }
+            // Concat(X[a:b], X[b-1:0] op CST ) -> X[a:0] op CST 
+            else if( expr1->expr_ptr()->type() == EXPR_EXTRACT &&
+                    expr2->expr_ptr()->type() == EXPR_BINOP && 
+                    (expr2->expr_ptr()->binop() == OP_ADD || expr2->expr_ptr()->binop() == OP_SUB ||
+                    expr2->expr_ptr()->binop() == OP_XOR || expr2->expr_ptr()->binop() == OP_OR || 
+                    expr2->expr_ptr()->binop() == OP_AND) &&
+                    expr2->expr_ptr()->left_expr_ptr()->type() == EXPR_EXTRACT && 
+                    expr2->expr_ptr()->right_expr_ptr()->type() == EXPR_CST && 
+                    expr1->expr_ptr()->low() == expr2->expr_ptr()->left_expr_ptr()->high()+1 &&
+                    expr2->expr_ptr()->left_expr_ptr()->low() == 0 &&
+                    expr1->expr_ptr()->arg_object_ptr()->equal(expr2->expr_ptr()->left_expr_ptr()->arg_object_ptr())
+                ){
+                if( expr2->expr_ptr()->binop() == OP_ADD ){
+                    return make_pair( NewExprExtract(expr1->expr_ptr()->arg_object_ptr(), expr1->expr_ptr()->high(), 0) + NewExprCst(expr2->expr_ptr()->right_expr_ptr()->value() ,expr1->expr_ptr()->high()+1),
+                                      NewCondCompare(COND_LT, expr1->expr_ptr()->arg_object_ptr(),
+                                                     NewExprCst(std::pow(2,expr1->expr_ptr()->low())-expr2->expr_ptr()->right_expr_ptr()->value(),
+                                                                expr1->expr_ptr()->arg_object_ptr()->size())
+                                                    )
+                                    );
+                }else if( expr2->expr_ptr()->binop() == OP_SUB ){
+                    return make_pair( NewExprExtract(expr1->expr_ptr()->arg_object_ptr(), expr1->expr_ptr()->high(), 0) - NewExprCst(expr2->expr_ptr()->right_expr_ptr()->value() ,expr1->expr_ptr()->high()+1),
+                                      NewCondCompare(COND_LT, NewExprCst(expr2->expr_ptr()->right_expr_ptr()->value(),
+                                                                expr1->expr_ptr()->arg_object_ptr()->size()),
+                                                              expr1->expr_ptr()->arg_object_ptr()
+                                                    )
+                                    );
+                }else if( (expr2->expr_ptr()->binop() == OP_AND && expr2->expr_ptr()->right_expr_ptr()->value() < std::pow(2,expr1->expr_ptr()->low())) 
+                        || expr2->expr_ptr()->binop() == OP_XOR 
+                        || expr2->expr_ptr()->binop() == OP_OR){
+                    return make_pair( NewExprBinop( expr2->expr_ptr()->binop(), NewExprExtract(expr1->expr_ptr()->arg_object_ptr(), expr1->expr_ptr()->high(), 0),
+                                                    NewExprCst(expr2->expr_ptr()->right_expr_ptr()->value() ,expr1->expr_ptr()->high()+1)
+                                                   ),
+                                      NewCondTrue()
+                                    );
+                    
+                }
+            }
+            // Otherwise normal return 
+            else if( (arg1.first) != nullptr &&  (arg2.first) != nullptr )
+                return make_pair(Concat(arg1.first, arg2.first), 
+                                arg1.second && arg2.second);
+            else if( (arg1.first) != nullptr && (arg2.first) == nullptr )
+                return make_pair(Concat(arg1.first, p->lower_object_ptr()), 
+                                arg1.second);
+            else if( (arg1.first) == nullptr && (arg2.first) != nullptr )
+                return make_pair(Concat( p->upper_object_ptr(), arg2.first ), 
+                                arg2.second );
+            break;
+        default:
+            break;
+    }
+    //return make_pair(make_shared<ExprObject>(nullptr), make_shared<CondObject>(nullptr));
+    return make_pair(nullptr, nullptr);
+}
 
 
 /*---------------------------------------------------------------
