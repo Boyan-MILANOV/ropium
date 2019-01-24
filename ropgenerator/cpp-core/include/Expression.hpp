@@ -46,6 +46,10 @@
 
 using namespace std; 
 
+/* Declaration of some classes for compilation */ 
+class ExprObject;
+using ExprObjectPtr = shared_ptr<ExprObject>; 
+
 /* Types of expressions */  
 enum ExprType {EXPR_CST=0, EXPR_REG, EXPR_MEM, EXPR_UNOP, EXPR_BINOP, EXPR_EXTRACT, EXPR_CONCAT, EXPR_UNKNOWN}; 
 
@@ -56,9 +60,6 @@ enum Binop {OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_AND, OP_OR, OP_XOR, OP_MOD, OP_BS
 /* Type used to store the values for ExprCst */ 
 using cst_t=int64_t;  
 
-/* Declaration of some classes for compilation */ 
-class ExprObject;
-using ExprObjectPtr = shared_ptr<ExprObject>; 
 class ExprAsPolynom; 
 
 /*                          - Expr -  
@@ -145,7 +146,7 @@ using ExprPtr = shared_ptr<Expr>;
  * ExprPtr if the expression can be simplified. 
  * 
  */ 
-
+#include "Condition.hpp"
 class ExprObject{
     protected:
         ExprPtr _expr_ptr; 
@@ -160,9 +161,11 @@ class ExprObject{
         // Misc
         void simplify();
         bool filter();
+        pair<ExprObjectPtr, CondObjectPtr> extend_regs();
         bool equal(ExprObjectPtr other);
         ExprObjectPtr convert(int size);
 };
+
 /* ExprObjectPtr level manipulation */ 
 // IO
 ostream& operator<< (ostream& os, ExprObjectPtr p);
