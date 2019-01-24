@@ -133,7 +133,7 @@ void Gadget::print(ostream& os){
     os << "\tModified registers: ";
     for( i = 0; i < NB_REGS_MAX; i++)
         if( _reg_modified[i])
-            os << i << " "; 
+            os << curr_arch()->reg_name(i) << " "; 
     _semantics->print(os);
     os << endl;
 }

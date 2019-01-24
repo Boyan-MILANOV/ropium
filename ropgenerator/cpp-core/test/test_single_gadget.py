@@ -17,13 +17,14 @@ ir_translator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
 alias_mapper = X86ArchitectureInformation(ARCH_X86_MODE_64).alias_mapper
 
 #raw = "\x48\x89\xD8" # MOV RAX,RBX
-raw = "\x93\x04\x00\x00\x48\x89\xc3"
+raw = "\x48\x8d\x83\x80\x02\x00\x00\x5b\xc3"
 
 raw_input("waiting...")
 
-(irsb,instr) = raw_to_REIL(raw, disassembler, ir_translator)
-for instr in irsb:
-    print(instr)
-irblock = raw_to_IRBlock(raw)
-gadget = Gadget(raw_to_IRBlock(raw))
+(irblock, asm_instr_list) = raw_to_IRBlock(raw)
+gadget = Gadget(irblock)
+gadget.set_asm_str('; '.join(str(i) for i in asm_instr_list) )
+gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(ord(c)) for c in raw))
+
+
 print_gadget(gadget)

@@ -72,6 +72,7 @@ class BuildExt(build_ext):
             if has_flag(self.compiler, '-fvisibility=hidden'):
                 opts.append('-fvisibility=hidden')
             opts.append('-Wno-delete-non-virtual-dtor')
+            opts.append('-Wno-return-type')
             opts.append("-g3") # Maximum optimisation DEBUG
             opts.append("-O0") # Fast compile DEBUG  
         elif ct == 'msvc':

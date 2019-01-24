@@ -3,6 +3,7 @@
 #include "Architecture.hpp"
 #include <exception>
 #include <cstring>
+#include <cmath>
 
 using namespace std; 
 
@@ -295,7 +296,7 @@ vector<SPair>* IRBlock::full_tmp_assignment(vector<SPair>* spairs, SymArg& tmp){
 /* Returns the possible values for a calculation expression */ 
 vector<SPair>* IRBlock::execute_calculation(IROperation op, vector<SPair>* src1, vector<SPair>*src2){
     vector<SPair>* res = new vector<SPair>(); 
-    vector<SPair>::iterator arg1, arg2; 
+    vector<SPair>::iterator arg1, arg2;
     for( arg1 = src1->begin(); arg1 != src1->end(); arg1++){
         for( arg2 = src2->begin(); arg2 != src2->end(); arg2++){
             if( res->size() > MAX_VALUES_PER_ARG )
@@ -309,7 +310,16 @@ vector<SPair>* IRBlock::execute_calculation(IROperation op, vector<SPair>* src1,
                     res->push_back( SPair((*arg1).expr()&(*arg2).expr(), (*arg1).cond() && (*arg2).cond())) ;
                     break;
                 case IR_BSH:
-                    res->push_back( SPair(Bsh((*arg1).expr(),(*arg2).expr()), (*arg1).cond() && (*arg2).cond())) ;
+                    // Special processing of BSH, if the right arg is a constant, transform it into MUL or DIV 
+                    if( arg2->expr()->expr_ptr()->type() == EXPR_CST ){
+                        if( arg2->expr()->expr_ptr()->value() >= 0 )
+                            res->push_back( SPair((*arg1).expr()*NewExprCst(std::pow(2,arg2->expr()->expr_ptr()->value()), arg1->expr()->expr_ptr()->size()), 
+                                                  (*arg1).cond() && (*arg2).cond()));
+                        else
+                            res->push_back( SPair((*arg1).expr()/NewExprCst(std::pow(2,-1*arg2->expr()->expr_ptr()->value()), arg1->expr()->expr_ptr()->size()), 
+                                                  (*arg1).cond() && (*arg2).cond()));
+                    }else
+                        res->push_back( SPair(Bsh((*arg1).expr(),(*arg2).expr()), (*arg1).cond() && (*arg2).cond())) ;
                     break;
                 case IR_DIV:
                     res->push_back( SPair((*arg1).expr()/(*arg2).expr(), (*arg1).cond() && (*arg2).cond())) ;

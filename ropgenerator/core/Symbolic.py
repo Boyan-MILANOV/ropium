@@ -159,15 +159,24 @@ def raw_to_IRBlock(raw):
             elif( instr.mnemonic == ReilMnemonic.JCC ):
                 if( isinstance(instr.operands[0], ReilImmediateOperand) and 
                         instr.operands[0]._immediate != 0):
-                    i = IRInstruction(IROperation.STR,
-                                        barf_operand_to_IR(instr.operands[2], alias_mapper),
-                                        ArgEmpty(),
-                                        ArgReg(curr_arch_ip(), curr_arch_bits()));
+                            
+                    if( instr.operands[2].size > curr_arch_bits() ):
+                        i = IRInstruction(IROperation.BSH,
+                                            barf_operand_to_IR(instr.operands[2], alias_mapper),
+                                            ArgCst(curr_arch_bits() - instr.operands[2].size, curr_arch_bits()),
+                                            ArgReg(curr_arch_ip(), curr_arch_bits()));
+                    else:
+                        i = IRInstruction(IROperation.STR,
+                                            barf_operand_to_IR(instr.operands[2], alias_mapper),
+                                            ArgEmpty(),
+                                            ArgReg(curr_arch_ip(), curr_arch_bits()));
+                    
                 else:
                     i = IRInstruction(IROperation.UNKNOWN,
                                             ArgEmpty(),
                                             ArgEmpty(),
                                             ArgReg(curr_arch_ip(), curr_arch_bits()));
+                    break
             else:
                 return (None, string) 
             if( i ):
