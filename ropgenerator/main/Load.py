@@ -203,8 +203,13 @@ def load(args):
         (irblock, asm_instr_list) = raw_to_IRBlock(raw)
         if( not irblock is None ): 
             gadget = Gadget(irblock)
-            gadget.set_asm_str('; '.join(str(i) for i in asm_instr_list) )
+            asm_str = '; '.join(str(i) for i in asm_instr_list) + ";"
+            gadget.set_asm_str(asm_str)
             gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(ord(c)) for c in raw))
+            # Manually check for call (ugly but no other solution for now)
+            if( str(asm_instr_list[-1]).split(" ")[0] == "call" ):
+                gadget.set_ret_type(RetType.CALL)
+            
             # DEBUG until python3 gadget.add_address(addr)
             gadget_db_add(gadget)
         
