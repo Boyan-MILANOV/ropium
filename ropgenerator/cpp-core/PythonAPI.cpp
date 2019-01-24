@@ -155,11 +155,18 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     
     /* Gadget Bindings */ 
     
+    py::enum_<RetType>(m, "RetType", py::arithmetic(), "Return Type")
+        .value("RET", RET_RET)
+        .value("JMP",RET_JMP)
+        .value("CALL",RET_CALL)
+        .value("UNKNOWN",RET_UNKNOWN)
+        .export_values();
+    
     py::class_<Gadget, shared_ptr<Gadget>>(m, "Gadget")
         .def(py::init<shared_ptr<IRBlock>>())
         .def("set_asm_str", &Gadget::set_asm_str)
-        .def("set_hex_str", &Gadget::set_hex_str);
-        
+        .def("set_hex_str", &Gadget::set_hex_str)
+        .def("set_ret_type", &Gadget::set_ret_type);
         
     m.def("print_gadget", [](shared_ptr<Gadget> g){
         py::scoped_ostream_redirect stream(

@@ -20,7 +20,7 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     _semantics->extend_regs(true);
     _semantics->filter(); 
     
-    // Set the different fields 
+    // Set the different fields
     // Get the registers that have been modified 
     for( i = 0; i < NB_REGS_MAX; i++)
         _reg_modified[i] = irblock->reg_modified(i); 
@@ -96,6 +96,10 @@ Semantics* Gadget::semantics(){return _semantics;}
 void Gadget::add_address(addr_t addr){
     _addresses.push_back(addr);
 }
+void Gadget::set_ret_type(RetType t){
+    _ret_type = t;
+}
+
 void Gadget::set_asm_str(string s){
     _asm_str = s;
 }
@@ -112,6 +116,7 @@ void Gadget::print(ostream& os){
     int i;
     vector<addr_t>::iterator it; 
     vector<ExprObjectPtr>::iterator pit; 
+    // Misc 
     os << "Gadget" << endl; 
     os << "\tAssembly: " << _asm_str << endl; 
     os << "\tHex: " << _hex_str << endl; 
@@ -119,11 +124,24 @@ void Gadget::print(ostream& os){
     for( it = _addresses.begin(); it != _addresses.end(); it++)
         os << value_to_hex_str(curr_arch()->octets(), *it);
     os << endl; 
+    // Return type
+    os << "\tReturn type: ";
+    if( _ret_type == RET_RET )
+        os << "RET";
+    else if( _ret_type == RET_JMP)
+        os << "JMP";
+    else if( _ret_type == RET_CALL)
+        os << "CALL";
+    else 
+        os << "UNKNOWN";
+    os << endl;
+    // SP inc
     if( _known_sp_inc )
         os << "\tSP increment: " << _sp_inc << endl; 
     else
         os << "\tSP increment: Unknown" << endl; 
     os << "\tReading memory at: ";
+    // Memory acess
     for( pit = _mem_read.begin(); pit != _mem_read.end(); pit++)
         os << "\n\t\t" << *pit; 
     os << endl; 
@@ -135,6 +153,7 @@ void Gadget::print(ostream& os){
     for( i = 0; i < NB_REGS_MAX; i++)
         if( _reg_modified[i])
             os << curr_arch()->reg_name(i) << " "; 
+    // Semantics 
     _semantics->print(os);
     os << endl;
 }
