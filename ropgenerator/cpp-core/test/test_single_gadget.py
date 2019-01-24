@@ -17,7 +17,7 @@ ir_translator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
 alias_mapper = X86ArchitectureInformation(ARCH_X86_MODE_64).alias_mapper
 
 #raw = "\x48\x89\xD8" # MOV RAX,RBX
-raw = "\x48\x8d\x83\x80\x02\x00\x00\x5b\xc3"
+raw = "\x04\x0f\x96\xc3"
 
 raw_input("waiting...")
 

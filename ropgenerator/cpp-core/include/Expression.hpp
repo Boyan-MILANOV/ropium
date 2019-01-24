@@ -156,12 +156,13 @@ class ExprObject{
         // Constructors 
         ExprObject(ExprPtr p);
         // Accessors, modifiers
+        int size();
         ExprPtr expr_ptr();
         Expr expr();
         // Misc
         void simplify();
         bool filter();
-        pair<ExprObjectPtr, CondObjectPtr> extend_regs();
+        pair<ExprObjectPtr, CondObjectPtr> tweak();
         bool equal(ExprObjectPtr other);
         ExprObjectPtr convert(int size);
 };

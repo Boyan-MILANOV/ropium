@@ -2,6 +2,8 @@
 #include "Simplification.hpp"
 #include "Exception.hpp"
 
+#include <cmath>
+
 /*---------------------------------------------------------------
  *              Simplifications on Expressions 
  *---------------------------------------------------------------*/ 
@@ -215,6 +217,14 @@ ExprPtr simplify_pattern(ExprPtr p){
                 return make_shared<ExprExtract>(p->arg_expr_ptr()->arg_object_ptr(),
                                 p->arg_expr_ptr()->low()+p->high(),
                                 p->arg_expr_ptr()->low()+p->low());
+        // Extract(X op CST, a, 0) where CST can be out of the extract 
+        }else if( p->arg_expr_ptr()->type() == EXPR_BINOP && 
+                 p->arg_expr_ptr()->right_expr_ptr()->type() == EXPR_CST &&
+                 p->low() == 0 ){
+            return make_shared<ExprBinop>(p->arg_expr_ptr()->binop(),
+                     NewExprExtract(p->arg_expr_ptr()->left_object_ptr(), p->high(), p->low()),   
+                     NewExprCst( p->arg_expr_ptr()->right_expr_ptr()->value() & (cst_t)(std::pow(2,p->high()+1)-1) ,p->high()+1)
+                        );
         }
     
     }else if( p->type() == EXPR_BINOP ){

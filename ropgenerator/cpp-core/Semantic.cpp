@@ -94,7 +94,7 @@ void Semantics::simplify(){
     }
 }
 
-void Semantics::extend_regs(bool simplify=true){
+void Semantics::tweak(bool simplify=true){
     vector<reg_pair>::iterator it;
     vector<mem_pair>::iterator mit;
     vector<SPair>::iterator pit; 
@@ -103,7 +103,7 @@ void Semantics::extend_regs(bool simplify=true){
     for(it = _regs.begin(); it != _regs.end(); it++ ){
         add = vector<SPair>();
         for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ ){
-            pair = (*pit).expr()->extend_regs();
+            pair = (*pit).expr()->tweak();
             if( pair.first != nullptr ){
                 if( simplify ){
                     pair.first->simplify();
@@ -119,7 +119,7 @@ void Semantics::extend_regs(bool simplify=true){
     for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
         add = vector<SPair>();
         for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ ){
-            pair = (*pit).expr()->extend_regs(); 
+            pair = (*pit).expr()->tweak(); 
             if( pair.first != nullptr ){
                 if( simplify ){
                     pair.first->simplify();
