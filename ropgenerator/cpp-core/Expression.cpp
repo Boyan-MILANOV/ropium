@@ -3,6 +3,8 @@
 #include "Exception.hpp"
 #include "Architecture.hpp"
 
+#include <cmath>
+
 using namespace std; 
 
 ////////////////////////////////////////////////////////////////////////
@@ -442,6 +444,93 @@ Expr ExprObject::expr(){return *_expr_ptr;}
 bool ExprObject::equal(ExprObjectPtr other){
     return _expr_ptr->equal(other->expr_ptr());
 }
+
+pair<ExprObjectPtr, CondObjectPtr> ExprObject::extend_regs(){
+    pair<ExprObjectPtr, CondObjectPtr> arg1, arg2; 
+    ExprObjectPtr expr1, expr2;
+    CondObjectPtr cond1, cond2; 
+    switch(_expr_ptr->type()){
+        case EXPR_MEM:
+            arg1 = _expr_ptr->addr_object_ptr()->extend_regs();
+            if( (arg1.first) != nullptr )
+                return make_pair(NewExprMem(arg1.first, _expr_ptr->size()), arg1.second);
+            break;
+        
+        case EXPR_BINOP:
+            arg1 = _expr_ptr->left_object_ptr()->extend_regs();
+            arg2 = _expr_ptr->right_object_ptr()->extend_regs();
+            if( (arg1.first) != nullptr &&  (arg2.first) != nullptr )
+                return make_pair(NewExprBinop(_expr_ptr->binop(), arg1.first, arg2.first), 
+                                arg1.second && arg2.second);
+            else if( (arg1.first) != nullptr && (arg2.first) == nullptr )
+                return make_pair(NewExprBinop(_expr_ptr->binop(), arg1.first, _expr_ptr->right_object_ptr()), 
+                                arg1.second);
+            else if( (arg1.first) == nullptr && (arg2.first) != nullptr )
+                return make_pair(NewExprBinop(_expr_ptr->binop(), _expr_ptr->left_object_ptr(), arg2.first ), 
+                                arg2.second);
+            break;
+        
+        case EXPR_UNOP:
+            arg1 = _expr_ptr->arg_object_ptr()->extend_regs();
+            if( (arg1.first) != nullptr )
+                return make_pair(NewExprUnop(_expr_ptr->unop(), arg1.first), arg1.second);
+            break;
+        
+        case EXPR_EXTRACT:
+            arg1 = _expr_ptr->arg_object_ptr()->extend_regs();
+            if( (arg1.first) != nullptr )
+                return make_pair(NewExprExtract(arg1.first, _expr_ptr->high(), _expr_ptr->low()), arg1.second);
+            break;
+            
+        case EXPR_CONCAT:
+            // First extend arguments 
+            arg1 = _expr_ptr->upper_object_ptr()->extend_regs();
+            arg2 = _expr_ptr->lower_object_ptr()->extend_regs();
+            if( (arg1.first) == nullptr ){
+                expr1 = _expr_ptr->upper_object_ptr();
+                cond1 = NewCondTrue();
+            }else{
+                std::tie(expr1, cond1) = arg1; 
+            }
+            if( (arg2.first) == nullptr ){
+                expr2 = _expr_ptr->lower_object_ptr();
+                cond2 = NewCondTrue();
+            }else{
+                std::tie(expr2, cond2) = arg2; 
+            }
+            // Test if we have Concat(0, Extract(reg, x, 0))
+            if( expr1->expr_ptr()->type() == EXPR_CST &&
+                expr1->expr_ptr()->value() == 0 &&
+                expr2->expr_ptr()->type() == EXPR_EXTRACT &&
+                expr2->expr_ptr()->low() == 0 && 
+                expr2->expr_ptr()->arg_expr_ptr()->type() == EXPR_REG 
+                ){
+                return make_pair(NewExprReg(expr2->expr_ptr()->arg_expr_ptr()->num(), curr_arch()->bits()), 
+                                 cond1 && cond2 && NewCondCompare(COND_LT, NewExprReg(expr2->expr_ptr()->arg_expr_ptr()->num(),
+                                                                                      curr_arch()->bits()),
+                                                                        NewExprCst(std::pow(2, expr2->expr_ptr()->high()+1),
+                                                                                   curr_arch()->bits())
+                                                                  )
+                                );
+            }
+            // Otherwise normal return 
+            else if( (arg1.first) != nullptr &&  (arg2.first) != nullptr )
+                return make_pair(Concat(arg1.first, arg2.first), 
+                                arg1.second && arg2.second);
+            else if( (arg1.first) != nullptr && (arg2.first) == nullptr )
+                return make_pair(Concat(arg1.first, _expr_ptr->lower_object_ptr()), 
+                                arg1.second);
+            else if( (arg1.first) == nullptr && (arg2.first) != nullptr )
+                return make_pair(Concat( _expr_ptr->upper_object_ptr(), arg2.first ), 
+                                arg2.second );
+            break;
+        default:
+            break;
+    }
+    //return make_pair(make_shared<ExprObject>(nullptr), make_shared<CondObject>(nullptr));
+    return make_pair(nullptr, nullptr);
+}
+
 void ExprObject::simplify(){
     ExprPtr saved = nullptr; 
     if( _simplified )

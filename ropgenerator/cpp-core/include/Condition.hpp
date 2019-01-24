@@ -35,10 +35,14 @@
 #ifndef CONDITION_H
 #define CONDITION_H
 
-#include "Expression.hpp"
+#include <memory>
 #include "Exception.hpp"
 
 using namespace std; 
+
+/* Class definition for compilation */ 
+class CondObject;
+using CondObjectPtr = shared_ptr<CondObject>;
 
 // Types of conditions
 enum CondType{COND_TRUE, COND_FALSE, COND_EQ, COND_NEQ, COND_LT, COND_LE, 
@@ -59,9 +63,9 @@ bool is_const_cond(CondType c);
  */ 
 enum CondEval{EVAL_TRUE, EVAL_FALSE, EVAL_UNKNOWN};
 
-class CondObject;
-using CondObjectPtr = shared_ptr<CondObject>;
+
 // Condition base class 
+#include "Expression.hpp"
 class Cond{
     protected:
         CondType _type;  
@@ -197,6 +201,7 @@ CondObjectPtr operator! (CondObjectPtr p1);
 CondObjectPtr NewCondTrue();
 CondObjectPtr NewCondFalse();
 CondObjectPtr NewCondPointer(CondType t, ExprObjectPtr a);
+CondObjectPtr NewCondCompare(CondType t, ExprObjectPtr l, ExprObjectPtr r);
 CondObjectPtr NewCondUnknown();
 // Create new ExprPtr for COND_UNKNOWN, ONLY INTERNAL USAGE
 CondPtr special_NewCondPtrUnknown(); 

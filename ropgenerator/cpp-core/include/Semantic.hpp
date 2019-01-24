@@ -2,8 +2,8 @@
 #define SEMANTIC_H
 
 #include <vector>
-#include "Expression.hpp"
 #include "Condition.hpp"
+#include "Expression.hpp"
 
 using std::vector; 
 
@@ -38,6 +38,8 @@ class Semantics{
         ~Semantics(); 
         // Simplification functions
         void simplify();
+        // Extend partial registers to full registers 
+        void extend_regs(bool simplify);
         // Filter expressions/conditions 
         void filter();
 };

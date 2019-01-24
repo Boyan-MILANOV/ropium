@@ -252,6 +252,10 @@ CondObjectPtr NewCondFalse(){
 CondObjectPtr NewCondPointer(CondType t, ExprObjectPtr a){
     return make_shared<CondObject>(make_shared<CondPointer>(t, a));
 }
+CondObjectPtr NewCondCompare(CondType t, ExprObjectPtr l, ExprObjectPtr r){
+    return make_shared<CondObject>(make_shared<CondCompare>(t, l, r));
+}
+
 CondObjectPtr g_cond_unknown = make_shared<CondObject>(make_shared<CondUnknown>());
 CondObjectPtr NewCondUnknown(){
     return g_cond_unknown;

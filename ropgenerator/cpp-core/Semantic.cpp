@@ -94,6 +94,45 @@ void Semantics::simplify(){
     }
 }
 
+void Semantics::extend_regs(bool simplify=true){
+    vector<reg_pair>::iterator it;
+    vector<mem_pair>::iterator mit;
+    vector<SPair>::iterator pit; 
+    pair<ExprObjectPtr,CondObjectPtr> pair; 
+    vector<SPair> add;
+    for(it = _regs.begin(); it != _regs.end(); it++ ){
+        add = vector<SPair>();
+        for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ ){
+            pair = (*pit).expr()->extend_regs();
+            if( pair.first != nullptr ){
+                if( simplify ){
+                    pair.first->simplify();
+                    pair.second->simplify();
+                }
+                add.push_back(SPair(pair.first, pair.second));
+            }
+            // TODO For conditions
+        }
+        it->second->insert(it->second->end(), add.begin(), add.end());
+    }
+    
+    for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
+        add = vector<SPair>();
+        for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ ){
+            pair = (*pit).expr()->extend_regs(); 
+            if( pair.first != nullptr ){
+                if( simplify ){
+                    pair.first->simplify();
+                    pair.second->simplify();
+                }
+                add.push_back(SPair(pair.first, pair.second));
+            }
+            // TODO for conditions
+        }
+        mit->second->insert(mit->second->end(), add.begin(), add.end());
+    }
+}
+
 // Filtering
 void Semantics::filter(){
     vector<reg_pair>::iterator it;
