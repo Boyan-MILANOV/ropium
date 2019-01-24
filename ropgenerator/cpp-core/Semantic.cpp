@@ -104,9 +104,8 @@ void Semantics::tweak(bool simplify=true){
     bool found_new;
     
     for(it = _regs.begin(); it != _regs.end(); it++ ){
-        found_new = true;
         last = std::move(*(it->second));
-        while( found_new ){
+        do{
             add = vector<SPair>();
             found_new = false;
             for( pit = last.begin(); pit != last.end(); pit++ ){
@@ -123,13 +122,12 @@ void Semantics::tweak(bool simplify=true){
             }
             it->second->insert(it->second->end(), add.begin(), add.end());
             last = std::move(add);
-        }
+        }while( found_new && simplify );
     }
     
     for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
-        found_new = true;
         last = std::move(*(mit->second));
-        while( found_new ){
+        do{
             add = vector<SPair>();
             found_new = false;
             for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ ){
@@ -146,7 +144,7 @@ void Semantics::tweak(bool simplify=true){
             }
             mit->second->insert(mit->second->end(), add.begin(), add.end());
             last = std::move(add);
-        }
+        }while( found_new && simplify);
     }
 }
 
