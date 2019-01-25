@@ -180,6 +180,10 @@ void CondObject::simplify(){
     _simplified = true;
 }
 
+pair<CondObjectPtr, CondObjectPtr> CondObject::tweak(){
+    return tweak_condition(_cond_ptr);
+}
+
 /* Return true if unknown */ 
 bool CondObject::filter(){
     bool unknown = false; 
@@ -254,6 +258,12 @@ CondObjectPtr NewCondPointer(CondType t, ExprObjectPtr a){
 }
 CondObjectPtr NewCondCompare(CondType t, ExprObjectPtr l, ExprObjectPtr r){
     return make_shared<CondObject>(make_shared<CondCompare>(t, l, r));
+}
+CondObjectPtr NewCondBinLogic(CondType t, CondObjectPtr l, CondObjectPtr r){
+    return make_shared<CondObject>(make_shared<CondBinLogic>(t,l,r));
+}
+CondObjectPtr NewCondUnLogic(CondType t, CondObjectPtr a){
+    return make_shared<CondObject>(make_shared<CondUnLogic>(t,a));
 }
 
 CondObjectPtr g_cond_unknown = make_shared<CondObject>(make_shared<CondUnknown>());

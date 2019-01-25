@@ -49,10 +49,11 @@ CondPtr simplify_compare_polynom(CondPtr p);
 CondPtr simplify_redundancy(CondPtr p);
  
 /*---------------------------------------------------------------
- *              Tweaking Expressions 
+ *              Tweaking Expressions & Conditions
  *---------------------------------------------------------------*/ 
 pair<ExprObjectPtr, CondObjectPtr> tweak_expression(ExprPtr p);
- 
+pair<CondObjectPtr,CondObjectPtr> tweak_condition(CondPtr p);
+
 /*---------------------------------------------------------------
  *              Filtering expressions  
  *---------------------------------------------------------------*/ 

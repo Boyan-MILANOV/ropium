@@ -58,7 +58,8 @@ enum Unop {OP_NEG, COUNT_NB_UNOP};
 enum Binop {OP_ADD, OP_SUB, OP_MUL, OP_DIV, OP_AND, OP_OR, OP_XOR, OP_MOD, OP_BSH, COUNT_NB_BINOP }; 
 
 /* Type used to store the values for ExprCst */ 
-using cst_t=int64_t;  
+using cst_t=int64_t;
+using ucst_t=uint64_t;  
 
 class ExprAsPolynom; 
 
