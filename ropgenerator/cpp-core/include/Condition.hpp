@@ -92,7 +92,7 @@ class Cond{
         // From CondPointer
         virtual ExprObjectPtr arg_exprobject_ptr(){throw_exception("Wrong class to call this method");}
         virtual ExprPtr arg_expr_ptr(){throw_exception("Wrong class to call this method");}
-        // From CondUnop
+        // From CondUnLogic
         virtual CondObjectPtr arg_condobject_ptr(){throw_exception("Wrong class to call this method");}
         virtual shared_ptr<Cond> arg_cond_ptr(){throw_exception("Wrong class to call this method");}
 };
@@ -104,10 +104,10 @@ using CondPtr = shared_ptr<Cond>;
 class CondObject{
     protected:
         CondPtr _cond_ptr; 
-        bool _simplified; // If the condition has been simplified 
+        bool _simplified; // If the condition has been simplified
         bool _filtered; 
     public:
-        // Constructors 
+        // Constructors
         CondObject(CondPtr p);
         // Accessors, modifiers
         CondPtr cond_ptr();
@@ -115,12 +115,13 @@ class CondObject{
         // Misc
         void simplify();
         bool filter(); 
+        pair<CondObjectPtr,CondObjectPtr> tweak();
 };
 using CondObjectPtr = shared_ptr<CondObject>;
 
 
 /////////////////////////////////////////////////////////////////////////
-// Types of condition 
+// Types of condition
 class CondConst: public Cond{
     public:
         CondConst(CondType t);
@@ -138,7 +139,7 @@ class CondCompare: public Cond{
         ExprPtr left_expr_ptr();
         ExprPtr right_expr_ptr();
         CondPtr invert();
-        // Misc 
+        // Misc
         void print(ostream& os);
 };
 
@@ -202,6 +203,8 @@ CondObjectPtr NewCondTrue();
 CondObjectPtr NewCondFalse();
 CondObjectPtr NewCondPointer(CondType t, ExprObjectPtr a);
 CondObjectPtr NewCondCompare(CondType t, ExprObjectPtr l, ExprObjectPtr r);
+CondObjectPtr NewCondBinLogic(CondType t, CondObjectPtr l, CondObjectPtr r);
+CondObjectPtr NewCondUnLogic(CondType t, CondObjectPtr a);
 CondObjectPtr NewCondUnknown();
 // Create new ExprPtr for COND_UNKNOWN, ONLY INTERNAL USAGE
 CondPtr special_NewCondPtrUnknown(); 
