@@ -472,12 +472,11 @@ Semantics* IRBlock::compute_semantics(bool discard_ignored_regs){
         return new Semantics();
     
     // Check if we ignore some instructions or not 
-    discard_ignored_regs = false; // DEBUG
     instr_table = new bool[_instr.size()];
     if( discard_ignored_regs )
         this->filter_instructions(instr_table, _instr.size());
     else
-        memset(instr_table, true, _instr.size()); // DEBUG TRUE
+        memset(instr_table, true, _instr.size());
     
     // Do symbolic execution 
     instr_count = 0;
