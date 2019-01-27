@@ -178,11 +178,37 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     );
     
     
-    /* Database Bindings */ 
+    /* Database Bindings */
     
+    py::enum_<AssignType>(m, "AssignType", py::arithmetic(), "Query Assigned Value Type")
+        .value("CST", Q_CST).value("REG_BINOP_CST",Q_REG_BINOP_CST)
+        .value("MEM_BINOP_CST",Q_MEM_BINOP_CST).value("CSTMEM", Q_CSTMEM)
+        .value("SYSCALL",Q_SYSCALL).value("INT80",Q_INT80)
+        .export_values();
+    
+    py::enum_<DestType>(m, "DestType", py::arithmetic(), "Query Destination Type")
+        .value("REG",DST_REG).value("MEM",DST_MEM)
+        .value("CSTMEM",DST_CSTMEM)
+        .export_values();
+
     m.def("gadget_db_add", [](shared_ptr<Gadget> g){return gadget_db()->add(g);});
     m.def("gadget_db_get", [](int n){return gadget_db()->get(n);});
     m.def("init_gadget_db", &init_gadget_db);
+
+    /* Expressions bindings */
+    
+    py::enum_<ExprType>(m, "ExprType", py::arithmetic(), "Expression Type")
+        .value("CST",EXPR_CST).value("REG",EXPR_REG).value("MEM",EXPR_MEM)
+        .value("UNOP",EXPR_UNOP).value("BINOP",EXPR_BINOP)
+        .value("EXTRACT",EXPR_EXTRACT).value("CONCAT",EXPR_CONCAT)
+        .value("UNKNOWN", EXPR_UNKNOWN)
+        .export_values();
+    
+    py::enum_<Binop>(m, "Binop", py::arithmetic(), "Binary Operation")
+        .value("ADD",OP_ADD).value("SUB",OP_SUB).value("MUL",OP_MUL)
+        .value("DIV",OP_DIV).value("AND",OP_AND).value("OR",OP_OR)
+        .value("XOR",OP_XOR).value("BSH",OP_BSH)
+        .export_values();
     
 }
 

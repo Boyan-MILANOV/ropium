@@ -53,6 +53,7 @@ class Architecture{
         bool is_valid_reg( int num);
         bool is_ignored_reg( int num );
         string reg_name(int num);
+        int reg_num(string reg_name);
 };
 
 // Module wide functions to set global variables 

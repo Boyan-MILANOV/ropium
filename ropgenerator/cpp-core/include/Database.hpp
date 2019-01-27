@@ -15,12 +15,19 @@ using std::shared_ptr;
 
 using std::unique_ptr; 
 
-enum QueryType {
-    Q_CST,            /* constant */
+enum AssignType {
+    Q_CST,                  /* constant */
     Q_REG_BINOP_CST,    /* reg op cst */
     Q_MEM_BINOP_CST,    /* mem op cst */
-    Q_SYSCALL,        /* syscall */ 
-    Q_INT80           /* int80 */
+    Q_CSTMEM,      /* mem(cst) */ 
+    Q_SYSCALL,                  /* syscall */ 
+    Q_INT80                     /* int80 */
+};
+
+enum DestType {
+    DST_REG,
+    DST_MEM,
+    DST_CSTMEM,
 };
 
 class CSTList{

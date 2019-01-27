@@ -93,7 +93,7 @@ def barf_operand_to_IR(operand, alias_mapper):
             elif( curr_arch_type() == ArchType.ARCH_X64 ):
                 reg_num = map_x64_reg_names.get(reg_str, None)
             else:
-                raise Exception("Error")
+                raise Exception("Error, didn'arch not supported in here")
             if( reg_num is None ):
                 raise RegNotSupported("Error, could not get register: " + reg_str)
             # Return the right operand 
