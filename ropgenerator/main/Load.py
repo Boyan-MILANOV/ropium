@@ -199,7 +199,6 @@ def load(args):
             count += 1
             continue
         dup[raw] = True
-        #print("DEBUG, trying: \\x" + '\\x'.join("{:02x}".format(ord(c)) for c in raw) )
         (irblock, asm_instr_list) = raw_to_IRBlock(raw)
         if( not irblock is None ): 
             gadget = Gadget(irblock)
@@ -214,8 +213,10 @@ def load(args):
             gadget_db_add(gadget)
         
     end_time = datetime.now()
-    print("Time: " + str(end_time-start_time))
-    print("Duplicates: " + str(count))
+    
+    notify("Gadgets analyzed : " + str(len(gadget_list)))
+    notify("Duplicates: " + str(count))
+    notify("Computation time : " + str(end_time-start_time))
     
     # # Build the gadget database
     # # (we mix the list so that charging bar

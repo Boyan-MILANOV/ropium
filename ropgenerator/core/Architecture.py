@@ -5,6 +5,14 @@ RegX86, RegX64
 
 OPTION_ARCH_NAMES = {'X86':'X86', 'X64':'X64'}
 
+def is_supported_reg(reg_str):
+    if( curr_arch_type() == ArchType.ARCH_X86 ):
+        return (reg_str in map_x86_reg_names)
+    elif( curr_arch_type() == ArchType.ARCH_X64 ):
+        return (reg_str in map_x64_reg_names.get)
+    else:
+        return False
+
 map_x86_reg_names = { 
 "eax",RegX86.EAX,
 "ebx",RegX86.EBX,
