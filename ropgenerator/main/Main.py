@@ -5,6 +5,7 @@ from ropgenerator.core.IO import *
 from ropgenerator.main.Load import load 
 from ropgenerator.core.Database import *
 from ropgenerator.core.Gadget import *
+from ropgenerator.semantic.Main import semantic_mode
 from prompt_toolkit import PromptSession, ANSI
 
 
@@ -59,11 +60,7 @@ def main():
             elif( command == CMD_HELP ):
                 print(helpStr)
             elif( command == CMD_SEARCH ):
-                #if( not Database.gadgets ):
-                #    error("You have to load gadgets before entering semantic-mode")
-                #elif( not semantic_mode()):
-                #    finish = True
-                print(str_special("Work in progess... ;)"))
+                finish = not semantic_mode()
             elif( command == CMD_EXPLOIT ):
                 #if( not exploit_mode()):
                 #    finish = True
