@@ -9,9 +9,17 @@ def is_supported_reg(reg_str):
     if( curr_arch_type() == ArchType.ARCH_X86 ):
         return (reg_str in map_x86_reg_names)
     elif( curr_arch_type() == ArchType.ARCH_X64 ):
-        return (reg_str in map_x64_reg_names.get)
+        return (reg_str in map_x64_reg_names)
     else:
         return False
+
+def reg_str_to_num(reg_str):
+    if( curr_arch_type() == ArchType.ARCH_X86 ):
+        return map_x86_reg_names[reg_str]
+    elif( curr_arch_type() == ArchType.ARCH_X64 ):
+        return map_x64_reg_names[reg_str]
+    else:
+        raise Exception("Arch not supported in this function")
 
 map_x86_reg_names = { 
 "eax",RegX86.EAX,
