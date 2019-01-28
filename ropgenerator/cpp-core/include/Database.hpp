@@ -78,6 +78,7 @@ class MEMDict{
 };
 
 class Database{
+    int _entries_count;
     vector<shared_ptr<Gadget>> _gadgets; 
     /* reg <- expr */ 
     CSTList* _cst_to_reg[NB_REGS_MAX];
@@ -100,6 +101,8 @@ class Database{
         vector<int> find_reg_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n);
         vector<int> find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n);
         
+        
+        int entries_count();
         ~Database(); 
 };
 

@@ -177,11 +177,15 @@ template <class T> MEMDict<T>::~MEMDict(){
 }
 
 /* Database */ 
-Database::Database(){
+Database::Database():_entries_count(0){
     std::memset( _cst_to_reg, 0, sizeof(CSTList*)*NB_REGS_MAX);
     std::memset( _reg_binop_cst_to_reg, 0, sizeof(REGList*)*NB_REGS_MAX);
     std::memset( _mem_binop_cst_to_reg, 0, sizeof(MEMList*)*NB_REGS_MAX);
 }
+ 
+int Database::entries_count(){
+    return _entries_count;
+} 
  
 int Database::add(shared_ptr<Gadget> g){
     ExprPtr tmp; 
@@ -205,11 +209,13 @@ int Database::add(shared_ptr<Gadget> g){
                 if( _cst_to_reg[reg] == nullptr )
                     _cst_to_reg[reg] = new CSTList(); 
                 _cst_to_reg[reg]->add(sit->expr_ptr()->value(), num, sit->cond(), _gadgets);
+                _entries_count++;
             } // reg -> reg ? 
             else if( sit->expr_ptr()->type() == EXPR_REG ){
                 if( _reg_binop_cst_to_reg[reg] == nullptr )
                     _reg_binop_cst_to_reg[reg] = new REGList();
                 _reg_binop_cst_to_reg[reg]->add(OP_ADD,sit->expr_ptr()->num(), 0, num, sit->cond(), _gadgets);
+                _entries_count++;
             } 
             else if( sit->expr_ptr()->type() == EXPR_BINOP ){
                 // reg binop cst -> reg
@@ -225,6 +231,7 @@ int Database::add(shared_ptr<Gadget> g){
                         sit->expr_ptr()->right_expr_ptr()->value(),
                         num, sit->cond(), _gadgets
                         );
+                    _entries_count++;
                 } // mem binop cst -> reg 
                 else if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_MEM &&
                          sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
@@ -244,6 +251,7 @@ int Database::add(shared_ptr<Gadget> g){
                             sit->expr_ptr()->right_expr_ptr()->value(),
                             num, sit->cond(), _gadgets
                             );
+                        _entries_count++;
                     }
                 }
             } 
@@ -274,9 +282,11 @@ int Database::add(shared_ptr<Gadget> g){
             // cst -> mem ? 
             if( sit->expr_ptr()->type() == EXPR_CST ){
                 _cst_to_mem.add_cst(addr_op, addr_reg, addr_cst, sit->expr_ptr()->value(), num, sit->cond(), _gadgets);
+                _entries_count++;
             } // reg -> mem ? 
             else if( sit->expr_ptr()->type() == EXPR_REG ){
                 _reg_binop_cst_to_mem.add_reg(addr_op, addr_reg, addr_cst,sit->expr_ptr()->num(), 0, OP_ADD, num, sit->cond(), _gadgets);
+                _entries_count++;
             } 
             else if( sit->expr_ptr()->type() == EXPR_BINOP ){
                 // reg binop cst -> mem
@@ -292,6 +302,7 @@ int Database::add(shared_ptr<Gadget> g){
                         sit->expr_ptr()->binop(),
                         num, sit->cond(), _gadgets
                         );
+                    _entries_count++;
                 } // mem binop cst -> mem
                 else if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_MEM &&
                          sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
@@ -310,6 +321,7 @@ int Database::add(shared_ptr<Gadget> g){
                             tmp->binop(),
                             num, sit->cond(), _gadgets
                             );
+                        _entries_count++;
                     }
                 }
             } 
