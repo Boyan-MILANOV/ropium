@@ -13,7 +13,7 @@ from ropgenerator.core.IO import *
 from ropgenerator.core.Architecture import *
 from ropgenerator.core.Symbolic import raw_to_IRBlock
 from ropgenerator.core.Gadget import *
-from ropgenerator.core.Database import gadget_db_add, init_gadget_db
+from ropgenerator.core.Database import *
 
 # Command options
 OPTION_ARCH = '--arch'
@@ -216,6 +216,7 @@ def load(args):
     
     notify("Gadgets analyzed : " + str(len(gadget_list)))
     notify("Duplicates: " + str(count))
+    notify("Database entries created: " + str(gadget_db_entries_count()))
     notify("Computation time : " + str(end_time-start_time))
     
     # # Build the gadget database

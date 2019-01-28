@@ -193,6 +193,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
 
     m.def("gadget_db_add", [](shared_ptr<Gadget> g){return gadget_db()->add(g);});
     m.def("gadget_db_get", [](int n){return gadget_db()->get(n);});
+    m.def("gadget_db_entries_count", [](){return gadget_db()->entries_count();});
     m.def("init_gadget_db", &init_gadget_db);
 
     /* Expressions bindings */
