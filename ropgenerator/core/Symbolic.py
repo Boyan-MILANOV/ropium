@@ -7,9 +7,9 @@ from ropgenerator.core.Architecture import *
 from barf.core.reil import ReilMnemonic, ReilImmediateOperand, ReilRegisterOperand
 from barf.arch import ARCH_X86_MODE_32
 from barf.arch import ARCH_X86_MODE_64
-from barf.arch.x86.x86translator import X86Translator
-from barf.arch.x86.x86disassembler import X86Disassembler
-from barf.arch.x86.x86base import *
+from barf.arch.x86.translator import X86Translator
+from barf.arch.x86.disassembler import X86Disassembler
+from barf.arch.x86.x86 import *
 
 import sys
 
@@ -69,12 +69,12 @@ class RegNotSupported(Exception):
 
 def barf_operand_to_IR(operand, alias_mapper):
     if( isinstance(operand, ReilImmediateOperand )):
-        if( operand._immediate > sys.maxint ): # DEBUG 
-            print("[DEBUG] Python2 Error ? ReilImmediateOperand is too big to fit in an int")
-            value = sys.maxint
+        if( operand._immediate >= 2**curr_arch_bits()):
+            print("DEBUG ERROR cst value too big ?")
+            value = 0
         else:
-            value = operand._immediate
-        return ArgCst(value, operand.size)
+            value = int(operand._immediate)
+        return ArgCst(int(2**(curr_arch_bits()-1)), int(operand.size))
     elif( isinstance( operand, ReilRegisterOperand)):
         if( operand._name[0] == "t" ):
             return ArgTmp(int(operand._name[1:]), operand.size)

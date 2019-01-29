@@ -12,10 +12,13 @@ using namespace pybind11::literals;
 #include "Architecture.hpp"
 #include "Gadget.hpp"
 #include "Database.hpp"
+#include "ChainingEngine.hpp"
 
 
 PYBIND11_MODULE(ropgenerator_core_, m){
+    
     /* IO Bindings */ 
+    
     m.def("info", &info);
     m.def("notify", &notify);
     m.def("error",&error);
@@ -38,6 +41,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("enable_colors", &enable_colors);
     
     /* Symbolic Bindings */ 
+    
     py::enum_<ArgType>(m, "ArgType", py::arithmetic(), "Argument types for IR operations")
         .value("empty", ARG_EMPTY)
         .value("cst", ARG_CST)
@@ -179,24 +183,13 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     
     
     /* Database Bindings */
-    
-    py::enum_<AssignType>(m, "AssignType", py::arithmetic(), "Query Assigned Value Type")
-        .value("CST", Q_CST).value("REG_BINOP_CST",Q_REG_BINOP_CST)
-        .value("MEM_BINOP_CST",Q_MEM_BINOP_CST).value("CSTMEM", Q_CSTMEM)
-        .value("SYSCALL",Q_SYSCALL).value("INT80",Q_INT80)
-        .export_values();
-    
-    py::enum_<DestType>(m, "DestType", py::arithmetic(), "Query Destination Type")
-        .value("REG",DST_REG).value("MEM",DST_MEM)
-        .value("CSTMEM",DST_CSTMEM)
-        .export_values();
 
     m.def("gadget_db_add", [](shared_ptr<Gadget> g){return gadget_db()->add(g);});
     m.def("gadget_db_get", [](int n){return gadget_db()->get(n);});
     m.def("gadget_db_entries_count", [](){return gadget_db()->entries_count();});
     m.def("init_gadget_db", &init_gadget_db);
 
-    /* Expressions bindings */
+    /* Expressions Bindings */
     
     py::enum_<ExprType>(m, "ExprType", py::arithmetic(), "Expression Type")
         .value("CST",EXPR_CST).value("REG",EXPR_REG).value("MEM",EXPR_MEM)
@@ -209,6 +202,18 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("ADD",OP_ADD).value("SUB",OP_SUB).value("MUL",OP_MUL)
         .value("DIV",OP_DIV).value("AND",OP_AND).value("OR",OP_OR)
         .value("XOR",OP_XOR).value("BSH",OP_BSH)
+        .export_values();
+        
+    /* Chaining Engine Bindings */ 
+    py::enum_<AssignType>(m, "AssignType", py::arithmetic(), "ASSIGNuery Assigned Value Type")
+        .value("CST", ASSIGN_CST).value("REG_BINOP_CST",ASSIGN_REG_BINOP_CST)
+        .value("MEM_BINOP_CST",ASSIGN_MEM_BINOP_CST).value("CSTMEM", ASSIGN_CSTMEM)
+        .value("SYSCALL",ASSIGN_SYSCALL).value("INT80",ASSIGN_INT80)
+        .export_values();
+    
+    py::enum_<DestType>(m, "DestType", py::arithmetic(), "Query Destination Type")
+        .value("REG",DST_REG).value("MEM",DST_MEM)
+        .value("CSTMEM",DST_CSTMEM)
         .export_values();
     
 }
