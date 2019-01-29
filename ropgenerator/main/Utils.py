@@ -2,7 +2,7 @@
 
 from ropgenerator.core.Expression import *
 from ropgenerator.core.Architecture import *
-from ropgenerator.core.Database import *
+from ropgenerator.core.ChainingEngine import *
 
 ########################
 #   Parsing functions  #

@@ -14,6 +14,7 @@ from ropgenerator.core.Architecture import *
 from ropgenerator.core.Symbolic import raw_to_IRBlock
 from ropgenerator.core.Gadget import *
 from ropgenerator.core.Database import *
+from ropgenerator.core.ChainingEngine import *
 
 # Command options
 OPTION_ARCH = '--arch'
@@ -204,7 +205,7 @@ def load(args):
             gadget = Gadget(irblock)
             asm_str = '; '.join(str(i) for i in asm_instr_list) + ";"
             gadget.set_asm_str(asm_str)
-            gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(ord(c)) for c in raw))
+            gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(c) for c in raw))
             # Manually check for call (ugly but no other solution for now)
             if( str(asm_instr_list[-1]).split(" ")[0] == "call" ):
                 gadget.set_ret_type(RetType.CALL)
