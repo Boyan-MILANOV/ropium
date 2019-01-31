@@ -67,6 +67,12 @@ class RegNotSupported(Exception):
     def __str__(self):
         return msg
 
+def pycst_to_cppcst(val):
+    if( val >= 2**(curr_arch_bits()-1)):
+        return val - (2**curr_arch_bits());
+    else:
+        return val
+
 def barf_operand_to_IR(operand, alias_mapper):
     if( isinstance(operand, ReilImmediateOperand )):
         if( operand._immediate >= 2**curr_arch_bits()):
@@ -74,7 +80,8 @@ def barf_operand_to_IR(operand, alias_mapper):
             value = 0
         else:
             value = int(operand._immediate)
-        return ArgCst(int(2**(curr_arch_bits()-1)), int(operand.size))
+        return ArgCst(pycst_to_cppcst(value), operand.size);
+        #return ArgCst(int(2**(curr_arch_bits()-1)), int(operand.size))
     elif( isinstance( operand, ReilRegisterOperand)):
         if( operand._name[0] == "t" ):
             return ArgTmp(int(operand._name[1:]), operand.size)
