@@ -76,12 +76,11 @@ def pycst_to_cppcst(val):
 def barf_operand_to_IR(operand, alias_mapper):
     if( isinstance(operand, ReilImmediateOperand )):
         if( operand._immediate >= 2**curr_arch_bits()):
-            print("DEBUG ERROR cst value too big ?")
+            print("[!] Unexpected error, constant value too big to fit in cst_t")
             value = 0
         else:
             value = int(operand._immediate)
         return ArgCst(pycst_to_cppcst(value), operand.size);
-        #return ArgCst(int(2**(curr_arch_bits()-1)), int(operand.size))
     elif( isinstance( operand, ReilRegisterOperand)):
         if( operand._name[0] == "t" ):
             return ArgTmp(int(operand._name[1:]), operand.size)
