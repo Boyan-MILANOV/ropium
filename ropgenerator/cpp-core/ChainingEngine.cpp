@@ -41,3 +41,137 @@ void FailRecord::add_bad_byte(unsigned char bad_byte){
     _bad_bytes.push_back(bad_byte); // ! We allow duplicates here for perf reasons
 }
 
+/* ***************************************************
+ *                RegTransitivityRecord
+ * ************************************************* */ 
+ 
+//cst_t record_cst_list_addsub[NB_CST_RECORD] = {-32,-16, -8, -4, -2, -1, 0,1,2,4,8,16,32};
+int record_cst_list_addsub_index(cst_t c){
+    switch(c){
+        case -32:
+            return 0; 
+        case -16:
+            return 1; 
+        case -8:
+            return 2;
+        case -4:
+            return 3; 
+        case -2:
+            return 4; 
+        case -1:
+            return 5; 
+        case 0:
+            return 6;
+        case 1:
+            return 7;
+        case 2:
+            return 8;
+        case 4:
+            return 9;
+        case 8:
+            return 10;
+        case 16:
+            return 11;
+        case 32:
+            return 12;
+        default:
+            return -1; 
+    }
+}
+
+//cst_t record_cst_list_muldiv[NB_CST_RECORD] = {2, 3, 4,8,16,32,64, 128, 256, 512, 1024, 2048, 4092};
+int record_cst_list_muldiv_index(cst_t c){
+    switch(c){
+        case 2:
+            return 0; 
+        case 3:
+            return 1; 
+        case 4:
+            return 2;
+        case 8:
+            return 3; 
+        case 16:
+            return 4; 
+        case 32:
+            return 5; 
+        case 64:
+            return 6;
+        case 128:
+            return 7;
+        case 256:
+            return 8;
+        case 512:
+            return 9;
+        case 1024:
+            return 10;
+        case 2048:
+            return 11;
+        case 4092:
+            return 12;
+        default:
+            return -1; 
+    } 
+}
+
+void RegTransitivityRecord::add_fail(int dest_reg, int src_reg, Binop op, cst_t src_cst, Constraint* constr){
+    int cst_index;
+    vector<cstr_sig_t>::iterator it; 
+    cstr_sig_t sig; 
+    bool added=false, already=false;
+    // Check regs
+    if( dest_reg >= NB_REG_RECORD || src_reg >= NB_REG_RECORD )
+        return;
+    // Check cst and operation
+    if( op == OP_ADD || op == OP_SUB ){
+        if( (cst_index=record_cst_list_addsub_index(src_cst)) == -1)
+            return;
+    }else if( op == OP_MUL || op == OP_DIV ){
+        if( (cst_index=record_cst_list_muldiv_index(src_cst)) == -1)
+            return;
+    }else
+        return;
+    // Insert in the vector...
+    sig = constr->signature();
+    for( it = _query[dest_reg][src_reg][op][cst_index].begin(); it != _query[dest_reg][src_reg][op][cst_index].end(); it++){
+        if( (*it & sig) == sig ){
+            // sig included in *it so replace *it by sig
+            *it = sig; 
+            added = true;
+        }else if( (*it & sig) == *it ){
+            // previous included in sig so we discard it
+            already = true;
+            break;
+        }
+    }
+    // If not added and not already here and enough place, add it ! 
+    if( (!already) && (!added) && _query[dest_reg][src_reg][op][cst_index].size() < MAX_SIGNATURES_PER_QUERY){
+        _query[dest_reg][src_reg][op][cst_index].push_back(sig);
+    }
+}
+
+bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, cst_t src_cst, Constraint* constr){
+    int cst_index;
+    vector<cstr_sig_t>::iterator it; 
+    cstr_sig_t sig; 
+    // Check regs
+    if( dest_reg >= NB_REG_RECORD || src_reg >= NB_REG_RECORD )
+        return false;
+    // Check cst and operation
+    if( op == OP_ADD || op == OP_SUB ){
+        if( (cst_index=record_cst_list_addsub_index(src_cst)) == -1)
+            return false;
+    }else if( op == OP_MUL || op == OP_DIV ){
+        if( (cst_index=record_cst_list_muldiv_index(src_cst)) == -1)
+            return false;
+    }else
+        return false;
+    // Insert in the vector...
+    sig = constr->signature();
+    for( it = _query[dest_reg][src_reg][op][cst_index].begin(); it != _query[dest_reg][src_reg][op][cst_index].end(); it++){
+        if( (*it & sig) == *it ){
+            // previous included in sig 
+            return true;
+        }
+    }
+    return false;
+}

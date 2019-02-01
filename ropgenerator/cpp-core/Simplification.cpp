@@ -36,19 +36,19 @@ void canonize(ExprPtr p){
 ExprPtr simplify_unknown(ExprPtr p){
     if( p->type() == EXPR_UNOP && p->arg_expr_ptr()->type() == EXPR_UNKNOWN)
         return p->arg_expr_ptr(); 
-    else if( p->type() == EXPR_BINOP )
+    else if( p->type() == EXPR_BINOP ){
         if( p->left_expr_ptr()->type() == EXPR_UNKNOWN)
             return p->left_expr_ptr();
         else if( p->right_expr_ptr()->type() == EXPR_UNKNOWN)
             return p->right_expr_ptr(); 
-    else if( p->type() == EXPR_EXTRACT && p->arg_expr_ptr()->type() == EXPR_UNKNOWN)
+    }else if( p->type() == EXPR_EXTRACT && p->arg_expr_ptr()->type() == EXPR_UNKNOWN){
         return p->arg_expr_ptr(); 
-    else if( p->type() == EXPR_CONCAT ) 
+    }else if( p->type() == EXPR_CONCAT ){
         if( p->upper_expr_ptr()->type() == EXPR_UNKNOWN)
             return p->upper_expr_ptr();
         else if( p->lower_expr_ptr()->type() == EXPR_UNKNOWN)
             return p->lower_expr_ptr();
-    else if( p->type() == EXPR_MEM && p->addr_expr_ptr()->type() == EXPR_UNKNOWN)
+    }else if( p->type() == EXPR_MEM && p->addr_expr_ptr()->type() == EXPR_UNKNOWN)
         return p->addr_expr_ptr();
         
     return p; 

@@ -6,6 +6,11 @@
 #include <algorithm>
 #include <cstring>
 
+
+/* ---------------------------------------------------------------------
+ *                          Constraints 
+ * --------------------------------------------------------------------*/
+
 // SubConstraint
 SubConstraint::SubConstraint(SubConstraintType t): _type(t){}
 SubConstraintType SubConstraint::type(){return _type;}
@@ -188,6 +193,8 @@ void ConstrValidWrite::merge(SubConstraint* c, bool del=false){
 
 // ConstrSpInc
 ConstrSpInc::ConstrSpInc(cst_t i): SubConstraint(CONSTR_SP_INC), _inc(i){}
+cst_t ConstrSpInc::inc(){return _inc;}
+
 pair<ConstrEval,CondObjectPtr> ConstrSpInc::verify(shared_ptr<Gadget> g){
     if( !g->known_sp_inc() || g->sp_inc() != _inc )
         return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
@@ -200,7 +207,8 @@ SubConstraint* ConstrSpInc::copy(){
 
 // Constraint class (collection of subconstraints)
 Constraint::Constraint(){
-    std::memset(_constr, 0, sizeof(SubConstraint*)*COUNT_NB_CONSTR); 
+    std::memset(_constr, 0, sizeof(SubConstraint*)*COUNT_NB_CONSTR);
+    _computed_signature = false;  
 }
 // Accessors 
 SubConstraint* Constraint::get(SubConstraintType t){
@@ -257,6 +265,61 @@ pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g){
 Constraint::~Constraint(){
     for( int i = 0; i < COUNT_NB_CONSTR; i++)
         delete _constr[i];
+}
+
+/* -------------------------------------------------------------------
+ *        Constraint Signature
+ * 
+ * The modified regs are stored as the lower bits 
+ * 0 to NB_REGS_MAX-1. It always applicable and missing as default of 
+ * 0 (no regs are set). 
+ * 
+ * The return type is stored on 3 bits after modified
+ * regs. From left to right (CALL,JMP,RET). It is always applicable and
+ * missing has default 0b000 (all types allowed). Forbidden type is
+ * set to 1 
+ *  
+ * 
+ * Requirement: sig1 included in sig2 <=> constr1 is weaker than constr2
+ * 
+ * ------------------------------------------------------------------*/
+ 
+cstr_sig_t Constraint::signature(){
+    int i;
+    cstr_sig_t curr_bit = 0x1; 
+    cstr_sig_t res = 0x0; 
+    
+    if( _computed_signature )
+        return _signature; 
+    
+    // reg_modified
+    curr_bit = 1 << MODIFIED_REGS_BIT; 
+    if( _constr[CONSTR_KEEP_REGS] != nullptr ){
+        for( i = 0; i < NB_REGS_MAX; i++ ){
+            if( _constr[CONSTR_KEEP_REGS]->get(i) )
+                res &= curr_bit; 
+            curr_bit = curr_bit << 1; 
+        }
+    }else{
+        curr_bit = 1 << NB_REGS_MAX; 
+    }
+    // return type
+    curr_bit = RET_TYPE_BIT;
+    if( _constr[CONSTR_RETURN] != nullptr ){
+        if( ! _constr[CONSTR_RETURN]->ret() )
+            res &= curr_bit; 
+        curr_bit = curr_bit << 1;
+        if( ! _constr[CONSTR_RETURN]->jmp() )
+            res &= curr_bit; 
+        curr_bit = curr_bit << 1; 
+        if( ! _constr[CONSTR_RETURN]->call() )
+            res &= curr_bit; 
+        curr_bit = curr_bit << 1;  
+    }
+    
+    _signature = res;
+    _computed_signature = true;
+    return _signature; 
 }
 
 /*

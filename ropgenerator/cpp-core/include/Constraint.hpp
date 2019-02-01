@@ -11,6 +11,10 @@
 using std::vector;
 using std::pair; 
 
+/* ---------------------------------------------------------------------
+ *                          Constraints 
+ * --------------------------------------------------------------------*/
+
 enum SubConstraintType: int {  CONSTR_RETURN=0, CONSTR_BAD_BYTES, CONSTR_KEEP_REGS, 
                             CONSTR_VALID_READ, CONSTR_VALID_WRITE, CONSTR_SP_INC, 
                             COUNT_NB_CONSTR};
@@ -26,6 +30,12 @@ class SubConstraint{
         virtual SubConstraint* copy(){throw_exception("Should not be called here");}
         virtual void merge(SubConstraint* c, bool del){throw_exception("SHould not be called here");}
         virtual pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g){throw_exception("SHould not be called here");}
+        // From return
+        bool ret(){throw_exception( "Should not be called here");}
+        bool jmp(){throw_exception( "Should not be called here");}
+        bool call(){throw_exception( "Should not be called here");}
+        // From keepRegs
+        bool get(int num){throw_exception( "Should not be called here");}
         // From ConstrBadBytes
         vector<unsigned char>* bad_bytes(){throw_exception( "Should not be called here");}
         // From ValidPoitner
@@ -94,13 +104,18 @@ class ConstrSpInc: public SubConstraint{
     cst_t _inc;
     public:
         ConstrSpInc(cst_t i);
+        cst_t inc();
         pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         virtual SubConstraint* copy();
 };
 
 // Constraint class (collection of subconstraints)
+using cstr_sig_t = uint64_t;
+
 class Constraint{
     SubConstraint* _constr[COUNT_NB_CONSTR];
+    cstr_sig_t _signature;
+    bool _computed_signature; 
     public:
         Constraint();
         // Accessors 
@@ -110,9 +125,34 @@ class Constraint{
         void update(SubConstraint* c);
         void remove(SubConstraintType t);
         pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
-        Constraint* copy(); 
+        Constraint* copy();
+        cstr_sig_t signature();
+        cstr_sig_t signature(int lmax); 
         ~Constraint();
 };
+/* -------------------------------------------------------------------
+ *        Constraint Signature
+ * 
+ * The modified regs are stored as the lower bits 
+ * 0 to NB_REGS_MAX-1. It always applicable and missing as default of 
+ * 0 (no regs are set). 
+ * 
+ * The return type is stored on 3 bits after modified
+ * regs. From left to right (CALL,JMP,RET). It is always applicable and
+ * missing has default 0b000 (all types allowed). Forbidden type is
+ * set to 1 
+ *  
+ * 
+ * Requirement: sig1 included in sig2 <=> constr1 is weaker than constr2
+ * 
+ * ------------------------------------------------------------------*/
+
+#define MODIFIED_REGS_BIT 0
+#define MODIFIED_REGS_SIG_SIZE NB_REGS_MAX
+#define RET_TYPE_BIT MODIFIED_REGS_SIG_SIZE
+#define RET_TYPE_SIG_SIZE 3
+
+
 
 /* 
  * ASSERTIONS
