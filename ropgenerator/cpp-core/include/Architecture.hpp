@@ -15,6 +15,9 @@ enum EndiannessType{ ENDIAN_LITTLE, ENDIAN_BIG};
 
 // When adding a register, remember to update the python API and the register
 // strings in the .cpp file ! 
+
+// Also, the 10 first registers should be the most important ones when chaining and 
+// will be the ones kept in the search record (see ChainingEngine.hpp)
 enum RegX86 : int { X86_EAX=0, X86_EBX, X86_ECX, X86_EDX, X86_ESI, X86_EDI, X86_ESP,
                X86_EIP, X86_EBP, X86_ZF, X86_CF, X86_SF, X86_PF, X86_AF, X86_OF, 
                X86_NB_REGS };
