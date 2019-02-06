@@ -42,7 +42,7 @@ ExprPtr simplify_unknown(ExprPtr p){
         else if( p->right_expr_ptr()->type() == EXPR_UNKNOWN)
             return p->right_expr_ptr(); 
     }else if( p->type() == EXPR_EXTRACT && p->arg_expr_ptr()->type() == EXPR_UNKNOWN){
-        return p->arg_expr_ptr(); 
+        return p->arg_expr_ptr();
     }else if( p->type() == EXPR_CONCAT ){
         if( p->upper_expr_ptr()->type() == EXPR_UNKNOWN)
             return p->upper_expr_ptr();
