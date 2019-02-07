@@ -60,7 +60,7 @@ class AssignArg {
 class FailRecord{
     bool _max_len;                          /* Reached length limit */ 
     bool _modified_reg[NB_REGS_MAX];        /* Modified reg that should be kept */ 
-    vector<unsigned char> _bad_bytes;       /* Gadget could be used but bad bytes in addresses */
+    bool _bad_bytes[256];                   /* Gadget could be used but bad bytes in addresses */
     
     public:
         FailRecord();
@@ -68,7 +68,7 @@ class FailRecord{
         // Accessors
         bool max_len(); 
         bool modified_reg(int reg_num);
-        vector<unsigned char>& bad_bytes(); 
+        bool* bad_bytes(); 
         // Modifiers
         void set_max_len(bool val);
         void add_modified_reg(int reg_num);
@@ -83,14 +83,6 @@ class FailRecord{
 #define NB_CST_RECORD 13
 #define MAX_SIGNATURES_PER_QUERY 30
 
-Binop record_op_list[NB_OP_RECORD] = {OP_ADD, OP_SUB, OP_MUL, OP_DIV};
-/* !! If constants are changed, don't forget to chage the *_index() functions implementation
- * in the .c */ 
-cst_t record_cst_list_addsub[NB_CST_RECORD] = {-32,-16, -8, -4, -2, -1, 0,1,2,4,8,16,32};
-int record_cst_list_addsub_index(cst_t c); // Inverts record_cst_list_addsub
-cst_t record_cst_list_muldiv[NB_CST_RECORD] = {2, 3, 4,8,16,32,64, 128, 256, 512, 1024, 2048, 4092};
-int record_cst_list_muldiv_index(cst_t c); // Inverts record_cst_list_muldiv
-
 class RegTransitivityRecord{
     // reg <- reg op cst 
     vector<cstr_sig_t> _query[NB_REG_RECORD][NB_REG_RECORD][NB_OP_RECORD][NB_CST_RECORD];
@@ -100,5 +92,55 @@ class RegTransitivityRecord{
         bool is_impossible(int dest_reg, int src_reg, Binop op, cst_t src_cst, Constraint* constr);
 };
 
+
+/* *********************************************************************
+ *                         SearchEnvironment 
+ * ******************************************************************* */
+
+enum SearchStrategyType{NB_STRATEGY_TYPES};
+ 
+class SearchEnvironment{
+    /* Constraints and contextual infos */ 
+    Constraint* _constraint;
+    Assertion* _assertion;
+    unsigned int _depth;
+    unsigned int _max_depth;
+    int _calls_count[NB_STRATEGY_TYPES];
+    vector<SearchStrategyType> _calls_history;
+    unsigned int _lmax;
+    /* ROPChain options */ 
+    bool _no_padding;
+    /* Records for optimisations and infos */ 
+    RegTransitivityRecord* _reg_transitivity_record;
+    FailRecord _fail_record;
+    
+    /* Methods */ 
+    public: 
+        /* Constructor */ 
+        SearchEnvironment(RegTransitivityRecord* reg_trans_record);
+    
+        /* copy */ 
+        SearchEnvironment* copy();
+        
+        /* Contextual infos getters/setters */ 
+        Constraint* constraint();
+        void set_constraint(Constraint* c);
+        Assertion* assertion();
+        void set_assertion(Assertion* a);
+        unsigned int lmax();
+        void set_lmax(unsigned int val);
+        unsigned int depth();
+        void set_depth(unsigned int val);
+        bool no_padding();
+        void set_no_padding(bool val);
+        void add_call(SearchStrategyType type);
+        void remove_last_call();
+        int calls_count(SearchStrategyType type);
+        bool reached_max_depth();
+        
+        /* Record functions */ 
+        RegTransitivityRecord* reg_transitivity_record();
+        FailRecord* fail_record();
+};
 
 #endif

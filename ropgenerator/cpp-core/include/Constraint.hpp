@@ -130,6 +130,7 @@ class Constraint{
         cstr_sig_t signature(int lmax); 
         ~Constraint();
 };
+
 /* -------------------------------------------------------------------
  *        Constraint Signature
  * 

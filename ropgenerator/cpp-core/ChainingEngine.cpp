@@ -29,23 +29,29 @@ FailRecord::FailRecord(){
 
 FailRecord::FailRecord(bool max_len): _max_len(max_len){
     memset(_modified_reg, false, NB_REGS_MAX);
+    memset(_bad_bytes, false, 256);
 }
  
 bool FailRecord::max_len(){ return _max_len;}
 bool FailRecord::modified_reg(int reg_num){ return _modified_reg[reg_num];}
-vector<unsigned char>& FailRecord::bad_bytes(){ return _bad_bytes;}
+bool* FailRecord::bad_bytes(){ return _bad_bytes;}
 
 void FailRecord::set_max_len(bool val){ _max_len = val;}
 void FailRecord::add_modified_reg(int reg_num){ _modified_reg[reg_num] = true;}
-void FailRecord::add_bad_byte(unsigned char bad_byte){ 
-    _bad_bytes.push_back(bad_byte); // ! We allow duplicates here for perf reasons
-}
+void FailRecord::add_bad_byte(unsigned char bad_byte){ _bad_bytes[bad_byte] = true; }
 
 /* ***************************************************
  *                RegTransitivityRecord
  * ************************************************* */ 
+
+Binop record_op_list[NB_OP_RECORD] = {OP_ADD, OP_SUB, OP_MUL, OP_DIV};
+/* !! If constants are changed, don't forget to chage the *_index() functions implementation
+ * in the .c */ 
+cst_t record_cst_list_addsub[NB_CST_RECORD] = {-32,-16, -8, -4, -2, -1, 0,1,2,4,8,16,32};
+int record_cst_list_addsub_index(cst_t c); // Inverts record_cst_list_addsub
+cst_t record_cst_list_muldiv[NB_CST_RECORD] = {2, 3, 4,8,16,32,64, 128, 256, 512, 1024, 2048, 4092};
+int record_cst_list_muldiv_index(cst_t c); // Inverts record_cst_list_muldiv
  
-//cst_t record_cst_list_addsub[NB_CST_RECORD] = {-32,-16, -8, -4, -2, -1, 0,1,2,4,8,16,32};
 int record_cst_list_addsub_index(cst_t c){
     switch(c){
         case -32:
@@ -79,7 +85,6 @@ int record_cst_list_addsub_index(cst_t c){
     }
 }
 
-//cst_t record_cst_list_muldiv[NB_CST_RECORD] = {2, 3, 4,8,16,32,64, 128, 256, 512, 1024, 2048, 4092};
 int record_cst_list_muldiv_index(cst_t c){
     switch(c){
         case 2:
@@ -175,3 +180,62 @@ bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, c
     }
     return false;
 }
+
+/* *********************************************************************
+ *                         SearchEnvironment 
+ * ******************************************************************* */ 
+
+SearchEnvironment::SearchEnvironment(RegTransitivityRecord* reg_trans_record){
+    _reg_transitivity_record = reg_trans_record;
+    memset(_calls_count, 0, sizeof(_calls_count));
+}
+
+SearchEnvironment* SearchEnvironment::copy(){
+    SearchEnvironment* res = new SearchEnvironment(_reg_transitivity_record);
+    res->_constraint = _constraint;
+    res->_assertion = _assertion;
+    res->_depth = _depth;
+    res->_max_depth = _max_depth;
+    memcpy(res->_calls_count, _calls_count, sizeof(_calls_count));
+    res->_calls_history = _calls_history;
+    res->_lmax = _lmax;
+    res->_no_padding = _no_padding;
+    res->_fail_record = _fail_record; 
+    
+    return res; 
+}
+/* Contextual infos getters/setters */ 
+Constraint* SearchEnvironment::constraint(){ return _constraint; }
+void SearchEnvironment::set_constraint(Constraint* c){ _constraint = c; }
+Assertion* SearchEnvironment::assertion(){return _assertion;}
+void SearchEnvironment::set_assertion(Assertion* a){ _assertion = a; }
+unsigned int SearchEnvironment::lmax(){return _lmax;}
+void SearchEnvironment::set_lmax(unsigned int val){_lmax = val;}
+unsigned int SearchEnvironment::depth(){return _depth;}
+void SearchEnvironment::set_depth(unsigned int val){_depth = val;}
+bool SearchEnvironment::no_padding(){return _no_padding;}
+void SearchEnvironment::set_no_padding(bool val){_no_padding = val;}
+void SearchEnvironment::add_call(SearchStrategyType type){
+    _calls_count[type]++;
+    _calls_history.push_back(type);
+}
+void SearchEnvironment::remove_last_call(){
+    SearchStrategyType type = _calls_history.back();
+    _calls_count[type]--;
+    _calls_history.pop_back();
+}
+int SearchEnvironment::calls_count(SearchStrategyType type){
+    return _calls_count[type];
+}
+bool SearchEnvironment::reached_max_depth(){
+    return _depth > _max_depth;
+}
+
+/* Record functions */ 
+RegTransitivityRecord* SearchEnvironment::reg_transitivity_record(){
+    return _reg_transitivity_record;
+}
+FailRecord* SearchEnvironment::fail_record(){
+    return &_fail_record;
+}
+
