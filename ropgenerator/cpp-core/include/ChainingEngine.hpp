@@ -3,6 +3,7 @@
 
 #include "Database.hpp"
 #include "Expression.hpp"
+#include "ROPChain.hpp"
 
 /* *****************************************************
  *             Classes to specify queries 
@@ -27,13 +28,13 @@ class DestArg {
     public: 
     DestType type;
     int addr_reg;
-    cst_t addr_cst; 
+    cst_t addr_cst;
+    Binop addr_op;
     int reg; 
-    cst_t cst; 
     
-    DestArg(DestType t, int r, cst_t c);   /* For DEST_REG */ 
-    DestArg(DestType t, int addr_r, cst_t addr_c, cst_t c ); /* For DEST_MEM */
-    DestArg(DestType t, cst_t addr_c, cst_t c); /* For DEST_CSTMEM */
+    DestArg(DestType t, int r);   /* For DEST_REG */ 
+    DestArg(DestType t, int addr_r, Binop op, cst_t addr_c); /* For DEST_MEM */
+    DestArg(DestType t, cst_t addr_c); /* For DEST_CSTMEM */
 };
 
 class AssignArg {
@@ -41,14 +42,14 @@ class AssignArg {
     AssignType type;
     int addr_reg;
     cst_t addr_cst;
-    IROperation addr_op;
+    Binop addr_op;
     int reg;
-    IROperation op;
+    Binop op;
     cst_t cst;
     
     AssignArg(AssignType t, cst_t c); /* For ASSIGN_CST */
-    AssignArg(AssignType t, int r, IROperation o, cst_t c); /* For ASSIGN_REG_BINOP_CST */
-    AssignArg(AssignType t, int ar, IROperation o, cst_t ac, cst_t c); /* For ASSIGN_MEM_BINOP_CST */
+    AssignArg(AssignType t, int r, Binop o, cst_t c); /* For ASSIGN_REG_BINOP_CST */
+    AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c); /* For ASSIGN_MEM_BINOP_CST */
     AssignArg(AssignType t, cst_t ac, cst_t c); /* For ASSIGN_CST_MEM */
     AssignArg(AssignType t); /* For ASSIGN_SYSCALL and INT80 */ 
 };
@@ -56,9 +57,12 @@ class AssignArg {
 /* ***************************************************
  *                    FailRecord
  * ************************************************* */ 
+
+enum FailType{FAIL_LMAX, FAIL_MODIFIED_REG, FAIL_BAD_BYTES, FAIL_NO_VALID_PADDING};
  
 class FailRecord{
     bool _max_len;                          /* Reached length limit */ 
+    bool _no_valid_padding;                 /* Couldn't find a valid padding for gadgets */ 
     bool _modified_reg[NB_REGS_MAX];        /* Modified reg that should be kept */ 
     bool _bad_bytes[256];                   /* Gadget could be used but bad bytes in addresses */
     
@@ -67,10 +71,12 @@ class FailRecord{
         FailRecord(bool max_len);
         // Accessors
         bool max_len(); 
+        bool no_valid_padding();
         bool modified_reg(int reg_num);
         bool* bad_bytes(); 
         // Modifiers
         void set_max_len(bool val);
+        void set_no_valid_padding(bool val);
         void add_modified_reg(int reg_num);
         void add_bad_byte(unsigned char bad_byte);
 };
@@ -113,11 +119,14 @@ class SearchEnvironment{
     /* Records for optimisations and infos */ 
     RegTransitivityRecord* _reg_transitivity_record;
     FailRecord _fail_record;
+    FailType _last_fail;
     
     /* Methods */ 
     public: 
         /* Constructor */ 
-        SearchEnvironment(RegTransitivityRecord* reg_trans_record);
+        SearchEnvironment(Constraint* c, Assertion* a, unsigned int lm, 
+                             unsigned int max_depth, bool no_padd, 
+                             RegTransitivityRecord* reg_trans_record);
     
         /* copy */ 
         SearchEnvironment* copy();
@@ -141,6 +150,9 @@ class SearchEnvironment{
         /* Record functions */ 
         RegTransitivityRecord* reg_transitivity_record();
         FailRecord* fail_record();
+        FailType last_fail();
+        void set_last_fail(FailType t);
+        
 };
 
 #endif

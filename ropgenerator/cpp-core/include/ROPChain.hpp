@@ -28,7 +28,7 @@ class ROPChain{
         int nb_instr_ir(); 
         // Modifiers
         void add_gadget(int g);
-        void add_padding(cst_t value, string comment, int n); 
+        void add_padding(addr_t value, int n=1,  string comment="Padding");
         void add_chain(ROPChain* other);
         // Sort
         bool lthan(ROPChain* other); 

@@ -21,7 +21,7 @@ void ROPChain::add_gadget(int g){
     _nb_gadgets++; 
 }
 
-void ROPChain::add_padding(cst_t value, string comment="Padding", int n=1){
+void ROPChain::add_padding(addr_t value, int n,  string comment){
     int num; 
     if( n == 0 )
         return; 

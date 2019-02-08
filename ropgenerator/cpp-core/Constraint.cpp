@@ -191,18 +191,18 @@ void ConstrValidWrite::merge(SubConstraint* c, bool del=false){
         delete c; 
 }
 
-// ConstrSpInc
-ConstrSpInc::ConstrSpInc(cst_t i): SubConstraint(CONSTR_SP_INC), _inc(i){}
-cst_t ConstrSpInc::inc(){return _inc;}
+// ConstrMaxSpInc
+ConstrMaxSpInc::ConstrMaxSpInc(cst_t i): SubConstraint(CONSTR_SP_INC), _inc(i){}
+cst_t ConstrMaxSpInc::inc(){return _inc;}
 
-pair<ConstrEval,CondObjectPtr> ConstrSpInc::verify(shared_ptr<Gadget> g){
+pair<ConstrEval,CondObjectPtr> ConstrMaxSpInc::verify(shared_ptr<Gadget> g){
     if( !g->known_sp_inc() || g->sp_inc() != _inc )
         return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
     return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
 }
 
-SubConstraint* ConstrSpInc::copy(){
-    return new ConstrSpInc(_inc); 
+SubConstraint* ConstrMaxSpInc::copy(){
+    return new ConstrMaxSpInc(_inc); 
 }
 
 // Constraint class (collection of subconstraints)
@@ -259,6 +259,30 @@ pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g){
         }
     }
     return make_pair(EVAL_MAYBE, res_cond);
+}
+
+pair<bool, addr_t> Constraint::valid_padding(){
+    vector<unsigned char>* bad;
+    unsigned char byte;
+    addr_t padding = 0;
+    int tmp;
+    
+    if( _constr[CONSTR_BAD_BYTES] == nullptr ){
+        byte = 0xff;
+    }else{
+        bad = _constr[CONSTR_BAD_BYTES]->bad_bytes();
+        for( tmp = 0xff; tmp > 0; tmp--){
+            if( std::find(bad->begin(), bad->end(), (unsigned char)(tmp)) == bad->end())
+                break;
+        }
+    }
+    if( tmp < 0 )
+        return make_pair(false, 0);
+    /* Compute full padding value */
+    padding = byte;
+    for( int i = 0; i < curr_arch()->octets()-1; i++)
+        padding = (padding<<8) & byte;
+    return make_pair(true, padding);
 }
 
 // Destructor 

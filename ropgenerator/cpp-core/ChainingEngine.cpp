@@ -1,18 +1,21 @@
 #include "ChainingEngine.hpp"
+#include "Constraint.hpp"
+#include "Database.hpp"
+#include "Architecture.hpp"
 #include <cstring>
 
 /* *****************************************************
  *             Classes to specify queries 
  * *************************************************** */
 
-DestArg::DestArg(DestType t, int r, cst_t c):type(t), reg(r), cst(c){}  /* For DEST_REG */ 
-DestArg::DestArg(DestType t, int addr_r, cst_t addr_c, cst_t c ): type(t), 
-    addr_reg(addr_r), addr_cst(addr_c), cst(c){} /* For DEST_MEM */
-DestArg::DestArg(DestType t, cst_t addr_c, cst_t c): type(t), addr_cst(addr_c), cst(c){} /* For DEST_CSTMEM */
+DestArg::DestArg(DestType t, int r):type(t), reg(r){}  /* For DEST_REG */ 
+DestArg::DestArg(DestType t, int addr_r, Binop o, cst_t addr_c): type(t), 
+    addr_reg(addr_r), addr_cst(addr_c), addr_op(o){} /* For DEST_MEM */
+DestArg::DestArg(DestType t, cst_t addr_c): type(t), addr_cst(addr_c){} /* For DEST_CSTMEM */
 
 AssignArg::AssignArg(AssignType t, cst_t c):type(t), cst(c){} /* For ASSIGN_CST */
-AssignArg::AssignArg(AssignType t, int r, IROperation o, cst_t c):type(t), reg(r), op(o), cst(c){} /* For ASSIGN_REG_BINOP_CST */
-AssignArg::AssignArg(AssignType t, int ar, IROperation o, cst_t ac, cst_t c):type(t), addr_reg(ar), addr_cst(ac), op(o), cst(c){} /* For ASSIGN_MEM_BINOP_CST */
+AssignArg::AssignArg(AssignType t, int r, Binop o, cst_t c):type(t), reg(r), op(o), cst(c){} /* For ASSIGN_REG_BINOP_CST */
+AssignArg::AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c):type(t), addr_reg(ar), addr_cst(ac), op(o), cst(c){} /* For ASSIGN_MEM_BINOP_CST */
 AssignArg::AssignArg(AssignType t, cst_t ac, cst_t c):type(t), addr_cst(ac), cst(c){} /* For ASSIGN_CST_MEM */
 AssignArg::AssignArg(AssignType t):type(t){} /* For ASSIGN_SYSCALL and INT80 */ 
 
@@ -33,10 +36,12 @@ FailRecord::FailRecord(bool max_len): _max_len(max_len){
 }
  
 bool FailRecord::max_len(){ return _max_len;}
+bool FailRecord::no_valid_padding(){ return _no_valid_padding;}
 bool FailRecord::modified_reg(int reg_num){ return _modified_reg[reg_num];}
 bool* FailRecord::bad_bytes(){ return _bad_bytes;}
 
 void FailRecord::set_max_len(bool val){ _max_len = val;}
+void FailRecord::set_no_valid_padding(bool val){ _no_valid_padding = val;}
 void FailRecord::add_modified_reg(int reg_num){ _modified_reg[reg_num] = true;}
 void FailRecord::add_bad_byte(unsigned char bad_byte){ _bad_bytes[bad_byte] = true; }
 
@@ -184,24 +189,30 @@ bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, c
 /* *********************************************************************
  *                         SearchEnvironment 
  * ******************************************************************* */ 
+#define DEFAULT_LMAX 100
+#define DEFAULT_MAX_DEPTH 8
 
-SearchEnvironment::SearchEnvironment(RegTransitivityRecord* reg_trans_record){
-    _reg_transitivity_record = reg_trans_record;
+SearchEnvironment::SearchEnvironment(Constraint* c, Assertion* a, unsigned int lm=DEFAULT_LMAX, 
+                                     unsigned int max_depth=DEFAULT_MAX_DEPTH, bool no_padd=false, 
+                                     RegTransitivityRecord* reg_trans_record=nullptr){
+    _constraint = c;
+    _assertion = a;
+    _lmax = lm;
+    _max_depth = max_depth;
+    _no_padding = no_padd;
+    if( reg_trans_record != nullptr )
+        _reg_transitivity_record = reg_trans_record;
+    else
+        throw_exception("Implement the global variable");
     memset(_calls_count, 0, sizeof(_calls_count));
 }
 
 SearchEnvironment* SearchEnvironment::copy(){
-    SearchEnvironment* res = new SearchEnvironment(_reg_transitivity_record);
-    res->_constraint = _constraint;
-    res->_assertion = _assertion;
+    SearchEnvironment* res = new SearchEnvironment(_constraint, _assertion, _lmax, _max_depth, _no_padding, _reg_transitivity_record);
     res->_depth = _depth;
-    res->_max_depth = _max_depth;
     memcpy(res->_calls_count, _calls_count, sizeof(_calls_count));
     res->_calls_history = _calls_history;
-    res->_lmax = _lmax;
-    res->_no_padding = _no_padding;
     res->_fail_record = _fail_record; 
-    
     return res; 
 }
 /* Contextual infos getters/setters */ 
@@ -238,4 +249,154 @@ RegTransitivityRecord* SearchEnvironment::reg_transitivity_record(){
 FailRecord* SearchEnvironment::fail_record(){
     return &_fail_record;
 }
+FailType SearchEnvironment::last_fail(){
+    return _last_fail;
+}
+void SearchEnvironment::set_last_fail(FailType t){
+    _last_fail = t; 
+}
 
+/* **********************************************************************
+ *                      Search & Chaining Functions ! 
+ * ******************************************************************** */
+ 
+/* Prototypes */ 
+
+ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* env);
+ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env);
+
+
+ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest=false){
+    ROPChain * res;
+    /* Check context */ 
+    if( env->reached_max_depth() )
+        return nullptr;
+    else if( env->lmax() <= 0 ){
+        env->set_last_fail(FAIL_LMAX);
+        env->fail_record()->set_max_len(true);
+        return nullptr;
+    }
+    /* Set env */ 
+    env->set_depth(env->depth()+1);
+    
+    if( shortest ){
+        // DEBUG TODO
+        res = nullptr; 
+    }else{
+        res = search_first_hit(dest, assign, env);
+    }
+    
+    /* Restore env */ 
+    env->set_depth(env->depth()-1);
+    
+    /* Return res */
+    return res; 
+}
+
+
+ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* env){
+    ROPChain* res;
+    // DEBUG, add chainable ??
+    res = basic_db_lookup(dest, assign, env);
+    // DEBUG, TODO chain
+    return res; 
+}
+
+/* Search for gadgets by looking into the gadget database directly */ 
+ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env){
+    vector<int> gadgets;
+    Constraint* tmp_constraint = nullptr;
+    int nb=1;
+    ROPChain* res;
+    addr_t padding;
+    bool success;
+    
+    /* Check context */ 
+    if( env->lmax() <= 0 ){
+        env->set_last_fail(FAIL_LMAX);
+        env->fail_record()->set_max_len(true);
+        return nullptr;
+    }
+    
+    /* Check if padding is requested */ 
+    if( ! env->no_padding() ){
+        tmp_constraint = env->constraint()->copy();
+        tmp_constraint->add(new ConstrMaxSpInc(env->lmax()*curr_arch()->octets()), true);
+    }
+    
+    /* Set the constraint for the gadgets */ 
+    if( tmp_constraint == nullptr ){
+        tmp_constraint = env->constraint();
+    }
+    
+    // DEBUG: ADD ASSERTIONS AND CONSTRAINTS ? SEE ROPGENERATOR IN PYTHON 
+    
+    /* Check type of query and call the appropriate function ! */ 
+    if( assign.type == ASSIGN_SYSCALL ){
+        throw_exception("TO IMPLEMENT");
+    }else if( assign.type == ASSIGN_INT80 ){
+        throw_exception("TO IMPLEMENT");
+    }else{
+        switch(dest.type){
+            // reg <- ? 
+            case DST_REG:
+                switch(assign.type){
+                    case ASSIGN_CST: // reg <- cst 
+                        gadgets = gadget_db()->find_cst_to_reg(dest.reg, assign.cst, tmp_constraint, env->assertion(), nb); 
+                        break;
+                    case ASSIGN_MEM_BINOP_CST: // reg <- mem(reg op cst) + cst  
+                        gadgets = gadget_db()->find_mem_binop_cst_to_reg(dest.reg, assign.addr_op, assign.addr_reg, assign.addr_cst, assign.cst, tmp_constraint, env->assertion(), nb); 
+                        break;
+                    case ASSIGN_REG_BINOP_CST: // reg <- reg op cst
+                        gadgets = gadget_db()->find_reg_binop_cst_to_reg(dest.reg, assign.op, assign.reg, assign.cst,  tmp_constraint, env->assertion(), nb); 
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            case DST_MEM:
+                switch(assign.type){
+                    case ASSIGN_CST: // mem(reg op cst) <- cst 
+                        gadgets = gadget_db()->find_cst_to_mem(dest.addr_op, dest.addr_reg, dest.addr_cst, assign.cst, tmp_constraint, env->assertion(), nb); 
+                        break;
+                    case ASSIGN_MEM_BINOP_CST: // mem(reg op cst) <- mem(reg op cst) + cst  
+                        gadgets = gadget_db()->find_mem_binop_cst_to_mem(dest.addr_op, dest.addr_reg, dest.addr_cst, 
+                                    assign.addr_op, assign.addr_reg, assign.addr_cst, assign.cst, tmp_constraint, env->assertion(), nb); 
+                        break;
+                    case ASSIGN_REG_BINOP_CST: // mem(reg op cst) <- reg op cst
+                        gadgets = gadget_db()->find_reg_binop_cst_to_mem(dest.addr_op, dest.addr_reg, dest.addr_cst, assign.op, assign.reg, assign.cst,
+                                    tmp_constraint, env->assertion(), nb); 
+                        break;
+                    default:
+                        break;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    /* Check result */ 
+    if( gadgets.empty() )
+        res = nullptr;
+    else{
+        res = new ROPChain();
+        res->add_gadget(gadgets.at(0));
+        if( ! env->no_padding() ){
+            std::tie(success, padding) = tmp_constraint->valid_padding();
+            if( success )
+                res->add_padding(padding, (gadget_db()->get(gadgets.at(0))->sp_inc()/curr_arch()->octets())-1); 
+            else{
+                env->fail_record()->set_no_valid_padding(true);
+                env->set_last_fail(FAIL_NO_VALID_PADDING);
+                res = nullptr;
+            }
+        }
+    }
+    
+    /* Restore env */ 
+    if( tmp_constraint != nullptr )
+        delete tmp_constraint;
+        
+    /* Return result */ 
+    return res;
+}
