@@ -70,6 +70,7 @@ class ConstrKeepRegs: public SubConstraint{
     bool _regs[NB_REGS_MAX];
     public:
         ConstrKeepRegs();
+        ConstrKeepRegs(vector<int>& k);
         bool get(int num);
         void add_reg(int num);
         void remove_reg(int num);

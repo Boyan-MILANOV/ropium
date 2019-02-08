@@ -181,7 +181,6 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         }
     );
     
-    
     /* Database Bindings */
 
     m.def("gadget_db_add", [](shared_ptr<Gadget> g){return gadget_db()->add(g);});
@@ -205,9 +204,9 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .export_values();
         
     /* Chaining Engine Bindings */ 
-    py::enum_<AssignType>(m, "AssignType", py::arithmetic(), "ASSIGNuery Assigned Value Type")
+    py::enum_<AssignType>(m, "AssignType", py::arithmetic(), "Query Assigned Value Type")
         .value("CST", ASSIGN_CST).value("REG_BINOP_CST",ASSIGN_REG_BINOP_CST)
-        .value("MEM_BINOP_CST",ASSIGN_MEM_BINOP_CST).value("CSTMEM", ASSIGN_CSTMEM)
+        .value("MEM_BINOP_CST",ASSIGN_MEM_BINOP_CST).value("CSTMEM_BINOP_CST", ASSIGN_CSTMEM_BINOP_CST)
         .value("SYSCALL",ASSIGN_SYSCALL).value("INT80",ASSIGN_INT80)
         .export_values();
     
@@ -215,7 +214,29 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("REG",DST_REG).value("MEM",DST_MEM)
         .value("CSTMEM",DST_CSTMEM)
         .export_values();
+        
+    py::class_<DestArg>(m, "DestArg")
+        .def(py::init<DestType, int>())
+        .def(py::init<DestType, int, Binop, cst_t>())
+        .def(py::init<DestType, cst_t>());
+        
+    py::class_<AssignArg>(m, "AssignArg")
+        .def(py::init<AssignType, cst_t>())
+        .def(py::init<AssignType, int, Binop, cst_t>())
+        .def(py::init<AssignType, int, Binop, cst_t, cst_t>())
+        .def(py::init<AssignType, cst_t, cst_t>())
+        .def(py::init<AssignType>());
+        
+    m.def("get_default_lmax", [](){return DEFAULT_LMAX;});
+        
+    py::class_<SearchParametersBinding>(m, "SearchParametersBinding")
+        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool>());
     
+    py::class_<SearchResultsBinding>(m, "SearchResultsBinding")
+        .def(py::init<ROPChain*>())
+        .def(py::init<FailRecord>());
+    
+    m.def("search", (SearchResultsBinding (*)(DestArg dest, AssignArg assign,SearchParametersBinding params)) &search );
 }
 
 

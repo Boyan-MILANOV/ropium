@@ -188,9 +188,7 @@ bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, c
 
 /* *********************************************************************
  *                         SearchEnvironment 
- * ******************************************************************* */ 
-#define DEFAULT_LMAX 100
-#define DEFAULT_MAX_DEPTH 8
+ * ******************************************************************* */
 
 SearchEnvironment::SearchEnvironment(Constraint* c, Assertion* a, unsigned int lm=DEFAULT_LMAX, 
                                      unsigned int max_depth=DEFAULT_MAX_DEPTH, bool no_padd=false, 
@@ -256,6 +254,26 @@ void SearchEnvironment::set_last_fail(FailType t){
     _last_fail = t; 
 }
 
+/* *********************************************************************
+ *                         Search Parameters Bindings
+ * ******************************************************************* */
+SearchParametersBinding::SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s ):
+    keep_regs(k), bad_bytes(b), lmax(l), shortest(s){}
+
+SearchResultsBinding::SearchResultsBinding(){
+    found = false;
+}
+
+SearchResultsBinding::SearchResultsBinding(ROPChain* c){
+    chain = *c;
+    found = true;
+}
+
+SearchResultsBinding::SearchResultsBinding(FailRecord record){
+    fail_record = record;
+    found = false;
+}
+
 /* **********************************************************************
  *                      Search & Chaining Functions ! 
  * ******************************************************************** */
@@ -264,9 +282,47 @@ void SearchEnvironment::set_last_fail(FailType t){
 
 ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env);
+ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest);
+
+/* Globals */
+RegTransitivityRecord g_reg_transitivity_record = RegTransitivityRecord();
+
+/* Function to be used from python */
+SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBinding params){
+    SearchEnvironment* env;
+    Constraint* constraint = new Constraint();
+    Assertion* assertion = new Assertion();
+    ROPChain* chain;
+    SearchResultsBinding res;
+    
+    /* Building search env */ 
+    if( ! params.keep_regs.empty() )
+        constraint->add(new ConstrKeepRegs(params.keep_regs), true);
+    if( ! params.bad_bytes.empty() )
+        constraint->add(new ConstrBadBytes(params.bad_bytes), true);
+        
+    env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, false, 
+                                &g_reg_transitivity_record);
+ 
+    /* Search */ 
+    chain = search(dest, assign, env, params.shortest);
+    if( chain == nullptr )
+        res = SearchResultsBinding(*(env->fail_record()));
+    else
+        res = SearchResultsBinding(chain);
+    
+    /* Deleting variables */ 
+    delete chain;
+    delete env; 
+    delete constraint; 
+    delete assertion; 
+    
+    /* Return res */ 
+    return res;
+}
 
 
-ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest=false){
+ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest){
     ROPChain * res;
     /* Check context */ 
     if( env->reached_max_depth() )
