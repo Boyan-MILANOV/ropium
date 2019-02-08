@@ -64,8 +64,15 @@ def find(args):
     if( not parsed_args[0] ):
         error(parsed_args[1])
         return 
-    #TODO 
     
+    dest_arg =  parsed_args[1]
+    assign_arg = parsed_args[2]
+    params = parsed_args[3]
+    offset = parsed_args[4]
+    
+    res = search(dest_arg, assign_arg, params)
+    print(res)
+    print(res.found)
     return 
 
 
@@ -134,6 +141,8 @@ def parse_args(args):
                     return (False, "Error. '" + args[i+1] + "' output format is not supported")
             # Offset option
             elif( arg == OPTION_OFFSET or arg == OPTION_OFFSET_SHORT):
+                # DEBUG
+                return (False, "Option offset not supported yet :O")
                 if( seenOffset ):
                     return (False, "Error. '" + arg + "' option should be used only once.")
                 if( i+1 >= len(args)):
@@ -174,12 +183,14 @@ def parse_args(args):
                     return (False, parsed_query[1])
                 else:
                     i = len(args)
+                    dest_arg = parsed_query[1]
+                    assign_arg = parsed_query[2]
         i = i + 1
 
     # After parsing arguments 
     if( not seenQuery ):
         return (False, "Error. Missing semantic query")
     else:
-        print(parsed_query)
         parameters = SearchParametersBinding(keep_regs, bad_bytes, lmax, seenShortest)
-        return (False, "Not implemented yet")
+        return (True, dest_arg, assign_arg, parameters, offset)
+        
