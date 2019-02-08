@@ -100,10 +100,10 @@ class ConstrValidWrite: public SubConstraint{
         virtual void merge(SubConstraint* c, bool del);
 };
 
-class ConstrSpInc: public SubConstraint{
+class ConstrMaxSpInc: public SubConstraint{
     cst_t _inc;
     public:
-        ConstrSpInc(cst_t i);
+        ConstrMaxSpInc(cst_t i);
         cst_t inc();
         pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         virtual SubConstraint* copy();
@@ -128,6 +128,7 @@ class Constraint{
         Constraint* copy();
         cstr_sig_t signature();
         cstr_sig_t signature(int lmax); 
+        pair<bool, addr_t> valid_padding();
         ~Constraint();
 };
 
