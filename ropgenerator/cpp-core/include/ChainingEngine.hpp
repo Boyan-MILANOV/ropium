@@ -13,7 +13,7 @@ enum AssignType {
     ASSIGN_CST,                  /* constant */
     ASSIGN_REG_BINOP_CST,    /* reg op cst */
     ASSIGN_MEM_BINOP_CST,    /* mem op cst */
-    ASSIGN_CSTMEM,          /* mem(cst) */ 
+    ASSIGN_CSTMEM_BINOP_CST, /* mem(cst) */ 
     ASSIGN_SYSCALL,          /* syscall */ 
     ASSIGN_INT80             /* int80 */
 };
@@ -50,7 +50,7 @@ class AssignArg {
     AssignArg(AssignType t, cst_t c); /* For ASSIGN_CST */
     AssignArg(AssignType t, int r, Binop o, cst_t c); /* For ASSIGN_REG_BINOP_CST */
     AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c); /* For ASSIGN_MEM_BINOP_CST */
-    AssignArg(AssignType t, cst_t ac, cst_t c); /* For ASSIGN_CST_MEM */
+    AssignArg(AssignType t, cst_t ac, cst_t c); /* For ASSIGN_CSTMEM_BINOP_CST */
     AssignArg(AssignType t); /* For ASSIGN_SYSCALL and INT80 */ 
 };
 
@@ -100,11 +100,35 @@ class RegTransitivityRecord{
 
 
 /* *********************************************************************
+ *                         Search Parameters Bindings
+ * ******************************************************************* */
+class SearchParametersBinding{
+    public: 
+    vector<int> keep_regs; 
+    vector<unsigned char> bad_bytes;
+    unsigned int lmax; 
+    bool shortest;
+    SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s );
+};
+
+class SearchResultsBinding{
+    public:
+    ROPChain chain;
+    FailRecord fail_record;  
+    bool found;
+    SearchResultsBinding();
+    SearchResultsBinding(ROPChain* chain);
+    SearchResultsBinding(FailRecord record); 
+};
+
+/* *********************************************************************
  *                         SearchEnvironment 
  * ******************************************************************* */
+#define DEFAULT_LMAX 100
+#define DEFAULT_MAX_DEPTH 8
 
 enum SearchStrategyType{NB_STRATEGY_TYPES};
- 
+
 class SearchEnvironment{
     /* Constraints and contextual infos */ 
     Constraint* _constraint;
@@ -154,5 +178,12 @@ class SearchEnvironment{
         void set_last_fail(FailType t);
         
 };
+
+
+/* **********************************************************************
+ *                      Search & Chaining Functions ! 
+ * ******************************************************************** */
+SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBinding params);
+ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest=false);
 
 #endif

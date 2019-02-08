@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#debug python3 ! 
 import cProfile, pstats
 import ropgenerator.main.Main as Main
 

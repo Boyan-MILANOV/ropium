@@ -165,12 +165,36 @@ def parse_keep_regs(string):
     user_keep_regs = string.split(',')
     keep_regs = set()
     for reg in user_keep_regs:
-        if( is_supported_reg(reg) ):
-            keep_regs.add(Arch.n2r(reg))
+        if( not reg ):
+            return (False, "Error. Missing register after ','")
+        elif( is_supported_reg(reg) ):
+            keep_regs.add(reg_str_to_num(reg))
         else:
             return (False, "Error. '{}' is not a valid register".format(reg))
     return (True, list(keep_regs))
-
+    
+def parse_offset(string):
+    try:
+        offset = int(string)
+        if( offset < 0 ):
+            raise Exception()
+    except:
+        try: 
+            offset = int(string, 16)
+        except:
+            return (False, "Error. '" + args[i+1] +"' is not a valid offset")
+    return (True, offset)
+    
+def parse_lmax(string):
+    try:
+        lmax = int(args[i+1])
+        if( lmax < Arch.octets() ):
+            raise Exception()
+        # Convert number of bytes into number of ropchain elements
+        lmax /= Arch.octets()
+    except:
+        return (False, "Error. '" + args[i+1] +"' bytes is not valid")
+    return (True, lmax)
 
 def parse_query(req):
     """
@@ -178,10 +202,8 @@ def parse_query(req):
     Request is of the form  expression=expression
     Returns either a tuple (success, dest, assign), or, if not supported or invalid 
         arguments, returns a tuple (False, msg, None)
-    dest is a tuple:
-        (DestType, (...))
-    assign is a tuple
-        (AssignType, (...))
+    dest is a DestArg
+    assign is an AssignArg
     """
     # Check for int80 and syscall
     if( req == 'int80' ):
@@ -201,26 +223,37 @@ def parse_query(req):
     (success, assign_type, dest_tuple) = parse_expr(left)
     if( not success ):
         return (False, assign_type, None)
-    
     if( assign_type == AssignType.REG_BINOP_CST and dest_tuple[1] == Binop.ADD
             and dest_tuple[2] == 0):
-        dest_res = (DestType.REG, (dest_tuple[0],))
+        dest_res = DestArg(DestType.REG, dest_tuple[0])
     elif( assign_type == AssignType.MEM_BINOP_CST and dest_tuple[1] == Binop.ADD 
             and dest_tuple[2] == 0):
-        dest_res = (DestType.MEM, dest_tuple[0:3])
-    elif( assign_type == AssignType.CSTMEM and dest_tuple[1] == Binop.ADD
+        dest_res = DestArg(DestType.MEM, dest_tuple[0][0], dest_tuple[0][1], dest_tuple[0][2])
+    elif( assign_type == AssignType.CSTMEM_BINOP_CST and dest_tuple[1] == Binop.ADD
             and dest_tuple[2] == 0):
-        dest_res = (DestType.CSTMEM, (dest_tuple[0],))
+        dest_res = DestArg(DestType.CSTMEM, dest_tuple[0])
     else:
-        return ( False, "\n\tLeft operand '" +left+"' is invalid or not yet supported :(", None)
+        return (False, "\n\tLeft operand '" +left+"' is invalid or not yet supported :(", None)
         
     # Test assigned value
     (success, assign_type, assign_tuple) = parse_expr(right)
     if( not success ):
         return (False, assign_type)
+    if( assign_type == AssignType.CST ):
+        assign_res = AssignArg(AssignType.CST, assign_tuple[0])
+    elif( assign_type == AssignType.REG_BINOP_CST):
+        assign_res = AssignArg(AssignType.REG_BINOP_CST, assign_tuple[0],assign_tuple[1],assign_tuple[2])
+    elif( assign_type == AssignType.MEM_BINOP_CST):
+        assign_res = AssignArg(AssignType.MEM_BINOP_CST, assign_tuple[0][0],assign_tuple[0][1],assign_tuple[0][2], assign_tuple[1])
+    elif( assign_type == AssignType.CSTMEM_BINOP_CST):
+        assign_res = AssignArg(AssignType.CSTMEM_BINOP_CST, assign_tuple[0],assign_tuple[1])
+    elif( assign_type == AssignType.SYSCALL):
+        assign_res = AssignArg(AssignType.SYSCALL)
+    elif( assign_type == AssignType.INT80):
+        assign_res = AssignArg(AssignType.INT80)
     else:
-        return (True, dest_res, (assign_type, assign_tuple))
-        
+        raise Exception("Missing assign type when parsing")
+    return (True, dest_res, assign_res)
 
 
 def parse_expr( string ):
@@ -230,8 +263,8 @@ def parse_expr( string ):
     The tuple depends on the AssignType:
         cst : (cst,)
         reg binop cst : (reg, binop, cst)
-        mem binop cst : (mem_reg, mem_binop, mem_cst, binop, cst)
-        cstmem binop cst : (mem_cst, binop, cst)
+        mem binop cst : ((mem_reg, mem_binop, mem_cst), cst)
+        cstmem binop cst : (mem_cst, cst)
     
     ! -> We return AssignType even when parsing DestType because it is included in 
     AssignType
@@ -248,14 +281,13 @@ def parse_expr( string ):
     }
 
     if( not string ):
-        return (False, "Invalid expression")
+        return (False, "Invalid query", None)
 
     # Is it a mem ? 
-    if( string[:4] == "mem(" ):
+    if( string[:4] == "mem(" and string[-1] == ")"):
         if( len(string.split(")", 1)) < 2 ):
             return (False, "Missing parenthesis after " + string, None)
-        (mem_string,cst_string) = string.split(")", 1)
-        mem_string = mem_string[4:]
+        mem_string = string[4:-1]
         # Get the mem part 
         parsed_mem = parse_expr(mem_string)
         if( not parsed_mem[0] ):
@@ -263,28 +295,16 @@ def parse_expr( string ):
             if( parse_cst(mem_string) is None ):
                  return (False, "Invalid or unsupported address: " + mem_string, None)
             else:
-                tmp_res = [True, AssignType.CSTMEM, (parse_cst(mem_string),)]
+                tmp_res = [True, AssignType.CSTMEM_BINOP_CST, (parse_cst(mem_string),)]
         # normal mem ? 
         elif( parsed_mem[1] == AssignType.REG_BINOP_CST):
             tmp_res = [True, AssignType.MEM_BINOP_CST, parsed_mem[2:5]]
         else:
             return (False, "Address not supported: " + mem_string, None)
         
-        # Mem part OK, now cst part
-        if( len(cst_string) == 0 ):
-            # No cst added 
-            return (tmp_res[0], tmp_res[1], tmp_res[2]+(Binop.ADD, 0,))
-        
-        if( cst_string[0] != "+" and cst_string[0] != "-" ):
-            return (False, "Operand '{}' for constant not supported".format(cst_string[0]))
-        elif( parse_cst(cst_string[1:] is None)):
-            return (False, "Invalid or unsupported constant: " + cst_string[1:], None)
-        else:
-            parsed_cst = parse_cst(cst_string[1:])
-            return (tmp_res[0], tmp_res[1], tmp_res[2] + (binop_map[cst_string[0]], parsed_cst))
-            
-        
-    # Or a binop ? 
+        return (tmp_res[0], tmp_res[1], tmp_res[2]+(Binop.ADD, 0,))
+
+    # Or a X binop CST ? 
     for i in reversed(range(0,len(string))):
         # Look for binop 
         if( string[i] in binop_map.keys()):
@@ -302,7 +322,7 @@ def parse_expr( string ):
             cst = parse_cst(right)
             if( cst is None ):
                 return (False, "Only constants can be used as right operands (got '{}')".format(right), None)
-            elif( cst > 2**curr_arch_bits() ):
+            elif( cst >= 2**curr_arch_bits() ):
                 return (False, "Constant {} is too big".format(right), None)
             # Parse left as X binop cst
             if( is_supported_reg(left) ):
@@ -315,12 +335,19 @@ def parse_expr( string ):
                 parsed_mem = parse_expr(left[4:-1])
                 if( not parsed_mem[0] ):
                     return parsed_mem
-                elif( parsed_mem[1] == AssignType.REG_BINOP_CST):
-                    return (True, AssignType.MEM_BINOP_CST, (parsed_mem[2:5] + (binop, cst,)),)
+                # check if the const is added/subbed
+                if( binop != Binop.ADD and binop != Binop.SUB ):
+                    return (False, "Operand '{}' not supported for constant".format(string[i]), None)
+                else:
+                    adjusted_cst = cst*(1 if binop == Binop.ADD else -1)
+                if( parsed_mem[1] == AssignType.REG_BINOP_CST):
+                    return (True, AssignType.MEM_BINOP_CST, (parsed_mem[2:5] + (adjusted_cst,)),)
+                elif( parsed_mem[1] == AssignType.CST ):
+                    return (True, AssignType.CSTMEM_BINOP_CST, (parsed_mem[2], adjusted_cst))
                 else:
                     return (False, "Address not supported: " + left[4:-1], None)
             else:
-                return (False, "Operand not supported: " + left, None)
+                return (False, "Left operand not supported: " + left, None)
     
     # If didn't find binop, maybe just a reg ?  
     if( is_supported_reg(string) ):

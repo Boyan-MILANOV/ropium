@@ -4,7 +4,7 @@
 from prompt_toolkit import PromptSession, ANSI
 
 from ropgenerator.core.IO import *
-from ropgenerator.main.Utils import parse_query
+from ropgenerator.semantic.Find import find
 
 import sys
 
@@ -48,8 +48,7 @@ def semantic_mode():
                 continue
 
             if( command == CMD_FIND ):
-                # DEBUG
-                print(parse_query(args[1]))
+                find(args[1:])
             elif( command == CMD_EXIT ):
                 return False
             elif( command == CMD_HELP ):

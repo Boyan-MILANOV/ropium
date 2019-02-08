@@ -83,7 +83,19 @@ void ConstrBadBytes::merge(SubConstraint* c, bool del=false){
 }
 
 // ConstrKeepRegs 
-ConstrKeepRegs::ConstrKeepRegs(): SubConstraint(CONSTR_KEEP_REGS){}
+ConstrKeepRegs::ConstrKeepRegs(): SubConstraint(CONSTR_KEEP_REGS){
+    memset(_regs, false, sizeof(_regs));
+}
+
+ConstrKeepRegs::ConstrKeepRegs(vector<int>& k): SubConstraint(CONSTR_KEEP_REGS){
+    vector<int>::iterator it; 
+    for( it = k.begin(); it != k.end(); it++){
+        if( *it < 0 || *it >= curr_arch()->nb_regs() )
+            throw_exception("In Constraint Keep Regs: invalid reg when init");
+        _regs[*it] = true; 
+    }
+}
+
 bool ConstrKeepRegs::get(int num){
     return ( num >= NB_REGS_MAX || num < 0)? false : _regs[num];
 }
