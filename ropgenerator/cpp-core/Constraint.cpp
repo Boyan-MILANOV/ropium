@@ -264,7 +264,6 @@ pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g){
         if( _constr[i] != nullptr ){
             std::tie(eval, cond) = _constr[i]->verify(g);
             if( eval == EVAL_INVALID ){
-                cout << "DEBUG FAIL " << i << endl;
                 return make_pair(EVAL_INVALID, NewCondFalse());
             }else if( eval == EVAL_MAYBE){
                 res_cond = res_cond && cond;
@@ -282,23 +281,29 @@ pair<bool, addr_t> Constraint::valid_padding(){
     vector<unsigned char>* bad;
     unsigned char byte;
     addr_t padding = 0;
-    int tmp;
+    unsigned char tmp=0xff;
+    bool found = false;
     
     if( _constr[CONSTR_BAD_BYTES] == nullptr ){
+        found = true;
         byte = 0xff;
     }else{
         bad = _constr[CONSTR_BAD_BYTES]->bad_bytes();
-        for( tmp = 0xff; tmp > 0; tmp--){
-            if( std::find(bad->begin(), bad->end(), (unsigned char)(tmp)) == bad->end())
+        for( tmp = 0xff; tmp >= 0; tmp--){
+            if( std::find(bad->begin(), bad->end(), (unsigned char)(tmp)) == bad->end()){
+                byte = tmp;
+                found = true;
                 break;
+            }
         }
     }
-    if( tmp < 0 )
+    if( ! found ){
         return make_pair(false, 0);
-    /* Compute full padding value */
-    padding = byte;
-    for( int i = 0; i < curr_arch()->octets()-1; i++)
-        padding = (padding<<8) & byte;
+    }/* Compute full padding value */
+    padding = (addr_t)byte;
+    for( int i = 0; i < curr_arch()->octets()-1; i++){
+        padding = (padding*256) + (addr_t)byte;
+    }
     return make_pair(true, padding);
 }
 

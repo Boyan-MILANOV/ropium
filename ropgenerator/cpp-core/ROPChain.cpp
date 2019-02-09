@@ -24,7 +24,7 @@ void ROPChain::add_gadget(int g){
 void ROPChain::add_padding(addr_t value, int n,  string comment){
     int num; 
     if( n == 0 )
-        return; 
+        return;
     // Get padding number 
     num = _padding_values.size()+1;
     // Add padding 
@@ -79,9 +79,10 @@ string valid_addr_str(int octets, shared_ptr<Gadget> g, vector<unsigned char> ba
     for( it = g->addresses().begin(); it != g->addresses().end(); it++){
         // Test if bad bytes inside 
         for( i=0; i < octets; i++)
-            if (std::find( bad_bytes.begin(), bad_bytes.end(), (unsigned char)( ((*it) >> i) & 0xff)) != bad_bytes.end())
+            if (std::find( bad_bytes.begin(), bad_bytes.end(), (unsigned char)( ((*it) >> i*8) & 0xff)) != bad_bytes.end())
                 break;
         if( i == octets ){
+            g->print(cout);
             return value_to_hex_str(octets, *it);
         }
     }
@@ -100,8 +101,8 @@ string ROPChain::to_str_console(int octets, vector<unsigned char> bad_bytes){
                 str_bold(gadget_db()->get(*it)->asm_str()) << ")";
         }else{
             // Padding 
-            padd_num = -1*(*it)-1; 
-            ss << "\n\t" << value_to_hex_str(octets, _padding_values.at(padd_num)) << " (" << 
+            padd_num = -1*(*it)-1;
+            ss << "\n\t" << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num))) << " (" << 
             _padding_comments.at(padd_num) << ")"; 
         }
     } 
@@ -135,7 +136,7 @@ string ROPChain::to_str_python(int octets, vector<unsigned char> bad_bytes, bool
         }else{
             // Padding 
             padd_num = -1*(*it)-1; 
-            ss << "\n" << tab << pack << value_to_hex_str(octets, _padding_values.at(padd_num)) << ") # " << 
+            ss << "\n" << tab << pack << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num))) << ") # " << 
             _padding_comments.at(padd_num); 
         }
     }

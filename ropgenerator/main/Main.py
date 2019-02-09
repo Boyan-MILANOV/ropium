@@ -75,7 +75,6 @@ def main():
             pass
     #closeLogs()
     #save_shellcodes()
-    # DEBUG exit(0)
     return 
 
 

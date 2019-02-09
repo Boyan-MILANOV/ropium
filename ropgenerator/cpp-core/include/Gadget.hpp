@@ -3,6 +3,7 @@
 
 #include "Symbolic.hpp"
 #include <memory>
+#include <cstdint>
 
 using std::vector; 
 using std::string; 
@@ -10,7 +11,7 @@ using std::shared_ptr;
 
 enum GadgetType{ REGULAR, INT80, SYSCALL}; 
 enum RetType{ RET_RET, RET_CALL, RET_JMP, RET_UNKNOWN};
-using addr_t= unsigned long long; 
+using addr_t= uint64_t; 
 
 class Gadget{
     /* General */ 
@@ -38,7 +39,7 @@ class Gadget{
         // Accessors 
         int id(); 
         GadgetType type(); 
-        vector<addr_t> addresses(); 
+        vector<addr_t>& addresses(); 
         string asm_str();
         string hex_str();
         int nb_instr();

@@ -301,8 +301,6 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
         constraint->add(new ConstrKeepRegs(params.keep_regs), true);
     if( ! params.bad_bytes.empty() )
         constraint->add(new ConstrBadBytes(params.bad_bytes), true);
-        
-    cout << "DEBUG lmax " << params.lmax << endl; 
     
     env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, false, 
                                 &g_reg_transitivity_record);

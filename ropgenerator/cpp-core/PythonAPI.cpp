@@ -13,6 +13,7 @@ using namespace pybind11::literals;
 #include "Gadget.hpp"
 #include "Database.hpp"
 #include "ChainingEngine.hpp"
+#include "ROPChain.hpp"
 
 
 PYBIND11_MODULE(ropgenerator_core_, m){
@@ -189,6 +190,12 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("gadget_db_entries_count", [](){return gadget_db()->entries_count();});
     m.def("init_gadget_db", &init_gadget_db);
 
+    /* ROPChain Bindings */ 
+    
+    py::class_<ROPChain>(m, "ROPChain")
+        .def("to_str_console", &ROPChain::to_str_console)
+        .def("to_str_python", &ROPChain::to_str_python);
+    
     /* Expressions Bindings */
     
     py::enum_<ExprType>(m, "ExprType", py::arithmetic(), "Expression Type")
