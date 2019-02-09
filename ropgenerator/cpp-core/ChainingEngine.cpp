@@ -203,6 +203,7 @@ SearchEnvironment::SearchEnvironment(Constraint* c, Assertion* a, unsigned int l
     else
         throw_exception("Implement the global variable");
     memset(_calls_count, 0, sizeof(_calls_count));
+    _depth = 0;
 }
 
 SearchEnvironment* SearchEnvironment::copy(){
@@ -301,6 +302,8 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
     if( ! params.bad_bytes.empty() )
         constraint->add(new ConstrBadBytes(params.bad_bytes), true);
         
+    cout << "DEBUG lmax " << params.lmax << endl; 
+    
     env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, false, 
                                 &g_reg_transitivity_record);
  
@@ -327,7 +330,7 @@ ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool sh
     /* Check context */ 
     if( env->reached_max_depth() )
         return nullptr;
-    else if( env->lmax() <= 0 ){
+    else if( env->lmax() == 0 ){
         env->set_last_fail(FAIL_LMAX);
         env->fail_record()->set_max_len(true);
         return nullptr;
@@ -368,7 +371,7 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
     bool success;
     
     /* Check context */ 
-    if( env->lmax() <= 0 ){
+    if( env->lmax() == 0 ){
         env->set_last_fail(FAIL_LMAX);
         env->fail_record()->set_max_len(true);
         return nullptr;

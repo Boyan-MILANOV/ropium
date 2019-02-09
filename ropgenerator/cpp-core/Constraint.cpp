@@ -208,7 +208,7 @@ ConstrMaxSpInc::ConstrMaxSpInc(cst_t i): SubConstraint(CONSTR_SP_INC), _inc(i){}
 cst_t ConstrMaxSpInc::inc(){return _inc;}
 
 pair<ConstrEval,CondObjectPtr> ConstrMaxSpInc::verify(shared_ptr<Gadget> g){
-    if( !g->known_sp_inc() || g->sp_inc() != _inc )
+    if( !g->known_sp_inc() || g->sp_inc() > _inc )
         return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
     return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
 }
@@ -248,7 +248,8 @@ void Constraint::remove(SubConstraintType t){
 Constraint* Constraint::copy(){
     Constraint * res = new Constraint();
     for( int i = 0; i < COUNT_NB_CONSTR; i++)
-        res->add(_constr[i]->copy());
+        if( _constr[i] != nullptr )
+            res->add(_constr[i]->copy());
     return res; 
 }
 
@@ -256,21 +257,25 @@ pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g){
     ConstrEval eval; 
     CondObjectPtr cond; 
     CondObjectPtr res_cond = NewCondTrue(); 
+    bool maybe = false;
     if( g->type() == INT80 or g->type() == SYSCALL )
         return make_pair(EVAL_VALID, NewCondTrue());
     for( int i = 0; i < COUNT_NB_CONSTR; i++){
         if( _constr[i] != nullptr ){
             std::tie(eval, cond) = _constr[i]->verify(g);
-            if( eval == EVAL_INVALID )
+            if( eval == EVAL_INVALID ){
+                cout << "DEBUG FAIL " << i << endl;
                 return make_pair(EVAL_INVALID, NewCondFalse());
-            else if( eval == EVAL_VALID)
-                return make_pair(EVAL_VALID, NewCondTrue());
-            else{
-                res_cond = res_cond && cond; 
+            }else if( eval == EVAL_MAYBE){
+                res_cond = res_cond && cond;
+                maybe = true;
             }
         }
     }
-    return make_pair(EVAL_MAYBE, res_cond);
+    if( maybe )
+        return make_pair(EVAL_MAYBE, res_cond);
+    else
+        return make_pair(EVAL_VALID, res_cond);
 }
 
 pair<bool, addr_t> Constraint::valid_padding(){

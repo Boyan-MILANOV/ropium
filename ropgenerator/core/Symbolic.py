@@ -121,7 +121,7 @@ def raw_to_IRBlock(raw):
         ir_translator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
         alias_mapper = X86ArchitectureInformation(ARCH_X86_MODE_64).alias_mapper
     else:
-        pass 
+        raise Exception("ARCH TYPE NOT SUPPORTED")
     (irsb,string) = raw_to_REIL(raw, disassembler, ir_translator)
     if( irsb is None ):
         return (None, string) 

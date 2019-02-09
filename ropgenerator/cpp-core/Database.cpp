@@ -31,18 +31,27 @@ vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int 
     vector<int> res; 
     shared_ptr<Gadget> g; 
     CondObjectPtr constr_cond, both_cond;
-    ConstrEval eval;  
+    ConstrEval eval;
+    
     if( _values.count(val) == 0)
         return res; 
     for( int i = 0; i < _values.at(val).size() && res.size() < n; i++){
         g = gadget_db()->get(_values[val].at(i));
+        // DEBUG
+        g->print(cout);
         // Verify constraint 
-        std::tie(eval, constr_cond) = constr->verify(g); 
+        std::tie(eval, constr_cond) = constr->verify(g);
+        // DEBUG
+        cout << "Verified " << constr_cond << endl;
+        cout << "Pre-cond " << _pre_conds[val].at(i) << endl;
         if( eval == EVAL_VALID || eval == EVAL_MAYBE){
             // Check with assertion on pre-condition 
             both_cond = constr_cond && _pre_conds[val].at(i);
-            if( assert->validate(both_cond) )
+            if( assert->validate(both_cond) ){
+                // DEBUG
+                cout << "Added ! " << endl;
                 res.push_back(_values[val].at(i));
+            }
         }
     }
     return res; 

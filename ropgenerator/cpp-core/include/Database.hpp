@@ -12,6 +12,7 @@ using std::shared_ptr;
 #include "Condition.hpp"
 #include "Gadget.hpp"
 #include "Constraint.hpp"
+#include "Architecture.hpp"
 
 using std::unique_ptr; 
 

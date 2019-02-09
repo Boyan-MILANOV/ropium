@@ -209,8 +209,7 @@ def load(args):
             # Manually check for call (ugly but no other solution for now)
             if( str(asm_instr_list[-1]).split(" ")[0] == "call" ):
                 gadget.set_ret_type(RetType.CALL)
-            
-            # DEBUG until python3 gadget.add_address(addr)
+            gadget.add_address(addr)
             gadget_db_add(gadget)
         
     end_time = datetime.now()
