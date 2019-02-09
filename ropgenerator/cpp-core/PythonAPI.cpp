@@ -170,7 +170,8 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def(py::init<shared_ptr<IRBlock>>())
         .def("set_asm_str", &Gadget::set_asm_str)
         .def("set_hex_str", &Gadget::set_hex_str)
-        .def("set_ret_type", &Gadget::set_ret_type);
+        .def("set_ret_type", &Gadget::set_ret_type)
+        .def("add_address", &Gadget::add_address);
         
     m.def("print_gadget", [](shared_ptr<Gadget> g){
         py::scoped_ostream_redirect stream(

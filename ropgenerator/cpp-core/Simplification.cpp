@@ -344,14 +344,14 @@ ExprPtr ExprAsPolynom::to_expr(int expr_size){
     bool not_null = false;
     // Regs
     for(i = 0; i < _len-1; i++){
-        if( _polynom[i] == 1 )
+        if( _polynom[i] == 1 ){
             if( not_null )
                 tmp = tmp + make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)); 
             else{
                 tmp = make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size));
                 not_null = true;
             }
-        else if( _polynom[i] == -1){
+        }else if( _polynom[i] == -1){
             if( not_null )
                 tmp = tmp - make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)); 
             else{
@@ -359,9 +359,7 @@ ExprPtr ExprAsPolynom::to_expr(int expr_size){
                       * make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size));
                 not_null = true;
             }
-        } 
-        
-        else if( _polynom[i] > 1  )
+        }else if( _polynom[i] > 1  ){
             if( not_null )
                 tmp = tmp + (make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) * 
                   make_shared<ExprObject>(make_shared<ExprCst>(_polynom[i], expr_size)));
@@ -370,7 +368,7 @@ ExprPtr ExprAsPolynom::to_expr(int expr_size){
                   make_shared<ExprObject>(make_shared<ExprCst>(_polynom[i], expr_size)));
                 not_null = true;
             }
-        else if( _polynom[i] < -1  ){
+        }else if( _polynom[i] < -1  ){
             if( not_null )
                 tmp = tmp - (make_shared<ExprObject>(make_shared<ExprReg>(i, expr_size)) * 
                   make_shared<ExprObject>(make_shared<ExprCst>(_polynom[i], expr_size))) ;
@@ -386,7 +384,7 @@ ExprPtr ExprAsPolynom::to_expr(int expr_size){
         tmp = tmp + NewExprCst(_polynom[_len-1], expr_size);
     else if( not_null && _polynom[_len-1] < 0)
         tmp = tmp - NewExprCst(_polynom[_len-1]*-1, expr_size);
-    else
+    else if( ! not_null )
         tmp = make_shared<ExprObject>(make_shared<ExprCst>(_polynom[_len-1], expr_size));
     tmp->expr_ptr()->set_polynom(copy());
     tmp->expr_ptr()->_is_polynom = true; 
