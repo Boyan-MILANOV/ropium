@@ -12,7 +12,7 @@ using std::stringstream;
 
 class ROPChain{
     vector<int> _chain;
-    vector<cst_t> _padding_values;  // Padding number n is stored in _chain 
+    vector<addr_t> _padding_values;  // Padding number n is stored in _chain 
                                     // as -n-1
     vector<string> _padding_comments; 
     int _len; 
@@ -33,7 +33,7 @@ class ROPChain{
         // Sort
         bool lthan(ROPChain* other); 
         // IO
-        string to_str_console(int bits, vector<unsigned char> bad_bytes); 
+        string to_str_console(int octets, vector<unsigned char> bad_bytes); 
         string to_str_python(int octets, vector<unsigned char> bad_bytes, bool init, bool no_tab); 
 }; 
 

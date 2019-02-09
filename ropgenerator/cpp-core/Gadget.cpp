@@ -17,7 +17,7 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     _semantics = irblock->compute_semantics(true); 
     // DEBUG
     _semantics->simplify(); 
-    //_semantics->tweak(true);
+    _semantics->tweak(true);
     //_semantics->filter(); 
     
     // Set the different fields
@@ -79,7 +79,7 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
 
 // Accessors 
 GadgetType Gadget::type(){return _type;}
-vector<addr_t> Gadget::addresses(){return _addresses;}
+vector<addr_t>& Gadget::addresses(){return _addresses;}
 string Gadget::asm_str(){return _asm_str;}
 string Gadget::hex_str(){return _hex_str;}
 int Gadget::nb_instr(){return _nb_instr;}
@@ -159,12 +159,16 @@ void Gadget::print(ostream& os){
 }
 
 bool Gadget::lthan(shared_ptr<Gadget> other){
-    if( _known_sp_inc && other->known_sp_inc() &&
-        _sp_inc < other->sp_inc() )
-        return true; 
-    if( _nb_instr == other->nb_instr() )
+    if( _known_sp_inc && other->known_sp_inc())
+        return ( _sp_inc < other->sp_inc() );
+    else if( _known_sp_inc )
+        return true;
+    else if( other->known_sp_inc() )
+        return false;
+    else if( _nb_instr == other->nb_instr() )
         return _nb_instr_ir < other->nb_instr_ir();
-    return _nb_instr < other->nb_instr(); 
+    else
+        return _nb_instr < other->nb_instr(); 
 }
 
 ostream& operator<<(ostream& os, Gadget* g){

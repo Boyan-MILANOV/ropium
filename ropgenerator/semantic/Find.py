@@ -69,10 +69,16 @@ def find(args):
     assign_arg = parsed_args[2]
     params = parsed_args[3]
     offset = parsed_args[4]
+    bad_bytes = parsed_args[5] # Used only for printing, they are already in params
     
     res = search(dest_arg, assign_arg, params)
-    print(res)
-    print(res.found)
+    if( res.found ):
+        if( OUTPUT == OUTPUT_CONSOLE ):
+            print(res.chain.to_str_console(curr_arch_bits()//8, bad_bytes ))
+        elif( OUTPUT == OUTPUT_PYTHON ):
+            print(res.chain.to_str_python(curr_arch_bits()//8, bad_bytes, True, False ))
+    else:
+        print("No ROPChain found")
     return 
 
 
@@ -141,7 +147,7 @@ def parse_args(args):
                     return (False, "Error. '" + args[i+1] + "' output format is not supported")
             # Offset option
             elif( arg == OPTION_OFFSET or arg == OPTION_OFFSET_SHORT):
-                # DEBUG
+                # DEBUG TODO support offset option
                 return (False, "Option offset not supported yet :O")
                 if( seenOffset ):
                     return (False, "Error. '" + arg + "' option should be used only once.")
@@ -192,5 +198,5 @@ def parse_args(args):
         return (False, "Error. Missing semantic query")
     else:
         parameters = SearchParametersBinding(keep_regs, bad_bytes, lmax, seenShortest)
-        return (True, dest_arg, assign_arg, parameters, offset)
+        return (True, dest_arg, assign_arg, parameters, offset, bad_bytes)
         
