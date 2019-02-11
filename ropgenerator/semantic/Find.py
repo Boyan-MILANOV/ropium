@@ -4,6 +4,7 @@
 from ropgenerator.core.IO import error, banner, str_bold, str_special
 from ropgenerator.main.Utils import *
 from ropgenerator.core.ChainingEngine import SearchParametersBinding
+from ropgenerator.core.Gadget import set_gadgets_offset
 import sys 
 
 # Definition of options names
@@ -71,6 +72,9 @@ def find(args):
     offset = parsed_args[4]
     bad_bytes = parsed_args[5] # Used only for printing, they are already in params
     
+    # Set the offset
+    set_gadgets_offset(offset)
+    
     res = search(dest_arg, assign_arg, params)
     if( res.found ):
         if( OUTPUT == OUTPUT_CONSOLE ):
@@ -79,6 +83,10 @@ def find(args):
             print(res.chain.to_str_python(curr_arch_bits()//8, bad_bytes, True, False ))
     else:
         error("No matching ROPChain found")
+        
+    # Reset normal state
+    set_gadgets_offset(0)
+    
     return 
 
 
@@ -147,8 +155,6 @@ def parse_args(args):
                     return (False, "Error. '" + args[i+1] + "' output format is not supported")
             # Offset option
             elif( arg == OPTION_OFFSET or arg == OPTION_OFFSET_SHORT):
-                # DEBUG TODO support offset option
-                return (False, "Option offset not supported yet :O")
                 if( seenOffset ):
                     return (False, "Error. '" + arg + "' option should be used only once.")
                 if( i+1 >= len(args)):

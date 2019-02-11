@@ -187,6 +187,8 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         }
     );
     
+    m.def("set_gadgets_offset", &set_gadgets_offset);
+    
     /* Database Bindings */
 
     m.def("gadget_db_add", [](shared_ptr<Gadget> g){return gadget_db()->add(g);});
