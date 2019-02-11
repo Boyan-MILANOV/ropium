@@ -78,7 +78,7 @@ def find(args):
         elif( OUTPUT == OUTPUT_PYTHON ):
             print(res.chain.to_str_python(curr_arch_bits()//8, bad_bytes, True, False ))
     else:
-        print("No ROPChain found")
+        error("No matching ROPChain found")
     return 
 
 

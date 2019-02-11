@@ -108,15 +108,18 @@ def get_gadgets(filename):
             raw = b16decode(arr[-1].upper().strip())
             res.append((int(addr,16), raw))
             count += 1 
-    notify("Finished : %d gadgets generated" % (count))
+    notify("Gadgets generated: %d" % (count))
     return res
     
 def load(args):
     global helpStr
     global loaded
+    global biggest_gadget_addr
     # Parse arguments and filename 
     filename = None
     user_arch = None
+    biggest_gadget_addr = 0
+    
     i = 0
     seenArch = False
     if( not args ):
@@ -193,6 +196,8 @@ def load(args):
     dup = dict()
     count = 0
     total = 0
+    print('')
+    info(str_bold("Analyzing gadgets\n"))
     for( addr, raw) in gadget_list:
         total += 1
         charging_bar(len(gadget_list), total)
@@ -203,13 +208,15 @@ def load(args):
         (irblock, asm_instr_list) = raw_to_IRBlock(raw)
         if( not irblock is None ): 
             gadget = Gadget(irblock)
-            asm_str = '; '.join(str(i) for i in asm_instr_list) + ";"
+            asm_str = '; '.join(str(i) for i in asm_instr_list)
             gadget.set_asm_str(asm_str)
             gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(c) for c in raw))
             # Manually check for call (ugly but no other solution for now)
-            if( str(asm_instr_list[-1]).split(" ")[0] == "call" ):
+            if( str(asm_instr_list[-1]).split(" ")[0] == "call" and
+                gadget.ret_type() == RetType.JMP):
                 gadget.set_ret_type(RetType.CALL)
             gadget.add_address(addr)
+            biggest_gadget_addr = max(addr, biggest_gadget_addr)
             gadget_db_add(gadget)
         
     end_time = datetime.now()
@@ -219,14 +226,6 @@ def load(args):
     notify("Database entries created: " + str(gadget_db_entries_count()))
     notify("Computation time : " + str(end_time-start_time))
     
-    # # Build the gadget database
-    # # (we mix the list so that charging bar
-    # # appears to grow steadily )
-      
-    # r = random()
-    # shuffle(gadgetList, lambda: r)
-    
-    # build(gadgetList)
     # # Init engine 
     # initEngine()
     # loaded = True
@@ -234,6 +233,14 @@ def load(args):
 ###################################
 # Module wide
 loaded = False
-def loadedBinary():
+biggest_gadget_addr = 0
+
+def loaded_binary():
     global loaded
     return loaded
+
+def biggest_gadget_address():
+    global biggest_gadget_addr
+    return biggest_gadget_addr    
+
+    

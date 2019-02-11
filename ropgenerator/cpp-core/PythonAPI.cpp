@@ -66,6 +66,9 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def(py::init<int, int, int, int>())
         .def(py::init<int, int>());
 
+    py::class_<ArgUnknown, SymArg>(m, "ArgUnknown")
+        .def(py::init<int>());
+
     py::enum_<IROperation>(m, "IROperation", py::arithmetic(), "IR Operation")
         .value("ADD",IR_ADD)
         .value("AND",IR_AND)
@@ -172,6 +175,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def("set_asm_str", &Gadget::set_asm_str)
         .def("set_hex_str", &Gadget::set_hex_str)
         .def("set_ret_type", &Gadget::set_ret_type)
+        .def("ret_type", &Gadget::ret_type)
         .def("add_address", &Gadget::add_address);
         
     m.def("print_gadget", [](shared_ptr<Gadget> g){
