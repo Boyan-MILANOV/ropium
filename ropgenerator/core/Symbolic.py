@@ -1,5 +1,5 @@
 from ropgenerator_core_ import \
-ArgType, ArgEmpty, ArgCst, ArgReg, ArgTmp, \
+ArgType, ArgEmpty, ArgCst, ArgReg, ArgTmp, ArgUnknown, \
 IROperation, IRInstruction, IRBlock, print_irblock
 
 from ropgenerator.core.Architecture import *
@@ -63,10 +63,21 @@ def barf_operation_to_IR(mnemonic):
 class RegNotSupported(Exception):
     def __init__(self, msg):
         self.msg = msg
-        
     def __str__(self):
         return msg
 
+class CstTooBig(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+    def __str__(self):
+        return msg
+        
+class REILOperationNotSupported(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+    def __str__(self):
+        return msg
+        
 def pycst_to_cppcst(val):
     if( val >= 2**(curr_arch_bits()-1)):
         return val - (2**curr_arch_bits());
@@ -76,8 +87,8 @@ def pycst_to_cppcst(val):
 def barf_operand_to_IR(operand, alias_mapper):
     if( isinstance(operand, ReilImmediateOperand )):
         if( operand._immediate >= 2**curr_arch_bits()):
-            print("[!] Unexpected error, constant value too big to fit in cst_t")
-            value = 0
+            # DEBUG raise CstTooBig("Constant '{}' doesn't fit into cst_t".format(hex(operand._immediate)))
+            return ArgUnknown(operand.size)
         else:
             value = int(operand._immediate)
         return ArgCst(pycst_to_cppcst(value), operand.size);
@@ -126,6 +137,7 @@ def raw_to_IRBlock(raw):
     if( irsb is None ):
         return (None, string) 
     
+    asm_instr_string = '; '.join(str(i) for i in string)
     res = IRBlock()
     # Translate instruction by instruction 
     # TODO 
@@ -183,10 +195,18 @@ def raw_to_IRBlock(raw):
                                             ArgEmpty(),
                                             ArgReg(curr_arch_ip(), curr_arch_bits()));
                     break
+            elif( instr.mnemonic == ReilMnemonic.BISZ ):
+                raise REILOperationNotSupported("REIL Operation 'BISZ' not supported in " + asm_instr_string)
             else:
                 return (None, string) 
             if( i ):
                 res.add_instr(i)
+    # Possible exceptions
     except RegNotSupported:
         return (None, string)
+    except CstTooBig:
+        return (None, string) 
+    except REILOperationNotSupported:
+        return (None, string)
+    # Succesful return 
     return (res, string)

@@ -3,6 +3,7 @@
 from ropgenerator.core.Expression import *
 from ropgenerator.core.Architecture import *
 from ropgenerator.core.ChainingEngine import *
+from ropgenerator.main.Load import biggest_gadget_address
 
 ########################
 #   Parsing functions  #
@@ -176,13 +177,18 @@ def parse_keep_regs(string):
 def parse_offset(string):
     try:
         offset = int(string)
-        if( offset < 0 ):
-            raise Exception()
     except:
         try: 
             offset = int(string, 16)
         except:
             return (False, "Error. '" + args[i+1] +"' is not a valid offset")
+    # Check if not negative
+    if( offset < 0 ):
+        return (False, "Error. Offset must be positive")
+    # Check if not too big
+    elif(  biggest_gadget_address() + offset >= 2**curr_arch_bits() ):
+        return (False, "Error. Offset is too big!")
+    # OK, return
     return (True, offset)
     
 def parse_lmax(string):

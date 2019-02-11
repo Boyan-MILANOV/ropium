@@ -28,8 +28,9 @@ void canonize(ExprPtr p){
     if( p->type() != EXPR_BINOP || p->binop() == OP_SUB || p->binop() == OP_DIV ||
         p->binop() == OP_MOD || p->binop() == OP_BSH)
         return;
-    else if( p->left_expr_ptr()->lthan( p->right_expr_ptr()))
+    else if( p->left_expr_ptr()->lthan( p->right_expr_ptr())){
         p->exchange_args();
+    }
 }
 
 // Propagate unknown expressions 

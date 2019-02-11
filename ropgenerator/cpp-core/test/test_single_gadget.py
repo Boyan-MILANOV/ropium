@@ -18,7 +18,7 @@ set_bin_type(BinType.BIN_X64_ELF)
 set_arch(ArchType.ARCH_X64)
 
 #raw = "\x48\x89\xD8" # MOV RAX,RBX
-raw = b'\x50\x31\xed\x5b\x89\xe8\x5d\x41\x5c\xc3'
+raw = b'\xFF\xD3'
 
 init_gadget_db();
 
@@ -33,7 +33,7 @@ asm_str = '; '.join(str(i) for i in asm_instr_list) + ";"
 gadget.set_asm_str(asm_str)
 gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(c) for c in raw))
 # Manually check for call (ugly but no other solution for now)
-if( str(asm_instr_list[-1]).split(" ")[0] == "call" ):
+if( str(asm_instr_list[-1]).split(" ")[0] == "call" and gadget.ret_type() == RetType.JMP):
     gadget.set_ret_type(RetType.CALL)
 
 

@@ -4,6 +4,19 @@
 #include "CommonUtils.hpp"
 #include "Exception.hpp"
 
+
+/* *********************************************************************
+ *                          Global variables
+ * ******************************************************************* */
+addr_t g_gadgets_offset=0;
+
+void set_gadgets_offset(addr_t offset){
+    g_gadgets_offset=offset;
+}
+
+/* *********************************************************************
+ *                          Gadget class 
+ * ******************************************************************* */
 // Constructor 
 Gadget::Gadget(shared_ptr<IRBlock> irblock){
     vector<reg_pair>::iterator reg_it; 
@@ -46,8 +59,6 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     _mem_read = irblock->mem_reads();
     _mem_write = irblock->mem_writes();
     // Get the return type
-    // Test for call
-    // TODO
     // Test for ret/jmp 
     _ret_type = RET_UNKNOWN; 
     if( _known_sp_inc && ((p = _semantics->get_reg(curr_arch()->ip())) != nullptr)){
@@ -70,6 +81,7 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
             }
         }
     }
+    // Test for call in python part 
     if( _ret_type == RET_UNKNOWN ){
         _ret_reg = -1; 
         _ret_pre_cond = NewCondFalse(); 
@@ -79,7 +91,17 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
 
 // Accessors 
 GadgetType Gadget::type(){return _type;}
-vector<addr_t>& Gadget::addresses(){return _addresses;}
+/* We return a new vector everytime because it changes 
+ * depending on the offset :) */  
+vector<addr_t>* Gadget::addresses(){
+    vector<addr_t>::iterator it;
+    vector<addr_t>* res = new vector<addr_t>();
+    for( it = _addresses.begin(); it != _addresses.end(); it++){
+        res->push_back(*it + g_gadgets_offset);
+    }
+    return res;
+}
+
 string Gadget::asm_str(){return _asm_str;}
 string Gadget::hex_str(){return _hex_str;}
 int Gadget::nb_instr(){return _nb_instr;}
@@ -129,9 +151,9 @@ void Gadget::print(ostream& os){
     if( _ret_type == RET_RET )
         os << "RET";
     else if( _ret_type == RET_JMP)
-        os << "JMP";
+        os << "JMP " << curr_arch()->reg_name(_ret_reg);
     else if( _ret_type == RET_CALL)
-        os << "CALL";
+        os << "CALL " << curr_arch()->reg_name(_ret_reg);
     else 
         os << "UNKNOWN";
     os << endl;
@@ -175,3 +197,4 @@ ostream& operator<<(ostream& os, Gadget* g){
     g->print(os); 
     return os;
 }
+

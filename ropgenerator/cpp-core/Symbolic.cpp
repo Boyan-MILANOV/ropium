@@ -38,6 +38,8 @@ void SymArg::print(ostream& os){
         case ARG_TMP:
             os << "TMP(" << _id << "," << _size << ")[" << _high << ":" << _low << "]";
             return;
+        case ARG_UNKNOWN:
+            os << "UNKNOWN";
         default:
             return; 
     }
@@ -55,6 +57,8 @@ ArgReg::ArgReg(int n, int s, int h, int l): SymArg(ARG_REG, n, s, h, l){}
 
 ArgTmp::ArgTmp( int n, int s): SymArg(ARG_TMP, n, s){}
 ArgTmp::ArgTmp( int n, int s, int h, int l): SymArg(ARG_TMP, n, s, h, l){}
+
+ArgUnknown::ArgUnknown(int s): SymArg(ARG_UNKNOWN, -1, s){}
 
 // IR Instruction
 IRInstruction::IRInstruction(IROperation o, SymArg a1, SymArg a2, SymArg d): _op(o), _src1(a1), _src2(a2), _dst(d){}
@@ -193,6 +197,9 @@ vector<SPair>* IRBlock::arg_to_spairs(SymArg& arg ){
             _reg_table[arg.id()]->push_back(SPair(expr, NewCondTrue()));
             res = new vector<SPair>(*_reg_table[arg.id()]); 
         }
+    }else if( arg.type() == ARG_UNKNOWN ){
+        res = new vector<SPair>();
+        res->push_back(SPair(NewExprUnknown(arg.size()), NewCondTrue()));
     }else{
         throw_exception("SymArg type not supported in arg_to_expr()");
     }
@@ -480,10 +487,7 @@ Semantics* IRBlock::compute_semantics(bool discard_ignored_regs){
     
     // Do symbolic execution 
     instr_count = 0;
-    for( it = _instr.begin(); it != _instr.end(); ++it){
-        //DEBUG 
-        //it->print(std::cout);
-        
+    for( it = _instr.begin(); it != _instr.end(); ++it){    
         // If ignored, continue
         if( ! instr_table[instr_count++] ){
             continue;

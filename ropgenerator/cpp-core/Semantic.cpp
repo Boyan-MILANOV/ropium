@@ -78,19 +78,34 @@ void Semantics::simplify(){
     vector<reg_pair>::iterator it;
     vector<mem_pair>::iterator mit;
     vector<SPair>::iterator pit; 
+    vector<SPair>* new_pairs;
     for(it = _regs.begin(); it != _regs.end(); it++ ){
+        new_pairs = new vector<SPair>(); 
         for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ ){
-            (*pit).expr()->simplify(); 
-            (*pit).cond()->simplify(); 
+            (*pit).cond()->simplify();
+            // If the condition is false, ignore it ;) 
+            if( (*pit).cond()->cond_ptr()->type() == COND_FALSE )
+                continue;
+            (*pit).expr()->simplify();
+            new_pairs->push_back(*pit);
         }
+        delete (*it).second;
+        (*it).second = new_pairs;
     }
     
     for(mit = _mem.begin(); mit != _mem.end(); mit++ ){
         (*mit).first->simplify();
+        new_pairs = new vector<SPair>(); 
         for( pit = (*mit).second->begin(); pit != (*mit).second->end(); pit++ ){
-            (*pit).expr()->simplify(); 
             (*pit).cond()->simplify();
+            // If the condition is false, ignore it ;) 
+            if( (*pit).cond()->cond_ptr()->type() == COND_FALSE )
+                continue;
+            (*pit).expr()->simplify();
+            new_pairs->push_back(*pit);
         }
+        delete (*mit).second;
+        (*mit).second = new_pairs;
     }
 }
 

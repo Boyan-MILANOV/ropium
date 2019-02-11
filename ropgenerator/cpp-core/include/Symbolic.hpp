@@ -10,7 +10,7 @@
 using namespace std; 
 
 // Arguments for REIL-type of operations 
-enum ArgType {ARG_EMPTY, ARG_CST, ARG_REG, ARG_TMP};
+enum ArgType {ARG_EMPTY, ARG_CST, ARG_REG, ARG_TMP, ARG_UNKNOWN};
 
 class SymArg{
     ArgType _type; 
@@ -55,6 +55,12 @@ class ArgTmp: public SymArg{
     public:
         ArgTmp( int n, int s);
         ArgTmp( int n, int s, int h, int l); 
+        void print(ostream& os);
+};
+
+class ArgUnknown: public SymArg{
+    public:
+        ArgUnknown(int s);
         void print(ostream& os);
 };
 

@@ -63,7 +63,8 @@ bool ConstrBadBytes::verify_address(addr_t a){
 
 pair<ConstrEval,CondObjectPtr> ConstrBadBytes::verify(shared_ptr<Gadget> g){
     vector<addr_t>::iterator it; 
-    for( it = g->addresses().begin(); it != g->addresses().end(); it++){
+    vector<addr_t>* addr_list = g->addresses();
+    for( it = addr_list->begin(); it != addr_list->end(); it++){
         if( ! verify_address(*it))
             return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
     }

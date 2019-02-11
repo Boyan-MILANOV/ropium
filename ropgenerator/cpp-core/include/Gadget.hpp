@@ -39,7 +39,7 @@ class Gadget{
         // Accessors 
         int id(); 
         GadgetType type(); 
-        vector<addr_t>& addresses(); 
+        vector<addr_t>* addresses(); 
         string asm_str();
         string hex_str();
         int nb_instr();

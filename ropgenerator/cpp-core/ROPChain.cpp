@@ -76,17 +76,24 @@ bool ROPChain::lthan(ROPChain* other){
 string valid_addr_str(int octets, shared_ptr<Gadget> g, vector<unsigned char> bad_bytes){
     int i;
     vector<addr_t>::iterator it; 
-    for( it = g->addresses().begin(); it != g->addresses().end(); it++){
+    vector<addr_t>* addr_list = g->addresses();
+    addr_t address;
+    for( it = addr_list->begin(); it != addr_list->end(); it++){
         // Test if bad bytes inside 
         for( i=0; i < octets; i++)
             if (std::find( bad_bytes.begin(), bad_bytes.end(), (unsigned char)( ((*it) >> i*8) & 0xff)) != bad_bytes.end())
                 break;
         if( i == octets ){
-            g->print(cout);
-            return value_to_hex_str(octets, *it);
+            address = *it;
+            break;
         }
     }
-    throw_exception("In valid_addr_str: Error, No valid address found for the gadget to print ! :( ");
+    delete addr_list;
+    if( i == octets ){
+        return value_to_hex_str(octets, address);
+    }else{
+        throw_exception("In valid_addr_str: Error, No valid address found for the gadget to print ! :( ");
+    }
 }
 
 string ROPChain::to_str_console(int octets, vector<unsigned char> bad_bytes){
