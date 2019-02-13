@@ -140,6 +140,8 @@ class SearchEnvironment{
     unsigned int _lmax;
     /* ROPChain options */ 
     bool _no_padding;
+    /* Comments about gadgets */ 
+    string _comment[NB_STRATEGY_TYPES];
     /* Records for optimisations and infos */ 
     RegTransitivityRecord* _reg_transitivity_record;
     FailRecord _fail_record;
@@ -178,6 +180,11 @@ class SearchEnvironment{
         vector<int>* reg_transitivity_unusable();
         void set_reg_transitivity_unusable(vector<int>* vec);
         bool is_reg_transitivity_unusable(int reg);
+        
+        /* Comments about gadgets */ 
+        bool has_comment(SearchStrategyType t);
+        void push_comment(SearchStrategyType t, string& comment);
+        string pop_comment(SearchStrategyType t);
         
         /* Record functions */ 
         RegTransitivityRecord* reg_transitivity_record();
