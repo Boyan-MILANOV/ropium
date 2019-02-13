@@ -198,7 +198,7 @@ bool Gadget::lthan(shared_ptr<Gadget> other){
     }else if( _known_sp_inc && !other->known_sp_inc()){
         return true;
     /* Else if sp_inc are different, check which one */ 
-    }else if( _known_sp_inc && other->known_sp_inc() &&  _sp_inc != other->sp_inc()){
+    }else if( _known_sp_inc && other->known_sp_inc() &&  _sp_inc >= 0 && other->sp_inc() >= 0 && _sp_inc != other->sp_inc()){
         return _sp_inc < other->sp_inc();
     /* Else if equal or both unknown, check other stuff */
     }else if( _nb_instr != other->nb_instr() ){

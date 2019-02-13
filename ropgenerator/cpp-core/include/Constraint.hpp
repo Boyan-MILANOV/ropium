@@ -38,6 +38,7 @@ class SubConstraint{
         virtual bool get(int num){throw_exception( "Should not be called here");}
         // From ConstrBadBytes
         virtual vector<unsigned char>* bad_bytes(){throw_exception( "Should not be called here");}
+        virtual bool verify_address(addr_t a){throw_exception( "Should not be called here");}
         // From ValidPoitner
         virtual vector<ExprObjectPtr>* addresses(){throw_exception("Should not be called here");}
 };
@@ -126,6 +127,7 @@ class Constraint{
         void update(SubConstraint* c);
         void remove(SubConstraintType t);
         pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
+        bool verify_address(addr_t a);
         Constraint* copy();
         cstr_sig_t signature();
         cstr_sig_t signature(int lmax); 

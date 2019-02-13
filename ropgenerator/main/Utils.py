@@ -368,7 +368,7 @@ def parse_expr( string ):
         if( value is None ):
             return (False, "Expression not supported: " + string, None)
         else:
-            return (True, AssignType.CST, (value),)
+            return (True, AssignType.CST, (value,))
 
 def parse_cst(string):
     # DEBUG TODO: verify that it fits the arch size ??
