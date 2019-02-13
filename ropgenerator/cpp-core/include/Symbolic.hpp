@@ -102,6 +102,7 @@ class IRBlock{
         bool reg_modified(int num);
         Semantics* compute_semantics(bool discard_ignored_regs);
         void print(ostream& os);
+        int nb_instr();
         ~IRBlock();
     private:
         inline ExprObjectPtr full_reg_assignment(ExprObjectPtr expr, ExprObjectPtr prev, SymArg& reg);

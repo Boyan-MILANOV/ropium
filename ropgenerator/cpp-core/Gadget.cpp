@@ -37,6 +37,10 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     // Get the registers that have been modified 
     for( i = 0; i < NB_REGS_MAX; i++)
         _reg_modified[i] = irblock->reg_modified(i); 
+    
+    // nb instructions (set to 0, o be set later)
+    _nb_instr = 0;
+    _nb_instr_ir = 0;
         
     // Get the sp_inc 
     _known_sp_inc = false; 
@@ -128,6 +132,13 @@ void Gadget::set_asm_str(string s){
 void Gadget::set_hex_str(string s){
     _hex_str = s;
 }
+void Gadget::set_nb_instr(int nb){
+    _nb_instr = nb;
+}
+void Gadget::set_nb_instr_ir(int nb){
+    _nb_instr_ir = nb;
+}
+
 
 // Destructor 
 Gadget::~Gadget(){
@@ -181,16 +192,21 @@ void Gadget::print(ostream& os){
 }
 
 bool Gadget::lthan(shared_ptr<Gadget> other){
-    if( _known_sp_inc && other->known_sp_inc())
-        return ( _sp_inc < other->sp_inc() );
-    else if( _known_sp_inc )
-        return true;
-    else if( other->known_sp_inc() )
+    /* If one doesn't have sp_inc info, the one that has is "smaller" */
+    if( !_known_sp_inc && other->known_sp_inc()){
         return false;
-    else if( _nb_instr == other->nb_instr() )
-        return _nb_instr_ir < other->nb_instr_ir();
-    else
-        return _nb_instr < other->nb_instr(); 
+    }else if( _known_sp_inc && !other->known_sp_inc()){
+        return true;
+    /* Else if sp_inc are different, check which one */ 
+    }else if( _known_sp_inc && other->known_sp_inc() &&  _sp_inc != other->sp_inc()){
+        return _sp_inc < other->sp_inc();
+    /* Else if equal or both unknown, check other stuff */
+    }else if( _nb_instr != other->nb_instr() ){
+        return _nb_instr < other->nb_instr();
+    }else{
+        return _nb_instr_ir < other->nb_instr_ir(); 
+    }
+    /* TODO DEBUG: maybe check also pre-conditions and mem accesses, also return types ? */ 
 }
 
 ostream& operator<<(ostream& os, Gadget* g){

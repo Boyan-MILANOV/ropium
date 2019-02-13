@@ -5,7 +5,7 @@ from ropgenerator.core.IO import error, banner, str_bold, str_special
 from ropgenerator.main.Utils import *
 from ropgenerator.core.ChainingEngine import SearchParametersBinding
 from ropgenerator.core.Gadget import set_gadgets_offset
-import sys 
+import sys
 
 # Definition of options names
 OPTION_HELP = '--help'

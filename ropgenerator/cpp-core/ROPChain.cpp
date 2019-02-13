@@ -11,6 +11,9 @@ int ROPChain::len(){return _len;}
 int ROPChain::nb_gadgets(){return _nb_gadgets;}
 int ROPChain::nb_instr(){return _nb_instr;}
 int ROPChain::nb_instr_ir(){return _nb_instr_ir;}
+vector<int>& ROPChain::chain(){return _chain;}
+vector<addr_t>& ROPChain::padding_values(){return _padding_values;}
+vector<string>& ROPChain::padding_comments(){return _padding_comments;}
 
 // Modifiers
 void ROPChain::add_gadget(int g){
@@ -42,9 +45,9 @@ void ROPChain::add_chain(ROPChain* other){
     _len += other->len(); 
     _nb_gadgets += other->nb_gadgets(); 
     _nb_instr += other->nb_instr(); 
-    _nb_instr_ir += other->nb_instr_ir(); 
+    _nb_instr_ir += other->nb_instr_ir();
     
-    for( it = other->_chain.begin(); it != other->_chain.end(); it++){
+    for( it = other->chain().begin(); it != other->chain().end(); it++){
         // Gadget
         if( *it >= 0 ){
             _chain.push_back(*it);
@@ -53,8 +56,8 @@ void ROPChain::add_chain(ROPChain* other){
             // Get padding number 
             num = _padding_values.size()+1;
             // Add padding 
-            _padding_values.push_back(other->_padding_values.at(-1*(*it) -1));
-            _padding_comments.push_back(other->_padding_comments.at(-1*(*it) -1)); 
+            _padding_values.push_back(other->padding_values().at(-1*(*it) -1));
+            _padding_comments.push_back(other->padding_comments().at(-1*(*it) -1)); 
             _chain.push_back(-1*num);
         }
     }

@@ -114,7 +114,7 @@ class SearchParametersBinding{
 class SearchResultsBinding{
     public:
     ROPChain chain;
-    FailRecord fail_record;  
+    FailRecord fail_record; 
     bool found;
     SearchResultsBinding();
     SearchResultsBinding(ROPChain* chain);
@@ -127,7 +127,7 @@ class SearchResultsBinding{
 #define DEFAULT_LMAX 100
 #define DEFAULT_MAX_DEPTH 8
 
-enum SearchStrategyType{NB_STRATEGY_TYPES};
+enum SearchStrategyType{STRATEGY_REG_TRANSITIVITY, NB_STRATEGY_TYPES};
 
 class SearchEnvironment{
     /* Constraints and contextual infos */ 
@@ -144,6 +144,8 @@ class SearchEnvironment{
     RegTransitivityRecord* _reg_transitivity_record;
     FailRecord _fail_record;
     FailType _last_fail;
+    /* Strategy-specific information */ 
+    vector<int>* _reg_transitivity_unusable; // Use a pointer because will be saved and restored often
     
     /* Methods */ 
     public: 
@@ -151,6 +153,8 @@ class SearchEnvironment{
         SearchEnvironment(Constraint* c, Assertion* a, unsigned int lm, 
                              unsigned int max_depth, bool no_padd, 
                              RegTransitivityRecord* reg_trans_record);
+        /* Destructor  */ 
+        ~SearchEnvironment();
     
         /* copy */ 
         SearchEnvironment* copy();
@@ -168,8 +172,12 @@ class SearchEnvironment{
         void set_no_padding(bool val);
         void add_call(SearchStrategyType type);
         void remove_last_call();
+        vector<SearchStrategyType>& calls_history();
         int calls_count(SearchStrategyType type);
         bool reached_max_depth();
+        vector<int>* reg_transitivity_unusable();
+        void set_reg_transitivity_unusable(vector<int>* vec);
+        bool is_reg_transitivity_unusable(int reg);
         
         /* Record functions */ 
         RegTransitivityRecord* reg_transitivity_record();

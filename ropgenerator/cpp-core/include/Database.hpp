@@ -38,7 +38,7 @@ class REGList{
 };
 
 class MEMList{
-    unordered_map<cst_t, unique_ptr<CSTList>>* _addresses[COUNT_NB_BINOP][NB_REGS_MAX]; 
+    unordered_map<cst_t, shared_ptr<CSTList>>* _addresses[COUNT_NB_BINOP][NB_REGS_MAX]; 
     public: 
         MEMList(); 
         void add(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets );
@@ -75,8 +75,8 @@ class Database{
     /* mem <- expr */ 
     MEMDict<CSTList> _cst_to_mem; 
     MEMDict<REGList> _reg_binop_cst_to_mem; 
-    MEMDict<MEMList> _mem_binop_cst_to_mem; 
-    // TODO Syscalls and INT80 
+    MEMDict<MEMList> _mem_binop_cst_to_mem;
+    // TODO Syscalls and INT80
 
     public: 
         Database(); 

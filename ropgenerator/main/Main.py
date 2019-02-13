@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from ropgenerator.core.IO import *
-from ropgenerator.main.Load import load 
+from ropgenerator.main.Load import load, loaded_binary
 from ropgenerator.core.Database import *
 from ropgenerator.core.Gadget import *
 from ropgenerator.semantic.Main import semantic_mode
@@ -60,7 +60,10 @@ def main():
             elif( command == CMD_HELP ):
                 print(helpStr)
             elif( command == CMD_SEARCH ):
-                finish = not semantic_mode()
+                if( loaded_binary() ):
+                    finish = not semantic_mode()
+                else:
+                    error("You have to load a binary before entering semantic mode")
             elif( command == CMD_EXPLOIT ):
                 #if( not exploit_mode()):
                 #    finish = True

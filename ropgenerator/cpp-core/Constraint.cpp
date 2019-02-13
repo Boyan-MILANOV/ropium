@@ -90,6 +90,7 @@ ConstrKeepRegs::ConstrKeepRegs(): SubConstraint(CONSTR_KEEP_REGS){
 
 ConstrKeepRegs::ConstrKeepRegs(vector<int>& k): SubConstraint(CONSTR_KEEP_REGS){
     vector<int>::iterator it; 
+    memset(_regs, false, sizeof(_regs));
     for( it = k.begin(); it != k.end(); it++){
         if( *it < 0 || *it >= curr_arch()->nb_regs() )
             throw_exception("In Constraint Keep Regs: invalid reg when init");
@@ -101,26 +102,33 @@ bool ConstrKeepRegs::get(int num){
     return ( num >= NB_REGS_MAX || num < 0)? false : _regs[num];
 }
 void ConstrKeepRegs::add_reg(int num){ 
-    if( num < NB_REGS_MAX && num >= 0 )
-        _regs[num] = true; 
+    if( num < NB_REGS_MAX && num >= 0 ){
+        _regs[num] = true;
+    }else{
+        throw_exception("Adding invalid reg in add_reg");
+    }
 }
+
 void ConstrKeepRegs::remove_reg(int num){
     if( num < NB_REGS_MAX && num >= 0 )
         _regs[num] = false; 
 }
 pair<ConstrEval,CondObjectPtr> ConstrKeepRegs::verify(shared_ptr<Gadget> g){
     bool * modified = g->modified_regs();
-    for( int i = 0; i < NB_REGS_MAX; i++)
+
+    for( int i = 0; i < NB_REGS_MAX; i++){
         if( _regs[i] && modified[i] )
-            return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
-    return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
+            return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
+    }
+    return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
 }
 
 SubConstraint* ConstrKeepRegs::copy(){
     int i;
     ConstrKeepRegs* res = new ConstrKeepRegs();
-    for( i = 0; i > NB_REGS_MAX; i++)
-        res->_regs[i] = _regs[i];
+    for( i = 0; i < NB_REGS_MAX; i++)
+        if( _regs[i] )
+            res->add_reg(i);
     return res; 
 }
 
@@ -128,8 +136,9 @@ void ConstrKeepRegs::merge(SubConstraint* c, bool del=false){
     int i;
     if( c->type() != CONSTR_KEEP_REGS )
         throw_exception("ConstrKeepRegs : Invalid sub constraint type when merging");
-    for( i = 0; i < NB_REGS_MAX; i++)
-        _regs[i] = _regs[i] || ((ConstrKeepRegs*)c)->get(i); 
+    for( i = 0; i < NB_REGS_MAX; i++){
+        _regs[i] |= ((ConstrKeepRegs*)c)->get(i); 
+    }
     if( del )
         delete c; 
 }

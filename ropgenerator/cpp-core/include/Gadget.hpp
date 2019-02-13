@@ -57,6 +57,8 @@ class Gadget{
         void set_ret_type(RetType t);
         void set_asm_str(string s);
         void set_hex_str(string s);
+        void set_nb_instr(int nb);
+        void set_nb_instr_ir(int nb);
         // Destructor 
         ~Gadget();
         // Other

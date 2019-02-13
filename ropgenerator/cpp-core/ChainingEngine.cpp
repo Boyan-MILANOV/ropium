@@ -3,6 +3,7 @@
 #include "Database.hpp"
 #include "Architecture.hpp"
 #include <cstring>
+#include <algorithm>
 
 /* *****************************************************
  *             Classes to specify queries 
@@ -15,7 +16,7 @@ DestArg::DestArg(DestType t, cst_t addr_c): type(t), addr_cst(addr_c){} /* For D
 
 AssignArg::AssignArg(AssignType t, cst_t c):type(t), cst(c){} /* For ASSIGN_CST */
 AssignArg::AssignArg(AssignType t, int r, Binop o, cst_t c):type(t), reg(r), op(o), cst(c){} /* For ASSIGN_REG_BINOP_CST */
-AssignArg::AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c):type(t), addr_reg(ar), addr_cst(ac), op(o), cst(c){} /* For ASSIGN_MEM_BINOP_CST */
+AssignArg::AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c):type(t), addr_reg(ar), addr_cst(ac), addr_op(o), cst(c){} /* For ASSIGN_MEM_BINOP_CST */
 AssignArg::AssignArg(AssignType t, cst_t ac, cst_t c):type(t), addr_cst(ac), cst(c){} /* For ASSIGN_CST_MEM */
 AssignArg::AssignArg(AssignType t):type(t){} /* For ASSIGN_SYSCALL and INT80 */ 
 
@@ -204,6 +205,11 @@ SearchEnvironment::SearchEnvironment(Constraint* c, Assertion* a, unsigned int l
         throw_exception("Implement the global variable");
     memset(_calls_count, 0, sizeof(_calls_count));
     _depth = 0;
+    _reg_transitivity_unusable = new vector<int>();
+}
+
+SearchEnvironment::~SearchEnvironment(){
+    delete _reg_transitivity_unusable;
 }
 
 SearchEnvironment* SearchEnvironment::copy(){
@@ -234,11 +240,25 @@ void SearchEnvironment::remove_last_call(){
     _calls_count[type]--;
     _calls_history.pop_back();
 }
+vector<SearchStrategyType>& SearchEnvironment::calls_history(){
+    return _calls_history;
+}
 int SearchEnvironment::calls_count(SearchStrategyType type){
     return _calls_count[type];
 }
 bool SearchEnvironment::reached_max_depth(){
     return _depth > _max_depth;
+}
+vector<int>* SearchEnvironment::reg_transitivity_unusable(){
+    return _reg_transitivity_unusable;
+}
+void SearchEnvironment::set_reg_transitivity_unusable(vector<int>* vec){
+    _reg_transitivity_unusable = vec;
+}
+bool SearchEnvironment::is_reg_transitivity_unusable(int reg){
+    if( _reg_transitivity_unusable == nullptr )
+        return false;
+    return (std::find(_reg_transitivity_unusable->begin(), _reg_transitivity_unusable->end(), reg) != _reg_transitivity_unusable->end());
 }
 
 /* Record functions */ 
@@ -281,9 +301,11 @@ SearchResultsBinding::SearchResultsBinding(FailRecord record){
  
 /* Prototypes */ 
 
+ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest);
 ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env);
-ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest);
+ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env);
+ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env);
 
 /* Globals */
 RegTransitivityRecord g_reg_transitivity_record = RegTransitivityRecord();
@@ -301,10 +323,12 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
         constraint->add(new ConstrKeepRegs(params.keep_regs), true);
     if( ! params.bad_bytes.empty() )
         constraint->add(new ConstrBadBytes(params.bad_bytes), true);
+    /* Add chainable constraint */ 
+    constraint->add(new ConstrReturn(true, false, false), true);
     
     env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, false, 
                                 &g_reg_transitivity_record);
- 
+
     /* Search */ 
     chain = search(dest, assign, env, params.shortest);
     if( chain == nullptr )
@@ -353,16 +377,17 @@ ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool sh
 
 ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* env){
     ROPChain* res;
-    // DEBUG, add chainable ??
     res = basic_db_lookup(dest, assign, env);
-    // DEBUG, TODO chain
+    if( res == nullptr ){
+        res = chain(dest, assign, env);
+    }
     return res; 
 }
 
 /* Search for gadgets by looking into the gadget database directly */ 
 ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env){
     vector<int> gadgets;
-    Constraint* tmp_constraint = nullptr;
+    Constraint* tmp_constraint = nullptr, *prev_constraint=env->constraint();
     int nb=1;
     ROPChain* res;
     addr_t padding;
@@ -390,9 +415,9 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
     
     /* Check type of query and call the appropriate function ! */ 
     if( assign.type == ASSIGN_SYSCALL ){
-        throw_exception("TO IMPLEMENT");
+        throw_exception("DEBUG TO IMPLEMENT");
     }else if( assign.type == ASSIGN_INT80 ){
-        throw_exception("TO IMPLEMENT");
+        throw_exception("DEBUG TO IMPLEMENT");
     }else{
         switch(dest.type){
             // reg <- ? 
@@ -445,15 +470,154 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
             else{
                 env->fail_record()->set_no_valid_padding(true);
                 env->set_last_fail(FAIL_NO_VALID_PADDING);
+                delete res;
                 res = nullptr;
             }
         }
     }
     
     /* Restore env */ 
-    if( tmp_constraint != nullptr )
+    if( tmp_constraint != nullptr && tmp_constraint != prev_constraint)
         delete tmp_constraint;
         
     /* Return result */ 
+    return res;
+}
+
+/* Chain gadgets together in more complex rop-chain */ 
+ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
+    ROPChain* res = nullptr;
+    switch(dest.type){
+        // reg <- ? 
+        case DST_REG:
+            switch(assign.type){
+                case ASSIGN_CST: // reg <- cst 
+                    break;
+                case ASSIGN_REG_BINOP_CST: // reg <- reg op cst
+                    res = chain_reg_transitivity(dest, assign, env);
+                    break;
+                case ASSIGN_MEM_BINOP_CST: // reg <- mem(reg op cst) + cst  
+                    break;
+                
+                default:
+                    break;
+            }
+            break;
+        case DST_MEM:
+            switch(assign.type){
+                case ASSIGN_CST: // mem(reg op cst) <- cst 
+                    
+                    break;
+                case ASSIGN_REG_BINOP_CST: // mem(reg op cst) <- reg op cst
+                    
+                    break;
+                case ASSIGN_MEM_BINOP_CST: // mem(reg op cst) <- mem(reg op cst) + cst  
+                    break;
+                case ASSIGN_CSTMEM_BINOP_CST:
+                    break;
+                    
+                default:
+                    break;
+            }
+            break;
+        default:
+            break;
+    }
+    return res;
+}
+
+/* Useful function */
+bool is_identity_assign(int dest_reg, int reg, Binop op, cst_t cst){
+    if( dest_reg == reg ){ 
+        if( cst == 0 && (op == OP_ADD || op == OP_SUB || op == OP_BSH ))
+            return true;
+        else if( cst == 1 && (op == OP_MUL || op == OP_DIV ))
+            return true;
+    }
+    return false;
+}
+
+
+/* Register transitivity strategy */
+ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env){
+    SearchStrategyType strategy = STRATEGY_REG_TRANSITIVITY;
+    vector<SearchStrategyType>& prev_calls = env->calls_history();
+    vector<int>* prev_reg_transitivity_unusable, *new_reg_transitivity_unusable = nullptr;
+    int inter_reg;
+    ROPChain * inter_to_dest, *assign_to_inter, *res=nullptr;
+    bool added_unusable=false;
+    unsigned int prev_lmax = env->lmax();
+    
+    /* Check for special cases */
+    /* Identity search (e.g r1 <- r1) */ 
+    if( is_identity_assign(dest.reg, assign.reg, assign.op, assign.cst) )
+        return nullptr;
+    /* Limit numbers of consecutive calls to this function 
+     * Checking the 2 last <=> 2 intermediate regs at max */
+    if( prev_calls.size() >= 2 && prev_calls.at(prev_calls.size()-1) == strategy &&
+        prev_calls.at(prev_calls.size()-2) == strategy){
+        return nullptr;
+    }
+    
+    /* Setting env */
+    env->add_call(strategy);
+    if( (!prev_calls.empty()) && prev_calls.back() != strategy){
+        /* We come from another strategy, so we can cancel the reg_transitivity_unusable... */
+        prev_reg_transitivity_unusable = env->reg_transitivity_unusable();
+        new_reg_transitivity_unusable = new vector<int>();
+        env->set_reg_transitivity_unusable(new_reg_transitivity_unusable);
+    }
+    
+    
+    /* Chaining... */
+    for( inter_reg = 0; inter_reg < curr_arch()->nb_regs(); inter_reg++ ){
+        /* Check for forbidden regs */
+        if( curr_arch()->is_ignored_reg(inter_reg) || 
+        env->is_reg_transitivity_unusable(inter_reg) || 
+        inter_reg == curr_arch()->sp() || 
+        inter_reg == curr_arch()->ip() || 
+        inter_reg == dest.reg || 
+        is_identity_assign(inter_reg, assign.reg, assign.op, assign.cst )){
+            continue;
+        }
+        /* 1. Try dest.reg <- inter_reg without using assign.reg IF operation is trivial */
+        if( is_identity_assign(assign.reg, assign.reg, assign.op, assign.cst )){
+            env->reg_transitivity_unusable()->push_back(assign.reg);
+            added_unusable=true;
+        }
+        inter_to_dest = search(dest, AssignArg(ASSIGN_REG_BINOP_CST, inter_reg, OP_ADD, 0), env);
+        if( added_unusable ){
+            env->reg_transitivity_unusable()->pop_back();
+            added_unusable = false;
+        }
+        if( inter_to_dest == nullptr ){
+            continue;
+        }
+        /* 2. We found dest <- inter, try now inter <- assign */
+        env->set_lmax(env->lmax() - inter_to_dest->len());
+        env->reg_transitivity_unusable()->push_back(dest.reg);
+        assign_to_inter = search(DestArg(DST_REG, inter_reg), assign, env);
+        env->set_lmax(prev_lmax);
+        env->reg_transitivity_unusable()->pop_back();
+        if( assign_to_inter == nullptr ){
+            delete inter_to_dest;
+            continue;
+        }
+        /* 3. We found both, stop looking */ 
+        assign_to_inter->add_chain(inter_to_dest);
+        res = assign_to_inter;
+        delete inter_to_dest; // Delete it because we keep only one
+        break;
+    }
+    
+    /* Restore env */
+    env->remove_last_call();
+    if( new_reg_transitivity_unusable != nullptr ){
+        /* Set the previous reg_transitivity_unusable info */
+        delete new_reg_transitivity_unusable;
+        env->set_reg_transitivity_unusable(prev_reg_transitivity_unusable);
+    }
+    
+    /* Return result */
     return res;
 }

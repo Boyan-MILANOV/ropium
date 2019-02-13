@@ -3,29 +3,29 @@
 #include <memory>
 #include <utility>
 
-int find_insert_index(vector<int> gadget_list, int gadget_num, vector<shared_ptr<Gadget>> gadgets){
+int find_insert_index(vector<int>& gadget_list, int gadget_num, vector<shared_ptr<Gadget>>& gadgets){
     int count= gadget_list.size(); 
     int first = 0; 
-    int curr; 
+    int curr;
     while(count > 0){
         curr = first;
-        curr += count/2; 
+        curr += count/2;
         if( gadgets.at(gadget_list.at(curr))->lthan(gadgets.at(gadget_num))){
-            first = ++curr; 
+            first = curr+1;
             count -= count/2 + 1;
-        }else
-            count = count/2; 
+        }else{
+            count = count/2;
+        }
     }
     return first; 
 }
 
-/* CSTList */ 
+/* CSTList */
 CSTList::CSTList(){} 
 void CSTList::add(cst_t val, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets){
     int insert_idx = find_insert_index(_values[val], gadget_num, gadgets);
     _values[val].insert(_values[val].begin()+insert_idx, gadget_num);
     _pre_conds[val].insert(_pre_conds[val].begin()+insert_idx, pre_cond);
-    
 }
 vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int n=1){
     vector<int> res; 
@@ -36,7 +36,7 @@ vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int 
     if( _values.count(val) == 0)
         return res; 
     for( int i = 0; i < _values.at(val).size() && res.size() < n; i++){
-        g = gadget_db()->get(_values[val].at(i));
+        g = gadget_db()->get(_values[val].at(i));        
         // Verify constraint 
         std::tie(eval, constr_cond) = constr->verify(g);
         if( eval == EVAL_VALID || eval == EVAL_MAYBE){
@@ -76,17 +76,17 @@ REGList::~REGList(){
 
 /* MEMList */ 
 MEMList::MEMList(){
-    std::memset(_addresses, 0, sizeof(unordered_map<cst_t, unique_ptr<CSTList>>*)*NB_REGS_MAX);
+    std::memset(_addresses, 0, sizeof(unordered_map<cst_t, shared_ptr<CSTList>>*)*NB_REGS_MAX*COUNT_NB_BINOP);
 }
 
 /* For expressions of type mem + cst */ 
 void MEMList::add(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets ){
-    CSTList *t; 
+    CSTList *t;    
     if( _addresses[op][addr_reg] == nullptr )
-        _addresses[op][addr_reg] = new unordered_map<cst_t, unique_ptr<CSTList>>; 
-    if( _addresses[op][addr_reg]->count(addr_cst) == 0 ){
+        _addresses[op][addr_reg] = new unordered_map<cst_t, shared_ptr<CSTList>>; 
+    if( _addresses[op][addr_reg]->count(addr_cst) == 0){
         t = new CSTList(); 
-        _addresses[op][addr_reg]->insert(std::make_pair(addr_cst, std::unique_ptr<CSTList>(t)));
+        _addresses[op][addr_reg]->insert(make_pair(addr_cst, shared_ptr<CSTList>(t)));
     }
     _addresses[op][addr_reg]->at(addr_cst)->add(cst, gadget_num, pre_cond, gadgets);
 }
@@ -150,7 +150,7 @@ template <class T> void MEMDict<T>::add_mem(Binop addr_op, int addr_reg, cst_t a
 
 template <class T> vector<int> MEMDict<T>::find_cst(Binop addr_op, int addr_reg, cst_t addr_cst, cst_t cst, 
                                             Constraint* c, Assertion* a, int n){
-    if( _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
+    if( _addresses[addr_op][addr_reg] == nullptr || _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
         return vector<int>();
     else
         return _addresses[addr_op][addr_reg]->at(addr_cst)->find(cst, c, a, n);
@@ -158,7 +158,7 @@ template <class T> vector<int> MEMDict<T>::find_cst(Binop addr_op, int addr_reg,
 
 template <class T> vector<int> MEMDict<T>::find_reg(Binop addr_op, int addr_reg, cst_t addr_cst, int reg, cst_t cst, 
                                             Binop op, Constraint* c, Assertion* a, int n){
-    if( _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
+    if( _addresses[addr_op][addr_reg] == nullptr || _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
         return vector<int>();
     else
         return _addresses[addr_op][addr_reg]->at(addr_cst)->find(op, reg, cst, c, a, n);
@@ -166,7 +166,7 @@ template <class T> vector<int> MEMDict<T>::find_reg(Binop addr_op, int addr_reg,
 
 template <class T> vector<int> MEMDict<T>::find_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int src_reg, 
                                             cst_t src_cst, cst_t cst, Binop op, Constraint* c, Assertion* a, int n){
-    if( _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
+    if( _addresses[addr_op][addr_reg] == nullptr || _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
         return vector<int>();
     else
         return _addresses[addr_op][addr_reg]->at(addr_cst)->find(op, src_reg, src_cst, cst, c, a, n);
@@ -200,7 +200,6 @@ int Database::add(shared_ptr<Gadget> g){
     int num = _gadgets.size(); 
     /* Add gadget to the list */ 
     _gadgets.push_back(g);
-    
     // DEBUG TODO CHECK WHAT BINOP FOR CONST !!! OMG 
     
     /* Get semantics for ... -> reg */ 
@@ -220,7 +219,7 @@ int Database::add(shared_ptr<Gadget> g){
                     _reg_binop_cst_to_reg[reg] = new REGList();
                 _reg_binop_cst_to_reg[reg]->add(OP_ADD,sit->expr_ptr()->num(), 0, num, sit->cond(), _gadgets);
                 _entries_count++;
-            } 
+            } // X binop cst to reg 
             else if( sit->expr_ptr()->type() == EXPR_BINOP ){
                 // reg binop cst -> reg
                 /* We don't check if left is the constant because expressions should be 
@@ -240,11 +239,24 @@ int Database::add(shared_ptr<Gadget> g){
                 else if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_MEM &&
                          sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
                     // Check if mem is a binop itself ;)
-                    tmp =  sit->expr_ptr()->left_expr_ptr();
-                    if( tmp->type() == EXPR_BINOP &&
+                    tmp =  sit->expr_ptr()->left_expr_ptr()->addr_expr_ptr();
+                    if( tmp->type() == EXPR_REG){
+                        // only reg
+                        if( _mem_binop_cst_to_reg[reg] == nullptr){
+                            _mem_binop_cst_to_reg[reg] = new MEMList(); 
+                        }
+                        _mem_binop_cst_to_reg[reg]->add(
+                            OP_ADD,
+                            tmp->num(),
+                            0,
+                            sit->expr_ptr()->right_expr_ptr()->value(),
+                            num, sit->cond(), _gadgets
+                            );
+                        _entries_count++;
+                    }else if( tmp->type() == EXPR_BINOP &&
                         tmp->right_expr_ptr()->type() == EXPR_CST &&
                         tmp->left_expr_ptr()->type() == EXPR_REG){
-                        
+                        // reg binop cst
                         if( _mem_binop_cst_to_reg[reg] == nullptr){
                             _mem_binop_cst_to_reg[reg] = new MEMList(); 
                         }
@@ -257,6 +269,39 @@ int Database::add(shared_ptr<Gadget> g){
                             );
                         _entries_count++;
                     }
+                }
+                // mem -> reg ? 
+            }else if( sit->expr_ptr()->type() == EXPR_MEM ){
+                // Check if mem is a binop itself ;)
+                tmp =  sit->expr_ptr()->addr_expr_ptr();
+                if( tmp->type() == EXPR_REG){
+                    // only reg
+                    if( _mem_binop_cst_to_reg[reg] == nullptr){
+                        _mem_binop_cst_to_reg[reg] = new MEMList(); 
+                    }
+                    _mem_binop_cst_to_reg[reg]->add(
+                        OP_ADD,
+                        tmp->num(),
+                        0,
+                        0,
+                        num, sit->cond(), _gadgets
+                        );
+                    _entries_count++;
+                }else if( tmp->type() == EXPR_BINOP &&
+                    tmp->right_expr_ptr()->type() == EXPR_CST &&
+                    tmp->left_expr_ptr()->type() == EXPR_REG){
+                    // reg binop cst
+                    if( _mem_binop_cst_to_reg[reg] == nullptr){
+                        _mem_binop_cst_to_reg[reg] = new MEMList(); 
+                    }
+                    _mem_binop_cst_to_reg[reg]->add(
+                        tmp->binop(),
+                        tmp->left_expr_ptr()->num(),
+                        tmp->right_expr_ptr()->value(),
+                        0,
+                        num, sit->cond(), _gadgets
+                        );
+                    _entries_count++;
                 }
             } 
         }
@@ -298,8 +343,6 @@ int Database::add(shared_ptr<Gadget> g){
                  * canonized */ 
                 if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_REG &&
                     sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
-                    if( _reg_binop_cst_to_reg[reg] == nullptr )
-                        _reg_binop_cst_to_reg[reg] = new REGList();
                     _reg_binop_cst_to_mem.add_reg( addr_op, addr_reg, addr_cst,  
                         sit->expr_ptr()->left_expr_ptr()->num(),
                         sit->expr_ptr()->right_expr_ptr()->value(),
@@ -311,13 +354,20 @@ int Database::add(shared_ptr<Gadget> g){
                 else if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_MEM &&
                          sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
                     // Check if mem is a binop itself ;)
-                    tmp =  sit->expr_ptr()->left_expr_ptr();
-                    if( tmp->type() == EXPR_BINOP &&
+                    tmp =  sit->expr_ptr()->left_expr_ptr()->addr_expr_ptr();
+                    if( tmp->type() == EXPR_REG ){
+                        _mem_binop_cst_to_mem.add_mem(OP_ADD, addr_reg, addr_cst, 
+                            tmp->num(),
+                            0,
+                            sit->expr_ptr()->right_expr_ptr()->value(),
+                            OP_ADD,
+                            num, sit->cond(), _gadgets
+                            );
+                        _entries_count++;
+                    }else if( tmp->type() == EXPR_BINOP &&
                         tmp->left_expr_ptr()->type() == EXPR_REG &&
                         tmp->right_expr_ptr()->type() == EXPR_CST){
-                        if( _mem_binop_cst_to_reg[reg] == nullptr){
-                            _mem_binop_cst_to_reg[reg] = new MEMList(); 
-                        }
+
                         _mem_binop_cst_to_mem.add_mem(addr_op, addr_reg, addr_cst, 
                             tmp->left_expr_ptr()->num(),
                             tmp->right_expr_ptr()->value(),
@@ -328,7 +378,33 @@ int Database::add(shared_ptr<Gadget> g){
                         _entries_count++;
                     }
                 }
-            } 
+            }else if( sit->expr_ptr()->type() == EXPR_MEM ){
+                // Check if mem is a binop itself ;)
+                tmp =  sit->expr_ptr()->addr_expr_ptr();
+                if( tmp->type() == EXPR_REG ){
+                    _mem_binop_cst_to_mem.add_mem(OP_ADD, addr_reg, addr_cst, 
+                        tmp->num(),
+                        0,
+                        0,
+                        OP_ADD,
+                        num, sit->cond(), _gadgets
+                        );
+                    _entries_count++;
+                }else if( tmp->type() == EXPR_BINOP &&
+                    tmp->left_expr_ptr()->type() == EXPR_REG &&
+                    tmp->right_expr_ptr()->type() == EXPR_CST){
+
+                    _mem_binop_cst_to_mem.add_mem(addr_op, addr_reg, addr_cst, 
+                        tmp->left_expr_ptr()->num(),
+                        tmp->right_expr_ptr()->value(),
+                        0,
+                        tmp->binop(),
+                        num, sit->cond(), _gadgets
+                        );
+                    _entries_count++;
+                }
+                
+            }
         }
     }
     return _gadgets.size()-1;
