@@ -92,7 +92,8 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         
     py::class_<IRBlock, shared_ptr<IRBlock>>(m, "IRBlock")
         .def(py::init<>())
-        .def("add_instr", &IRBlock::add_instr);
+        .def("add_instr", &IRBlock::add_instr)
+        .def("nb_instr", &IRBlock::nb_instr);
         
     m.def("print_irblock", [](shared_ptr<IRBlock> b){
         py::scoped_ostream_redirect stream(
@@ -176,7 +177,9 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def("set_hex_str", &Gadget::set_hex_str)
         .def("set_ret_type", &Gadget::set_ret_type)
         .def("ret_type", &Gadget::ret_type)
-        .def("add_address", &Gadget::add_address);
+        .def("add_address", &Gadget::add_address)
+        .def("set_nb_instr", &Gadget::set_nb_instr)
+        .def("set_nb_instr_ir", &Gadget::set_nb_instr_ir);
         
     m.def("print_gadget", [](shared_ptr<Gadget> g){
         py::scoped_ostream_redirect stream(

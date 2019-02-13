@@ -191,44 +191,54 @@ def load(args):
         return 
         
     # Analyse gadgets 
-    init_gadget_db();
-    start_time = datetime.now()
-    dup = dict()
-    count = 0
-    total = 0
-    print('')
-    info(str_bold("Analyzing gadgets\n"))
-    for( addr, raw) in gadget_list:
-        total += 1
-        charging_bar(len(gadget_list), total)
-        if( raw in dup ):
-            count += 1
-            continue
-        dup[raw] = True
-        (irblock, asm_instr_list) = raw_to_IRBlock(raw)
-        if( not irblock is None ): 
-            gadget = Gadget(irblock)
-            asm_str = '; '.join(str(i) for i in asm_instr_list)
-            gadget.set_asm_str(asm_str)
-            gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(c) for c in raw))
-            # Manually check for call (ugly but no other solution for now)
-            if( str(asm_instr_list[-1]).split(" ")[0] == "call" and
-                gadget.ret_type() == RetType.JMP):
-                gadget.set_ret_type(RetType.CALL)
-            gadget.add_address(addr)
-            biggest_gadget_addr = max(addr, biggest_gadget_addr)
-            gadget_db_add(gadget)
+    try: 
+        init_gadget_db();
+        start_time = datetime.now()
+        dup = dict()
+        count = 0
+        total = 0
+        print('')
+        info(str_bold("Analyzing gadgets\n"))
+        for( addr, raw) in gadget_list:
+            total += 1
+            charging_bar(len(gadget_list), total)
+            if( raw in dup ):
+                count += 1
+                continue
+            dup[raw] = True
+            (irblock, asm_instr_list) = raw_to_IRBlock(raw)
+            if( not irblock is None ):
+                # Create C++ object 
+                gadget = Gadget(irblock)
+                # Set different strings 
+                asm_str = '; '.join(str(i) for i in asm_instr_list)
+                gadget.set_asm_str(asm_str)
+                gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(c) for c in raw))
+                # Manually check for call (ugly but no other solution for now)
+                if( str(asm_instr_list[-1]).split(" ")[0] == "call" and
+                    gadget.ret_type() == RetType.JMP):
+                    gadget.set_ret_type(RetType.CALL)
+                # Add address
+                gadget.add_address(addr)
+                biggest_gadget_addr = max(addr, biggest_gadget_addr)
+                # Add instruction count
+                gadget.set_nb_instr(len(asm_instr_list))
+                gadget.set_nb_instr_ir(irblock.nb_instr())
+                # Add to database 
+                gadget_db_add(gadget)
+    except:
+        print("DEBUG !!! Unexpected exception happened !! :O")
         
     end_time = datetime.now()
     
-    notify("Gadgets analyzed : " + str(len(gadget_list)))
+    notify("Gadgets analyzed : " + str(total))
     notify("Duplicates: " + str(count))
     notify("Database entries created: " + str(gadget_db_entries_count()))
     notify("Computation time : " + str(end_time-start_time))
     
     # # Init engine 
     # initEngine()
-    # loaded = True
+    loaded = True
 
 ###################################
 # Module wide

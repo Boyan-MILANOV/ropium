@@ -152,7 +152,7 @@ def parse_bad_bytes(string):
         elif( not ((user_bad_byte[i] in hex_chars) and (user_bad_byte[i+1] in hex_chars))):
             return (False, "Error. '{}' is not a valid byte".format(user_bad_byte))
         else:
-            bad_bytes.append(user_bad_byte)
+            bad_bytes.append(int(user_bad_byte, 16))
     return (True, bad_bytes)
     
 def parse_keep_regs(string):
@@ -193,13 +193,17 @@ def parse_offset(string):
     
 def parse_lmax(string):
     try:
-        lmax = int(args[i+1])
-        if( lmax < Arch.octets() ):
-            raise Exception()
-        # Convert number of bytes into number of ropchain elements
-        lmax /= Arch.octets()
+        lmax = int(string)
     except:
-        return (False, "Error. '" + args[i+1] +"' bytes is not valid")
+        try:
+            lmax = int(string, 16)
+        except:
+            return (False, "Error. '" + string +"' is not a valid number of bytes")
+    # Check minimal length 
+    if( lmax < curr_arch_bits()//8 ):
+            return (False, "Error. '" + string +"' is too little :'(")
+    # Ok - Convert number of bytes into number of ropchain elements
+    lmax = lmax // (curr_arch_bits()//8)
     return (True, lmax)
 
 def parse_query(req):

@@ -31,15 +31,15 @@ class SubConstraint{
         virtual void merge(SubConstraint* c, bool del){throw_exception("SHould not be called here");}
         virtual pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g){throw_exception("SHould not be called here");}
         // From return
-        bool ret(){throw_exception( "Should not be called here");}
-        bool jmp(){throw_exception( "Should not be called here");}
-        bool call(){throw_exception( "Should not be called here");}
+        virtual bool ret(){throw_exception( "Should not be called here");}
+        virtual bool jmp(){throw_exception( "Should not be called here");}
+        virtual bool call(){throw_exception( "Should not be called here");}
         // From keepRegs
-        bool get(int num){throw_exception( "Should not be called here");}
+        virtual bool get(int num){throw_exception( "Should not be called here");}
         // From ConstrBadBytes
-        vector<unsigned char>* bad_bytes(){throw_exception( "Should not be called here");}
+        virtual vector<unsigned char>* bad_bytes(){throw_exception( "Should not be called here");}
         // From ValidPoitner
-        vector<ExprObjectPtr>* addresses(){throw_exception("Should not be called here");}
+        virtual vector<ExprObjectPtr>* addresses(){throw_exception("Should not be called here");}
 };
 
 class ConstrReturn: public SubConstraint{

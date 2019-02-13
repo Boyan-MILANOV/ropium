@@ -146,6 +146,10 @@ IRBlock::IRBlock(): _mem_write_cnt(0){
     }
 }
 
+int IRBlock::nb_instr(){
+    return _instr.size();
+}
+
 bool IRBlock::add_instr(IRInstruction ins){
     if( _instr.size() == NB_INSTR_MAX )
         return false;
@@ -546,7 +550,7 @@ Semantics* IRBlock::compute_semantics(bool discard_ignored_regs){
                     delete tmp;
                     tmp = nullptr;  
                 }
-                delete src1; 
+                delete src1; src1=nullptr;
                 if( it->dst()->type() == ARG_REG ){
                     assign_reg_table(it->dst()->id(), this->full_reg_assignment(mem, *(it->dst())));
                     delete mem; mem = nullptr;

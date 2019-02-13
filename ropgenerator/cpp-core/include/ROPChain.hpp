@@ -26,6 +26,9 @@ class ROPChain{
         int nb_gadgets(); 
         int nb_instr(); 
         int nb_instr_ir(); 
+        vector<int>& chain();
+        vector<addr_t>& padding_values();
+        vector<string>& padding_comments();
         // Modifiers
         void add_gadget(int g);
         void add_padding(addr_t value, int n=1,  string comment="Padding");
