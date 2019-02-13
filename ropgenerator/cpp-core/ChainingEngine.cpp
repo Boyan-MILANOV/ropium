@@ -2,6 +2,7 @@
 #include "Constraint.hpp"
 #include "Database.hpp"
 #include "Architecture.hpp"
+#include "IO.hpp"
 #include <cstring>
 #include <algorithm>
 
@@ -204,6 +205,8 @@ SearchEnvironment::SearchEnvironment(Constraint* c, Assertion* a, unsigned int l
     else
         throw_exception("Implement the global variable");
     memset(_calls_count, 0, sizeof(_calls_count));
+    for( int i = 0; i < NB_STRATEGY_TYPES; i++ )
+        _comment[i] = "";
     _depth = 0;
     _reg_transitivity_unusable = new vector<int>();
 }
@@ -274,6 +277,19 @@ FailType SearchEnvironment::last_fail(){
 void SearchEnvironment::set_last_fail(FailType t){
     _last_fail = t; 
 }
+
+/* Comments about gadgets */ 
+bool SearchEnvironment::has_comment(SearchStrategyType t){
+    return ! _comment[t].empty();
+}
+void SearchEnvironment::push_comment(SearchStrategyType t, string& comment){
+    _comment[t] = comment;
+}
+string SearchEnvironment::pop_comment(SearchStrategyType t){
+    string res = _comment[t];
+    _comment[t] = "";
+}
+
 
 /* *********************************************************************
  *                         Search Parameters Bindings
@@ -639,8 +655,11 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     ROPChain *res = nullptr, *pop=nullptr;
     cst_t offset;
     bool prev_no_padding = env->no_padding();
-    bool success; 
-    addr_t padding=0; 
+    bool success, had_comment; 
+    addr_t padding=0;
+    SearchStrategyType strategy =  STRATEGY_POP_CONSTANT;
+    string comment;
+    char val_str[128];
 
     /* Check for special cases */
     /* If constant contains bad bytes */
@@ -648,8 +667,17 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
         return nullptr;
 
     /* Setting env */ 
-    env->add_call(STRATEGY_POP_CONSTANT);
+    env->add_call(strategy);
     env->set_no_padding(true);
+    /* Check for comments */
+    had_comment = env->has_comment(strategy);
+    if( had_comment ){
+        comment = env->pop_comment(strategy);
+    }else{
+        snprintf(val_str, sizeof(val_str), "0x%x", assign.cst);
+        comment = "Constant: " + str_bold(string(val_str));
+    }
+    
     
     /* Chaining... */
     /* We check all possible offsets ! */
@@ -662,7 +690,7 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
             std::tie(success, padding) = env->constraint()->valid_padding();
             if( success ){
                 res->add_padding(padding, offset/8);
-                res->add_padding(assign.cst);
+                res->add_padding(assign.cst, 1, comment);
                 /* sp_inc - 2*arch_octets for the return and the const, -offset because we already added*/ 
                 res->add_padding(padding, (gadget_db()->get(pop->chain().at(0))->sp_inc()-offset-(2*curr_arch()->octets()))/8 );
                 break;
@@ -679,6 +707,10 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     /* Restore env */
     env->remove_last_call();
     env->set_no_padding(prev_no_padding);
+    /* Restore comment */
+    if( had_comment ){
+        env->push_comment(strategy, comment);
+    }
     
     /* Return result */ 
     return res;
