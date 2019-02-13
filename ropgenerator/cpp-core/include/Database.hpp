@@ -82,13 +82,13 @@ class Database{
         Database(); 
         int add(shared_ptr<Gadget> g); 
         shared_ptr<Gadget> get(int num);
+        /* Find gadgets */ 
         vector<int> find_cst_to_reg(int reg_dest, cst_t cst, Constraint* c, Assertion* a, int n); 
         vector<int> find_reg_binop_cst_to_reg(int reg_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n);
         vector<int> find_mem_binop_cst_to_reg(int reg_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n);
         vector<int> find_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, cst_t cst, Constraint* c, Assertion* a, int n); 
         vector<int> find_reg_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n);
         vector<int> find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n);
-        
         
         int entries_count();
         ~Database(); 

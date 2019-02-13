@@ -287,6 +287,13 @@ pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g){
         return make_pair(EVAL_VALID, res_cond);
 }
 
+bool Constraint::verify_address(addr_t a){
+    if( _constr[CONSTR_BAD_BYTES] == nullptr ){
+        return true;
+    }
+    return _constr[CONSTR_BAD_BYTES]->verify_address(a);
+}
+
 pair<bool, addr_t> Constraint::valid_padding(){
     vector<unsigned char>* bad;
     unsigned char byte;

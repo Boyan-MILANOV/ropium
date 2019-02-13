@@ -306,6 +306,8 @@ ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* en
 ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env);
+ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* env);
+
 
 /* Globals */
 RegTransitivityRecord g_reg_transitivity_record = RegTransitivityRecord();
@@ -323,7 +325,8 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
         constraint->add(new ConstrKeepRegs(params.keep_regs), true);
     if( ! params.bad_bytes.empty() )
         constraint->add(new ConstrBadBytes(params.bad_bytes), true);
-    /* Add chainable constraint */ 
+    /* Add chainable constraint if the query dest isn't the instruction 
+     * pointer */
     constraint->add(new ConstrReturn(true, false, false), true);
     
     env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, false, 
@@ -411,6 +414,14 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
         tmp_constraint = env->constraint();
     }
     
+    /* If the destination is the instruction pointer, remove the chainable
+     * constraint. 
+     * This is possible because all those functions are not used directly, 
+     * so we assume we know what we are doing when requesting to assign 
+     * the instruction pointer :) */ 
+     if( dest.type == DST_REG && dest.reg == curr_arch()->ip() )
+        tmp_constraint->add(new ConstrReturn(true, true, true), true);
+    
     // DEBUG: ADD ASSERTIONS AND CONSTRAINTS ? SEE ROPGENERATOR IN PYTHON 
     
     /* Check type of query and call the appropriate function ! */ 
@@ -462,7 +473,7 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
         res = nullptr;
     else{
         res = new ROPChain();
-        res->add_gadget(gadgets.at(0));
+        res->add_gadget(gadgets.at(0)); // We use the first one
         if( ! env->no_padding() ){
             std::tie(success, padding) = tmp_constraint->valid_padding();
             if( success )
@@ -492,6 +503,7 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
         case DST_REG:
             switch(assign.type){
                 case ASSIGN_CST: // reg <- cst 
+                    res = chain_pop_constant(dest, assign, env);
                     break;
                 case ASSIGN_REG_BINOP_CST: // reg <- reg op cst
                     res = chain_reg_transitivity(dest, assign, env);
@@ -621,3 +633,54 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
     /* Return result */
     return res;
 }
+
+/* Poping constants from the stack strategy */
+ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* env){
+    ROPChain *res = nullptr, *pop=nullptr;
+    cst_t offset;
+    bool prev_no_padding = env->no_padding();
+    bool success; 
+    addr_t padding=0; 
+
+    /* Check for special cases */
+    /* If constant contains bad bytes */
+    if( ! env->constraint()->verify_address((addr_t)assign.cst) )
+        return nullptr;
+
+    /* Setting env */ 
+    env->add_call(STRATEGY_POP_CONSTANT);
+    env->set_no_padding(true);
+    
+    /* Chaining... */
+    /* We check all possible offsets ! */
+    for( offset = 0; offset < env->lmax(); offset += curr_arch()->octets() ){
+        /* Get gadget that does dest.reg <- mem(rsp+offset)+0 */ 
+        pop = basic_db_lookup(dest, AssignArg(ASSIGN_MEM_BINOP_CST, curr_arch()->sp(), OP_ADD, offset, 0), env);
+        if( pop != nullptr ){
+            /* If found, padd it and return */ 
+            res = pop; 
+            std::tie(success, padding) = env->constraint()->valid_padding();
+            if( success ){
+                res->add_padding(padding, offset/8);
+                res->add_padding(assign.cst);
+                /* sp_inc - 2*arch_octets for the return and the const, -offset because we already added*/ 
+                res->add_padding(padding, (gadget_db()->get(pop->chain().at(0))->sp_inc()-offset-(2*curr_arch()->octets()))/8 );
+                break;
+            }else{
+                env->fail_record()->set_no_valid_padding(true);
+                env->set_last_fail(FAIL_NO_VALID_PADDING);
+                delete res;
+                res = nullptr;
+                break;
+            }
+        }
+    }
+    
+    /* Restore env */
+    env->remove_last_call();
+    env->set_no_padding(prev_no_padding);
+    
+    /* Return result */ 
+    return res;
+}
+
