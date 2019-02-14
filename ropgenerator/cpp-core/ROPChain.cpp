@@ -155,9 +155,6 @@ string ROPChain::to_str_python(int octets, vector<unsigned char> bad_bytes, bool
 
 // Assign 
 void ROPChain::copy_from(ROPChain* other){
-    vector<int>::iterator it; 
-    int num;
-    
     _len = other->len(); 
     _nb_gadgets = other->nb_gadgets(); 
     _nb_instr = other->nb_instr(); 

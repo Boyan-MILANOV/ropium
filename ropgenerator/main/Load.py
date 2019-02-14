@@ -218,6 +218,10 @@ def load(args):
                 if( str(asm_instr_list[-1]).split(" ")[0] == "call" and
                     gadget.ret_type() == RetType.JMP):
                     gadget.set_ret_type(RetType.CALL)
+                # Manually detect false positives for ret (e.g pop rax; jmp rax)
+                elif( str(asm_instr_list[-1]).split(" ")[0] == "jmp" and
+                    gadget.ret_type() == RetType.RET):
+                    gadget.set_ret_type(RetType.UNKNOWN)
                 # Add address
                 gadget.add_address(addr)
                 biggest_gadget_addr = max(addr, biggest_gadget_addr)

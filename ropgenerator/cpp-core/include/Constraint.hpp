@@ -16,7 +16,8 @@ using std::pair;
  * --------------------------------------------------------------------*/
 
 enum SubConstraintType: int {  CONSTR_RETURN=0, CONSTR_BAD_BYTES, CONSTR_KEEP_REGS, 
-                            CONSTR_VALID_READ, CONSTR_VALID_WRITE, CONSTR_SP_INC, 
+                            CONSTR_VALID_READ, CONSTR_VALID_WRITE, CONSTR_MAX_SP_INC, 
+                            CONSTR_MIN_SP_INC,
                             COUNT_NB_CONSTR};
                             
 enum ConstrEval {EVAL_VALID, EVAL_INVALID, EVAL_MAYBE};
@@ -71,6 +72,7 @@ class ConstrKeepRegs: public SubConstraint{
     bool _regs[NB_REGS_MAX];
     public:
         ConstrKeepRegs();
+        ConstrKeepRegs(int num);
         ConstrKeepRegs(vector<int>& k);
         bool get(int num);
         void add_reg(int num);
@@ -106,6 +108,15 @@ class ConstrMaxSpInc: public SubConstraint{
     cst_t _inc;
     public:
         ConstrMaxSpInc(cst_t i);
+        cst_t inc();
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
+        virtual SubConstraint* copy();
+};
+
+class ConstrMinSpInc: public SubConstraint{
+    cst_t _inc;
+    public:
+        ConstrMinSpInc(cst_t i);
         cst_t inc();
         pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         virtual SubConstraint* copy();
