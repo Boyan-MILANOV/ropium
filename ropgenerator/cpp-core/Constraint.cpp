@@ -88,6 +88,11 @@ ConstrKeepRegs::ConstrKeepRegs(): SubConstraint(CONSTR_KEEP_REGS){
     memset(_regs, false, sizeof(_regs));
 }
 
+ConstrKeepRegs::ConstrKeepRegs(int num): SubConstraint(CONSTR_KEEP_REGS){
+    memset(_regs, false, sizeof(_regs));
+    _regs[num] = true;
+}
+
 ConstrKeepRegs::ConstrKeepRegs(vector<int>& k): SubConstraint(CONSTR_KEEP_REGS){
     vector<int>::iterator it; 
     memset(_regs, false, sizeof(_regs));
@@ -214,7 +219,7 @@ void ConstrValidWrite::merge(SubConstraint* c, bool del=false){
 }
 
 // ConstrMaxSpInc
-ConstrMaxSpInc::ConstrMaxSpInc(cst_t i): SubConstraint(CONSTR_SP_INC), _inc(i){}
+ConstrMaxSpInc::ConstrMaxSpInc(cst_t i): SubConstraint(CONSTR_MAX_SP_INC), _inc(i){}
 cst_t ConstrMaxSpInc::inc(){return _inc;}
 
 pair<ConstrEval,CondObjectPtr> ConstrMaxSpInc::verify(shared_ptr<Gadget> g){
@@ -226,6 +231,22 @@ pair<ConstrEval,CondObjectPtr> ConstrMaxSpInc::verify(shared_ptr<Gadget> g){
 SubConstraint* ConstrMaxSpInc::copy(){
     return new ConstrMaxSpInc(_inc); 
 }
+
+// ConstrMinSpInc
+ConstrMinSpInc::ConstrMinSpInc(cst_t i): SubConstraint(CONSTR_MIN_SP_INC), _inc(i){}
+cst_t ConstrMinSpInc::inc(){return _inc;}
+
+pair<ConstrEval,CondObjectPtr> ConstrMinSpInc::verify(shared_ptr<Gadget> g){
+    if( !g->known_sp_inc() || g->sp_inc() < _inc ){
+        return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
+    }
+    return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
+}
+
+SubConstraint* ConstrMinSpInc::copy(){
+    return new ConstrMinSpInc(_inc); 
+}
+
 
 // Constraint class (collection of subconstraints)
 Constraint::Constraint(){

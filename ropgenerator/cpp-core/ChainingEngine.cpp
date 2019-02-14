@@ -607,7 +607,8 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
     if( is_identity_assign(dest.reg, assign.reg, assign.op, assign.cst) )
         return nullptr;
     /* Limit numbers of consecutive calls to this function 
-     * Checking the 2 last <=> 2 intermediate regs at max */
+     * Checking the 2 last <=> 4 intermediate regs at max because
+     * 2 for dest<-inter and 2 for inter<-assign */
     if( prev_calls.size() >= 2 && prev_calls.at(prev_calls.size()-1) == strategy &&
         prev_calls.at(prev_calls.size()-2) == strategy){
         return nullptr;
@@ -690,6 +691,7 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     SearchStrategyType strategy = STRATEGY_POP_CONSTANT;
     string comment;
     char val_str[128];
+    Constraint *prev_constraint = env->constraint(), *tmp_constraint=nullptr;
 
     /* Check for special cases */
     /* If constant contains bad bytes */
@@ -711,6 +713,13 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     /* Chaining... */
     /* We check all possible offsets ! */
     for( offset = 0; offset < env->lmax(); offset += curr_arch()->octets() ){
+        /* Set constraint on sp_inc to avoid gadgets like
+         * pop rax; jmp rax; which have a valid ret and valid semantics
+         * but don't work in practice :( */ 
+        delete tmp_constraint;
+        tmp_constraint = prev_constraint->copy();
+        tmp_constraint->add(new ConstrMinSpInc(offset+(dest.reg==curr_arch()->ip()?1:2)*(curr_arch()->octets())), true);
+        env->set_constraint(tmp_constraint);
         /* Get gadget that does dest.reg <- mem(rsp+offset)+0 */ 
         pop = basic_db_lookup(dest, AssignArg(ASSIGN_MEM_BINOP_CST, curr_arch()->sp(), OP_ADD, offset, 0), env);
         if( pop != nullptr ){
@@ -736,6 +745,8 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     /* Restore env */
     env->remove_last_call();
     env->set_no_padding(prev_no_padding);
+    delete tmp_constraint;
+    env->set_constraint(prev_constraint);
     /* Restore comment */
     if( had_comment ){
         env->push_comment(strategy, comment);
@@ -753,6 +764,7 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
     ROPChain *res=nullptr, *inter_to_dest=nullptr, *assign_to_inter=nullptr;
     int inter_reg;
     unsigned int prev_lmax = env->lmax();
+    Constraint *prev_constraint=env->constraint(), *tmp_constraint=nullptr;
     
     /* Check for special cases */
     /* Don't call this strategy consecutively, transitivity is handled
@@ -763,6 +775,14 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
     
     /* Setting env */
     env->add_call(strategy);
+    /* Check if we assign memory, if yes, we should not modify 
+     * the address registers when chaining */
+    if( dest.type == DST_MEM ){
+        tmp_constraint = env->constraint()->copy();
+        tmp_constraint->add(new ConstrKeepRegs(dest.addr_reg), true);
+        env->set_constraint(tmp_constraint);
+    }
+    
     
     /* Chaining... */
     for( inter_reg = 0; inter_reg < curr_arch()->nb_regs(); inter_reg++ ){
@@ -799,6 +819,10 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
     
     /* Restore env */ 
     env->remove_last_call();
+    if( tmp_constraint != nullptr ){
+        env->set_constraint(prev_constraint);
+        delete tmp_constraint;
+    }
     
     /* Return res */
     return res;
