@@ -38,6 +38,8 @@ class ROPChain{
         // IO
         string to_str_console(int octets, vector<unsigned char> bad_bytes); 
         string to_str_python(int octets, vector<unsigned char> bad_bytes, bool init, bool no_tab); 
+        // Assign 
+        void copy_from(ROPChain* other);
 }; 
 
 #endif 

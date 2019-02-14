@@ -46,6 +46,12 @@ void FailRecord::set_max_len(bool val){ _max_len = val;}
 void FailRecord::set_no_valid_padding(bool val){ _no_valid_padding = val;}
 void FailRecord::add_modified_reg(int reg_num){ _modified_reg[reg_num] = true;}
 void FailRecord::add_bad_byte(unsigned char bad_byte){ _bad_bytes[bad_byte] = true; }
+void FailRecord::copy_from(FailRecord* other){
+    _max_len = other->_max_len;
+    _no_valid_padding = other->_no_valid_padding;
+    memcpy(_modified_reg, other->_modified_reg, sizeof(_modified_reg));
+    memcpy(_bad_bytes, other->_bad_bytes, sizeof(_bad_bytes)); 
+}
 
 /* ***************************************************
  *                RegTransitivityRecord
@@ -302,14 +308,23 @@ SearchResultsBinding::SearchResultsBinding(){
 }
 
 SearchResultsBinding::SearchResultsBinding(ROPChain* c){
-    chain = *c;
+    chain.copy_from(c);
     found = true;
 }
 
-SearchResultsBinding::SearchResultsBinding(FailRecord record){
-    fail_record = record;
+SearchResultsBinding::SearchResultsBinding(FailRecord* record){
+    fail_record.copy_from(record);
     found = false;
 }
+
+void SearchResultsBinding::operator=(SearchResultsBinding other){
+    found = other.found;
+    chain.copy_from(&(other.chain));
+    fail_record.copy_from(&(other.fail_record));
+}
+
+
+
 
 /* **********************************************************************
  *                      Search & Chaining Functions ! 
@@ -323,7 +338,7 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
 ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* env);
-
+ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env);
 
 /* Globals */
 RegTransitivityRecord g_reg_transitivity_record = RegTransitivityRecord();
@@ -350,10 +365,11 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
 
     /* Search */ 
     chain = search(dest, assign, env, params.shortest);
-    if( chain == nullptr )
-        res = SearchResultsBinding(*(env->fail_record()));
-    else
+    if( chain == nullptr ){
+        res = SearchResultsBinding(env->fail_record());
+    }else{
         res = SearchResultsBinding(chain);
+    }
     
     /* Deleting variables */ 
     delete chain;
@@ -425,18 +441,22 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
         tmp_constraint->add(new ConstrMaxSpInc(env->lmax()*curr_arch()->octets()), true);
     }
     
-    /* Set the constraint for the gadgets */ 
-    if( tmp_constraint == nullptr ){
-        tmp_constraint = env->constraint();
-    }
-    
     /* If the destination is the instruction pointer, remove the chainable
      * constraint. 
      * This is possible because all those functions are not used directly, 
      * so we assume we know what we are doing when requesting to assign 
      * the instruction pointer :) */ 
-     if( dest.type == DST_REG && dest.reg == curr_arch()->ip() )
+    if( (dest.type == DST_REG) && (dest.reg == curr_arch()->ip()) ){
+        if( tmp_constraint == nullptr ){
+            tmp_constraint = env->constraint()->copy();
+        }
         tmp_constraint->add(new ConstrReturn(true, true, true), true);
+    }
+    
+    /* Set the constraint if not yet done */ 
+    if( tmp_constraint == nullptr ){
+        tmp_constraint = env->constraint();
+    }
     
     // DEBUG: ADD ASSERTIONS AND CONSTRAINTS ? SEE ROPGENERATOR IN PYTHON 
     
@@ -520,13 +540,18 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
             switch(assign.type){
                 case ASSIGN_CST: // reg <- cst 
                     res = chain_pop_constant(dest, assign, env);
+                    if( res == nullptr )
+                        res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_REG_BINOP_CST: // reg <- reg op cst
                     res = chain_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_MEM_BINOP_CST: // reg <- mem(reg op cst) + cst  
+                    res = chain_any_reg_transitivity(dest, assign, env);
                     break;
-                
+                case ASSIGN_CSTMEM_BINOP_CST:
+                    res = chain_any_reg_transitivity(dest, assign, env);
+                    break;
                 default:
                     break;
             }
@@ -534,16 +559,17 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
         case DST_MEM:
             switch(assign.type){
                 case ASSIGN_CST: // mem(reg op cst) <- cst 
-                    
+                    res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_REG_BINOP_CST: // mem(reg op cst) <- reg op cst
-                    
+                    res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_MEM_BINOP_CST: // mem(reg op cst) <- mem(reg op cst) + cst  
+                    res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_CSTMEM_BINOP_CST:
+                    res = chain_any_reg_transitivity(dest, assign, env);
                     break;
-                    
                 default:
                     break;
             }
@@ -602,10 +628,14 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
         /* Check for forbidden regs */
         if( curr_arch()->is_ignored_reg(inter_reg) || 
         env->is_reg_transitivity_unusable(inter_reg) || 
+        env->constraint()->keep_reg(inter_reg) || 
         inter_reg == curr_arch()->sp() || 
         inter_reg == curr_arch()->ip() || 
         inter_reg == dest.reg || 
-        is_identity_assign(inter_reg, assign.reg, assign.op, assign.cst )){
+        is_identity_assign(inter_reg, assign.reg, assign.op, assign.cst ) || 
+        env->reg_transitivity_record()->is_impossible(inter_reg, assign.reg, assign.op, assign.cst, env->constraint()) || 
+        env->reg_transitivity_record()->is_impossible(dest.reg, inter_reg, OP_ADD, 0, env->constraint())
+        ){
             continue;
         }
         /* 1. Try dest.reg <- inter_reg without using assign.reg IF operation is trivial */
@@ -650,14 +680,14 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
     return res;
 }
 
-/* Poping constants from the stack strategy */
+/* Poping constant into register from the stack */
 ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* env){
     ROPChain *res = nullptr, *pop=nullptr;
     cst_t offset;
     bool prev_no_padding = env->no_padding();
     bool success, had_comment; 
     addr_t padding=0;
-    SearchStrategyType strategy =  STRATEGY_POP_CONSTANT;
+    SearchStrategyType strategy = STRATEGY_POP_CONSTANT;
     string comment;
     char val_str[128];
 
@@ -674,10 +704,9 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     if( had_comment ){
         comment = env->pop_comment(strategy);
     }else{
-        snprintf(val_str, sizeof(val_str), "0x%x", assign.cst);
+        snprintf(val_str, sizeof(val_str), "0x%llx", (addr_t)assign.cst);
         comment = "Constant: " + str_bold(string(val_str));
     }
-    
     
     /* Chaining... */
     /* We check all possible offsets ! */
@@ -713,6 +742,65 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     }
     
     /* Return result */ 
+    return res;
+}
+
+/* Assign something to register by using register transitivity 
+ * Note: should not be used for reg_binop_cst_to_reg (uses 
+ * chain_reg_transitivity() instead ) */
+ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env){
+    SearchStrategyType strategy = STRATEGY_ANY_REG_TRANSITIVITY;
+    ROPChain *res=nullptr, *inter_to_dest=nullptr, *assign_to_inter=nullptr;
+    int inter_reg;
+    unsigned int prev_lmax = env->lmax();
+    
+    /* Check for special cases */
+    /* Don't call this strategy consecutively, transitivity is handled
+     * via reg_transitivity() so no need to do it within this function 
+     * too */
+     if( !env->calls_history().empty() && env->calls_history().back() == strategy)
+        return nullptr;
+    
+    /* Setting env */
+    env->add_call(strategy);
+    
+    /* Chaining... */
+    for( inter_reg = 0; inter_reg < curr_arch()->nb_regs(); inter_reg++ ){
+        /* Check for forbidden regs */
+        if( curr_arch()->is_ignored_reg(inter_reg) || 
+        env->constraint()->keep_reg(inter_reg) || 
+        inter_reg == curr_arch()->sp() || 
+        inter_reg == curr_arch()->ip() || 
+        inter_reg == dest.reg || 
+        env->reg_transitivity_record()->is_impossible(dest.reg, inter_reg, OP_ADD, 0, env->constraint())
+        ){
+            continue;
+        }
+        
+        /* 1. Search dest <- inter_reg */ 
+        inter_to_dest = search(dest, AssignArg(ASSIGN_REG_BINOP_CST, inter_reg, OP_ADD, 0), env );
+        if( inter_to_dest == nullptr){
+            continue;
+        }
+        /* 2. Search inter_reg <- assign */
+        env->set_lmax(env->lmax()- inter_to_dest->len());
+        assign_to_inter = search(DestArg(DST_REG, inter_reg), assign, env);
+        env->set_lmax(prev_lmax);
+        if( assign_to_inter == nullptr ){
+            delete inter_to_dest;
+            continue;
+        }
+        /* 3. We found both, stop looking */
+        assign_to_inter->add_chain(inter_to_dest);
+        delete inter_to_dest;
+        res = assign_to_inter;
+        break;
+    }
+    
+    /* Restore env */ 
+    env->remove_last_call();
+    
+    /* Return res */
     return res;
 }
 

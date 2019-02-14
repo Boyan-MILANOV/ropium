@@ -152,3 +152,19 @@ string ROPChain::to_str_python(int octets, vector<unsigned char> bad_bytes, bool
     }
     return ss.str(); 
 }
+
+// Assign 
+void ROPChain::copy_from(ROPChain* other){
+    vector<int>::iterator it; 
+    int num;
+    
+    _len = other->len(); 
+    _nb_gadgets = other->nb_gadgets(); 
+    _nb_instr = other->nb_instr(); 
+    _nb_instr_ir = other->nb_instr_ir();
+    
+    _chain = other->chain();
+    _padding_values = other->padding_values();
+    _padding_comments = other->padding_comments();
+    return;
+}
