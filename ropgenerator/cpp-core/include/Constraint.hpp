@@ -128,6 +128,7 @@ class Constraint{
         void remove(SubConstraintType t);
         pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
         bool verify_address(addr_t a);
+        bool keep_reg(int num);
         Constraint* copy();
         cstr_sig_t signature();
         cstr_sig_t signature(int lmax); 

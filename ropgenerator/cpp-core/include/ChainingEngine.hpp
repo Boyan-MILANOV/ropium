@@ -79,6 +79,8 @@ class FailRecord{
         void set_no_valid_padding(bool val);
         void add_modified_reg(int reg_num);
         void add_bad_byte(unsigned char bad_byte);
+        // Assign
+        void copy_from(FailRecord* other);
 };
 
 /* ***************************************************
@@ -118,7 +120,8 @@ class SearchResultsBinding{
     bool found;
     SearchResultsBinding();
     SearchResultsBinding(ROPChain* chain);
-    SearchResultsBinding(FailRecord record); 
+    SearchResultsBinding(FailRecord* record);
+    void operator=(SearchResultsBinding other);
 };
 
 /* *********************************************************************
@@ -127,7 +130,7 @@ class SearchResultsBinding{
 #define DEFAULT_LMAX 100
 #define DEFAULT_MAX_DEPTH 8
 
-enum SearchStrategyType{STRATEGY_REG_TRANSITIVITY, STRATEGY_POP_CONSTANT, NB_STRATEGY_TYPES};
+enum SearchStrategyType{STRATEGY_REG_TRANSITIVITY, STRATEGY_POP_CONSTANT, STRATEGY_ANY_REG_TRANSITIVITY , NB_STRATEGY_TYPES};
 
 class SearchEnvironment{
     /* Constraints and contextual infos */ 

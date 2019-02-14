@@ -252,9 +252,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     py::class_<SearchResultsBinding>(m, "SearchResultsBinding")
         .def_readonly("chain", &SearchResultsBinding::chain)
         .def_readonly("fail_record", &SearchResultsBinding::fail_record)
-        .def_readonly("found", &SearchResultsBinding::found)
-        .def(py::init<ROPChain*>())
-        .def(py::init<FailRecord>());
+        .def_readonly("found", &SearchResultsBinding::found);
     
     m.def("search", (SearchResultsBinding (*)(DestArg dest, AssignArg assign,SearchParametersBinding params)) &search );
 }

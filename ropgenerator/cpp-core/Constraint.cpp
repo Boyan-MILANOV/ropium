@@ -294,6 +294,13 @@ bool Constraint::verify_address(addr_t a){
     return _constr[CONSTR_BAD_BYTES]->verify_address(a);
 }
 
+bool Constraint::keep_reg(int num){
+    if( _constr[CONSTR_KEEP_REGS] == nullptr ){
+        return false;
+    }
+    return _constr[CONSTR_KEEP_REGS]->get(num);
+}
+
 pair<bool, addr_t> Constraint::valid_padding(){
     vector<unsigned char>* bad;
     unsigned char byte;
