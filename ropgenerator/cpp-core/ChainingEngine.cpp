@@ -339,6 +339,8 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env);
+ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* env);
+
 
 /* Globals */
 RegTransitivityRecord g_reg_transitivity_record = RegTransitivityRecord();
@@ -419,6 +421,48 @@ ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* en
     return res; 
 }
 
+
+vector<int> _gadget_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env, int nb=1){
+    if( assign.type == ASSIGN_SYSCALL ){
+        throw_exception("DEBUG TO IMPLEMENT");
+    }else if( assign.type == ASSIGN_INT80 ){
+        throw_exception("DEBUG TO IMPLEMENT");
+    }else{
+        switch(dest.type){
+            // reg <- ? 
+            case DST_REG:
+                switch(assign.type){
+                    case ASSIGN_CST: // reg <- cst 
+                        return gadget_db()->find_cst_to_reg(dest.reg, assign.cst, env->constraint(), env->assertion(), nb); 
+                    case ASSIGN_MEM_BINOP_CST: // reg <- mem(reg op cst) + cst  
+                        return gadget_db()->find_mem_binop_cst_to_reg(dest.reg, assign.addr_op, assign.addr_reg, assign.addr_cst, assign.cst, env->constraint(), env->assertion(), nb); 
+                    case ASSIGN_REG_BINOP_CST: // reg <- reg op cst
+                        return gadget_db()->find_reg_binop_cst_to_reg(dest.reg, assign.op, assign.reg, assign.cst,  env->constraint(), env->assertion(), nb); 
+                    default:
+                        break;
+                }
+                break;
+            case DST_MEM:
+                switch(assign.type){
+                    case ASSIGN_CST: // mem(reg op cst) <- cst 
+                        return gadget_db()->find_cst_to_mem(dest.addr_op, dest.addr_reg, dest.addr_cst, assign.cst, env->constraint(), env->assertion(), nb); 
+                    case ASSIGN_MEM_BINOP_CST: // mem(reg op cst) <- mem(reg op cst) + cst  
+                        return gadget_db()->find_mem_binop_cst_to_mem(dest.addr_op, dest.addr_reg, dest.addr_cst, 
+                                    assign.addr_op, assign.addr_reg, assign.addr_cst, assign.cst, env->constraint(), env->assertion(), nb); 
+                    case ASSIGN_REG_BINOP_CST: // mem(reg op cst) <- reg op cst
+                        return gadget_db()->find_reg_binop_cst_to_mem(dest.addr_op, dest.addr_reg, dest.addr_cst, assign.op, assign.reg, assign.cst,
+                                    env->constraint(), env->assertion(), nb); 
+                    default:
+                        break;
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    return vector<int>();
+}
+
 /* Search for gadgets by looking into the gadget database directly */ 
 ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env){
     vector<int> gadgets;
@@ -460,50 +504,7 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
     
     // DEBUG: ADD ASSERTIONS AND CONSTRAINTS ? SEE ROPGENERATOR IN PYTHON 
     
-    /* Check type of query and call the appropriate function ! */ 
-    if( assign.type == ASSIGN_SYSCALL ){
-        throw_exception("DEBUG TO IMPLEMENT");
-    }else if( assign.type == ASSIGN_INT80 ){
-        throw_exception("DEBUG TO IMPLEMENT");
-    }else{
-        switch(dest.type){
-            // reg <- ? 
-            case DST_REG:
-                switch(assign.type){
-                    case ASSIGN_CST: // reg <- cst 
-                        gadgets = gadget_db()->find_cst_to_reg(dest.reg, assign.cst, tmp_constraint, env->assertion(), nb); 
-                        break;
-                    case ASSIGN_MEM_BINOP_CST: // reg <- mem(reg op cst) + cst  
-                        gadgets = gadget_db()->find_mem_binop_cst_to_reg(dest.reg, assign.addr_op, assign.addr_reg, assign.addr_cst, assign.cst, tmp_constraint, env->assertion(), nb); 
-                        break;
-                    case ASSIGN_REG_BINOP_CST: // reg <- reg op cst
-                        gadgets = gadget_db()->find_reg_binop_cst_to_reg(dest.reg, assign.op, assign.reg, assign.cst,  tmp_constraint, env->assertion(), nb); 
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            case DST_MEM:
-                switch(assign.type){
-                    case ASSIGN_CST: // mem(reg op cst) <- cst 
-                        gadgets = gadget_db()->find_cst_to_mem(dest.addr_op, dest.addr_reg, dest.addr_cst, assign.cst, tmp_constraint, env->assertion(), nb); 
-                        break;
-                    case ASSIGN_MEM_BINOP_CST: // mem(reg op cst) <- mem(reg op cst) + cst  
-                        gadgets = gadget_db()->find_mem_binop_cst_to_mem(dest.addr_op, dest.addr_reg, dest.addr_cst, 
-                                    assign.addr_op, assign.addr_reg, assign.addr_cst, assign.cst, tmp_constraint, env->assertion(), nb); 
-                        break;
-                    case ASSIGN_REG_BINOP_CST: // mem(reg op cst) <- reg op cst
-                        gadgets = gadget_db()->find_reg_binop_cst_to_mem(dest.addr_op, dest.addr_reg, dest.addr_cst, assign.op, assign.reg, assign.cst,
-                                    tmp_constraint, env->assertion(), nb); 
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            default:
-                break;
-        }
-    }
+    gadgets = _gadget_db_lookup(dest, assign, env);
     /* Check result */ 
     if( gadgets.empty() )
         res = nullptr;
@@ -826,5 +827,36 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
     
     /* Return res */
     return res;
+}
+
+
+/* Adjust return for gadgets that match but finish with 
+ * ret or jmp */ 
+ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* env){
+    SearchStrategyType strategy = STRATEGY_ADJUST_RET;
+    ROPChain *res=nullptr; 
+    
+    /* Check for special cases */
+    /* Accept only two recursive calls */ 
+    if( env->calls_count(strategy) > 2 ){
+        return nullptr;
+    }
+    /* Can never adjust ip */
+    if( dest.type == DST_REG && dest.reg == curr_arch()->ip()){
+        return nullptr;
+    } 
+    
+    /* Setting env */
+    env->add_call(strategy);
+    
+    /* Chaining... */ 
+    
+    /* Restore env */
+    env->remove_last_call();
+    
+    /* Return result */
+    return res; 
+    
+    
 }
 
