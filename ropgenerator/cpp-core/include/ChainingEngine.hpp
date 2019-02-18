@@ -100,6 +100,18 @@ class RegTransitivityRecord{
         bool is_impossible(int dest_reg, int src_reg, Binop op, cst_t src_cst, Constraint* constr);
 };
 
+/* *********************************************************************
+ *                          Adjust Ret Record 
+ * ******************************************************************* */ 
+
+class AdjustRetRecord{
+    bool _regs[NB_REGS_MAX];
+    public:
+        AdjustRetRecord();
+        void add_fail(int reg_num);
+        bool is_impossible(int reg_num);
+};
+
 
 /* *********************************************************************
  *                         Search Parameters Bindings
@@ -147,7 +159,8 @@ class SearchEnvironment{
     /* Comments about gadgets */ 
     string _comment[NB_STRATEGY_TYPES];
     /* Records for optimisations and infos */ 
-    RegTransitivityRecord* _reg_transitivity_record;
+    RegTransitivityRecord* _reg_transitivity_record; // Use a pointer in case we use a global record
+    AdjustRetRecord _adjust_ret_record;
     FailRecord _fail_record;
     FailType _last_fail;
     /* Strategy-specific information */ 
@@ -187,11 +200,13 @@ class SearchEnvironment{
         
         /* Comments about gadgets */ 
         bool has_comment(SearchStrategyType t);
-        void push_comment(SearchStrategyType t, string& comment);
+        void push_comment(SearchStrategyType t, string comment);
         string pop_comment(SearchStrategyType t);
         
         /* Record functions */ 
         RegTransitivityRecord* reg_transitivity_record();
+        AdjustRetRecord* adjust_ret_record();
+        void set_adjust_ret_record(AdjustRetRecord* rec);
         FailRecord* fail_record();
         FailType last_fail();
         void set_last_fail(FailType t);
