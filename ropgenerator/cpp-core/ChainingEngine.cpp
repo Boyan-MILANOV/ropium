@@ -194,6 +194,23 @@ bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, c
     return false;
 }
 
+
+/* *********************************************************************
+ *                          Adjust Ret Record 
+ * ******************************************************************* */ 
+
+AdjustRetRecord::AdjustRetRecord(){
+    memset(_regs, false, sizeof(_regs));
+}
+void AdjustRetRecord::add_fail(int reg_num){
+    _regs[reg_num] = true;
+}
+bool AdjustRetRecord::is_impossible(int reg_num){
+    return _regs[reg_num];
+}
+
+
+
 /* *********************************************************************
  *                         SearchEnvironment 
  * ******************************************************************* */
@@ -274,6 +291,12 @@ bool SearchEnvironment::is_reg_transitivity_unusable(int reg){
 RegTransitivityRecord* SearchEnvironment::reg_transitivity_record(){
     return _reg_transitivity_record;
 }
+AdjustRetRecord* SearchEnvironment::adjust_ret_record(){
+    return &_adjust_ret_record;
+}
+void SearchEnvironment::set_adjust_ret_record(AdjustRetRecord* rec){
+    _adjust_ret_record = *rec;
+}
 FailRecord* SearchEnvironment::fail_record(){
     return &_fail_record;
 }
@@ -288,12 +311,13 @@ void SearchEnvironment::set_last_fail(FailType t){
 bool SearchEnvironment::has_comment(SearchStrategyType t){
     return ! _comment[t].empty();
 }
-void SearchEnvironment::push_comment(SearchStrategyType t, string& comment){
+void SearchEnvironment::push_comment(SearchStrategyType t, string comment){
     _comment[t] = comment;
 }
 string SearchEnvironment::pop_comment(SearchStrategyType t){
     string res = _comment[t];
     _comment[t] = "";
+    return res;
 }
 
 
@@ -324,16 +348,14 @@ void SearchResultsBinding::operator=(SearchResultsBinding other){
 }
 
 
-
-
 /* **********************************************************************
  *                      Search & Chaining Functions ! 
  * ******************************************************************** */
  
 /* Prototypes */ 
-
 ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest);
 ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* env);
+vector<int> _gadget_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env, int nb);
 ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env);
@@ -504,7 +526,7 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
     
     // DEBUG: ADD ASSERTIONS AND CONSTRAINTS ? SEE ROPGENERATOR IN PYTHON 
     
-    gadgets = _gadget_db_lookup(dest, assign, env);
+    gadgets = _gadget_db_lookup(dest, assign, env, nb);
     /* Check result */ 
     if( gadgets.empty() )
         res = nullptr;
@@ -540,18 +562,26 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
         case DST_REG:
             switch(assign.type){
                 case ASSIGN_CST: // reg <- cst 
-                    res = chain_pop_constant(dest, assign, env);
+                    res = chain_adjust_ret(dest, assign, env);
+                    if( res == nullptr )
+                        res = chain_pop_constant(dest, assign, env);
                     if( res == nullptr )
                         res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_REG_BINOP_CST: // reg <- reg op cst
-                    res = chain_reg_transitivity(dest, assign, env);
+                    res = chain_adjust_ret(dest, assign, env);
+                    if( res == nullptr )
+                        res = chain_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_MEM_BINOP_CST: // reg <- mem(reg op cst) + cst  
-                    res = chain_any_reg_transitivity(dest, assign, env);
+                    res = chain_adjust_ret(dest, assign, env);
+                    if( res == nullptr )
+                        res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_CSTMEM_BINOP_CST:
-                    res = chain_any_reg_transitivity(dest, assign, env);
+                    res = chain_adjust_ret(dest, assign, env);
+                    if( res == nullptr )
+                        res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 default:
                     break;
@@ -560,16 +590,24 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
         case DST_MEM:
             switch(assign.type){
                 case ASSIGN_CST: // mem(reg op cst) <- cst 
-                    res = chain_any_reg_transitivity(dest, assign, env);
+                    res = chain_adjust_ret(dest, assign, env);
+                    if( res == nullptr )
+                        res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_REG_BINOP_CST: // mem(reg op cst) <- reg op cst
-                    res = chain_any_reg_transitivity(dest, assign, env);
+                    res = chain_adjust_ret(dest, assign, env);
+                    if( res == nullptr )
+                        res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_MEM_BINOP_CST: // mem(reg op cst) <- mem(reg op cst) + cst  
-                    res = chain_any_reg_transitivity(dest, assign, env);
+                    res = chain_adjust_ret(dest, assign, env);
+                    if( res == nullptr )
+                        res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 case ASSIGN_CSTMEM_BINOP_CST:
-                    res = chain_any_reg_transitivity(dest, assign, env);
+                    res = chain_adjust_ret(dest, assign, env);
+                    if( res == nullptr )
+                        res = chain_any_reg_transitivity(dest, assign, env);
                     break;
                 default:
                     break;
@@ -832,9 +870,28 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
 
 /* Adjust return for gadgets that match but finish with 
  * ret or jmp */ 
+#define ADJUST_RET_MAX_POSSIBLE_GADGETS 3
+#define ADJUST_RET_MAX_ADJUST_GADGETS 3
+#define ADJUST_RET_MAX_ADDRESS_TRY 3
 ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* env){
     SearchStrategyType strategy = STRATEGY_ADJUST_RET;
-    ROPChain *res=nullptr; 
+    ROPChain *res=nullptr, *set_ret_reg_chain=nullptr; 
+    Constraint* prev_constraint = env->constraint()->copy(), *tmp_constraint=nullptr;
+    AdjustRetRecord prev_adjust_ret = *(env->adjust_ret_record());
+    vector<int> possible_gadgets, adjust_gadgets;
+    vector<int>::iterator it, it2;
+    vector<addr_t>::iterator ait;
+    shared_ptr<Gadget> gadget;
+    int ret_reg; 
+    cst_t offset;
+    int padding_len;
+    unsigned int prev_lmax = env->lmax();
+    bool found = false;
+    int addr_count;
+    addr_t padding;
+    bool success_padding;
+    
+    
     
     /* Check for special cases */
     /* Accept only two recursive calls */ 
@@ -849,14 +906,128 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     /* Setting env */
     env->add_call(strategy);
     
-    /* Chaining... */ 
+    /* Chaining... */
+    /* 1. Get possible gadgets */
+    /* Set constraint to JMP and CALL only */
+    tmp_constraint = prev_constraint->copy();
+    tmp_constraint->update(new ConstrReturn(false, true, true));
+    tmp_constraint->add(new ConstrMaxSpInc(env->lmax()*curr_arch()->octets()), true);
+    env->set_constraint(tmp_constraint);
+    /* Find possible gadgets */
+    possible_gadgets = _gadget_db_lookup(dest, assign, env, ADJUST_RET_MAX_POSSIBLE_GADGETS);
+    /* Restore normal constraint to search for other gadgets/chains */
+    env->set_constraint(prev_constraint);
+    delete tmp_constraint;
+    tmp_constraint = nullptr;
+    
+    /* For each possible gadget, try to adjust */ 
+    for( it = possible_gadgets.begin(); (it != possible_gadgets.end()) && !found; it++ ){
+        gadget = gadget_db()->get(*it);
+        ret_reg = gadget->ret_reg();
+        /* Check return reg */
+        if( env->adjust_ret_record()->is_impossible(ret_reg) || 
+        gadget->modified_reg(ret_reg) || 
+        !gadget->known_sp_inc() ){
+            continue;
+        }
+        /* Find the number of bytes to pop to adjust */
+        if( gadget->sp_inc() < 0 ){
+            offset = -1*gadget->sp_inc();
+            padding_len = 0;
+        }else{
+            padding_len = gadget->sp_inc() / curr_arch()->octets();
+            if( gadget->ret_type() == RET_JMP ){
+                offset = 0;
+            }else{ // CALL{
+                offset = curr_arch()->octets();
+            }
+        }
+        /* 2. Find gadget that do the adjustment (ret, pop-pop-ret, etc) */
+        /* Set constraint to ensure that the adjustment doesn't destroy the 
+         * effects wanted by the gadget */ 
+        if( dest.type == DST_REG ){
+            tmp_constraint = prev_constraint->copy();
+            tmp_constraint->add(new ConstrKeepRegs(dest.reg), true);
+            env->set_constraint(tmp_constraint);
+        }
+        adjust_gadgets = _gadget_db_lookup(DestArg(DST_REG, curr_arch()->ip()), AssignArg(ASSIGN_MEM_BINOP_CST, curr_arch()->sp(), OP_ADD, offset,0) , env, ADJUST_RET_MAX_ADJUST_GADGETS);
+        /* Restore normal constraint */
+        if( tmp_constraint != nullptr ){
+            delete tmp_constraint;
+            tmp_constraint = nullptr;
+            env->set_constraint(prev_constraint);
+        }
+        /* For each adjust gadget, see if we can put its address in the ret_reg */
+        for( it2 = adjust_gadgets.begin(); (it2 != adjust_gadgets.end()) && !found; it2++){
+            addr_count = 0; // Limit number of addresses checked
+            for( ait = gadget_db()->get(*it2)->addresses()->begin(); (ait != gadget_db()->get(*it2)->addresses()->end()) && !found; ait++ ){
+                /* Check number of addresses */ 
+                if( ++addr_count > ADJUST_RET_MAX_ADDRESS_TRY)
+                    break;
+                /* 3. Find ROPChain that puts the address of the adjust gadget 
+                 * in the ret_reg */ 
+                /* Set constraint to ensure that setting adjustment doesn't clobber 
+                 * the value that we want to assign */ 
+                if( assign.type == ASSIGN_REG_BINOP_CST ){
+                    tmp_constraint = prev_constraint->copy();
+                    tmp_constraint->add(new ConstrKeepRegs(assign.reg), true);
+                    env->set_constraint(tmp_constraint);
+                }else if(assign.type == ASSIGN_MEM_BINOP_CST){
+                    tmp_constraint = prev_constraint->copy();
+                    tmp_constraint->add(new ConstrKeepRegs(assign.addr_reg), true);
+                    env->set_constraint(tmp_constraint);
+                }
+                /* Adapt lmax */ 
+                env->set_lmax(prev_lmax - padding_len - 1); 
+                /* Set comment */ 
+                env->push_comment(STRATEGY_POP_CONSTANT, string("Address of ") + str_bold(gadget_db()->get(*it2)->asm_str()));
+                /* Search */ 
+                set_ret_reg_chain = search(DestArg(DST_REG, ret_reg), AssignArg(ASSIGN_CST, *ait), env);
+                /* Restore env */ 
+                if( tmp_constraint != nullptr ){
+                    delete tmp_constraint;
+                    tmp_constraint = nullptr;
+                    env->set_constraint(prev_constraint);
+                }
+                env->set_lmax(prev_lmax);
+                env->pop_comment(STRATEGY_POP_CONSTANT);
+                
+                /* If didn't find result, continue. The adjust_ret record will 
+                 * be updated only if we fail for all addresses and all adjust 
+                 * gadgets */  
+                if( set_ret_reg_chain == nullptr ){
+                    continue;
+                }
+                /* 4. If we found result, padd everything and return */ 
+                else{
+                    found = true;
+                    /* Find padding */ 
+                    std::tie(success_padding,padding) = env->constraint()->valid_padding();
+                    if( !success_padding ){
+                        env->fail_record()->set_no_valid_padding(true);
+                        delete set_ret_reg_chain;
+                    }else{
+                        /* Create ropchain */
+                        res = set_ret_reg_chain;
+                        res->add_gadget(*it);
+                        res->add_padding(padding, padding_len);
+                        break;
+                    }
+                }
+            }
+        }
+        /* If could not set ret_reg, put it in the record */ 
+        if( !found && !adjust_gadgets.empty() ){
+            env->adjust_ret_record()->add_fail(ret_reg);
+        }
+    }
     
     /* Restore env */
     env->remove_last_call();
+    // DEBUG Keep old adjust 
+    //env->set_adjust_ret_record(&prev_adjust_ret);
     
     /* Return result */
-    return res; 
-    
-    
+    return res;
 }
 

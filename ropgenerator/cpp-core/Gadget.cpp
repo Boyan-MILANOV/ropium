@@ -113,9 +113,11 @@ int Gadget::nb_instr_ir(){return _nb_instr_ir;}
 int Gadget::sp_inc(){return _sp_inc;}
 bool Gadget::known_sp_inc(){return _known_sp_inc;}
 bool* Gadget::modified_regs(){return _reg_modified;}
+bool Gadget::modified_reg(int num){return _reg_modified[num];}
 vector<ExprObjectPtr>* Gadget::mem_read(){return &_mem_read;} 
 vector<ExprObjectPtr>* Gadget::mem_write(){return &_mem_write;} 
 RetType Gadget::ret_type(){return _ret_type;}
+int Gadget::ret_reg(){return _ret_reg;}
 CondObjectPtr Gadget::ret_pre_cond(){return _ret_pre_cond;}
 Semantics* Gadget::semantics(){return _semantics;}
 // Modifiers

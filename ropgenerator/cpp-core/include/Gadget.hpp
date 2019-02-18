@@ -47,9 +47,11 @@ class Gadget{
         int sp_inc(); 
         bool known_sp_inc();
         bool* modified_regs();
+        bool modified_reg(int num);
         vector<ExprObjectPtr>* mem_read(); 
         vector<ExprObjectPtr>* mem_write(); 
         RetType ret_type();
+        int ret_reg();
         CondObjectPtr ret_pre_cond();
         Semantics * semantics(); 
         // Modifiers

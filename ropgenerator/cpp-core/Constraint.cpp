@@ -693,6 +693,7 @@ Assertion::Assertion(){
     std::memset(_assert, 0, COUNT_NB_ASSERT*sizeof(SubAssertion*)); 
 }
 
+/* Add constraint to previous constraint */ 
 void Assertion::add(SubAssertion* c, bool del=false){
     if( _assert[c->type()] != nullptr )
         _assert[c->type()]->merge(c, del);
@@ -700,6 +701,7 @@ void Assertion::add(SubAssertion* c, bool del=false){
         _assert[c->type()] = c; 
 }
 
+/* Replace previous constraint */ 
 void Assertion::update(SubAssertion* c){
     delete _assert[c->type()]; 
     _assert[c->type()] = c; 
