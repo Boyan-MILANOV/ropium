@@ -7,6 +7,7 @@ from ropgenerator.core.Database import *
 from ropgenerator.core.Gadget import *
 from ropgenerator.semantic.Main import semantic_mode
 from prompt_toolkit import PromptSession, ANSI
+from ropgenerator.core.Log import *
 
 
 ASCII_art = """
@@ -39,7 +40,7 @@ helpStr += '\n\t' + str_bold(CMD_EXIT) + ': \t\texit ROPGenerator'
 
 def main():
     #print(str_ropg(str_bold(ASCII_art)))
-    #initLogs()
+    init_logs(".ROPGenerator.log")
     finish = False
     promptSession = PromptSession(ANSI(u"("+ str_ropg(u'main') +u")> "))
     while( not finish ):
@@ -76,7 +77,7 @@ def main():
                 print('')
         except KeyboardInterrupt:
             pass
-    #closeLogs()
+    close_logs()
     #save_shellcodes()
     return 
 
