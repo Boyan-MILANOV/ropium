@@ -103,7 +103,7 @@ ExprPtr simplify_constant_folding(ExprPtr p){
             return p->arg_object_ptr()->expr_ptr();
         }else{
             left_val = p->arg_expr_ptr()->value() >> p->low();
-            left_val &= ((1<<(p->high() - p->low() + 1))-1); 
+            left_val &= (((cst_t)1<<(p->size()))-1); 
             return make_shared<ExprCst>(left_val, p->size());
         }
     }else if( p->type() == EXPR_CONCAT ){
