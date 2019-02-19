@@ -101,7 +101,7 @@ setup(  name='ropgenerator',
         scripts=['ROPGenerator'],
         keywords='rop generator chain gadget semantic automated exploit ropchain',
         zip_safe = False,
-        data_files=[], 
+        data_files=[(ROPGenerator_dir, [])], 
         install_requires=['prompt_toolkit>=2.0', 'python-magic'],
         # Cpp compilation 
         ext_modules=[
