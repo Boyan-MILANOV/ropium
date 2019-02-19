@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import os
 from ropgenerator.core.IO import *
 from ropgenerator.main.Load import load, loaded_binary
 from ropgenerator.core.Database import *
@@ -18,6 +19,9 @@ ASCII_art = """
 ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ════════════════════ v2.0          
 
 """
+
+ROPGenerator_dir = os.path.expanduser('~')+"/.ROPGenerator/"
+log_file = ".ROPGenerator.log"
 
 # Definitions of commands 
 CMD_HELP = "help"
@@ -40,7 +44,7 @@ helpStr += '\n\t' + str_bold(CMD_EXIT) + ': \t\texit ROPGenerator'
 
 def main():
     #print(str_ropg(str_bold(ASCII_art)))
-    init_logs(".ROPGenerator.log")
+    init_logs(ROPGenerator_dir+log_file)
     finish = False
     promptSession = PromptSession(ANSI(u"("+ str_ropg(u'main') +u")> "))
     while( not finish ):
