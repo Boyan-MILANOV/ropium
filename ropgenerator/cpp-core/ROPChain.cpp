@@ -5,7 +5,7 @@
 #include "IO.hpp"
 #include <algorithm>
 
-ROPChain::ROPChain(){}
+ROPChain::ROPChain():_len(0), _nb_gadgets(0), _nb_instr(0), _nb_instr_ir(0){}
 // Accessors
 int ROPChain::len(){return _len;}
 int ROPChain::nb_gadgets(){return _nb_gadgets;}
@@ -136,7 +136,7 @@ string ROPChain::to_str_python(int octets, vector<unsigned char> bad_bytes, bool
     pack = p + " += pack(" + endian + ","; 
     
     if( init )
-        ss << tab << "from struct import pack\n" << tab << p << "+= ''";   
+        ss << "\n" << tab << "from struct import pack\n" << tab << p << " += ''";   
     
     for(it = _chain.begin(); it != _chain.end(); it++){
         if( *it >= 0 ){

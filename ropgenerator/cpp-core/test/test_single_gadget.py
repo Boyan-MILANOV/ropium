@@ -18,7 +18,8 @@ set_bin_type(BinType.BIN_X64_ELF)
 set_arch(ArchType.ARCH_X64)
 
 #raw = "\x48\x89\xD8" # MOV RAX,RBX
-raw = b'\x58\xFD\xFF\xE0'
+raw = b'\x00\x00\xb8\xe8\x00\x00\x2c\xf7\xf0\xff\xd6'
+
 
 init_gadget_db();
 
@@ -27,7 +28,7 @@ input("waiting...")
 if( irblock is None ):
     print("Error IRBLOCK")
     exit(0)
-    
+print("Try " + '; '.join(str(i) for i in asm_instr_list))
 gadget = Gadget(irblock)
 asm_str = '; '.join(str(i) for i in asm_instr_list)
 gadget.set_asm_str(asm_str)

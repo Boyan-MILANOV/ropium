@@ -927,7 +927,8 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
         /* Check return reg */
         if( env->adjust_ret_record()->is_impossible(ret_reg) || 
         gadget->modified_reg(ret_reg) || 
-        !gadget->known_sp_inc() ){
+        !gadget->known_sp_inc() ||
+        env->constraint()->keep_reg(ret_reg)){
             continue;
         }
         /* Find the number of bytes to pop to adjust */
