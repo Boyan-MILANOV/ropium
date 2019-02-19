@@ -3,6 +3,7 @@ ArgType, ArgEmpty, ArgCst, ArgReg, ArgTmp, ArgUnknown, \
 IROperation, IRInstruction, IRBlock, print_irblock
 
 from ropgenerator.core.Architecture import *
+from ropgenerator.core.Log import *
 
 from barf.core.reil import ReilMnemonic, ReilImmediateOperand, ReilRegisterOperand
 from barf.arch import ARCH_X86_MODE_32
@@ -64,19 +65,19 @@ class RegNotSupported(Exception):
     def __init__(self, msg):
         self.msg = msg
     def __str__(self):
-        return msg
+        return self.msg
 
 class CstTooBig(Exception):
     def __init__(self, msg):
         self.msg = msg
     def __str__(self):
-        return msg
+        return self.msg
         
 class REILOperationNotSupported(Exception):
     def __init__(self, msg):
         self.msg = msg
     def __str__(self):
-        return msg
+        return self.msg
         
 def pycst_to_cppcst(val):
     if( val >= 2**(curr_arch_bits()-1)):
@@ -87,8 +88,8 @@ def pycst_to_cppcst(val):
 def barf_operand_to_IR(operand, alias_mapper):
     if( isinstance(operand, ReilImmediateOperand )):
         if( operand._immediate >= 2**curr_arch_bits()):
-            # DEBUG raise CstTooBig("Constant '{}' doesn't fit into cst_t".format(hex(operand._immediate)))
-            return ArgUnknown(operand.size)
+            raise CstTooBig("BARF to IR: Constant '{}' is too big".format(hex(operand._immediate)))
+            # debug return ArgUnknown(operand.size)
         else:
             value = int(operand._immediate)
         return ArgCst(pycst_to_cppcst(value), operand.size);
@@ -110,7 +111,7 @@ def barf_operand_to_IR(operand, alias_mapper):
             elif( curr_arch_type() == ArchType.ARCH_X64 ):
                 reg_num = map_x64_reg_names.get(reg_str, None)
             else:
-                raise Exception("Error, didn'arch not supported in here")
+                raise Exception("Error, arch not supported in here")
             if( reg_num is None ):
                 raise RegNotSupported("Error, could not get register: " + reg_str)
             # Return the right operand 
@@ -196,17 +197,20 @@ def raw_to_IRBlock(raw):
                                             ArgReg(curr_arch_ip(), curr_arch_bits()));
                     break
             elif( instr.mnemonic == ReilMnemonic.BISZ ):
-                raise REILOperationNotSupported("REIL Operation 'BISZ' not supported in " + asm_instr_string)
+                raise REILOperationNotSupported("REIL Operation 'BISZ' not supported")
             else:
                 return (None, string) 
             if( i ):
                 res.add_instr(i)
     # Possible exceptions
-    except RegNotSupported:
+    except RegNotSupported as e:
+        log("In " + asm_instr_string + " | " + str(e))
         return (None, string)
-    except CstTooBig:
+    except CstTooBig as e:
+        log("In " + asm_instr_string + " | " + str(e))
         return (None, string) 
-    except REILOperationNotSupported:
+    except REILOperationNotSupported as e:
+        log("In " + asm_instr_string + " | " + str(e))
         return (None, string)
     # Succesful return 
     return (res, string)

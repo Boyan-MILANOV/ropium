@@ -82,7 +82,6 @@ void Semantics::simplify(){
     for(it = _regs.begin(); it != _regs.end(); it++ ){
         new_pairs = new vector<SPair>(); 
         for( pit = (*it).second->begin(); pit != (*it).second->end(); pit++ ){
-            cout << "DEBUG, simplifying spair epxpr " << (*pit).expr() << endl;
             (*pit).cond()->simplify();
             // If the condition is false, ignore it ;) 
             if( (*pit).cond()->cond_ptr()->type() == COND_FALSE )

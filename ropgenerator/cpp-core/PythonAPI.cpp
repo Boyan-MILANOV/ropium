@@ -14,6 +14,7 @@ using namespace pybind11::literals;
 #include "Database.hpp"
 #include "ChainingEngine.hpp"
 #include "ROPChain.hpp"
+#include "Log.hpp"
 
 
 PYBIND11_MODULE(ropgenerator_core_, m){
@@ -255,6 +256,13 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def_readonly("found", &SearchResultsBinding::found);
     
     m.def("search", (SearchResultsBinding (*)(DestArg dest, AssignArg assign,SearchParametersBinding params)) &search );
+
+
+    /* Logs bindings */
+    m.def("init_logs", &init_logs);
+    m.def("close_logs", &close_logs);
+    m.def("log", &log_message);
+
 }
 
 
