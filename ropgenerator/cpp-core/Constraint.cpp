@@ -446,7 +446,7 @@ bool AssertRegsEqual::validate( CondObjectPtr c){
     if( (!l_is_inc) || (!r_is_inc) || (l_inc != r_inc) )
         return false; 
     else
-        return _regs[l_reg][r_reg]; 
+        return _regs[l_reg][r_reg] || (l_reg==r_reg); 
 }
 
 SubAssertion* AssertRegsEqual::copy(){
@@ -511,6 +511,10 @@ void AssertRegsNoOverlap::merge(SubAssertion* a, bool del){
 AssertValidRead::AssertValidRead(): SubAssertion(ASSERT_VALID_READ){
     std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
 }
+AssertValidRead::AssertValidRead(int num):SubAssertion(ASSERT_VALID_WRITE){
+    std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
+    _regs[num] = true;
+}
 AssertValidRead::AssertValidRead(bool* array): SubAssertion(ASSERT_VALID_READ){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX);
 }
@@ -553,6 +557,11 @@ void AssertValidRead::merge(SubAssertion* a, bool del){
 AssertValidWrite::AssertValidWrite(): SubAssertion(ASSERT_VALID_WRITE){
     std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
 }
+AssertValidWrite::AssertValidWrite(int num):SubAssertion(ASSERT_VALID_WRITE){
+    std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX);
+    _regs[num] = true;
+}
+
 AssertValidWrite::AssertValidWrite(bool* array): SubAssertion(ASSERT_VALID_WRITE){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX);
 }
@@ -569,7 +578,7 @@ bool AssertValidWrite::validate( CondObjectPtr c){
     int reg, inc; 
     bool is_inc; 
     std::tie(is_inc, reg, inc) = c->cond_ptr()->arg_expr_ptr()->is_reg_increment(); 
-    if( is_inc && inc < MAX_VALID_WRITE_OFFSET && inc > MAX_VALID_WRITE_OFFSET ){
+    if( is_inc && inc < MAX_VALID_WRITE_OFFSET && inc > -MAX_VALID_WRITE_OFFSET ){
         return _regs[reg];
     }else
         return false; 
@@ -722,6 +731,11 @@ bool Assertion::validate(CondObjectPtr c){
         case COND_LT:
         case COND_LE:
             return (_assert[ASSERT_REGS_NO_OVERLAP] != nullptr) && _assert[ASSERT_REGS_NO_OVERLAP]->validate(c);
+        case COND_VALID_READ:
+            return (_assert[ASSERT_VALID_WRITE] != nullptr && _assert[ASSERT_VALID_WRITE]->validate(c))
+                || (_assert[ASSERT_VALID_READ] != nullptr && _assert[ASSERT_VALID_READ]->validate(c));
+        case COND_VALID_WRITE:
+            return _assert[ASSERT_VALID_WRITE] != nullptr && _assert[ASSERT_VALID_WRITE]->validate(c);
         case COND_AND:
             return  validate(c->cond_ptr()->left_condobject_ptr()) && 
                     validate(c->cond_ptr()->right_condobject_ptr());
