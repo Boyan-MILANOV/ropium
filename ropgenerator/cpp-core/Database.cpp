@@ -237,7 +237,8 @@ int Database::add(shared_ptr<Gadget> g){
                     _entries_count++;
                 } // mem binop cst -> reg 
                 else if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_MEM &&
-                         sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
+                         sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST &&
+                         sit->expr_ptr()->binop() == OP_ADD){
                     // Check if mem is a binop itself ;)
                     tmp =  sit->expr_ptr()->left_expr_ptr()->addr_expr_ptr();
                     if( tmp->type() == EXPR_REG){
@@ -352,7 +353,8 @@ int Database::add(shared_ptr<Gadget> g){
                     _entries_count++;
                 } // mem binop cst -> mem
                 else if( sit->expr_ptr()->left_expr_ptr()->type() == EXPR_MEM &&
-                         sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST){
+                         sit->expr_ptr()->right_expr_ptr()->type() == EXPR_CST &&
+                         sit->expr_ptr()->binop() == OP_ADD){
                     // Check if mem is a binop itself ;)
                     tmp =  sit->expr_ptr()->left_expr_ptr()->addr_expr_ptr();
                     if( tmp->type() == EXPR_REG ){
