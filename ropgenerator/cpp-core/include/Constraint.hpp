@@ -128,7 +128,7 @@ using cstr_sig_t = uint64_t;
 class Constraint{
     SubConstraint* _constr[COUNT_NB_CONSTR];
     cstr_sig_t _signature;
-    bool _computed_signature; 
+    bool _computed_signature;
     public:
         Constraint();
         // Accessors 

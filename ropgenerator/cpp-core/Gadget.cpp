@@ -3,6 +3,8 @@
 #include "Expression.hpp"
 #include "CommonUtils.hpp"
 #include "Exception.hpp"
+#include "Condition.hpp"
+#include <cstring>
 
 
 /* *********************************************************************
@@ -17,15 +19,78 @@ void set_gadgets_offset(addr_t offset){
 /* *********************************************************************
  *                          Gadget class 
  * ******************************************************************* */
-// Constructor 
+
+CondObjectPtr generate_mem_pre_cond(vector<ExprObjectPtr>& read_list, vector<ExprObjectPtr>& write_list){
+    CondObjectPtr res;
+    vector<ExprObjectPtr>::iterator eit;
+    bool regs[NB_REGS_MAX];
+    
+    memset(regs, false, sizeof(regs));
+
+    // Get the pre-conditions
+    res = NewCondTrue();
+    for( eit = write_list.begin(); eit != write_list.end(); eit++){
+        // Check for supported addresses for memory accesses
+        // mem(reg)
+        if( (*eit)->expr_ptr()->type() == EXPR_REG ){
+            if( !regs[(*eit)->expr_ptr()->num()] ) {
+                res = res && NewCondPointer(COND_VALID_WRITE, *eit);
+                regs[(*eit)->expr_ptr()->num()] = true;
+            }
+        }//mem(reg +- cst)
+        else if( (*eit)->expr_ptr()->type() == EXPR_BINOP && 
+                  (*eit)->expr_ptr()->right_expr_ptr()->type() == EXPR_CST &&
+                  (*eit)->expr_ptr()->left_expr_ptr()->type() == EXPR_REG &&
+                  ((*eit)->expr_ptr()->binop() == OP_ADD || (*eit)->expr_ptr()->binop() == OP_SUB)
+                  ){
+            if( !regs[(*eit)->expr_ptr()->left_expr_ptr()->num()] ) {
+                res = res && NewCondPointer(COND_VALID_WRITE, *eit);
+                regs[(*eit)->expr_ptr()->left_expr_ptr()->num()] = true;
+            }
+        }// others are not supported
+        else{
+            return NewCondFalse();
+        }
+    }
+    // DO the same for memory reads
+    for( eit = read_list.begin(); eit != read_list.end(); eit++){
+        // Check for supported addresses for memory accesses
+        // mem(reg)
+        if( (*eit)->expr_ptr()->type() == EXPR_REG ){
+            if( !regs[(*eit)->expr_ptr()->num()] ) {
+                res = res && NewCondPointer(COND_VALID_READ, *eit);
+                regs[(*eit)->expr_ptr()->num()] = true;
+            }
+        }//mem(reg +- cst)
+        else if( (*eit)->expr_ptr()->type() == EXPR_BINOP && 
+                  (*eit)->expr_ptr()->right_expr_ptr()->type() == EXPR_CST &&
+                  (*eit)->expr_ptr()->left_expr_ptr()->type() == EXPR_REG &&
+                  ((*eit)->expr_ptr()->binop() == OP_ADD || (*eit)->expr_ptr()->binop() == OP_SUB)
+                  ){
+            if( !regs[(*eit)->expr_ptr()->left_expr_ptr()->num()] ) {
+                res = res && NewCondPointer(COND_VALID_READ, *eit);
+                regs[(*eit)->expr_ptr()->left_expr_ptr()->num()] = true;
+            }
+        }// others are not supported
+        else{
+            return NewCondFalse();
+        }
+    }
+    
+    return res;
+}
+
+
+// Constructor
 Gadget::Gadget(shared_ptr<IRBlock> irblock){
-    vector<reg_pair>::iterator reg_it; 
-    vector<SPair>::iterator spair_it; 
+    vector<reg_pair>::iterator reg_it;
+    vector<SPair>::iterator spair_it;
     vector<SPair>* p;
+    vector<ExprObjectPtr>::iterator eit;
     int i, ret_reg;
     bool is_inc;
     cst_t inc;
-
+    CondObjectPtr tmp;
     // Get the semantics 
     _semantics = irblock->compute_semantics(true); 
     // DEBUG
@@ -62,6 +127,8 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     // Get the memory reads and writes from the irblock 
     _mem_read = irblock->mem_reads();
     _mem_write = irblock->mem_writes();
+    _mem_pre_cond = generate_mem_pre_cond(_mem_read, _mem_write);
+    
     // Get the return type
     // Test for ret/jmp 
     _ret_type = RET_UNKNOWN; 
@@ -119,6 +186,7 @@ vector<ExprObjectPtr>* Gadget::mem_write(){return &_mem_write;}
 RetType Gadget::ret_type(){return _ret_type;}
 int Gadget::ret_reg(){return _ret_reg;}
 CondObjectPtr Gadget::ret_pre_cond(){return _ret_pre_cond;}
+CondObjectPtr Gadget::mem_pre_cond(){return _mem_pre_cond;}
 Semantics* Gadget::semantics(){return _semantics;}
 // Modifiers
 void Gadget::add_address(addr_t addr){

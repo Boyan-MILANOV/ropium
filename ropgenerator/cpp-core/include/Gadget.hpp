@@ -27,6 +27,7 @@ class Gadget{
     bool _reg_modified[NB_REGS_MAX]; 
     vector<ExprObjectPtr> _mem_read; 
     vector<ExprObjectPtr> _mem_write;
+    CondObjectPtr _mem_pre_cond;
     /* Return */  
     RetType _ret_type;
     int _ret_reg; 
@@ -53,6 +54,7 @@ class Gadget{
         RetType ret_type();
         int ret_reg();
         CondObjectPtr ret_pre_cond();
+        CondObjectPtr mem_pre_cond();
         Semantics * semantics(); 
         // Modifiers
         void add_address(addr_t addr); 
