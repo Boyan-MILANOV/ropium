@@ -30,7 +30,7 @@ void CSTList::add(cst_t val, int gadget_num, CondObjectPtr pre_cond, vector<shar
 vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int n=1){
     vector<int> res; 
     shared_ptr<Gadget> g; 
-    CondObjectPtr constr_cond, both_cond;
+    CondObjectPtr constr_cond, all_conds;
     ConstrEval eval;
     
     if( _values.count(val) == 0)
@@ -40,9 +40,13 @@ vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int 
         // Verify constraint 
         std::tie(eval, constr_cond) = constr->verify(g);
         if( eval == EVAL_VALID || eval == EVAL_MAYBE){
-            // Check with assertion on pre-condition 
-            both_cond = constr_cond && _pre_conds[val].at(i);
-            if( assert->validate(both_cond) ){
+            /* Check with assertion to verify
+                - remaining constraint
+                - semantic pre_conditions
+                - memory accesses pre-conditions
+            */
+            all_conds = constr_cond && _pre_conds[val].at(i) && g->mem_pre_cond();
+            if( assert->validate(all_conds) ){
                 res.push_back(_values[val].at(i));
             }
         }

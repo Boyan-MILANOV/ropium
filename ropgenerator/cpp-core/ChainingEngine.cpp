@@ -384,6 +384,17 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
      * pointer */
     constraint->add(new ConstrReturn(true, false, false), true);
     
+    /* Add basic assertions */
+    /* Always valid to write to stack pointer */ 
+    assertion->add(new AssertValidWrite(curr_arch()->sp()), true);
+    /* If the query has memory addresses, make it valid */
+    if( dest.type == DST_MEM ){
+        assertion->add(new AssertValidWrite(dest.addr_reg), true);
+    }
+    if( assign.type == ASSIGN_MEM_BINOP_CST ){
+        assertion->add(new AssertValidRead(assign.addr_reg), true);
+    }
+    
     env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, false, 
                                 &g_reg_transitivity_record);
 

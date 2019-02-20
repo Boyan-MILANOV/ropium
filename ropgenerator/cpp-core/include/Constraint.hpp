@@ -212,7 +212,7 @@ class AssertRegsEqual: public SubAssertion{
         virtual void merge(SubAssertion* a, bool del); 
 };
 
-class AssertRegsNoOverlap: SubAssertion{
+class AssertRegsNoOverlap: public SubAssertion{
     public: 
         bool _regs[NB_REGS_MAX][NB_REGS_MAX];
     public: 
@@ -225,11 +225,12 @@ class AssertRegsNoOverlap: SubAssertion{
         virtual void merge(SubAssertion* a, bool del); 
 };
 
-class AssertValidRead: SubAssertion{
+class AssertValidRead: public SubAssertion{
     public: 
         bool _regs[NB_REGS_MAX];
     public: 
         AssertValidRead();
+        AssertValidRead(int num);
         AssertValidRead(bool* array);
         virtual bool* reg(); 
         void add(int reg); 
@@ -238,11 +239,12 @@ class AssertValidRead: SubAssertion{
         virtual void merge(SubAssertion* a, bool del); 
 };
 
-class AssertValidWrite: SubAssertion{
+class AssertValidWrite: public SubAssertion{
     public:
         bool _regs[NB_REGS_MAX];
     public: 
         AssertValidWrite();
+        AssertValidWrite(int num);
         AssertValidWrite(bool* array);
         virtual bool* reg();
         void add(int reg); 
@@ -251,7 +253,7 @@ class AssertValidWrite: SubAssertion{
         virtual void merge(SubAssertion* a, bool del); 
 };
 
-class AssertRegSupTo: SubAssertion{
+class AssertRegSupTo: public SubAssertion{
     public: 
         bool _regs[NB_REGS_MAX];
         cst_t _limit[NB_REGS_MAX]; // Strict limit 
@@ -266,7 +268,7 @@ class AssertRegSupTo: SubAssertion{
         virtual void merge(SubAssertion* a, bool del); 
 };
 
-class AssertRegInfTo: SubAssertion{
+class AssertRegInfTo: public SubAssertion{
     public: 
         bool _regs[NB_REGS_MAX];
         cst_t _limit[NB_REGS_MAX]; // Strict limit 
