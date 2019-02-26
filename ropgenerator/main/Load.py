@@ -4,6 +4,7 @@
 import sys
 import os
 import subprocess
+import io
 from base64 import b16decode
 from random import shuffle, random, randrange, Random
 from magic import from_file
@@ -21,6 +22,8 @@ OPTION_ARCH = '--arch'
 OPTION_ARCH_SHORT = '-a'
 OPTION_HELP = '--help'
 OPTION_HELP_SHORT = '-h'
+OPTION_ROPGADGET_OPTIONS = '--ropgadget-opts'
+OPTION_ROPGADGET_OPTIONS_SHORT = '-r'
 
 # Help for the load command
 helpStr = banner([str_bold("'load' command"),
@@ -28,9 +31,12 @@ helpStr = banner([str_bold("'load' command"),
 helpStr += "\n\n\t"+str_bold("Usage")+":\tload [OPTIONS] <filename>"
 helpStr += "\n\n\t"+str_bold("Options")+":"
 helpStr += "\n\t\t"+str_special(OPTION_ARCH_SHORT)+","+str_special(OPTION_ARCH)+\
-" <arch>"+"\tmanualy specify architecture.\n\t\t\t\t\tAvailable: 'X86', 'X64'"
-helpStr += "\n\n\t"+str_bold("Examples")+":\n\t\tload /bin/ls\t\t(load gadgets from /bin/ls program)\n\t\tload ../test/vuln_prog\t(load gadgets from own binary)"
- 
+" <arch>"+"\t\tmanualy specify architecture.\n\t\t\t\t\t\tAvailable: 'X86', 'X64'"
+helpStr += '\n\n\t\t'+str_special(OPTION_ROPGADGET_OPTIONS_SHORT)+","+str_special(OPTION_ROPGADGET_OPTIONS)+\
+" <opts>"+"\textra options for ROPgadget.\n\t\t\t\t\t\t<opts> must be a list of\n\t\t\t\t\t\toptions between ''"+\
+"\n\t\t\t\t\t\te.g: \'-depth 4\'"
+helpStr += "\n\n\t"+str_bold("Examples")+":\n\t\tload /bin/ls \n\t\tload ../test/vuln_prog \n\t\tload -r '-norop' /bin/tar"
+
 
 def print_help():
     print(helpStr)
@@ -74,7 +80,7 @@ def getPlatformInfo(filename):
     else:
         return None 
 
-def get_gadgets(filename):
+def get_gadgets(filename, extra_args=''):
     """
     Returns a list of gadgets extracted from a file 
     Precondition: the file exists 
@@ -86,28 +92,44 @@ def get_gadgets(filename):
     """    
    
     ropgadget = "ROPgadget"
-    notify("Executing ROPgadget as: " + ropgadget )
+    cmd_string = ''
     try:
-        p = subprocess.Popen([ropgadget,"--binary",filename,"--dump", "--all"],stdout=subprocess.PIPE)
+        cmd = [ropgadget,"--binary", filename, "--dump", "--all"]
+        if( extra_args ):
+            cmd += extra_args.split(" ")
+        cmd_string = " ".join(cmd)
+        notify("Executing ROPgadget as: " + cmd_string)
+        (outdata, errdata) = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
     except Exception as e:
-        error("Could not execute '" +ropgadget+ " --binary " + filename + " --dump --all'")
-        print("\tError message is: " + str(e))
-        print("\n\t(Maybe check/update your config with the 'config' command,\n\t or make sure you have the last ROPgadget version installed)")
+        error("Could not execute '"+ cmd_string + "'")
+        print("\tException message: " + str(e))
         return None
+
+    # Check if error
+    errs = io.StringIO(errdata.decode("ascii"))
+    l = errs.readline()
+    while( l ):
+        if( 'error:' in l):
+            error("Could not execute '"+ cmd_string + "'")
+            print("\tError message: " + str_special(l.split('error:')[1]))
+            return None
+        l = errs.readline()
 
     # Get the gadget list 
     # Pairs (address, raw_asm)
     first = True
     count = 0
     res = []
-    for l in p.stdout.readlines():
-        l = l.decode("ascii")
+    outs = io.StringIO(outdata.decode("ascii"))
+    l = outs.readline()
+    while( l ):
         if('0x' in l):
             arr = l.split(' ')
             addr = arr[0]
             raw = b16decode(arr[-1].upper().strip())
             res.append((int(addr,16), raw))
             count += 1 
+        l = outs.readline()
     notify("Gadgets generated: %d" % (count))
     return res
     
@@ -119,9 +141,12 @@ def load(args):
     filename = None
     user_arch = None
     biggest_gadget_addr = 0
+    ropgadget_options = ''
     
     i = 0
     seenArch = False
+    seenRopgadget = False
+    
     if( not args ):
         print(helpStr)
         return 
@@ -148,6 +173,21 @@ def load(args):
         elif( args[i] in [OPTION_HELP, OPTION_HELP_SHORT] ):
             print(helpStr)
             return 
+        elif( args[i] in [OPTION_ROPGADGET_OPTIONS, OPTION_ROPGADGET_OPTIONS_SHORT]):
+            if( seenRopgadget ):
+                error("Option {} can be used only one time"\
+                .format(args[i]))
+                return 
+            if( i+1 == len(args)):
+                error("Missing argument after {}.\n\tType 'load -h' for help"\
+                .format(args[i]))
+                return 
+            seenRopgadget = True
+            (index, ropgadget_options) = parse_ropgadget_options(args[i+1:])
+            if( index == -1 ):
+                error(ropgadget_options)
+                return
+            i += index+1
         else:
             filename = args[i]
             break
@@ -186,7 +226,7 @@ def load(args):
     # initScanner(filename)
     
     # # Extract the gadget list 
-    gadget_list = get_gadgets(filename)
+    gadget_list = get_gadgets(filename, ropgadget_options)
     if( not gadget_list ):
         return 
         
@@ -243,6 +283,48 @@ def load(args):
     # # Init engine 
     # initEngine()
     loaded = True
+
+
+def parse_ropgadget_options(args):
+    """
+    args is a list of arguments, starting by the first ropgadget argument, 
+    function returns a tuple (index, arg_string) with index being the index 
+    of the first argument comming after the ropgadet arguments and arg_string
+    the string with all args to ropgadget
+    returns (-1, error_msg) if fail
+    """
+    ropgadget_options = ''
+    i=0
+    # Read the argments
+    if( args[i][0] != "'" ):
+        return (-1, "ROPgadget options must be given between '' ")
+    if( args[i][-1] == "'" and len(args[i]) != 1):
+        ropgadget_options += args[i][1:-1]
+    else:
+        ropgadget_options += args[i][1:]
+        i += 1
+        closed_ok = False
+        while( i < len(args)):
+            if( args[i][0] != "'" ):
+                if( args[i][-1] == "'"):
+                    ropgadget_options += " " + args[i][0:-1]
+                    closed_ok = True
+                    break
+                elif( "'" in args[i] ):
+                    return(-1, "ROPgadget options: You must leave a space after the closing '")
+                else:
+                    ropgadget_options += " " + args[i]
+            else:
+                if( len(args[i]) > 1):
+                    return(-1, "ROPgadget options: You must leave a space after the closing '")
+                else:
+                    closed_ok = True
+                    break
+            i += 1
+        if( not closed_ok ):
+            return (-1, "ROPgadget options: missing closing \'")
+    return (i+1, ropgadget_options)
+
 
 ###################################
 # Module wide
