@@ -620,7 +620,11 @@ void IRBlock::filter_instructions(bool *instr_table, int len){
         if( it->dst()->type() == ARG_REG ){
             keep = ! curr_arch()->is_ignored_reg(it->dst()->id());
         }else if( it->dst()->type() == ARG_TMP ){
-            keep = tmp_table[it->dst()->id()];
+            // If already marked as keep, does nothing
+            // If store operation, then the tmp is the address so we don't ignore it! 
+            if( it->op() == IR_STM )
+                tmp_table[it->dst()->id()] = true;
+            keep = tmp_table[it->dst()->id()]; 
         }
         if( it->src1()->type() == ARG_TMP )
             tmp_table[it->src1()->id()] |= keep;
