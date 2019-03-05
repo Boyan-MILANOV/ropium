@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*- 
 # Find module: implement de find command - find gadgets and build ropchains :) 
 
-from ropgenerator.core.IO import error, banner, str_bold, str_special
+from ropgenerator.core.IO import error, banner, str_bold, str_special, alert
 from ropgenerator.main.Utils import *
 from ropgenerator.core.ChainingEngine import SearchParametersBinding
 from ropgenerator.core.Gadget import set_gadgets_offset
@@ -52,11 +52,13 @@ CMD_FIND_HELP += "\n\n\t"+str_bold("Examples")+":\n\t\tfind rax=rbp\n\t\tfind rb
 def print_help():
     print(CMD_FIND_HELP)
 
+
 def find(args):
     """
     args - List of user arguments as strings
     (the command should not be included in the list as args[0])
     """
+    
     if( (not args) or args[0] == OPTION_HELP or args[0] == OPTION_HELP_SHORT ):
         print_help()
         return 
@@ -74,18 +76,29 @@ def find(args):
     
     # Set the offset
     set_gadgets_offset(offset)
+    set_search_verbose(True)
     
-    res = search(dest_arg, assign_arg, params)
-    if( res.found ):
-        if( OUTPUT == OUTPUT_CONSOLE ):
-            print(res.chain.to_str_console(curr_arch_bits()//8, bad_bytes ))
-        elif( OUTPUT == OUTPUT_PYTHON ):
-            print(res.chain.to_str_python(curr_arch_bits()//8, bad_bytes, True, False ))
-    else:
-        error("No matching ROPChain found")
+    # Do the search 
+    keyboard_interrupt = False
+    try:
+        res = search(dest_arg, assign_arg, params)
+    except KeyboardInterrupt:
+        alert("Search aborted by Keyboard Interrupt.\n")
+        keyboard_interrupt = True
+    
+    if( not keyboard_interrupt ):
+        # Print result 
+        if( res.found ):
+            if( OUTPUT == OUTPUT_CONSOLE ):
+                print(res.chain.to_str_console(curr_arch_bits()//8, bad_bytes ))
+            elif( OUTPUT == OUTPUT_PYTHON ):
+                print(res.chain.to_str_python(curr_arch_bits()//8, bad_bytes, True, False ))
+        else:
+            error("No matching ROPChain found")
         
     # Reset normal state
     set_gadgets_offset(0)
+    set_search_verbose(False)
     
     return 
 

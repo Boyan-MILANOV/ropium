@@ -130,7 +130,7 @@ def get_gadgets(filename, extra_args=''):
             res.append((int(addr,16), raw))
             count += 1 
         l = outs.readline()
-    notify("Gadgets generated: %d" % (count))
+    notify("Gadgets generated: " +  str_special(str(count)))
     return res
     
 def load(args):
@@ -231,6 +231,7 @@ def load(args):
         return 
         
     # Analyse gadgets 
+    keyboard_interrupt = False
     try: 
         init_gadget_db();
         start_time = datetime.now()
@@ -244,8 +245,8 @@ def load(args):
             charging_bar(len(gadget_list), total)
             if( raw in dup ):
                 count += 1
+                gadget_db_get(dup[raw]).add_address(addr)
                 continue
-            dup[raw] = True
             (irblock, asm_instr_list) = raw_to_IRBlock(raw)
             if( not irblock is None ):
                 # Create C++ object 
@@ -264,21 +265,32 @@ def load(args):
                     gadget.set_ret_type(RetType.UNKNOWN)
                 # Add address
                 gadget.add_address(addr)
+                # DEBUG
+                if( addr == 0 ):
+                    print("DEBUG, addr added: " + hex(addr))
+                    x = 0/0
                 biggest_gadget_addr = max(addr, biggest_gadget_addr)
                 # Add instruction count
                 gadget.set_nb_instr(len(asm_instr_list))
                 gadget.set_nb_instr_ir(irblock.nb_instr())
                 # Add to database 
-                gadget_db_add(gadget)
+                dup[raw] = gadget_db_add(gadget)
+    except KeyboardInterrupt:
+        keyboard_interrupt = True
+        charging_bar(len(gadget_list), len(gadget_list))
     except:
-        print("DEBUG !!! Unexpected exception happened !! :O")
+        print("\n Unexpected exception happened !! :O")
         
     end_time = datetime.now()
     
-    notify("Gadgets analyzed : " + str(total))
-    notify("Duplicates: " + str(count))
-    notify("Database entries created: " + str(gadget_db_entries_count()))
-    notify("Computation time : " + str(end_time-start_time))
+    notify("Gadgets analyzed : " + str_special(str(total)))
+    notify("Duplicates: " + str_special(str(count)))
+    notify("Database entries created: " + str_special(str(gadget_db_entries_count())))
+    notify("Computation time : " + str_special(str(end_time-start_time)))
+    
+    if( keyboard_interrupt ):
+        print('')
+        alert("Analysis stopped by Keyboard interrupt. Gadget database might be incomplete.\n")
     
     # # Init engine 
     # initEngine()

@@ -463,6 +463,10 @@ CondPtr simplify_neutral_element(CondPtr p){
     }
 }
 
+// TODO simplify by keeping only what's left in the polynom 
+// rax+7 < 8 ===> rax < 1
+// rax + 6 < rbx + 6 ===> rax < rbx
+
 CondPtr simplify_compare_polynom(CondPtr p){
     ExprAsPolynom *left_p, *right_p;
     if( ! is_compare_cond(p->type()) )

@@ -371,7 +371,6 @@ def parse_expr( string ):
             return (True, AssignType.CST, (value,))
 
 def parse_cst(string):
-    # DEBUG TODO: verify that it fits the arch size ??
     try:
         cst = int(string, 10)
     except:

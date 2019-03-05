@@ -223,8 +223,9 @@ ConstrMaxSpInc::ConstrMaxSpInc(cst_t i): SubConstraint(CONSTR_MAX_SP_INC), _inc(
 cst_t ConstrMaxSpInc::inc(){return _inc;}
 
 pair<ConstrEval,CondObjectPtr> ConstrMaxSpInc::verify(shared_ptr<Gadget> g){
-    if( !g->known_sp_inc() || g->sp_inc() > _inc )
+    if( !g->known_sp_inc() || g->sp_inc() > _inc ){
         return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
+    }
     return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
 }
 
@@ -262,7 +263,7 @@ void Constraint::add(SubConstraint* c, bool del=false){
     if( _constr[c->type()] != nullptr )
         _constr[c->type()]->merge(c, del);
     else
-        _constr[c->type()] = c; 
+        _constr[c->type()] = c;
 }
 
 void Constraint::update(SubConstraint* c){
@@ -291,6 +292,7 @@ pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g){
     bool maybe = false;
     if( g->type() == INT80 or g->type() == SYSCALL )
         return make_pair(EVAL_VALID, NewCondTrue());
+        
     for( int i = 0; i < COUNT_NB_CONSTR; i++){
         if( _constr[i] != nullptr ){
             std::tie(eval, cond) = _constr[i]->verify(g);

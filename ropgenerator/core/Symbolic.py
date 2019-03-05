@@ -140,8 +140,7 @@ def raw_to_IRBlock(raw):
     
     asm_instr_string = '; '.join(str(i) for i in string)
     res = IRBlock()
-    # Translate instruction by instruction 
-    # TODO 
+    # Translate instruction by instruction
     try:
         for instr in irsb:
             #print(instr) # DEBUG 

@@ -20,6 +20,7 @@ void info(string s);
 void notify(string s);
 void error(string s);
 void fatal(string s);
+void alert(string s);
 void verbose(string s);
 
 string banner(vector<string> s);

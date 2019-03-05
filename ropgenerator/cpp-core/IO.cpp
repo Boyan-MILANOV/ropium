@@ -22,6 +22,9 @@ string g_END_COLOR_ANSI = DEFAULT_END_COLOR_ANSI ;
 void info(string s){
     cout << "[" << str_ropg("+") << "] " << s; 
 }
+void alert(string s){
+    cout << "[" << g_ERROR_COLOR_ANSI << "!" << g_END_COLOR_ANSI << "] " << str_special(s); 
+}
 void notify(string s){
     cout << "\t" << str_ropg("% ") << s << endl; 
 }

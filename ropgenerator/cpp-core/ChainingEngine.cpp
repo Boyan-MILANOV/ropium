@@ -3,8 +3,11 @@
 #include "Database.hpp"
 #include "Architecture.hpp"
 #include "IO.hpp"
+#include "ROPChain.hpp"
+#include "Exception.hpp"
 #include <cstring>
 #include <algorithm>
+#include <csignal> 
 
 /* *****************************************************
  *             Classes to specify queries 
@@ -30,6 +33,7 @@ AssignArg::AssignArg(AssignType t):type(t){} /* For ASSIGN_SYSCALL and INT80 */
 FailRecord::FailRecord(){
     _max_len = false;
     memset(_modified_reg, false, NB_REGS_MAX);
+    memset(_bad_bytes, false, 256);
 }
 
 FailRecord::FailRecord(bool max_len): _max_len(max_len){
@@ -208,7 +212,9 @@ void AdjustRetRecord::add_fail(int reg_num){
 bool AdjustRetRecord::is_impossible(int reg_num){
     return _regs[reg_num];
 }
-
+void AdjustRetRecord::reset(){
+    memset(_regs, false, sizeof(_regs));
+}
 
 
 /* *********************************************************************
@@ -252,7 +258,11 @@ void SearchEnvironment::set_constraint(Constraint* c){ _constraint = c; }
 Assertion* SearchEnvironment::assertion(){return _assertion;}
 void SearchEnvironment::set_assertion(Assertion* a){ _assertion = a; }
 unsigned int SearchEnvironment::lmax(){return _lmax;}
-void SearchEnvironment::set_lmax(unsigned int val){_lmax = val;}
+void SearchEnvironment::set_lmax(unsigned int val){
+    if( val >= 40000 || val == 0)
+        throw_exception("Ooops lmax is really big or null,  MAYBE AN UNEXPECTED ERROR?");
+    _lmax = val;
+}
 unsigned int SearchEnvironment::depth(){return _depth;}
 void SearchEnvironment::set_depth(unsigned int val){_depth = val;}
 bool SearchEnvironment::no_padding(){return _no_padding;}
@@ -352,9 +362,16 @@ void SearchResultsBinding::operator=(SearchResultsBinding other){
  *                      Search & Chaining Functions ! 
  * ******************************************************************** */
  
-/* Prototypes */ 
+/* Global variables */
+bool g_search_verbose = false; 
+void set_search_verbose(bool val){
+    g_search_verbose = val;
+}
+ 
+/* Prototypes */
 ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest);
 ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* env);
+ROPChain* search_shortest(DestArg dest, AssignArg assign, SearchEnvironment* env);
 vector<int> _gadget_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env, int nb);
 ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env);
@@ -362,7 +379,6 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
 ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* env);
-
 
 /* Globals */
 RegTransitivityRecord g_reg_transitivity_record = RegTransitivityRecord();
@@ -397,7 +413,7 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
     
     env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, false, 
                                 &g_reg_transitivity_record);
-
+    
     /* Search */ 
     chain = search(dest, assign, env, params.shortest);
     if( chain == nullptr ){
@@ -431,17 +447,16 @@ ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool sh
     env->set_depth(env->depth()+1);
     
     if( shortest ){
-        // DEBUG TODO
-        res = nullptr; 
+        res = search_shortest(dest, assign, env);
     }else{
         res = search_first_hit(dest, assign, env);
     }
     
-    /* Restore env */ 
+    /* Restore env */
     env->set_depth(env->depth()-1);
     
     /* Return res */
-    return res; 
+    return res;
 }
 
 
@@ -451,7 +466,76 @@ ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* en
     if( res == nullptr ){
         res = chain(dest, assign, env);
     }
-    return res; 
+    return res;
+}
+
+string g_ANSI_back_one_line = "\x1b[F";
+string g_blank_line = string(50, ' ');
+
+
+ROPChain* search_shortest(DestArg dest, AssignArg assign, SearchEnvironment* env){
+    ROPChain* best_res = nullptr;
+    ROPChain* res = nullptr;
+    unsigned int lmoy;
+    unsigned int lmin = 1;
+    unsigned int lmax = env->lmax();
+    unsigned int saved_lmax = env->lmax();
+    bool wrote_status=false;
+    bool finished=false;
+    
+    /* Dichotomy on max length */
+    while( !finished && lmax > 0){
+        /* Test for last case */ 
+        if( lmin == lmax )
+            finished = true; // Last one to do then exit loop
+        
+        lmoy = (lmin+lmax+1)/2;
+        /* Set lmax for env */
+        env->set_lmax(lmoy);
+        
+        /* If requested, display info */ 
+        /* Erase previous if any */
+        if( g_search_verbose ){
+            if( wrote_status){
+                cout << g_ANSI_back_one_line << g_ANSI_back_one_line;
+                cout << g_blank_line << endl << g_blank_line << endl; 
+                cout << g_ANSI_back_one_line << g_ANSI_back_one_line;
+            }else{
+                cout << endl;
+            }
+            cout.flush();
+            wrote_status = true;
+            notify("Trying: " + str_special(std::to_string(lmoy*8) + " bytes"));
+            notify("Best chain: " + ( best_res == nullptr ? str_exploit("-"): str_ropg((std::to_string(best_res->len()*8) + " bytes"))));
+        }
+        
+        /* Search */ 
+        res = search(dest, assign, env);
+        if( res != nullptr ){
+            /* Found */ 
+            delete best_res; 
+            best_res = res;
+            lmax =  res->len()-1;
+        }else{
+            /* Not found */
+            lmin = lmoy;
+        }
+    }
+
+    /* If we had verbose output, erase it */
+    if( g_search_verbose ){
+        cout << g_ANSI_back_one_line << g_ANSI_back_one_line;
+        cout << g_blank_line << endl << g_blank_line << endl; 
+        cout << g_ANSI_back_one_line << g_ANSI_back_one_line << g_ANSI_back_one_line;
+        cout.flush();
+    }
+
+    /* Restore env */
+    env->set_lmax(saved_lmax);
+    
+    /* Return our best find */ 
+    return best_res;
+    
 }
 
 
@@ -535,13 +619,15 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
         tmp_constraint = env->constraint();
     }
     
-    // DEBUG: ADD ASSERTIONS AND CONSTRAINTS ? SEE ROPGENERATOR IN PYTHON 
+    /* Set env constraint */
+    env->set_constraint(tmp_constraint);
     
     gadgets = _gadget_db_lookup(dest, assign, env, nb);
     /* Check result */ 
-    if( gadgets.empty() )
+    if( gadgets.empty() ){
         res = nullptr;
-    else{
+        env->set_last_fail(FAIL_NO_GADGET);
+    }else{
         res = new ROPChain();
         res->add_gadget(gadgets.at(0)); // We use the first one
         if( ! env->no_padding() ){
@@ -558,8 +644,10 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
     }
     
     /* Restore env */ 
-    if( tmp_constraint != nullptr && tmp_constraint != prev_constraint)
+    if( tmp_constraint != nullptr && tmp_constraint != prev_constraint){
         delete tmp_constraint;
+        env->set_constraint(prev_constraint);
+    }
         
     /* Return result */ 
     return res;
@@ -663,6 +751,12 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
         prev_calls.at(prev_calls.size()-2) == strategy){
         return nullptr;
     }
+    /* If lmax is 1, impossible to use two gagets */
+    if( env->lmax() <= 1 ){
+        env->fail_record()->set_max_len(true);
+        env->set_last_fail(FAIL_LMAX);
+        return nullptr;
+    }
     
     /* Setting env */
     env->add_call(strategy);
@@ -694,6 +788,7 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
             env->reg_transitivity_unusable()->push_back(assign.reg);
             added_unusable=true;
         }
+        env->set_lmax(prev_lmax-1);
         inter_to_dest = search(dest, AssignArg(ASSIGN_REG_BINOP_CST, inter_reg, OP_ADD, 0), env);
         if( added_unusable ){
             env->reg_transitivity_unusable()->pop_back();
@@ -702,8 +797,9 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
         if( inter_to_dest == nullptr ){
             continue;
         }
+        
         /* 2. We found dest <- inter, try now inter <- assign */
-        env->set_lmax(env->lmax() - inter_to_dest->len());
+        env->set_lmax(prev_lmax - inter_to_dest->len());
         env->reg_transitivity_unusable()->push_back(dest.reg);
         assign_to_inter = search(DestArg(DST_REG, inter_reg), assign, env);
         env->set_lmax(prev_lmax);
@@ -745,8 +841,10 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
 
     /* Check for special cases */
     /* If constant contains bad bytes */
-    if( ! env->constraint()->verify_address((addr_t)assign.cst) )
+    if( ! env->constraint()->verify_address((addr_t)assign.cst) ){
+        env->set_last_fail(FAIL_OTHER);
         return nullptr;
+    }
 
     /* Setting env */ 
     env->add_call(strategy);
@@ -769,6 +867,7 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
         delete tmp_constraint;
         tmp_constraint = prev_constraint->copy();
         tmp_constraint->add(new ConstrMinSpInc(offset+(dest.reg==curr_arch()->ip()?1:2)*(curr_arch()->octets())), true);
+        tmp_constraint->add(new ConstrMaxSpInc(env->lmax()*curr_arch()->octets()), true);
         env->set_constraint(tmp_constraint);
         /* Get gadget that does dest.reg <- mem(rsp+offset)+0 */ 
         pop = basic_db_lookup(dest, AssignArg(ASSIGN_MEM_BINOP_CST, curr_arch()->sp(), OP_ADD, offset, 0), env);
@@ -820,9 +919,17 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
     /* Don't call this strategy consecutively, transitivity is handled
      * via reg_transitivity() so no need to do it within this function 
      * too */
-     if( !env->calls_history().empty() && env->calls_history().back() == strategy)
+     if( !env->calls_history().empty() && env->calls_history().back() == strategy){
+        env->set_last_fail(FAIL_OTHER);
         return nullptr;
-    
+    }
+    /* If lmax is 1, impossible to use two gagets */
+    if( env->lmax() <= 1 ){
+        env->fail_record()->set_max_len(true);
+        env->set_last_fail(FAIL_LMAX);
+        return nullptr;
+    }
+        
     /* Setting env */
     env->add_call(strategy);
     /* Check if we assign memory, if yes, we should not modify 
@@ -832,7 +939,6 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
         tmp_constraint->add(new ConstrKeepRegs(dest.addr_reg), true);
         env->set_constraint(tmp_constraint);
     }
-    
     
     /* Chaining... */
     for( inter_reg = 0; inter_reg < curr_arch()->nb_regs(); inter_reg++ ){
@@ -848,12 +954,13 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
         }
         
         /* 1. Search dest <- inter_reg */ 
+        env->set_lmax(prev_lmax-1);
         inter_to_dest = search(dest, AssignArg(ASSIGN_REG_BINOP_CST, inter_reg, OP_ADD, 0), env );
         if( inter_to_dest == nullptr){
             continue;
         }
         /* 2. Search inter_reg <- assign */
-        env->set_lmax(env->lmax()- inter_to_dest->len());
+        env->set_lmax(prev_lmax- inter_to_dest->len());
         assign_to_inter = search(DestArg(DST_REG, inter_reg), assign, env);
         env->set_lmax(prev_lmax);
         if( assign_to_inter == nullptr ){
@@ -885,6 +992,7 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
 #define ADJUST_RET_MAX_ADJUST_GADGETS 3
 #define ADJUST_RET_MAX_ADDRESS_TRY 3
 ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* env){
+    
     SearchStrategyType strategy = STRATEGY_ADJUST_RET;
     ROPChain *res=nullptr, *set_ret_reg_chain=nullptr; 
     Constraint* prev_constraint = env->constraint()->copy(), *tmp_constraint=nullptr;
@@ -892,6 +1000,7 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     vector<int> possible_gadgets, adjust_gadgets;
     vector<int>::iterator it, it2;
     vector<addr_t>::iterator ait;
+    vector<addr_t>* addr_list=nullptr;
     shared_ptr<Gadget> gadget;
     int ret_reg; 
     cst_t offset;
@@ -902,18 +1011,18 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     addr_t padding;
     bool success_padding;
     
-    
-    
     /* Check for special cases */
     /* Accept only two recursive calls */ 
     if( env->calls_count(strategy) > 2 ){
+        env->set_last_fail(FAIL_OTHER);
         return nullptr;
     }
     /* Can never adjust ip */
-    if( dest.type == DST_REG && dest.reg == curr_arch()->ip()){
+    if( dest.type == DST_REG && (dest.reg == curr_arch()->ip() || dest.reg == curr_arch()->sp()) ){
+        env->set_last_fail(FAIL_OTHER);
         return nullptr;
-    } 
-    
+    }
+        
     /* Setting env */
     env->add_call(strategy);
     
@@ -948,12 +1057,15 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
             padding_len = 0;
         }else{
             padding_len = gadget->sp_inc() / curr_arch()->octets();
-            if( gadget->ret_type() == RET_JMP ){
+            if( gadget->ret_type() == RET_JMP ){ 
+                // JMP
                 offset = 0;
-            }else{ // CALL{
+            }else{ 
+                // CALL
                 offset = curr_arch()->octets();
             }
         }
+        
         /* 2. Find gadget that do the adjustment (ret, pop-pop-ret, etc) */
         /* Set constraint to ensure that the adjustment doesn't destroy the 
          * effects wanted by the gadget */ 
@@ -969,10 +1081,16 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
             tmp_constraint = nullptr;
             env->set_constraint(prev_constraint);
         }
+        
+        /* Check if we still have enough length */
+        if( padding_len+1 >= prev_lmax )
+            continue;
+        
         /* For each adjust gadget, see if we can put its address in the ret_reg */
         for( it2 = adjust_gadgets.begin(); (it2 != adjust_gadgets.end()) && !found; it2++){
             addr_count = 0; // Limit number of addresses checked
-            for( ait = gadget_db()->get(*it2)->addresses()->begin(); (ait != gadget_db()->get(*it2)->addresses()->end()) && !found; ait++ ){
+            addr_list = gadget_db()->get(*it2)->addresses();
+            for( ait = addr_list->begin(); (ait != addr_list->end()) && !found; ait++ ){
                 /* Check number of addresses */ 
                 if( ++addr_count > ADJUST_RET_MAX_ADDRESS_TRY)
                     break;
@@ -989,8 +1107,9 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
                     tmp_constraint->add(new ConstrKeepRegs(assign.addr_reg), true);
                     env->set_constraint(tmp_constraint);
                 }
-                /* Adapt lmax */ 
-                env->set_lmax(prev_lmax - padding_len - 1); 
+                
+                /* Adapt lmax */
+                env->set_lmax(prev_lmax - padding_len - 1);
                 /* Set comment */ 
                 env->push_comment(STRATEGY_POP_CONSTANT, string("Address of ") + str_bold(gadget_db()->get(*it2)->asm_str()));
                 /* Search */ 
@@ -1029,6 +1148,7 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
             }
         }
         /* If could not set ret_reg, put it in the record */ 
+        // DEBUG add && (env->last_fail() != FAIL_LMAX) ? --> makes it very slow 
         if( !found && !adjust_gadgets.empty() ){
             env->adjust_ret_record()->add_fail(ret_reg);
         }
@@ -1036,7 +1156,7 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     
     /* Restore env */
     env->remove_last_call();
-    // DEBUG Keep old adjust 
+    // DEBUG Keep old adjust ? maybe not --> makes it very slow 
     //env->set_adjust_ret_record(&prev_adjust_ret);
     
     /* Return result */

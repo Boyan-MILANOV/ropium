@@ -204,7 +204,6 @@ int Database::add(shared_ptr<Gadget> g){
     int num = _gadgets.size(); 
     /* Add gadget to the list */ 
     _gadgets.push_back(g);
-    // DEBUG TODO CHECK WHAT BINOP FOR CONST !!! OMG 
     
     /* Get semantics for ... -> reg */ 
     for( rit = g->semantics()->regs().begin(); rit != g->semantics()->regs().end(); rit++){
