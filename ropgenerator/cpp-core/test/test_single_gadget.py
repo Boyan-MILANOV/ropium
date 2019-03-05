@@ -18,7 +18,7 @@ set_bin_type(BinType.BIN_X64_ELF)
 set_arch(ArchType.ARCH_X64)
 
 #raw = "\x48\x89\xD8" # MOV RAX,RBX
-raw = b'\x00\x00\xb8\xe8\x00\x00\x2c\xf7\xf0\xff\xd6'
+raw = b'\x48\x8B\x44\x24\x18\x48\x89\x47\x38\xC3'
 
 
 init_gadget_db();
