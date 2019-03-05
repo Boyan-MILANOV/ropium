@@ -93,7 +93,6 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     CondObjectPtr tmp;
     // Get the semantics 
     _semantics = irblock->compute_semantics(true); 
-    // DEBUG
     _semantics->simplify(); 
     _semantics->tweak(true);
     //_semantics->filter(); 

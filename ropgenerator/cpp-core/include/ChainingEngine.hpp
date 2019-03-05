@@ -58,7 +58,7 @@ class AssignArg {
  *                    FailRecord
  * ************************************************* */ 
 
-enum FailType{FAIL_LMAX, FAIL_MODIFIED_REG, FAIL_BAD_BYTES, FAIL_NO_VALID_PADDING};
+enum FailType{FAIL_NO_GADGET, FAIL_LMAX, FAIL_MODIFIED_REG, FAIL_BAD_BYTES, FAIL_NO_VALID_PADDING, FAIL_OTHER};
  
 class FailRecord{
     bool _max_len;                          /* Reached length limit */ 
@@ -110,6 +110,7 @@ class AdjustRetRecord{
         AdjustRetRecord();
         void add_fail(int reg_num);
         bool is_impossible(int reg_num);
+        void reset();
 };
 
 
@@ -217,6 +218,7 @@ class SearchEnvironment{
 /* **********************************************************************
  *                      Search & Chaining Functions ! 
  * ******************************************************************** */
+void set_search_verbose(bool val);
 SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBinding params);
 ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest=false);
 

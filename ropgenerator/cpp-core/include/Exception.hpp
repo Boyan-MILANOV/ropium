@@ -2,6 +2,7 @@
 #define EXCEPTION_H
 #include <sstream>
 #include <string>
+#include <exception>
 
 
 class ExceptionFormatter{
@@ -34,6 +35,12 @@ private:
 
 void throw_exception(std::string s);
 
+/* Sigint */ 
+struct SigIntException : public std::exception {
+   const char * what () const throw () {
+      return "SIGINT Exception";
+   }
+};
 
 
 #endif 

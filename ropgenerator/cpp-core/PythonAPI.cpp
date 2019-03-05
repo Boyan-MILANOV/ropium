@@ -25,6 +25,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("notify", &notify);
     m.def("error",&error);
     m.def("fatal",&fatal);
+    m.def("alert", &alert);
     m.def("verbose",&verbose);
     m.def("banner",&banner);
 
@@ -246,6 +247,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def(py::init<AssignType>());
         
     m.def("get_default_lmax", [](){return DEFAULT_LMAX;});
+    m.def("set_search_verbose", &set_search_verbose);
         
     py::class_<SearchParametersBinding>(m, "SearchParametersBinding")
         .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool>());
