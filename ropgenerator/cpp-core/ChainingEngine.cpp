@@ -1163,3 +1163,8 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     return res;
 }
 
+/* Init functions */
+void init_chaining_engine(){
+    g_reg_transitivity_record = RegTransitivityRecord();
+    g_search_verbose = false;
+}

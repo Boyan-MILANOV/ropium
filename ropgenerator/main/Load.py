@@ -233,7 +233,8 @@ def load(args):
     # Analyse gadgets 
     keyboard_interrupt = False
     try: 
-        init_gadget_db();
+        init_gadget_db()
+        init_chaining_engine()
         start_time = datetime.now()
         dup = dict()
         count = 0

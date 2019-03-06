@@ -222,4 +222,6 @@ void set_search_verbose(bool val);
 SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBinding params);
 ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest=false);
 
+/* Init function */ 
+void init_chaining_engine();
 #endif
