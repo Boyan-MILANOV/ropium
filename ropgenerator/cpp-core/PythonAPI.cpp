@@ -248,7 +248,8 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         
     m.def("get_default_lmax", [](){return DEFAULT_LMAX;});
     m.def("set_search_verbose", &set_search_verbose);
-        
+    m.def("init_chaining_engine", &init_chaining_engine);    
+    
     py::class_<SearchParametersBinding>(m, "SearchParametersBinding")
         .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool>());
     
