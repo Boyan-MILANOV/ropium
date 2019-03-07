@@ -1,5 +1,5 @@
 from ropgenerator_core_ import\
-Architecture, ArchType, BinType, set_arch, set_bin_type,\
+Architecture, ArchType, BinType, set_arch, set_bin_type, curr_bin_type,\
 curr_arch_bits, curr_arch_type, curr_arch_ip,\
 RegX86, RegX64
 

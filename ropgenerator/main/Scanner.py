@@ -125,17 +125,18 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
                 return False
         return True
                 
-    
-    section_names = [".text", '.data']
     # Getting all readable segments
     segments = []
     for segment in g_binary_lief.segments:
-        # Check flags
-        if( (segment.flags & lief.ELF.SEGMENT_FLAGS.R != 0 ) &&
-                (segment.flags & lief.ELF.SEGMENT_FLAGS.W == 0 )):
-            data = segment.content
-            addr = segment.virtual_address + offset
-            segments.append((data, addr))
+        # Check flags (depends on binary format)
+        if( curr_bin_type() == BinType.ELF32 or
+            curr_bin_type() == BinType.ELF64):
+            if( not ((segment.flags & lief.ELF.SEGMENT_FLAGS.R != 0 ) &&
+                    (segment.flags & lief.ELF.SEGMENT_FLAGS.W == 0 ))):
+                continue
+        data = segment.content
+        addr = segment.virtual_address + offset
+        segments.append((data, addr))
     if( not segments ):
             return []
             

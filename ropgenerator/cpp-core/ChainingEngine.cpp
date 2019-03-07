@@ -12,17 +12,18 @@
 /* *****************************************************
  *             Classes to specify queries 
  * *************************************************** */
-
-DestArg::DestArg(DestType t, int r):type(t), reg(r){}  /* For DEST_REG */ 
+ 
+/* Don't forget to initialize unused reg fields to -1 */ 
+DestArg::DestArg(DestType t, int r):type(t), addr_reg(-1), reg(r){}  /* For DEST_REG */ 
 DestArg::DestArg(DestType t, int addr_r, Binop o, cst_t addr_c): type(t), 
-    addr_reg(addr_r), addr_cst(addr_c), addr_op(o){} /* For DEST_MEM */
-DestArg::DestArg(DestType t, cst_t addr_c): type(t), addr_cst(addr_c){} /* For DEST_CSTMEM */
+    addr_reg(addr_r), addr_cst(addr_c), addr_op(o), reg(-1){} /* For DEST_MEM */
+DestArg::DestArg(DestType t, cst_t addr_c): type(t), addr_reg(-1), addr_cst(addr_c), reg(-1){} /* For DEST_CSTMEM */
 
-AssignArg::AssignArg(AssignType t, cst_t c):type(t), cst(c){} /* For ASSIGN_CST */
-AssignArg::AssignArg(AssignType t, int r, Binop o, cst_t c):type(t), reg(r), op(o), cst(c){} /* For ASSIGN_REG_BINOP_CST */
-AssignArg::AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c):type(t), addr_reg(ar), addr_cst(ac), addr_op(o), cst(c){} /* For ASSIGN_MEM_BINOP_CST */
-AssignArg::AssignArg(AssignType t, cst_t ac, cst_t c):type(t), addr_cst(ac), cst(c){} /* For ASSIGN_CST_MEM */
-AssignArg::AssignArg(AssignType t):type(t){} /* For ASSIGN_SYSCALL and INT80 */ 
+AssignArg::AssignArg(AssignType t, cst_t c):type(t), addr_reg(-1), reg(-1), cst(c){} /* For ASSIGN_CST */
+AssignArg::AssignArg(AssignType t, int r, Binop o, cst_t c):type(t), addr_reg(-1), reg(r), op(o), cst(c){} /* For ASSIGN_REG_BINOP_CST */
+AssignArg::AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c):type(t), addr_reg(ar), addr_cst(ac), addr_op(o), reg(-1), cst(c){} /* For ASSIGN_MEM_BINOP_CST */
+AssignArg::AssignArg(AssignType t, cst_t ac, cst_t c):type(t), addr_reg(-1), addr_cst(ac), reg(-1), cst(c){} /* For ASSIGN_CST_MEM */
+AssignArg::AssignArg(AssignType t):type(t), addr_reg(-1), reg(-1){} /* For ASSIGN_SYSCALL and INT80 */ 
 
 
 /* ***************************************************
@@ -176,8 +177,9 @@ bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, c
     vector<cstr_sig_t>::iterator it; 
     cstr_sig_t sig; 
     // Check regs
-    if( dest_reg >= NB_REG_RECORD || src_reg >= NB_REG_RECORD )
-        return false;
+    if( dest_reg >= NB_REG_RECORD || src_reg >= NB_REG_RECORD || 
+        dest_reg < 0 || src_reg < 0)
+        return true;
     // Check cst and operation
     if( op == OP_ADD || op == OP_SUB ){
         if( (cst_index=record_cst_list_addsub_index(src_cst)) == -1)
@@ -187,7 +189,7 @@ bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, c
             return false;
     }else
         return false;
-    // Insert in the vector...
+        
     sig = constr->signature();
     for( it = _query[dest_reg][src_reg][op][cst_index].begin(); it != _query[dest_reg][src_reg][op][cst_index].end(); it++){
         if( (*it & sig) == *it ){
@@ -573,6 +575,8 @@ vector<int> _gadget_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment*
                         break;
                 }
                 break;
+            case DST_CSTMEM:
+                break; // TODO
             default:
                 break;
         }
@@ -914,6 +918,7 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
     int inter_reg;
     unsigned int prev_lmax = env->lmax();
     Constraint *prev_constraint=env->constraint(), *tmp_constraint=nullptr;
+    int dest_used_reg=-1; // The reg that is used in dest
     
     /* Check for special cases */
     /* Don't call this strategy consecutively, transitivity is handled
@@ -929,6 +934,14 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
         env->set_last_fail(FAIL_LMAX);
         return nullptr;
     }
+      
+    /* Get the regs that must be kept, depends on the DestType */ 
+    if( dest.type == DST_REG )
+        dest_used_reg = dest.reg;
+    else if( dest.type == DST_MEM )
+        dest_used_reg = dest.addr_reg;
+    else
+        return nullptr;
         
     /* Setting env */
     env->add_call(strategy);
@@ -947,8 +960,8 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
         env->constraint()->keep_reg(inter_reg) || 
         inter_reg == curr_arch()->sp() || 
         inter_reg == curr_arch()->ip() || 
-        inter_reg == dest.reg || 
-        env->reg_transitivity_record()->is_impossible(dest.reg, inter_reg, OP_ADD, 0, env->constraint())
+        inter_reg == dest_used_reg || 
+        (dest.type == DST_REG && env->reg_transitivity_record()->is_impossible(dest.reg, inter_reg, OP_ADD, 0, env->constraint()))
         ){
             continue;
         }

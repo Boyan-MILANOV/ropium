@@ -65,7 +65,7 @@ Architecture* curr_arch();
 
 // Types of binaries 
 
-enum BinType {BIN_X86_ELF, BIN_X64_ELF, BIN_X86_PE, BIN_X64_PE, BIN_UNKNOWN};
+enum BinType {BIN_ELF32, BIN_ELF64, BIN_PE32, BIN_PE64, BIN_UNKNOWN};
 void set_bin_type(BinType t);
 BinType curr_bin_type(); 
 
