@@ -19,7 +19,7 @@ def init_scanner(filename):
     g_binary_name = None
     g_offset = 0
     g_binary_lief = lief.parse(filename)
-    if( g_binary_lief not is None ):
+    if( not g_binary_lief is None ):
         g_binary_name = filename
 
 def set_offset(off):

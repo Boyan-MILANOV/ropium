@@ -88,8 +88,8 @@ def pycst_to_cppcst(val):
 def barf_operand_to_IR(operand, alias_mapper):
     if( isinstance(operand, ReilImmediateOperand )):
         if( operand._immediate >= 2**curr_arch_bits()):
-            raise CstTooBig("BARF to IR: Constant '{}' is too big".format(hex(operand._immediate)))
-            # debug return ArgUnknown(operand.size)
+            #raise CstTooBig("BARF to IR: Constant '{}' is too big".format(hex(operand._immediate)))
+            return ArgUnknown(operand.size)
         else:
             value = int(operand._immediate)
         return ArgCst(pycst_to_cppcst(value), operand.size);
@@ -140,7 +140,7 @@ def raw_to_IRBlock(raw):
     
     asm_instr_string = '; '.join(str(i) for i in string)
     res = IRBlock()
-    # Translate instruction by instruction
+    # Translate instruction by instructionCstTooBig
     try:
         for instr in irsb:
             #print(instr) # DEBUG 
