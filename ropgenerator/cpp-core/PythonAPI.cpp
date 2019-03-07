@@ -155,14 +155,15 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .export_values();
     
     py::enum_<BinType>(m, "BinType", py::arithmetic(), "Binary Type")
-        .value("BIN_X86_ELF", BIN_X86_ELF)
-        .value("BIN_X64_ELF", BIN_X64_ELF)
-        .value("BIN_X86_PE", BIN_X86_PE)
-        .value("BIN_X64_PE", BIN_X64_PE)
+        .value("ELF32", BIN_ELF32)
+        .value("ELF64", BIN_ELF64)
+        .value("PE32", BIN_PE32)
+        .value("PE64", BIN_PE64)
         .value("BIN_UNKNOWN", BIN_UNKNOWN)
         .export_values();
     
     m.def("set_bin_type", &set_bin_type);
+    m.def("curr_bin_type", &curr_bin_type);
     
     /* Gadget Bindings */ 
     

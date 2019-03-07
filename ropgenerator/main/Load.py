@@ -59,26 +59,26 @@ def getPlatformInfo(filename):
     if( [sub for sub in INTEL_strings if sub in output]):
         if( [sub for sub in ELF32_strings if sub in output]):
             notify("ELF 32-bits detected")
-            set_bin_type(BinType.BIN_X86_ELF)
+            set_bin_type(BinType.ELF32)
             return ArchType.ARCH_X86
         elif( [sub for sub in ELF64_strings if sub in output]):
             notify("ELF 64-bits detected")
-            set_bin_type(BinType.BIN_X64_ELF)
+            set_bin_type(BinType.ELF64)
             return ArchType.ARCH_X64
         elif( [sub for sub in PE32_strings if sub in output]):
             notify("PE 32-bits detected")
-            set_bin_type(BinType.BIN_X86_PE)
+            set_bin_type(BinType.PE32)
             return ArchType.ARCH_X86
         elif( [sub for sub in PE64_strings if sub in output]):
             notify("PE 64-bits detected")
-            set_bin_type(BinType.BIN_X64_PE)
+            set_bin_type(BinType.PE64)
             return ArchType.ARCH_X64
         else:
             notify("Unknown binary type")
             set_bin_type(BinType.BIN_UNKNOWN)
             return None
     else:
-        return None 
+        return None
 
 def get_gadgets(filename, extra_args=''):
     """
