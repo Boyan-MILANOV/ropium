@@ -13,9 +13,10 @@ using std::shared_ptr;
 #include "Gadget.hpp"
 #include "Constraint.hpp"
 #include "Architecture.hpp"
+#include "ChainingEngine.hpp"
 
 using std::unique_ptr; 
-
+class FailRecord;
 
 
 class CSTList{
@@ -24,7 +25,7 @@ class CSTList{
     public:
         CSTList(); 
         void add(cst_t val, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets);
-        vector<int> find(cst_t val, Constraint* constr, Assertion* assert, int n);
+        vector<int> find(cst_t val, Constraint* constr, Assertion* assert, int n, FailRecord* fail_record);
         
 };
 
@@ -33,7 +34,7 @@ class REGList{
     public: 
         REGList(); 
         void add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets); 
-        vector<int> find(Binop op, int reg_num, cst_t cst, Constraint* constr, Assertion* assert, int n);
+        vector<int> find(Binop op, int reg_num, cst_t cst, Constraint* constr, Assertion* assert, int n, FailRecord* fail_record);
         ~REGList();
 };
 
@@ -42,7 +43,7 @@ class MEMList{
     public: 
         MEMList(); 
         void add(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets );
-        vector<int> find(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* constr, Assertion* assert, int n);
+        vector<int> find(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* constr, Assertion* assert, int n, FailRecord* fail_record);
         ~MEMList();
 };
 
@@ -57,11 +58,11 @@ class MEMDict{
         void add_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, \
                         Binop op, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets );
         vector<int> find_cst(Binop addr_op, int addr_reg, cst_t addr_cst, cst_t cst, 
-                                            Constraint* c, Assertion* a, int n);
+                                            Constraint* c, Assertion* a, int n, FailRecord* fail_record);
         vector<int> find_reg(Binop addr_op, int addr_reg, cst_t addr_cst, int reg, cst_t cst, 
-                                            Binop op, Constraint* c, Assertion* a, int n);
+                                            Binop op, Constraint* c, Assertion* a, int n, FailRecord* fail_record);
         vector<int> find_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int src_reg, 
-                                            cst_t src_cst, cst_t cst, Binop op, Constraint* c, Assertion* a, int n);
+                                            cst_t src_cst, cst_t cst, Binop op, Constraint* c, Assertion* a, int n, FailRecord* fail_record);
         ~MEMDict();
 };
 
@@ -83,12 +84,12 @@ class Database{
         int add(shared_ptr<Gadget> g); 
         shared_ptr<Gadget> get(int num);
         /* Find gadgets */ 
-        vector<int> find_cst_to_reg(int reg_dest, cst_t cst, Constraint* c, Assertion* a, int n); 
-        vector<int> find_reg_binop_cst_to_reg(int reg_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n);
-        vector<int> find_mem_binop_cst_to_reg(int reg_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n);
-        vector<int> find_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, cst_t cst, Constraint* c, Assertion* a, int n); 
-        vector<int> find_reg_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n);
-        vector<int> find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n);
+        vector<int> find_cst_to_reg(int reg_dest, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record); 
+        vector<int> find_reg_binop_cst_to_reg(int reg_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record);
+        vector<int> find_mem_binop_cst_to_reg(int reg_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record);
+        vector<int> find_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record); 
+        vector<int> find_reg_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record);
+        vector<int> find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record);
         
         int entries_count();
         ~Database(); 
