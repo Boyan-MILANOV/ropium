@@ -18,12 +18,31 @@ DestArg::DestArg(DestType t, int r):type(t), addr_reg(-1), reg(r){}  /* For DEST
 DestArg::DestArg(DestType t, int addr_r, Binop o, cst_t addr_c): type(t), 
     addr_reg(addr_r), addr_cst(addr_c), addr_op(o), reg(-1){} /* For DEST_MEM */
 DestArg::DestArg(DestType t, cst_t addr_c): type(t), addr_reg(-1), addr_cst(addr_c), reg(-1){} /* For DEST_CSTMEM */
+bool DestArg::operator==(DestArg& other){
+    return (    type == other.type &&
+                addr_reg == other.addr_reg && 
+                addr_cst == other.addr_cst &&
+                addr_op == other.addr_op &&
+                reg == other.reg
+            );
+}
 
+AssignArg::AssignArg():type(ASSIGN_INVALID), addr_reg(-1), addr_cst(0), addr_op(OP_ADD), op(OP_ADD), reg(-1), cst(0){} /* DEFAULT ONE */
 AssignArg::AssignArg(AssignType t, cst_t c):type(t), addr_reg(-1), reg(-1), cst(c){} /* For ASSIGN_CST */
 AssignArg::AssignArg(AssignType t, int r, Binop o, cst_t c):type(t), addr_reg(-1), reg(r), op(o), cst(c){} /* For ASSIGN_REG_BINOP_CST */
 AssignArg::AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c):type(t), addr_reg(ar), addr_cst(ac), addr_op(o), reg(-1), cst(c){} /* For ASSIGN_MEM_BINOP_CST */
 AssignArg::AssignArg(AssignType t, cst_t ac, cst_t c):type(t), addr_reg(-1), addr_cst(ac), reg(-1), cst(c){} /* For ASSIGN_CST_MEM */
 AssignArg::AssignArg(AssignType t):type(t), addr_reg(-1), reg(-1){} /* For ASSIGN_SYSCALL and INT80 */ 
+bool AssignArg::operator==(AssignArg& other){
+    return (    type == other.type &&
+                addr_reg == other.addr_reg && 
+                addr_cst == other.addr_cst &&
+                addr_op == other.addr_op &&
+                reg == other.reg &&
+                cst == other.cst &&
+                op == other.op
+            );
+}
 
 
 /* ***************************************************
@@ -1213,16 +1232,171 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     return res;
 }
 
+
 /* Adjust registers to do complex stores
  * eg:  mem(X) <- Y 
  * becomes: 
  *      reg1 <- Y+cst1
  *      reg2 <- X+cst2
  *      mem(reg2-cst2) <- reg1-cst1
+ * 
+ * !! Expects dest to be DST_CSTMEM
  */ 
+
+#define ADJUST_STORE_MAX_ADJUST_GADGETS 3 // Max gadgets to try for each couple (reg1, reg2)
+
+
+pair<bool,cst_t> _invert_operation(cst_t adjust_cst, Binop op, cst_t cst){
+    switch(op){
+        case OP_ADD:
+            return make_pair(true, adjust_cst-cst);
+        case OP_SUB:
+            return make_pair(true, adjust_cst+cst);
+        case OP_MUL:
+            if( adjust_cst % cst == 0 )
+                return make_pair(true, adjust_cst/cst);
+            break;
+        case OP_DIV:
+            if( ((1<<curr_arch()->bits())-1)/cst > adjust_cst )
+                return make_pair(true, adjust_cst*cst);
+            break;
+        default:
+            break;
+    }
+    return make_pair(false, 0);
+} 
+/* We want to to mem(requested) <- ... 
+ * we only have mem(available) <- ...
+ *  - requested is reg_binop_cst or cst
+ *  - available is reg2_binop_cst 
+ * Find the AssignArg 'res' such that we can emulate 'requested'
+ * by putting 'res' into reg2 (in available) 
+ *
+ * Example:
+ *  - requested= mem(rax+8)
+ *  - available= mem(rdx+16)
+ *  - res is what we want to put in rdx = rax-8
+ */  
+pair<bool,AssignArg> _adjust_store_adapt_dest_arg(DestArg requested, DestArg available){
+    bool success;
+    cst_t res_cst; 
+    int res_reg;
+    AssignArg res;
+    
+    if( available.type != DST_MEM )
+        return make_pair(false, res); 
+    switch(requested.type){
+        case DST_CSTMEM:
+            /* Find the right cst to put in the register */
+            std::tie(success,res_cst) = _invert_operation(requested.addr_cst, available.addr_op, available.addr_cst);
+            if( success )
+                return make_pair(true,AssignArg(ASSIGN_CST, res_cst));
+            break;
+        case DST_MEM:
+            /* Find the cst to put in the register */
+            std::tie(success, res_cst)= _invert_operation(requested.addr_cst, available.addr_op, available.addr_cst);
+            if( success )
+                return make_pair(true, AssignArg(ASSIGN_REG_BINOP_CST, requested.addr_reg, requested.addr_op, res_cst));
+            break;
+        default:
+            break;
+    }
+    return make_pair(false, res);
+}
+
+/* We want to to ... <- requested
+ * we only have ... <- available (reg op cst)
+ *  - requested is anything
+ *  - available is reg op cst 
+ * Find the AssignArg 'res' such that we can emulate 'requested'
+ * by putting 'res' into reg (in available) 
+ *
+ * Example:
+ *  - requested= mem(rax+8) + 8
+ *  - available= rbx+4
+ *  - res is what we want to put in rbx = mem(rax+8) + 4 
+ */  
+pair<bool,AssignArg> _adjust_store_adapt_assign_arg(AssignArg requested, AssignArg available){
+    bool success;
+    cst_t res_cst; 
+    AssignArg res = requested;
+    if( available.type != ASSIGN_REG_BINOP_CST )
+        return make_pair(false, res);
+    std::tie(success, res_cst) = _invert_operation(requested.cst, available.op, available.cst);
+    if( success ){
+        res.cst = res_cst;
+    }else
+        return make_pair(false, res);
+}
+ 
 ROPChain* adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* env){
     SearchStrategyType strategy = STRATEGY_ADJUST_STORE;
-    ROPChain *res=nullptr;
+    ROPChain *res=nullptr, *set_dest_reg=nullptr, *set_assign_reg=nullptr;
+    unsigned int saved_lmax = env->lmax();
+    vector<tuple<DestArg, AssignArg, vector<int>>>* possible = nullptr;
+    vector<tuple<DestArg, AssignArg, vector<int>>>::iterator it;
+    FailRecord local_fail_record;
+    AssignArg assign_to_dest_reg;
+    AssignArg assign_to_store_reg;
+    ExprObjectPtr tmp_dest_expr;
+    bool success;
+    bool already_right_store;
+    bool already_right_dest;
+
+    /* Check for special cases */
+    /* Don't call this strategy consecutively, transitivity is handled
+     * via other chaining functions so no need to do it within this function 
+     * too */
+     if( !env->calls_history().empty() && env->calls_history().back() == strategy){
+        return nullptr;
+    }
+    /* Accept only one recursive calls */ 
+    if( env->calls_count(strategy) > 1 ){
+        return nullptr;
+    }
+    /* If lmax is < 3, impossible to use this strat
+     * At least 1 for store, 2 for setting regs */
+    if( env->lmax() < 3 ){
+        env->fail_record()->set_max_len(true);
+        return nullptr;
+    }
+    
+    /* Set env */ 
+    env->add_call(strategy);
+    
+    /* 0. Find all possible memory writes */
+    possible = gadget_db()->get_possible_stores_reg(env->constraint(), env->assertion(), ADJUST_STORE_MAX_ADJUST_GADGETS , &local_fail_record);
+    
+    /* Loop through all possibilities */ 
+    for( it = possible->begin(); it != possible->end(); it++ ){
+        /* Build new arguments for dest and assign */ 
+        /* Dest */
+        if( dest == std::get<0>(*it) ){
+            already_right_dest = true;
+        }else{
+            std::tie(success, assign_to_dest_reg) = _adjust_store_adapt_dest_arg(dest, std::get<0>(*it));
+            if( !success )
+                continue;
+            already_right_dest = false;
+        }
+        /* Store */ 
+        
+        
+           
+        /* 1. Try to adjust the reg that references memory first */
+        
+        
+        
+        /* 2. Try to adjust the reg that is stored first */ 
+        /* Check if this step previously failed because the addr_reg
+         *  couldn't be kept, if it's not the reason then skip this part */ 
+    }
+    
+    /* Delete the possible gadgets vector */ 
+    delete possible;
+    
+    /* Restore env */ 
+    env->remove_last_call();
     
     /* Return result */
     return res;

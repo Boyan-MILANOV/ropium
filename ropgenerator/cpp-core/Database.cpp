@@ -1,4 +1,5 @@
 #include "Database.hpp"
+#include "ChainingEngine.hpp"
 #include <cstring>
 #include <memory>
 #include <utility>
@@ -68,9 +69,37 @@ void REGList::add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPt
 vector<int> REGList::find(Binop op, int reg_num, cst_t cst, Constraint* constr, Assertion* assert, int n=1, FailRecord* fail_record=nullptr){
     if( _values[op][reg_num] == nullptr )
         return vector<int>();
-    return _values[op][reg_num]->find(cst, constr, assert, n);
+    return _values[op][reg_num]->find(cst, constr, assert, n, fail_record);
 }
- 
+vector<pair<AssignArg, vector<int>>>* REGList::get_possible(Constraint* constr, Assertion* assert, int n, FailRecord* fail_record, int assign_reg){
+    int tmp_reg;
+    int tmp_op;
+    vector<int> tmp_gadgets;
+    vector<int>::iterator git;
+    unordered_map<cst_t, vector<int>>::iterator it;
+    vector<pair<AssignArg, vector<int>>>* res = new vector<pair<AssignArg, vector<int>>>();
+    
+    for( tmp_op = 0; tmp_op < COUNT_NB_BINOP; tmp_op++){
+        /* For each register */ 
+        for( tmp_reg = 0; tmp_reg < NB_REGS_MAX; tmp_reg++){
+            /* Check if one register requested in particular */ 
+            if( assign_reg != -1 && assign_reg != tmp_reg )
+                continue;
+            /* Check if there are gadgets */
+            if( _values[tmp_op][tmp_reg] == nullptr )
+                continue;
+            /* Get gadgets for each constant */
+            for( it = _values[tmp_op][tmp_reg]->_values.begin(); it != _values[tmp_op][tmp_reg]->_values.end(); it++ ){
+                tmp_gadgets = _values[tmp_op][tmp_reg]->find(it->first, constr, assert, n, fail_record);
+                if( !tmp_gadgets.empty() ){
+                    res->push_back(make_pair(AssignArg(ASSIGN_REG_BINOP_CST, tmp_reg, (Binop)tmp_op, it->first), tmp_gadgets));
+                }
+            }
+        }
+    }
+    return res;
+}
+
 REGList::~REGList(){
     for (int j = 0; j < COUNT_NB_BINOP; j++ )
         for( int i = 0; i < NB_REGS_MAX; i++)
@@ -101,7 +130,7 @@ vector<int> MEMList::find(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Con
     else if( _addresses[op][addr_reg]->count(addr_cst) == 0 )
         return vector<int>();
     else
-        return _addresses[op][addr_reg]->at(addr_cst)->find(cst, constr, assert, n);
+        return _addresses[op][addr_reg]->at(addr_cst)->find(cst, constr, assert, n, fail_record);
 }
 
 MEMList::~MEMList(){
@@ -158,7 +187,7 @@ template <class T> vector<int> MEMDict<T>::find_cst(Binop addr_op, int addr_reg,
     if( _addresses[addr_op][addr_reg] == nullptr || _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
         return vector<int>();
     else
-        return _addresses[addr_op][addr_reg]->at(addr_cst)->find(cst, c, a, n);
+        return _addresses[addr_op][addr_reg]->at(addr_cst)->find(cst, c, a, n, fail_record);
 }
 
 template <class T> vector<int> MEMDict<T>::find_reg(Binop addr_op, int addr_reg, cst_t addr_cst, int reg, cst_t cst, 
@@ -166,7 +195,7 @@ template <class T> vector<int> MEMDict<T>::find_reg(Binop addr_op, int addr_reg,
     if( _addresses[addr_op][addr_reg] == nullptr || _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
         return vector<int>();
     else
-        return _addresses[addr_op][addr_reg]->at(addr_cst)->find(op, reg, cst, c, a, n);
+        return _addresses[addr_op][addr_reg]->at(addr_cst)->find(op, reg, cst, c, a, n, fail_record);
 }
 
 template <class T> vector<int> MEMDict<T>::find_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int src_reg, 
@@ -174,7 +203,46 @@ template <class T> vector<int> MEMDict<T>::find_mem(Binop addr_op, int addr_reg,
     if( _addresses[addr_op][addr_reg] == nullptr || _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
         return vector<int>();
     else
-        return _addresses[addr_op][addr_reg]->at(addr_cst)->find(op, src_reg, src_cst, cst, c, a, n);
+        return _addresses[addr_op][addr_reg]->at(addr_cst)->find(op, src_reg, src_cst, cst, c, a, n, fail_record);
+}
+
+/* Find possible gadgets of the form mem(reg op cst) <- reg op cst 
+ * for each case, take at max 'n' gadgets
+ * If dest_addr_reg or assign_reg is set then return only gadgets using those registers 
+ * 
+ * !! To be used only for mem <- reg binop cst, because explicit instanciation of template param T */ 
+template <class T> vector<tuple<DestArg, AssignArg, vector<int>>>* MEMDict<T>::get_possible_stores_reg(Constraint*c, Assertion*a, int n, FailRecord* fail_record, int dest_addr_reg, int assign_reg){
+    unordered_map<cst_t, unique_ptr<REGList>>::iterator it;
+    int tmp_addr_reg;
+    int tmp_op;
+    int tmp_count;
+    vector<tuple<DestArg, AssignArg, vector<int>>>* res = new vector<tuple<DestArg, AssignArg, vector<int>>>();
+    vector<pair<AssignArg, vector<int>>>* reglist_res = nullptr;
+    vector<pair<AssignArg, vector<int>>>::iterator it2;
+    
+    for( tmp_op = 0; tmp_op != COUNT_NB_BINOP; tmp_op++){
+        for( tmp_addr_reg = 0; tmp_addr_reg < NB_REGS_MAX; tmp_addr_reg++ ){
+            /* If no gadgets here, continue */ 
+            if( _addresses[tmp_op][tmp_addr_reg] == nullptr )
+                continue;
+            /* If dest_addr_reg is specified check if it is the right one */
+            if( dest_addr_reg != -1 && dest_addr_reg != tmp_addr_reg)
+                continue;
+            /* Search suitable gadgets */
+            tmp_count = 0;
+            for( it = _addresses[tmp_op][tmp_addr_reg]->begin(); it != _addresses[tmp_op][tmp_addr_reg]->end(); it++ ){
+                /* Iterator through the REGList corresponding to this memory store */ 
+                reglist_res = _addresses[tmp_op][tmp_addr_reg]->at(it->first)->get_possible(c, a, n, fail_record, assign_reg);
+                if( !reglist_res->empty() ){
+                    for( it2 = reglist_res->begin(); it2 != reglist_res->end(); it2++){
+                        res->push_back(make_tuple(DestArg(DST_MEM, tmp_addr_reg, (Binop)tmp_op, it->first), it2->first, it2->second));
+                    }
+                }
+                delete reglist_res;
+            }
+        }
+    }
+    return res;
 }
 
 template <class T> MEMDict<T>::~MEMDict(){
@@ -456,7 +524,12 @@ vector<int> Database::find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst
     return _mem_binop_cst_to_mem.find_mem( op_dest, reg_dest, cst_dest, addr_reg, addr_cst, cst, op, c, a, n, fail_record);
 }
 
+/* More advanced functions */ 
+vector<tuple<DestArg, AssignArg, vector<int>>>* Database::get_possible_stores_reg(Constraint*c, Assertion*a, int n, FailRecord* fail_record, int dest_addr_reg, int assign_reg){
+    return _reg_binop_cst_to_mem.get_possible_stores_reg(c, a, n, fail_record, dest_addr_reg, assign_reg);
+}
 
+/* Destructor */ 
 Database::~Database(){
     for( int i = 0; i < NB_REGS_MAX; i++){
         delete _cst_to_reg[i]; 
@@ -464,6 +537,7 @@ Database::~Database(){
         delete _mem_binop_cst_to_reg[i]; 
     }
 }
+
 
 
 /* Global database variable to be used by ROPGenerator */ 

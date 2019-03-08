@@ -15,7 +15,8 @@ enum AssignType {
     ASSIGN_MEM_BINOP_CST,    /* mem op cst */
     ASSIGN_CSTMEM_BINOP_CST, /* mem(cst) */ 
     ASSIGN_SYSCALL,          /* syscall */ 
-    ASSIGN_INT80             /* int80 */
+    ASSIGN_INT80,             /* int80 */
+    ASSIGN_INVALID
 };
 
 enum DestType {
@@ -35,6 +36,7 @@ class DestArg {
     DestArg(DestType t, int r);   /* For DEST_REG */ 
     DestArg(DestType t, int addr_r, Binop op, cst_t addr_c); /* For DEST_MEM */
     DestArg(DestType t, cst_t addr_c); /* For DEST_CSTMEM */
+    bool operator==(DestArg& other);
 };
 
 class AssignArg {
@@ -47,11 +49,13 @@ class AssignArg {
     Binop op;
     cst_t cst;
     
+    AssignArg();
     AssignArg(AssignType t, cst_t c); /* For ASSIGN_CST */
     AssignArg(AssignType t, int r, Binop o, cst_t c); /* For ASSIGN_REG_BINOP_CST */
     AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c); /* For ASSIGN_MEM_BINOP_CST */
     AssignArg(AssignType t, cst_t ac, cst_t c); /* For ASSIGN_CSTMEM_BINOP_CST */
-    AssignArg(AssignType t); /* For ASSIGN_SYSCALL and INT80 */ 
+    AssignArg(AssignType t); /* For ASSIGN_SYSCALL and INT80 */
+    bool operator==(AssignArg& other);
 };
 
 /* ***************************************************
