@@ -36,7 +36,7 @@ vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int 
     if( _values.count(val) == 0)
         return res; 
     for( int i = 0; i < _values.at(val).size() && res.size() < n; i++){
-        g = gadget_db()->get(_values[val].at(i));        
+        g = gadget_db()->get(_values[val].at(i));      
         // Verify constraint 
         std::tie(eval, constr_cond) = constr->verify(g);
         if( eval == EVAL_VALID || eval == EVAL_MAYBE){

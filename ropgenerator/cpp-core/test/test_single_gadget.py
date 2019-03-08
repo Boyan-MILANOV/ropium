@@ -14,11 +14,11 @@ from barf.arch.x86.x86 import *
 
 
 # X64 
-set_bin_type(BinType.BIN_X64_ELF)
+set_bin_type(BinType.ELF64)
 set_arch(ArchType.ARCH_X64)
 
 #raw = "\x48\x89\xD8" # MOV RAX,RBX
-raw = b'\x48\x8B\x44\x24\x18\x48\x89\x47\x38\xC3'
+raw = b'\x48\x89\x73\x08\x48\x83\xC4\x10\x5B\xC3'
 
 
 init_gadget_db();

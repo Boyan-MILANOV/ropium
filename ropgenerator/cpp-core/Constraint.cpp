@@ -472,6 +472,15 @@ AssertRegsNoOverlap::AssertRegsNoOverlap(): SubAssertion(ASSERT_REGS_NO_OVERLAP)
         _regs[i][i] = true; 
 }
 
+AssertRegsNoOverlap::AssertRegsNoOverlap(int reg1, int reg2): SubAssertion(ASSERT_REGS_NO_OVERLAP){
+	std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
+    for( int i =0; i < NB_REGS_MAX; i++){
+        _regs[i][i] = true; 
+    }
+	_regs[reg1][reg2] = true;
+	_regs[reg2][reg1] = true;
+}
+
 AssertRegsNoOverlap::AssertRegsNoOverlap(bool array[NB_REGS_MAX][NB_REGS_MAX]): SubAssertion(ASSERT_REGS_NO_OVERLAP){
     std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
 }
@@ -489,10 +498,11 @@ bool AssertRegsNoOverlap::validate( CondObjectPtr c){
     bool l_is_inc, r_is_inc; 
     std::tie(l_is_inc, l_reg, l_inc) = c->cond_ptr()->left_expr_ptr()->is_reg_increment(); 
     std::tie(r_is_inc, r_reg, r_inc) = c->cond_ptr()->right_expr_ptr()->is_reg_increment(); 
-    if( !l_is_inc || !r_is_inc )
+    if( !l_is_inc || !r_is_inc ){
         return false; 
-    else
+    }else{
         return _regs[l_reg][r_reg]; 
+	}
 }
 
 SubAssertion* AssertRegsNoOverlap::copy(){

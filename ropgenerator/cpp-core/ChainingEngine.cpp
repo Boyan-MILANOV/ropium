@@ -408,6 +408,7 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
     /* If the query has memory addresses, make it valid */
     if( dest.type == DST_MEM ){
         assertion->add(new AssertValidWrite(dest.addr_reg), true);
+        assertion->add(new AssertRegsNoOverlap(dest.addr_reg, curr_arch()->sp()), true);
     }
     if( assign.type == ASSIGN_MEM_BINOP_CST ){
         assertion->add(new AssertValidRead(assign.addr_reg), true);

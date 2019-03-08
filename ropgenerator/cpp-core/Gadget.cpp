@@ -139,7 +139,10 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
                 _ret_reg = ret_reg;  
                 _ret_type = RET_JMP;
                 _ret_pre_cond = spair_it->cond();  
-                break;
+                // We don't break here because if we have a ret we keep the ret 
+                // (when both ret and jmp, it's a gadget like mov [mem],reg; ret,
+                // with a condition mem==rsp that makes it possibly a jmp to reg...,
+                // so we keep only the ret behaviour)
             }else if( spair_it->expr_ptr()->type() == EXPR_MEM ){
                 std::tie(is_inc, inc) = spair_it->expr_ptr()->addr_expr_ptr()->is_reg_increment(curr_arch()->sp());
                 if( is_inc && (inc == _sp_inc - curr_arch()->octets())){

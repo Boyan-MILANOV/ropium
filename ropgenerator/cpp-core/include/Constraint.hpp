@@ -217,6 +217,7 @@ class AssertRegsNoOverlap: public SubAssertion{
         bool _regs[NB_REGS_MAX][NB_REGS_MAX];
     public: 
         AssertRegsNoOverlap();
+        AssertRegsNoOverlap(int reg1, int reg2);
         AssertRegsNoOverlap( bool array[NB_REGS_MAX][NB_REGS_MAX]);
         virtual bool ** regs(); 
         void add(int reg1, int reg2);
