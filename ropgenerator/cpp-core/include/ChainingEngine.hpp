@@ -81,6 +81,8 @@ class FailRecord{
         void add_bad_byte(unsigned char bad_byte);
         // Assign
         void copy_from(FailRecord* other);
+        void merge_with(FailRecord* other);
+        void reset();
 };
 
 /* ***************************************************
@@ -144,7 +146,7 @@ class SearchResultsBinding{
 #define DEFAULT_MAX_DEPTH 8
 
 enum SearchStrategyType{STRATEGY_REG_TRANSITIVITY, STRATEGY_POP_CONSTANT, STRATEGY_ANY_REG_TRANSITIVITY , 
-                        STRATEGY_ADJUST_RET, NB_STRATEGY_TYPES};
+                        STRATEGY_ADJUST_RET, STRATEGY_ADJUST_STORE, NB_STRATEGY_TYPES};
 
 class SearchEnvironment{
     /* Constraints and contextual infos */ 
@@ -163,7 +165,6 @@ class SearchEnvironment{
     RegTransitivityRecord* _reg_transitivity_record; // Use a pointer in case we use a global record
     AdjustRetRecord _adjust_ret_record;
     FailRecord _fail_record;
-    FailType _last_fail;
     /* Strategy-specific information */ 
     vector<int>* _reg_transitivity_unusable; // Use a pointer because will be saved and restored often
     
@@ -209,8 +210,6 @@ class SearchEnvironment{
         AdjustRetRecord* adjust_ret_record();
         void set_adjust_ret_record(AdjustRetRecord* rec);
         FailRecord* fail_record();
-        FailType last_fail();
-        void set_last_fail(FailType t);
         
 };
 

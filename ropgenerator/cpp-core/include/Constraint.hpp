@@ -5,11 +5,12 @@
 #include "Expression.hpp"
 #include "Condition.hpp"
 #include "Gadget.hpp"
-
 #include <vector>
 
 using std::vector;
 using std::pair; 
+
+class FailRecord;
 
 /* ---------------------------------------------------------------------
  *                          Constraints 
@@ -30,7 +31,7 @@ class SubConstraint{
         // Functions of child classes
         virtual SubConstraint* copy(){throw_exception("Should not be called here");}
         virtual void merge(SubConstraint* c, bool del){throw_exception("SHould not be called here");}
-        virtual pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g){throw_exception("SHould not be called here");}
+        virtual pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g, FailRecord* fail_record){throw_exception("SHould not be called here");}
         // From return
         virtual bool ret(){throw_exception( "Should not be called here");}
         virtual bool jmp(){throw_exception( "Should not be called here");}
@@ -39,7 +40,7 @@ class SubConstraint{
         virtual bool get(int num){throw_exception( "Should not be called here");}
         // From ConstrBadBytes
         virtual vector<unsigned char>* bad_bytes(){throw_exception( "Should not be called here");}
-        virtual bool verify_address(addr_t a){throw_exception( "Should not be called here");}
+        virtual bool verify_address(addr_t a, FailRecord* fail_record){throw_exception( "Should not be called here");}
         // From ValidPoitner
         virtual vector<ExprObjectPtr>* addresses(){throw_exception("Should not be called here");}
 };
@@ -51,7 +52,7 @@ class ConstrReturn: public SubConstraint{
         bool ret(); 
         bool jmp();
         bool call();
-        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g, FailRecord* fail_record);
         virtual SubConstraint* copy();
         virtual void merge(SubConstraint* c, bool del);
 };
@@ -62,8 +63,8 @@ class ConstrBadBytes: public SubConstraint{
         ConstrBadBytes();
         ConstrBadBytes(vector<unsigned char> bb);
         vector<unsigned char>* bad_bytes(); 
-        bool verify_address(addr_t a);
-        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
+        bool verify_address(addr_t a, FailRecord* fail_record);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g, FailRecord* fail_record);
         virtual SubConstraint* copy();
         virtual void merge(SubConstraint* c, bool del);
 };
@@ -77,7 +78,7 @@ class ConstrKeepRegs: public SubConstraint{
         bool get(int num);
         void add_reg(int num);
         void remove_reg(int num);
-        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g, FailRecord* fail_record);
         virtual SubConstraint* copy();
         virtual void merge(SubConstraint* c, bool del);
 };
@@ -88,7 +89,7 @@ class ConstrValidRead: public SubConstraint{
         ConstrValidRead();
         vector<ExprObjectPtr>* addresses(); 
         void add_addr( ExprObjectPtr a);
-        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g, FailRecord* fail_record);
         virtual SubConstraint* copy();
         virtual void merge(SubConstraint* c, bool del);
 };
@@ -99,7 +100,7 @@ class ConstrValidWrite: public SubConstraint{
         ConstrValidWrite();
         vector<ExprObjectPtr>* addresses(); 
         void add_addr( ExprObjectPtr a);
-        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g, FailRecord* fail_record);
         virtual SubConstraint* copy();
         virtual void merge(SubConstraint* c, bool del);
 };
@@ -109,7 +110,7 @@ class ConstrMaxSpInc: public SubConstraint{
     public:
         ConstrMaxSpInc(cst_t i);
         cst_t inc();
-        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g, FailRecord* fail_record);
         virtual SubConstraint* copy();
 };
 
@@ -118,7 +119,7 @@ class ConstrMinSpInc: public SubConstraint{
     public:
         ConstrMinSpInc(cst_t i);
         cst_t inc();
-        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g, FailRecord* fail_record);
         virtual SubConstraint* copy();
 };
 
@@ -137,9 +138,9 @@ class Constraint{
         void add(SubConstraint* c, bool del);
         void update(SubConstraint* c);
         void remove(SubConstraintType t);
-        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g);
-        bool verify_address(addr_t a);
-        bool keep_reg(int num);
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g, FailRecord* fail_record=nullptr);
+        bool verify_address(addr_t a, FailRecord* fail_record=nullptr);
+        bool keep_reg(int num, FailRecord* fail_record=nullptr);
         Constraint* copy();
         cstr_sig_t signature();
         cstr_sig_t signature(int lmax); 

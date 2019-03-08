@@ -3,6 +3,7 @@
 #include "Expression.hpp"
 #include "Condition.hpp"
 #include "Exception.hpp"
+#include "ChainingEngine.hpp"
 #include <algorithm>
 #include <cstring>
 
@@ -24,7 +25,7 @@ SubConstraint* ConstrReturn::copy(){
     return new ConstrReturn(_ret, _jmp, _call);
 }
 
-pair<ConstrEval,CondObjectPtr> ConstrReturn::verify(shared_ptr<Gadget> g){
+pair<ConstrEval,CondObjectPtr> ConstrReturn::verify(shared_ptr<Gadget> g, FailRecord* fail_record=nullptr){
     if  (( _ret && (g->ret_type() == RET_RET))  || 
         ( _jmp && (g->ret_type() == RET_JMP))  ||
         ( _call && (g->ret_type() == RET_CALL)))
@@ -51,22 +52,27 @@ ConstrBadBytes::ConstrBadBytes(vector<unsigned char> bb): SubConstraint(CONSTR_B
 
 vector<unsigned char>* ConstrBadBytes::bad_bytes(){return &_bad_bytes;} 
 
-bool ConstrBadBytes::verify_address(addr_t a){
+bool ConstrBadBytes::verify_address(addr_t a, FailRecord* fail_record=nullptr){
     // Check if each byte of the address is not in bad bytes list
     int i; 
     for( i = 0; i < curr_arch()->octets(); i++ ){
-        if( std::find(_bad_bytes.begin(), _bad_bytes.end(), (unsigned char)((a >> i)&0xFF)) != _bad_bytes.end())
+        if( std::find(_bad_bytes.begin(), _bad_bytes.end(), (unsigned char)((a >> i)&0xFF)) != _bad_bytes.end()){
+            if( fail_record != nullptr){
+                fail_record->add_bad_byte((unsigned char)((a >> i)&0xFF));
+            }
             return false;
+        }
     }
     return true;
 }
 
-pair<ConstrEval,CondObjectPtr> ConstrBadBytes::verify(shared_ptr<Gadget> g){
+pair<ConstrEval,CondObjectPtr> ConstrBadBytes::verify(shared_ptr<Gadget> g, FailRecord* fail_record=nullptr){
     vector<addr_t>::iterator it; 
     vector<addr_t>* addr_list = g->addresses();
     for( it = addr_list->begin(); it != addr_list->end(); it++){
-        if( ! verify_address(*it))
+        if( ! verify_address(*it, fail_record)){
             return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
+        }
     }
     return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
 }
@@ -118,12 +124,16 @@ void ConstrKeepRegs::remove_reg(int num){
     if( num < NB_REGS_MAX && num >= 0 )
         _regs[num] = false; 
 }
-pair<ConstrEval,CondObjectPtr> ConstrKeepRegs::verify(shared_ptr<Gadget> g){
+pair<ConstrEval,CondObjectPtr> ConstrKeepRegs::verify(shared_ptr<Gadget> g, FailRecord* fail_record=nullptr){
     bool * modified = g->modified_regs();
 
     for( int i = 0; i < NB_REGS_MAX; i++){
-        if( _regs[i] && modified[i] )
+        if( _regs[i] && modified[i] ){
+            if( fail_record != nullptr ){
+                fail_record->add_modified_reg(i);
+            }
             return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
+        }
     }
     return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
 }
@@ -156,7 +166,7 @@ void ConstrValidRead::add_addr( ExprObjectPtr a){
 
 vector<ExprObjectPtr>* ConstrValidRead::addresses(){return &_addresses;}
 
-pair<ConstrEval,CondObjectPtr> ConstrValidRead::verify(shared_ptr<Gadget> g){
+pair<ConstrEval,CondObjectPtr> ConstrValidRead::verify(shared_ptr<Gadget> g, FailRecord* fail_record=nullptr){
     vector<ExprObjectPtr>::iterator it;
     CondObjectPtr tmp; 
     if( _addresses.size() == 0 )
@@ -191,7 +201,7 @@ void ConstrValidWrite::add_addr( ExprObjectPtr a){
 
 vector<ExprObjectPtr>* ConstrValidWrite::addresses(){return &_addresses;}
 
-pair<ConstrEval,CondObjectPtr> ConstrValidWrite::verify(shared_ptr<Gadget> g){
+pair<ConstrEval,CondObjectPtr> ConstrValidWrite::verify(shared_ptr<Gadget> g, FailRecord* fail_record=nullptr){
     vector<ExprObjectPtr>::iterator it;
     CondObjectPtr tmp; 
     if( _addresses.size() == 0 )
@@ -222,7 +232,7 @@ void ConstrValidWrite::merge(SubConstraint* c, bool del=false){
 ConstrMaxSpInc::ConstrMaxSpInc(cst_t i): SubConstraint(CONSTR_MAX_SP_INC), _inc(i){}
 cst_t ConstrMaxSpInc::inc(){return _inc;}
 
-pair<ConstrEval,CondObjectPtr> ConstrMaxSpInc::verify(shared_ptr<Gadget> g){
+pair<ConstrEval,CondObjectPtr> ConstrMaxSpInc::verify(shared_ptr<Gadget> g, FailRecord* fail_record=nullptr){
     if( !g->known_sp_inc() || g->sp_inc() > _inc ){
         return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
     }
@@ -237,7 +247,7 @@ SubConstraint* ConstrMaxSpInc::copy(){
 ConstrMinSpInc::ConstrMinSpInc(cst_t i): SubConstraint(CONSTR_MIN_SP_INC), _inc(i){}
 cst_t ConstrMinSpInc::inc(){return _inc;}
 
-pair<ConstrEval,CondObjectPtr> ConstrMinSpInc::verify(shared_ptr<Gadget> g){
+pair<ConstrEval,CondObjectPtr> ConstrMinSpInc::verify(shared_ptr<Gadget> g, FailRecord* fail_record=nullptr){
     if( !g->known_sp_inc() || g->sp_inc() < _inc ){
         return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
     }
@@ -285,7 +295,7 @@ Constraint* Constraint::copy(){
     return res; 
 }
 
-pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g){
+pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g, FailRecord* fail_record){
     ConstrEval eval; 
     CondObjectPtr cond; 
     CondObjectPtr res_cond = NewCondTrue(); 
@@ -295,7 +305,7 @@ pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g){
         
     for( int i = 0; i < COUNT_NB_CONSTR; i++){
         if( _constr[i] != nullptr ){
-            std::tie(eval, cond) = _constr[i]->verify(g);
+            std::tie(eval, cond) = _constr[i]->verify(g, fail_record);
             if( eval == EVAL_INVALID ){
                 return make_pair(EVAL_INVALID, NewCondFalse());
             }else if( eval == EVAL_MAYBE){
@@ -310,18 +320,22 @@ pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g){
         return make_pair(EVAL_VALID, res_cond);
 }
 
-bool Constraint::verify_address(addr_t a){
+bool Constraint::verify_address(addr_t a, FailRecord* fail_record){
     if( _constr[CONSTR_BAD_BYTES] == nullptr ){
         return true;
     }
-    return _constr[CONSTR_BAD_BYTES]->verify_address(a);
+    return _constr[CONSTR_BAD_BYTES]->verify_address(a, fail_record);
 }
 
-bool Constraint::keep_reg(int num){
+bool Constraint::keep_reg(int num, FailRecord* fail_record){
+    bool res;
     if( _constr[CONSTR_KEEP_REGS] == nullptr ){
         return false;
     }
-    return _constr[CONSTR_KEEP_REGS]->get(num);
+    res= _constr[CONSTR_KEEP_REGS]->get(num);
+    if( !res && (fail_record!=nullptr))
+        fail_record->add_modified_reg(num);
+    return res;
 }
 
 pair<bool, addr_t> Constraint::valid_padding(){

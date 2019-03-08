@@ -27,7 +27,7 @@ void CSTList::add(cst_t val, int gadget_num, CondObjectPtr pre_cond, vector<shar
     _values[val].insert(_values[val].begin()+insert_idx, gadget_num);
     _pre_conds[val].insert(_pre_conds[val].begin()+insert_idx, pre_cond);
 }
-vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int n=1){
+vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int n=1, FailRecord* fail_record=nullptr){
     vector<int> res; 
     shared_ptr<Gadget> g; 
     CondObjectPtr constr_cond, all_conds;
@@ -38,7 +38,7 @@ vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int 
     for( int i = 0; i < _values.at(val).size() && res.size() < n; i++){
         g = gadget_db()->get(_values[val].at(i));      
         // Verify constraint 
-        std::tie(eval, constr_cond) = constr->verify(g);
+        std::tie(eval, constr_cond) = constr->verify(g, fail_record);
         if( eval == EVAL_VALID || eval == EVAL_MAYBE){
             /* Check with assertion to verify
                 - remaining constraint
@@ -51,7 +51,7 @@ vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int 
             }
         }
     }
-    return res; 
+    return res;
 }
 
 
@@ -65,7 +65,7 @@ void REGList::add(Binop op, int reg_num, cst_t cst, int gadget_num, CondObjectPt
         _values[op][reg_num] = new CSTList();
     _values[op][reg_num]->add(cst, gadget_num, pre_cond, gadgets);
 }
-vector<int> REGList::find(Binop op, int reg_num, cst_t cst, Constraint* constr, Assertion* assert, int n=1){
+vector<int> REGList::find(Binop op, int reg_num, cst_t cst, Constraint* constr, Assertion* assert, int n=1, FailRecord* fail_record=nullptr){
     if( _values[op][reg_num] == nullptr )
         return vector<int>();
     return _values[op][reg_num]->find(cst, constr, assert, n);
@@ -95,7 +95,7 @@ void MEMList::add(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_
     _addresses[op][addr_reg]->at(addr_cst)->add(cst, gadget_num, pre_cond, gadgets);
 }
 
-vector<int> MEMList::find(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* constr, Assertion* assert, int n=1){
+vector<int> MEMList::find(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* constr, Assertion* assert, int n=1, FailRecord* fail_record=nullptr){
     if( _addresses[op][addr_reg] == nullptr )
         return vector<int>();
     else if( _addresses[op][addr_reg]->count(addr_cst) == 0 )
@@ -141,7 +141,8 @@ template <class T> void MEMDict<T>::add_reg(Binop addr_op, int addr_reg, cst_t a
 }
 
 /* To store mem <- mem */ 
-template <class T> void MEMDict<T>::add_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, Binop op, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets ){
+template <class T> void MEMDict<T>::add_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int mem_reg, cst_t mem_cst, cst_t cst, 
+                                            Binop op, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets ){
     T* t;
     if( _addresses[addr_op][addr_reg] == nullptr )
         _addresses[addr_op][addr_reg] = new unordered_map<cst_t, unique_ptr<T>>; 
@@ -153,7 +154,7 @@ template <class T> void MEMDict<T>::add_mem(Binop addr_op, int addr_reg, cst_t a
 }
 
 template <class T> vector<int> MEMDict<T>::find_cst(Binop addr_op, int addr_reg, cst_t addr_cst, cst_t cst, 
-                                            Constraint* c, Assertion* a, int n){
+                                            Constraint* c, Assertion* a, int n, FailRecord* fail_record){
     if( _addresses[addr_op][addr_reg] == nullptr || _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
         return vector<int>();
     else
@@ -161,7 +162,7 @@ template <class T> vector<int> MEMDict<T>::find_cst(Binop addr_op, int addr_reg,
 }
 
 template <class T> vector<int> MEMDict<T>::find_reg(Binop addr_op, int addr_reg, cst_t addr_cst, int reg, cst_t cst, 
-                                            Binop op, Constraint* c, Assertion* a, int n){
+                                            Binop op, Constraint* c, Assertion* a, int n, FailRecord* fail_record){
     if( _addresses[addr_op][addr_reg] == nullptr || _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
         return vector<int>();
     else
@@ -169,7 +170,7 @@ template <class T> vector<int> MEMDict<T>::find_reg(Binop addr_op, int addr_reg,
 }
 
 template <class T> vector<int> MEMDict<T>::find_mem(Binop addr_op, int addr_reg, cst_t addr_cst, int src_reg, 
-                                            cst_t src_cst, cst_t cst, Binop op, Constraint* c, Assertion* a, int n){
+                                            cst_t src_cst, cst_t cst, Binop op, Constraint* c, Assertion* a, int n, FailRecord* fail_record){
     if( _addresses[addr_op][addr_reg] == nullptr || _addresses[addr_op][addr_reg]->count(addr_cst) == 0 )
         return vector<int>();
     else
@@ -419,40 +420,40 @@ shared_ptr<Gadget> Database::get(int num){
     return _gadgets.at(num); 
 }
 
-vector<int> Database::find_cst_to_reg(int reg_dest, cst_t cst, Constraint* c, Assertion* a, int n){
+vector<int> Database::find_cst_to_reg(int reg_dest, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record){
     if( _cst_to_reg[reg_dest] != nullptr )
-        return _cst_to_reg[reg_dest]->find(cst, c, a, n);
+        return _cst_to_reg[reg_dest]->find(cst, c, a, n, fail_record);
     else
         return vector<int>();
 }
 
-vector<int> Database::find_reg_binop_cst_to_reg(int reg_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n){
+vector<int> Database::find_reg_binop_cst_to_reg(int reg_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record){
     if( _reg_binop_cst_to_reg[reg_dest] != nullptr )
-        return _reg_binop_cst_to_reg[reg_dest]->find(op, reg, cst, c, a, n);
+        return _reg_binop_cst_to_reg[reg_dest]->find(op, reg, cst, c, a, n, fail_record);
     else
         return vector<int>();
 }
 
-vector<int> Database::find_mem_binop_cst_to_reg(int reg_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n){
+vector<int> Database::find_mem_binop_cst_to_reg(int reg_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record){
     if( _mem_binop_cst_to_reg[reg_dest] != nullptr )
-        return _mem_binop_cst_to_reg[reg_dest]->find(op, addr_reg, addr_cst, cst, c, a, n);
+        return _mem_binop_cst_to_reg[reg_dest]->find(op, addr_reg, addr_cst, cst, c, a, n, fail_record);
     else
         return vector<int>();
 }
 
 vector<int> Database::find_cst_to_mem(  Binop op_dest, int reg_dest, cst_t cst_dest, cst_t cst, 
-                                        Constraint* c, Assertion* a, int n){
-    return _cst_to_mem.find_cst(op_dest, reg_dest, cst_dest, cst, c, a, n);
+                                        Constraint* c, Assertion* a, int n, FailRecord* fail_record){
+    return _cst_to_mem.find_cst(op_dest, reg_dest, cst_dest, cst, c, a, n, fail_record);
 
 }
 vector<int> Database::find_reg_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int reg,
-                                    cst_t cst, Constraint* c, Assertion* a, int n){
-    return _reg_binop_cst_to_mem.find_reg(op_dest, reg_dest, cst_dest, reg, cst, op, c, a, n);
+                                    cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record){
+    return _reg_binop_cst_to_mem.find_reg(op_dest, reg_dest, cst_dest, reg, cst, op, c, a, n, fail_record);
 }
 
 vector<int> Database::find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int addr_reg,
-                                    cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n){
-    return _mem_binop_cst_to_mem.find_mem( op_dest, reg_dest, cst_dest, addr_reg, addr_cst, cst, op, c, a, n);
+                                    cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record){
+    return _mem_binop_cst_to_mem.find_mem( op_dest, reg_dest, cst_dest, addr_reg, addr_cst, cst, op, c, a, n, fail_record);
 }
 
 
