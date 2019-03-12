@@ -37,7 +37,7 @@ vector<int> CSTList::find(cst_t val, Constraint* constr, Assertion* assert, int 
     if( _values.count(val) == 0)
         return res; 
     for( int i = 0; i < _values.at(val).size() && res.size() < n; i++){
-        g = gadget_db()->get(_values[val].at(i));      
+        g = gadget_db()->get(_values[val].at(i));
         // Verify constraint 
         std::tie(eval, constr_cond) = constr->verify(g, fail_record);
         if( eval == EVAL_VALID || eval == EVAL_MAYBE){
@@ -215,10 +215,10 @@ template <class T> vector<tuple<DestArg, AssignArg, vector<int>>>* MEMDict<T>::g
     unordered_map<cst_t, unique_ptr<REGList>>::iterator it;
     int tmp_addr_reg;
     int tmp_op;
-    int tmp_count;
     vector<tuple<DestArg, AssignArg, vector<int>>>* res = new vector<tuple<DestArg, AssignArg, vector<int>>>();
     vector<pair<AssignArg, vector<int>>>* reglist_res = nullptr;
     vector<pair<AssignArg, vector<int>>>::iterator it2;
+    Assertion* tmp_assertion = nullptr;
     
     for( tmp_op = 0; tmp_op != COUNT_NB_BINOP; tmp_op++){
         for( tmp_addr_reg = 0; tmp_addr_reg < NB_REGS_MAX; tmp_addr_reg++ ){
@@ -228,11 +228,16 @@ template <class T> vector<tuple<DestArg, AssignArg, vector<int>>>* MEMDict<T>::g
             /* If dest_addr_reg is specified check if it is the right one */
             if( dest_addr_reg != -1 && dest_addr_reg != tmp_addr_reg)
                 continue;
+            /* Don't use sp if not specified */
+            if( dest_addr_reg != curr_arch()->sp() && tmp_addr_reg == curr_arch()->sp())
+				continue;
+            /* Add an assertion to say that this memory write is correct */ 
+            tmp_assertion = a->copy();
+            tmp_assertion->add(new AssertValidWrite(tmp_addr_reg), true);
             /* Search suitable gadgets */
-            tmp_count = 0;
             for( it = _addresses[tmp_op][tmp_addr_reg]->begin(); it != _addresses[tmp_op][tmp_addr_reg]->end(); it++ ){
                 /* Iterator through the REGList corresponding to this memory store */ 
-                reglist_res = _addresses[tmp_op][tmp_addr_reg]->at(it->first)->get_possible(c, a, n, fail_record, assign_reg);
+                reglist_res = _addresses[tmp_op][tmp_addr_reg]->at(it->first)->get_possible(c, tmp_assertion, n, fail_record, assign_reg);
                 if( !reglist_res->empty() ){
                     for( it2 = reglist_res->begin(); it2 != reglist_res->end(); it2++){
                         res->push_back(make_tuple(DestArg(DST_MEM, tmp_addr_reg, (Binop)tmp_op, it->first), it2->first, it2->second));
@@ -240,6 +245,7 @@ template <class T> vector<tuple<DestArg, AssignArg, vector<int>>>* MEMDict<T>::g
                 }
                 delete reglist_res;
             }
+            delete tmp_assertion;
         }
     }
     return res;
