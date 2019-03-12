@@ -776,7 +776,8 @@ bool Assertion::validate(CondObjectPtr c){
 Assertion* Assertion::copy(){
     Assertion * res = new Assertion();
     for( int i = 0; i < COUNT_NB_ASSERT; i++)
-        res->add(_assert[i]->copy());
+		if( _assert[i] != nullptr )
+			res->update(_assert[i]->copy());
     return res; 
 }
 
