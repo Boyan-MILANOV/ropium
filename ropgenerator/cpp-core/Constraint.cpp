@@ -234,6 +234,9 @@ cst_t ConstrMaxSpInc::inc(){return _inc;}
 
 pair<ConstrEval,CondObjectPtr> ConstrMaxSpInc::verify(shared_ptr<Gadget> g, FailRecord* fail_record=nullptr){
     if( !g->known_sp_inc() || g->sp_inc() > _inc ){
+        if( fail_record != nullptr ){
+            fail_record->set_max_len(true);
+        }
         return make_pair(EVAL_INVALID, make_shared<CondObject>(nullptr));
     }
     return make_pair(EVAL_VALID, make_shared<CondObject>(nullptr));
@@ -262,7 +265,7 @@ SubConstraint* ConstrMinSpInc::copy(){
 // Constraint class (collection of subconstraints)
 Constraint::Constraint(){
     std::memset(_constr, 0, sizeof(SubConstraint*)*COUNT_NB_CONSTR);
-    _computed_signature = false;  
+    _signature_env_ptr = nullptr; 
 }
 // Accessors 
 SubConstraint* Constraint::get(SubConstraintType t){
@@ -274,16 +277,19 @@ void Constraint::add(SubConstraint* c, bool del=false){
         _constr[c->type()]->merge(c, del);
     else
         _constr[c->type()] = c;
+    _signature_env_ptr = nullptr;
 }
 
 void Constraint::update(SubConstraint* c){
     delete _constr[c->type()];
     _constr[c->type()] = c; 
+    _signature_env_ptr = nullptr;
 }
 
 void Constraint::remove(SubConstraintType t){
     delete _constr[t];
     _constr[t] = nullptr; 
+    _signature_env_ptr = nullptr;
 }
 
 // Copy 
@@ -292,6 +298,8 @@ Constraint* Constraint::copy(){
     for( int i = 0; i < COUNT_NB_CONSTR; i++)
         if( _constr[i] != nullptr )
             res->add(_constr[i]->copy());
+    res->_signature = _signature;
+    res->_signature_env_ptr = _signature_env_ptr;
     return res; 
 }
 
@@ -377,7 +385,7 @@ Constraint::~Constraint(){
 /* -------------------------------------------------------------------
  *        Constraint Signature
  * 
- * The modified regs are stored as the lower bits 
+ * The kept regs are stored as the lower bits 
  * 0 to NB_REGS_MAX-1. It always applicable and missing as default of 
  * 0 (no regs are set). 
  * 
@@ -391,24 +399,30 @@ Constraint::~Constraint(){
  * 
  * ------------------------------------------------------------------*/
  
-cstr_sig_t Constraint::signature(){
+cstr_sig_t Constraint::signature(SearchEnvironment* env){
     int i;
-    cstr_sig_t curr_bit = 0x1; 
-    cstr_sig_t res = 0x0; 
+    vector<int>::iterator it;
+    cstr_sig_t curr_bit = 0x1;
+    cstr_sig_t res = 0x0;
     
-    if( _computed_signature )
-        return _signature; 
+    if( _signature_env_ptr == env )
+        return _signature;
     
-    // reg_modified
-    curr_bit = 1 << MODIFIED_REGS_BIT; 
+    // env reg transitivity unusable regs
+    for( it = env->reg_transitivity_unusable()->begin(); it != env->reg_transitivity_unusable()->end(); it++ ){
+        res &= (cstr_sig_t)(1 << (MODIFIED_REGS_BIT+(*it)));
+    }
+    
+    // keep regs
+    curr_bit = 1 << MODIFIED_REGS_BIT;
     if( _constr[CONSTR_KEEP_REGS] != nullptr ){
         for( i = 0; i < NB_REGS_MAX; i++ ){
             if( _constr[CONSTR_KEEP_REGS]->get(i) )
-                res &= curr_bit; 
-            curr_bit = curr_bit << 1; 
+                res &= curr_bit;
+            curr_bit = curr_bit << 1;
         }
     }else{
-        curr_bit = 1 << NB_REGS_MAX; 
+        curr_bit = 1 << (NB_REGS_MAX + MODIFIED_REGS_BIT);
     }
     // return type
     curr_bit = RET_TYPE_BIT;
@@ -425,7 +439,7 @@ cstr_sig_t Constraint::signature(){
     }
     
     _signature = res;
-    _computed_signature = true;
+    _signature_env_ptr = env;
     return _signature; 
 }
 

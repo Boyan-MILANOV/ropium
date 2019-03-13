@@ -55,28 +55,34 @@ FailRecord::FailRecord(){
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, 256);
+    _no_chain = NO_CHAIN_UNKNOWN;
 }
 
 FailRecord::FailRecord(bool max_len): _max_len(max_len){
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, 256);
+    _no_chain = NO_CHAIN_UNKNOWN;
 }
  
 bool FailRecord::max_len(){ return _max_len;}
 bool FailRecord::no_valid_padding(){ return _no_valid_padding;}
 bool FailRecord::modified_reg(int reg_num){ return _modified_reg[reg_num];}
 bool* FailRecord::bad_bytes(){ return _bad_bytes;}
+bool FailRecord::no_chain(){ return _no_chain;}
 
 void FailRecord::set_max_len(bool val){ _max_len = val;}
 void FailRecord::set_no_valid_padding(bool val){ _no_valid_padding = val;}
 void FailRecord::add_modified_reg(int reg_num){ _modified_reg[reg_num] = true;}
 void FailRecord::add_bad_byte(unsigned char bad_byte){ _bad_bytes[bad_byte] = true; }
+void FailRecord::set_no_chain(NoChainStatus val){ _no_chain = val;}
+
 void FailRecord::copy_from(FailRecord* other){
     _max_len = other->_max_len;
     _no_valid_padding = other->_no_valid_padding;
     memcpy(_modified_reg, other->_modified_reg, sizeof(_modified_reg));
-    memcpy(_bad_bytes, other->_bad_bytes, sizeof(_bad_bytes)); 
+    memcpy(_bad_bytes, other->_bad_bytes, sizeof(_bad_bytes));
+    _no_chain = other->_no_chain;
 }
 void FailRecord::merge_with(FailRecord* other){
     unsigned int i;
@@ -88,12 +94,20 @@ void FailRecord::merge_with(FailRecord* other){
     for( i = 0; i < sizeof(_bad_bytes); i++){
         _bad_bytes[i] |= other->_bad_bytes[i];
     }
+    /* If not no_chain on one, then we don't keep
+     * it. We need to guarantee no_chain everywhere 
+     * because it's used to set the records */  
+    if( _no_chain == NO_CHAIN_UNKNOWN )
+        _no_chain = other->_no_chain;
+    else if( _no_chain == NO_CHAIN_NO || other->_no_chain == NO_CHAIN_NO ) 
+        _no_chain = NO_CHAIN_NO;
 }
 void FailRecord::reset(){
     _max_len = false;
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, 256);
+    _no_chain = NO_CHAIN_UNKNOWN;
 }
 
 
@@ -175,7 +189,7 @@ int record_cst_list_muldiv_index(cst_t c){
     } 
 }
 
-void RegTransitivityRecord::add_fail(int dest_reg, int src_reg, Binop op, cst_t src_cst, Constraint* constr){
+void RegTransitivityRecord::add_fail(int dest_reg, int src_reg, Binop op, cst_t src_cst, SearchEnvironment* env){
     int cst_index;
     vector<cstr_sig_t>::iterator it; 
     cstr_sig_t sig; 
@@ -193,7 +207,7 @@ void RegTransitivityRecord::add_fail(int dest_reg, int src_reg, Binop op, cst_t 
     }else
         return;
     // Insert in the vector...
-    sig = constr->signature();
+    sig = env->constraint()->signature(env);
     for( it = _query[dest_reg][src_reg][op][cst_index].begin(); it != _query[dest_reg][src_reg][op][cst_index].end(); it++){
         if( (*it & sig) == sig ){
             // sig included in *it so replace *it by sig
@@ -211,7 +225,7 @@ void RegTransitivityRecord::add_fail(int dest_reg, int src_reg, Binop op, cst_t 
     }
 }
 
-bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, cst_t src_cst, Constraint* constr){
+bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, cst_t src_cst, SearchEnvironment* env){
     int cst_index;
     vector<cstr_sig_t>::iterator it; 
     cstr_sig_t sig; 
@@ -229,10 +243,10 @@ bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, c
     }else
         return false;
         
-    sig = constr->signature();
+    sig = env->constraint()->signature(env);
     for( it = _query[dest_reg][src_reg][op][cst_index].begin(); it != _query[dest_reg][src_reg][op][cst_index].end(); it++){
         if( (*it & sig) == *it ){
-            // previous included in sig 
+            // previous included in sig, so lesser constraints already failed :/
             return true;
         }
     }
@@ -352,7 +366,6 @@ FailRecord* SearchEnvironment::fail_record(){
     return &_fail_record;
 }
 
-
 /* Comments about gadgets */ 
 bool SearchEnvironment::has_comment(SearchStrategyType t){
     return ! _comment[t].empty();
@@ -431,7 +444,7 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
     SearchResultsBinding res;
     
     /* Initialize the global fail record */ 
-    g_fail_record = FailRecord();
+    g_fail_record.reset();
     
     /* Building search env */ 
     if( ! params.keep_regs.empty() )
@@ -478,24 +491,14 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
 
 ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool shortest){
     ROPChain * res;
-    /* Check context */ 
-    if( env->reached_max_depth() )
-        return nullptr;
-    else if( env->lmax() == 0 ){
-        env->fail_record()->set_max_len(true);
-        return nullptr;
-    }
-    /* Set env */ 
-    env->set_depth(env->depth()+1);
-    
+    /* Reset fail record */ 
+    env->fail_record()->reset();
+
     if( shortest ){
         res = search_shortest(dest, assign, env);
     }else{
         res = search_first_hit(dest, assign, env);
     }
-    
-    /* Restore env */
-    env->set_depth(env->depth()-1);
     
     /* Return res */
     return res;
@@ -503,11 +506,56 @@ ROPChain* search(DestArg dest, AssignArg assign, SearchEnvironment* env, bool sh
 
 
 ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* env){
-    ROPChain* res;
+    ROPChain* res = nullptr;
+    FailRecord local_fail_record;
+    
+    /* Check context */ 
+    if( env->reached_max_depth() ){
+        env->fail_record()->set_no_chain(NO_CHAIN_NO);
+        return nullptr;
+    }else if( env->lmax() == 0 ){
+        env->fail_record()->set_max_len(true);
+        env->fail_record()->set_no_chain(NO_CHAIN_NO);
+        return nullptr;
+    }
+    
+    /* Set env */ 
+    env->set_depth(env->depth()+1);
+    
+    /* Try basic search */
     res = basic_db_lookup(dest, assign, env);
+    /* Try chaining */ 
     if( res == nullptr ){
+        local_fail_record.merge_with(env->fail_record());
         res = chain(dest, assign, env);
     }
+    if( res == nullptr ){
+        env->fail_record()->merge_with(&local_fail_record);
+    }else{
+        env->fail_record()->reset();
+    }
+    /* Update records*/
+    /* If we didn't find a chain, update the reg_transitivity record 
+     * we need to test for lmax and no_chain fail reasons. If there is lmax, 
+     * then maybe a longer length would ahve allowed the chain, so we
+     * don't update the fail_record. If there is not no_chain, then the 
+     * search might have failed because of other reasons than inability to 
+     * mke the chain (max_depth reached, bad args, ...) */
+    if( res == nullptr && !env->fail_record()->max_len() && 
+            env->fail_record()->no_chain() == NO_CHAIN_YES && 
+            dest.type == DST_REG && assign.type == ASSIGN_REG_BINOP_CST){
+        cout << "DEBUG, adding impossible " << dest.reg << ": " << assign.reg << " " << assign.op << " " << assign.cst << endl;
+        env->reg_transitivity_record()->add_fail(dest.reg, assign.reg, assign.op, assign.cst, env);
+    }
+    /* Restore env */
+    env->set_depth(env->depth()-1);
+    
+    /* If no result found, set the no_chain fail. 
+     * Better to do it 'centralized here' than in each individual function */ 
+    if( res == nullptr ){
+        env->fail_record()->set_no_chain(NO_CHAIN_YES);
+    }
+    
     return res;
 }
 
@@ -541,19 +589,16 @@ ROPChain* search_shortest(DestArg dest, AssignArg assign, SearchEnvironment* env
         }
         
         lmoy = (lmin+lmax+1)/2;
-        /* Set lmax for env */
-        env->set_lmax(lmoy);
-        g_fail_record.merge_with(env->fail_record());
-		env->fail_record()->reset();
-		env->adjust_ret_record()->reset();
-        cout << "DEBUG, trying " << lmoy << endl;
+        
         /* If requested, display info */ 
         /* Erase previous if any */
         if( g_search_verbose ){
             if( wrote_status){
-                cout << g_ANSI_back_one_line << g_ANSI_back_one_line;
+                /*cout << g_ANSI_back_one_line << g_ANSI_back_one_line;
                 cout << g_blank_line << endl << g_blank_line << endl; 
-                cout << g_ANSI_back_one_line << g_ANSI_back_one_line;
+                cout << g_ANSI_back_one_line << g_ANSI_back_one_line;*/
+                // debug
+                cout << endl;
             }else{
                 cout << endl;
             }
@@ -563,6 +608,15 @@ ROPChain* search_shortest(DestArg dest, AssignArg assign, SearchEnvironment* env
             notify("Best chain: " + ( best_res == nullptr ? str_exploit("-"): str_ropg((std::to_string(best_res->len()*8) + " bytes"))));
         }
         
+        /* Set lmax for env */
+        env->set_lmax(lmoy);
+        /* Reset the adjust_ret record every time.
+         * This is because we approximate the adjust_ret_record so
+         * when reaching small sizes a lot of fails because of lmax
+         * will induce too many false positives for other lengthes
+         * */ 
+		env->adjust_ret_record()->reset();
+        
         /* Search */ 
         res = search(dest, assign, env);
         if( res != nullptr ){
@@ -571,6 +625,9 @@ ROPChain* search_shortest(DestArg dest, AssignArg assign, SearchEnvironment* env
             best_res = res;
             lmax =  res->len()-1;
         }else{
+            /* If fail is not because of lmax, don't continue DEBUG */
+            if( ! g_fail_record.max_len() )
+                break;
             /* Not found */
             lmin = lmoy;
         }
@@ -627,8 +684,6 @@ vector<int> _gadget_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment*
                         break;
                 }
                 break;
-            case DST_CSTMEM:
-                break; // TODO
             default:
                 break;
         }
@@ -644,7 +699,10 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
     ROPChain* res;
     addr_t padding;
     bool success;
-        
+    
+    /* Reset fail record */
+    env->fail_record()->reset();
+    
     /* Check context */ 
     if( env->lmax() == 0 ){
         env->fail_record()->set_max_len(true);
@@ -680,6 +738,7 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
     gadgets = _gadget_db_lookup(dest, assign, env, nb);
     /* Check result */ 
     if( gadgets.empty() ){
+        env->fail_record()->set_no_chain(NO_CHAIN_YES);
         res = nullptr;
     }else{
         res = new ROPChain();
@@ -709,31 +768,46 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
 /* Chain gadgets together in more complex rop-chain */ 
 ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
     ROPChain* res = nullptr;
+    FailRecord local_fail_record;
+    
+    /* Reset fail record */
+    env->fail_record()->reset();
+    
     switch(dest.type){
-        // reg <- ? 
+        // reg <- ?
         case DST_REG:
             switch(assign.type){
                 case ASSIGN_CST: // reg <- cst 
                     res = chain_adjust_ret(dest, assign, env);
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
                         res = chain_pop_constant(dest, assign, env);
-                    if( res == nullptr )
+                    }
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
                         res = chain_any_reg_transitivity(dest, assign, env);
+                    }
                     break;
                 case ASSIGN_REG_BINOP_CST: // reg <- reg op cst
                     res = chain_adjust_ret(dest, assign, env);
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
                         res = chain_reg_transitivity(dest, assign, env);
+                    }
                     break;
                 case ASSIGN_MEM_BINOP_CST: // reg <- mem(reg op cst) + cst  
                     res = chain_adjust_ret(dest, assign, env);
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
                         res = chain_any_reg_transitivity(dest, assign, env);
+                    }
                     break;
                 case ASSIGN_CSTMEM_BINOP_CST:
                     res = chain_adjust_ret(dest, assign, env);
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
                         res = chain_any_reg_transitivity(dest, assign, env);
+                    }
                     break;
                 default:
                     break;
@@ -744,31 +818,47 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
             switch(assign.type){
                 case ASSIGN_CST: // mem(reg op cst) <- cst 
                     res = chain_adjust_ret(dest, assign, env);
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
                         res = chain_any_reg_transitivity(dest, assign, env);
-                    if( res == nullptr )
+                    }
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
+                    }
                     break;
                 case ASSIGN_REG_BINOP_CST: // mem(reg op cst) <- reg op cst
                     res = chain_adjust_ret(dest, assign, env);
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
                         res = chain_any_reg_transitivity(dest, assign, env);
-                    if( res == nullptr )
+                    }
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
+                    }
                     break;
                 case ASSIGN_MEM_BINOP_CST: // mem(reg op cst) <- mem(reg op cst) + cst  
                     res = chain_adjust_ret(dest, assign, env);
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
                         res = chain_any_reg_transitivity(dest, assign, env);
-                    if( res == nullptr )
+                    }
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
+                    }
                     break;
                 case ASSIGN_CSTMEM_BINOP_CST:
                     res = chain_adjust_ret(dest, assign, env);
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
                         res = chain_any_reg_transitivity(dest, assign, env);
-                    if( res == nullptr )
+                    }
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
+                    }
                     break;
                 default:
                     break;
@@ -780,20 +870,28 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
 			 * we already do any_reg_transitivity */
 			switch(assign.type){
                 case ASSIGN_CST: // mem(reg op cst) <- cst 
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
+                    }
                     break;
                 case ASSIGN_REG_BINOP_CST: // mem(reg op cst) <- reg op cst
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
+                    }
                     break;
                 case ASSIGN_MEM_BINOP_CST: // mem(reg op cst) <- mem(reg op cst) + cst  
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
+                    }
                     break;
                 case ASSIGN_CSTMEM_BINOP_CST:
-                    if( res == nullptr )
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
+                    }
                     break;
                 default:
                     break;
@@ -802,6 +900,15 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
         default:
             break;
     }
+    
+    /* Here don't set no_chain, because we don't really now what 
+     * happended in the functions. This function is only a 
+     * 'dispatcher', so we can't tell :/ */
+    if( res == nullptr ){
+        env->fail_record()->merge_with(&local_fail_record);
+        g_fail_record.merge_with(env->fail_record());
+    }
+    
     return res;
 }
 
@@ -827,6 +934,9 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
     bool added_unusable=false;
     unsigned int prev_lmax = env->lmax();
     FailRecord local_fail_record;
+    
+    /* Reset env fail record */ 
+    env->fail_record()->reset();
     
     /* Check for special cases */
     /* Identity search (e.g r1 <- r1) */ 
@@ -854,8 +964,6 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
         new_reg_transitivity_unusable = new vector<int>();
         env->set_reg_transitivity_unusable(new_reg_transitivity_unusable);
     }
-    /* Reset env fail record */ 
-    env->fail_record()->reset();
     
     /* Chaining... */
     for( inter_reg = 0; inter_reg < curr_arch()->nb_regs(); inter_reg++ ){
@@ -867,8 +975,8 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
         inter_reg == curr_arch()->ip() || 
         inter_reg == dest.reg || 
         is_identity_assign(inter_reg, assign.reg, assign.op, assign.cst ) || 
-        env->reg_transitivity_record()->is_impossible(inter_reg, assign.reg, assign.op, assign.cst, env->constraint()) || 
-        env->reg_transitivity_record()->is_impossible(dest.reg, inter_reg, OP_ADD, 0, env->constraint())
+        env->reg_transitivity_record()->is_impossible(inter_reg, assign.reg, assign.op, assign.cst, env) || 
+        env->reg_transitivity_record()->is_impossible(dest.reg, inter_reg, OP_ADD, 0, env)
         ){
             continue;
         }
@@ -879,11 +987,13 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
         }
         env->set_lmax(prev_lmax-1);
         inter_to_dest = search(dest, AssignArg(ASSIGN_REG_BINOP_CST, inter_reg, OP_ADD, 0), env);
+        env->set_lmax(prev_lmax);
         if( added_unusable ){
             env->reg_transitivity_unusable()->pop_back();
             added_unusable = false;
         }
         if( inter_to_dest == nullptr ){
+            local_fail_record.merge_with(env->fail_record());
             continue;
         }
         
@@ -895,12 +1005,15 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
         env->reg_transitivity_unusable()->pop_back();
         if( assign_to_inter == nullptr ){
             delete inter_to_dest;
+            inter_to_dest = nullptr;
+            local_fail_record.merge_with(env->fail_record());
             continue;
         }
         /* 3. We found both, stop looking */ 
         assign_to_inter->add_chain(inter_to_dest);
         res = assign_to_inter;
         delete inter_to_dest; // Delete it because we keep only one
+        inter_to_dest = nullptr;
         break;
     }
     
@@ -912,8 +1025,12 @@ ROPChain* chain_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironme
         env->set_reg_transitivity_unusable(prev_reg_transitivity_unusable);
     }
     /* Merge fail record with global */
-    env->fail_record()->merge_with(&local_fail_record);
-    g_fail_record.merge_with(env->fail_record());
+    if( res == nullptr ){
+        env->fail_record()->merge_with(&local_fail_record);
+        g_fail_record.merge_with(&local_fail_record);
+    }else{
+        env->fail_record()->reset();
+    }
     
     /* Return result */
     return res;
@@ -931,23 +1048,29 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     char val_str[128];
     Constraint *prev_constraint = env->constraint(), *tmp_constraint=nullptr;
 
+    /* Reset env fail record */ 
+    env->fail_record()->reset();
+
     /* Check for special cases */
     /* If constant contains bad bytes */
     if( ! env->constraint()->verify_address((addr_t)assign.cst) ){
+        return nullptr;
+    }
+    /* Check length, we need at least two */
+    if( env->lmax() <= 1){
+        env->fail_record()->set_max_len(true);
         return nullptr;
     }
 
     /* Setting env */ 
     env->add_call(strategy);
     env->set_no_padding(true);
-    /* Reset env fail record */ 
-    env->fail_record()->reset();
     /* Check for comments */
     had_comment = env->has_comment(strategy);
     if( had_comment ){
         comment = env->pop_comment(strategy);
     }else{
-        snprintf(val_str, sizeof(val_str), "0x%llx", (addr_t)assign.cst);
+        snprintf(val_str, sizeof(val_str), "0x%lx", (addr_t)assign.cst);
         comment = "Constant: " + str_bold(string(val_str));
     }
     
@@ -988,20 +1111,24 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     env->set_no_padding(prev_no_padding);
     delete tmp_constraint;
     env->set_constraint(prev_constraint);
-    /* Merge fail record with global */ 
-    g_fail_record.merge_with(env->fail_record());
+
     /* Restore comment */
     if( had_comment ){
         env->push_comment(strategy, comment);
     }
-    
+    /* Merge fail record with global */ 
+    if( res == nullptr ){
+        g_fail_record.merge_with(env->fail_record());
+    }else{
+        env->fail_record()->reset();
+    }
     /* Return result */ 
     return res;
 }
 
 /* Assign something to register by using register transitivity 
  * Note: should not be used for reg_binop_cst_to_reg (uses 
- * chain_reg_transitivity() instead ) */
+ * chain_reg_transitivity() instead ) */ 
 ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env){
     SearchStrategyType strategy = STRATEGY_ANY_REG_TRANSITIVITY;
     ROPChain *res=nullptr, *inter_to_dest=nullptr, *assign_to_inter=nullptr;
@@ -1010,6 +1137,9 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
     Constraint *prev_constraint=env->constraint(), *tmp_constraint=nullptr;
     int dest_used_reg=-1; // The reg that is used in dest
     FailRecord local_fail_record;
+    
+    /* Reset env fail record */ 
+    env->fail_record()->reset(); 
     
     /* Check for special cases */
     /* Don't call this strategy consecutively, transitivity is handled
@@ -1034,8 +1164,6 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
         
     /* Setting env */
     env->add_call(strategy);
-    /* Reset env fail record */ 
-    env->fail_record()->reset();
     
     /* Chaining... */
     for( inter_reg = 0; inter_reg < curr_arch()->nb_regs(); inter_reg++ ){
@@ -1045,7 +1173,7 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
         inter_reg == curr_arch()->sp() ||
         inter_reg == curr_arch()->ip() ||
         inter_reg == dest_used_reg ||
-        (dest.type == DST_REG && env->reg_transitivity_record()->is_impossible(dest.reg, inter_reg, OP_ADD, 0, env->constraint()))
+        (dest.type == DST_REG && env->reg_transitivity_record()->is_impossible(dest.reg, inter_reg, OP_ADD, 0, env))
         ){
             continue;
         }
@@ -1054,15 +1182,18 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
         /* Set env */
         env->set_lmax(prev_lmax-1);
         inter_to_dest = search(dest, AssignArg(ASSIGN_REG_BINOP_CST, inter_reg, OP_ADD, 0), env );
+        env->set_lmax(prev_lmax);
         if( inter_to_dest == nullptr){
+            local_fail_record.merge_with(env->fail_record());
             continue;
         }
+        
         /* 2. Search inter_reg <- assign */
         /* Set env */ 
         /* Check if we assign memory, if yes, we should not modify 
 		 * the address registers when chaining */
 		if( dest.type == DST_MEM ){
-			tmp_constraint = env->constraint()->copy();
+			tmp_constraint = prev_constraint->copy();
 			tmp_constraint->add(new ConstrKeepRegs(dest.addr_reg), true);
 			env->set_constraint(tmp_constraint);
 		}
@@ -1077,8 +1208,11 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
 		}
         if( assign_to_inter == nullptr ){
             delete inter_to_dest;
+            inter_to_dest = nullptr;
+            local_fail_record.merge_with(env->fail_record());
             continue;
         }
+
         /* 3. We found both, stop looking */
         assign_to_inter->add_chain(inter_to_dest);
         delete inter_to_dest;
@@ -1091,10 +1225,15 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
     if( tmp_constraint != nullptr ){
         env->set_constraint(prev_constraint);
         delete tmp_constraint;
+        tmp_constraint = nullptr;
     }
     /* Merge fail record with global */ 
-    env->fail_record()->merge_with(&local_fail_record);
-    g_fail_record.merge_with(env->fail_record());
+    if( res == nullptr ){
+        env->fail_record()->merge_with(&local_fail_record);
+        g_fail_record.merge_with(env->fail_record());
+    }else{
+        env->fail_record()->reset();
+    }
     
     /* Return res */
     return res;
@@ -1111,7 +1250,7 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     SearchStrategyType strategy = STRATEGY_ADJUST_RET;
     ROPChain *res=nullptr, *set_ret_reg_chain=nullptr; 
     Constraint* prev_constraint = env->constraint(), *tmp_constraint=nullptr;
-    AdjustRetRecord prev_adjust_ret = *(env->adjust_ret_record());
+    //AdjustRetRecord prev_adjust_ret = *(env->adjust_ret_record());
     vector<int> possible_gadgets, adjust_gadgets;
     vector<int>::iterator it, it2;
     vector<addr_t>::iterator ait;
@@ -1119,13 +1258,16 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     shared_ptr<Gadget> gadget;
     int ret_reg; 
     cst_t offset;
-    int padding_len;
+    unsigned int padding_len;
     unsigned int prev_lmax = env->lmax();
     bool found = false;
     int addr_count;
     addr_t padding;
     bool success_padding;
     FailRecord local_fail_record;
+    
+    /* Reset env fail record */ 
+    env->fail_record()->reset();
     
     /* Check for special cases */
     /* Accept only two recursive calls */ 
@@ -1136,11 +1278,14 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     if( dest.type == DST_REG && (dest.reg == curr_arch()->ip() || dest.reg == curr_arch()->sp()) ){
         return nullptr;
     }
-        
+    
+    if( env->lmax() < 3 ){
+        env->fail_record()->set_max_len(true);
+        return nullptr;
+    }
+    
     /* Setting env */
     env->add_call(strategy);
-    /* Reset env fail record */ 
-    env->fail_record()->reset();
     
     /* Chaining... */
     /* 1. Get possible gadgets */
@@ -1156,12 +1301,16 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     delete tmp_constraint;
     tmp_constraint = nullptr;
     
+    if( possible_gadgets.empty() ){
+        local_fail_record.merge_with(env->fail_record());
+        // DEBUG
+        if( dest.reg == X64_RSI && assign.reg == X64_RBX && env->depth() <= 6 ){
+            cout << "DEBUG, maybe bug here ultimate 0 ?? " << endl;
+        }
+    }
+    
     /* For each possible gadget, try to adjust */ 
     for( it = possible_gadgets.begin(); (it != possible_gadgets.end()) && !found; it++ ){
-        
-        /* Reset env fail_record */ 
-        env->fail_record()->reset();
-        
         gadget = gadget_db()->get(*it);
         ret_reg = gadget->ret_reg();
         /* Check return reg */
@@ -1201,6 +1350,11 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
             tmp_constraint = nullptr;
             env->set_constraint(prev_constraint);
         }
+        /* Check if we found something */ 
+        if( adjust_gadgets.empty()){
+            local_fail_record.merge_with(env->fail_record());
+            continue;
+        }
         
         /* Check if we still have enough length */
         if( padding_len+1 >= prev_lmax )
@@ -1235,18 +1389,18 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
                 /* Search */ 
                 set_ret_reg_chain = search(DestArg(DST_REG, ret_reg), AssignArg(ASSIGN_CST, *ait), env);
                 /* Restore env */ 
+                env->set_lmax(prev_lmax);
+                env->pop_comment(STRATEGY_POP_CONSTANT);
                 if( tmp_constraint != nullptr ){
                     delete tmp_constraint;
                     tmp_constraint = nullptr;
                     env->set_constraint(prev_constraint);
                 }
-                env->set_lmax(prev_lmax);
-                env->pop_comment(STRATEGY_POP_CONSTANT);
-                
                 /* If didn't find result, continue. The adjust_ret record will 
                  * be updated only if we fail for all addresses and all adjust 
                  * gadgets */  
                 if( set_ret_reg_chain == nullptr ){
+                    local_fail_record.merge_with(env->fail_record());
                     continue;
                 }
                 /* 4. If we found result, padd everything and return */ 
@@ -1268,8 +1422,7 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
             }
         }
         /* If could not set ret_reg, put it in the record */ 
-        // DEBUG add && (!env->fail_record()->max_len()) ? --> makes it very slow 
-        if( !found && !adjust_gadgets.empty()){
+        if( !found && !adjust_gadgets.empty() && !env->fail_record()->max_len()){
             env->adjust_ret_record()->add_fail(ret_reg);
         }
     }
@@ -1277,26 +1430,24 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     /* Restore env */
     env->remove_last_call();
     /* Merge fail record with global */
-    env->fail_record()->merge_with(&local_fail_record); 
-    g_fail_record.merge_with(env->fail_record());
+    if( res == nullptr ){
+        env->fail_record()->merge_with(&local_fail_record); 
+        g_fail_record.merge_with(env->fail_record());
+    }else{
+        env->fail_record()->reset();
+    }
     
     // DEBUG Keep old adjust ? maybe not --> makes it very slow 
     //env->set_adjust_ret_record(&prev_adjust_ret);
+    // DEBUG
+    if( dest.reg == X64_RSI && assign.reg == X64_RBX && res == nullptr ){
+        cout << "DEBUG, bug here" << endl;
+    }
     
     /* Return result */
     return res;
 }
 
-
-/* Adjust registers to do complex stores
- * eg:  mem(X) <- Y 
- * becomes: 
- *      reg1 <- Y+cst1
- *      reg2 <- X+cst2
- *      mem(reg2-cst2) <- reg1-cst1
- * 
- * !! Expects dest to be DST_CSTMEM
- */ 
 
 pair<bool,cst_t> _invert_operation(cst_t adjust_cst, Binop op, cst_t cst){
     switch(op){
@@ -1316,7 +1467,8 @@ pair<bool,cst_t> _invert_operation(cst_t adjust_cst, Binop op, cst_t cst){
             break;
     }
     return make_pair(false, 0);
-} 
+}
+
 /* We want to to mem(requested) <- ... 
  * we only have mem(available) <- ...
  *  - requested is reg_binop_cst or cst
@@ -1328,7 +1480,7 @@ pair<bool,cst_t> _invert_operation(cst_t adjust_cst, Binop op, cst_t cst){
  *  - requested= mem(rax+8)
  *  - available= mem(rdx+16)
  *  - res is what we want to put in rdx = rax-8
- */  
+ */
 pair<bool,AssignArg> _adjust_store_adapt_dest_arg(DestArg requested, DestArg available){
     bool success;
     cst_t res_cst;
@@ -1371,15 +1523,31 @@ pair<bool,AssignArg> _adjust_store_adapt_assign_arg(AssignArg requested, AssignA
     bool success;
     cst_t res_cst; 
     AssignArg res = requested;
-    if( available.type != ASSIGN_REG_BINOP_CST )
+    if( available.type != ASSIGN_REG_BINOP_CST ){
         return make_pair(false, res);
+    }
     std::tie(success, res_cst) = _invert_operation(requested.cst, available.op, available.cst);
     if( success ){
         res.cst = res_cst;
-    }else
+    }else{
         return make_pair(false, res);
+    }
+    return make_pair(true, res);
 }
+
+/* Adjust registers to do complex stores
+ * eg:  mem(X) <- Y 
+ * becomes: 
+ *      reg1 <- Y+cst1
+ *      reg2 <- X+cst2
+ *      mem(reg2-cst2) <- reg1-cst1
+ * 
+ * !! Expects dest to be DST_CSTMEM
+ */ 
  
+ /* Maximum gadgets to try for each storing register 
+  * i.e mem(REG+...) <- ... */ 
+#define ADJUST_STORE_MAX_PER_STORE_REG 4
 ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* env){
     SearchStrategyType strategy = STRATEGY_ADJUST_STORE;
     ROPChain *res=nullptr, *set_dest_reg=nullptr, *set_assign_reg=nullptr, *chain1=nullptr, *chain2=nullptr;
@@ -1395,16 +1563,20 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
     bool already_right_dest;
     Constraint *tmp_constraint = nullptr, *saved_constraint = env->constraint();
     addr_t padding;
+    int debug_count = 0;
+
+    /* Reset env fail record */ 
+    env->fail_record()->reset();
 
     /* Check for special cases */
     /* Don't call this strategy consecutively, transitivity is handled
      * via other chaining functions so no need to do it within this function 
      * too */
-     if( !env->calls_history().empty() && env->calls_history().back() == strategy){
+    if( !env->calls_history().empty() && env->calls_history().back() == strategy){
         return nullptr;
     }
     /* Accept only one recursive calls */ 
-    if( env->calls_count(strategy) > 1 ){
+    if( env->calls_count(strategy) > 0 ){
         return nullptr;
     }
     /* If lmax is < 3, impossible to use this strat
@@ -1426,20 +1598,24 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
     possible = gadget_db()->get_possible_stores_reg(env->constraint(), env->assertion(), 1 , &local_fail_record);
     /* Restore env */ 
     delete tmp_constraint;
+    tmp_constraint = nullptr;
     env->set_constraint(saved_constraint);
     
+    // DEBUG
+    cout << "Possible: " << possible->size() << endl;
     /* Loop through all possibilities */ 
     for( it = possible->begin(); it != possible->end(); it++ ){
-        cout << "DEBUG, trying with " << gadget_db()->get(std::get<2>(*it).at(0))->asm_str() << endl;
-        
+        //cout << "\nDEBUG, trying with " << gadget_db()->get(std::get<2>(*it).at(0))->asm_str() << endl << endl << endl;
+        debug_count++;
         /* Build new arguments for dest and assign */ 
         /* Dest */
         if( dest == std::get<0>(*it) ){
             already_right_dest = true;
         }else{
             std::tie(success, assign_to_dest_reg) = _adjust_store_adapt_dest_arg(dest, std::get<0>(*it));
-            if( !success )
+            if( !success ){
                 continue;
+            }
             already_right_dest = false;
         }
         /* Store */ 
@@ -1447,11 +1623,11 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
 			already_right_assign = true;
 		}else{
 			std::tie(success, assign_to_store_reg ) = _adjust_store_adapt_assign_arg(assign, std::get<1>(*it));
-			if( !success)
+			if( !success){
 				continue;
+            }
 			already_right_assign = false;
 		}
-        cout << "Trying adjust (debug)" << endl;
         /* Try to adjust the reg that references memory first then the
          * one that is stored */
         /* 1. Set dest reg */ 
@@ -1463,10 +1639,9 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
 				tmp_constraint->add(new ConstrKeepRegs(assign.reg), true);
 			}
 			env->set_constraint(tmp_constraint);
-			env->fail_record()->reset();
 			/* Search */
 			set_dest_reg = search(DestArg(DST_REG, std::get<0>(*it).addr_reg), assign_to_dest_reg, env);
-			/* Restore env */ 
+            /* Restore env */ 
 			delete tmp_constraint;
 			tmp_constraint = nullptr;
 			env->set_constraint(saved_constraint);
@@ -1484,7 +1659,6 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
 			tmp_constraint = saved_constraint->copy();
 			tmp_constraint->add(new ConstrKeepRegs(dest.addr_reg), true);
 			env->set_constraint(tmp_constraint);
-			env->fail_record()->reset();
 			/* Search */
 			set_assign_reg = search(DestArg(DST_REG, std::get<1>(*it).reg), assign_to_store_reg, env);
 			/* Restore env */
@@ -1499,12 +1673,14 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
 		if( set_assign_reg == nullptr ){
 			delete set_dest_reg;
 			set_dest_reg = nullptr;
-			/* Check fail record */
+			local_fail_record.merge_with(env->fail_record());
+            /* Check fail record */
 			if( env->fail_record()->modified_reg(std::get<0>(*it).addr_reg)){
 				// If we fail because of previous reg modified, just 
 				// try the other order :)
-				goto try_reversed_order;
-			}else{
+				// DEBUG goto try_reversed_order;
+                continue;
+            }else{
 				// Otherwise, continue :) 
 				continue;
 			}
@@ -1521,6 +1697,7 @@ try_reversed_order:
          *  couldn't be kept, if it's not the reason then skip this part */ 
 		tmp_constraint = env->constraint()->copy();
 		delete tmp_constraint; // DEBUG DUMMY 
+        tmp_constraint = nullptr;
 	}
     
     /* Build result ropchain if any */
@@ -1547,12 +1724,17 @@ try_reversed_order:
     /* Restore env */ 
     env->remove_last_call();
     /* Merge local fail record with global one */
-    g_fail_record.merge_with(&local_fail_record);
+    if( res == nullptr ){
+        g_fail_record.merge_with(&local_fail_record);
+        env->fail_record()->merge_with(&local_fail_record);
+    }else{
+        env->fail_record()->reset();
+    }
+    //cout << "\n\nDEBUG, count: " << debug_count << endl;
     
     /* Return result */
     return res;
 }
-/* DEBUG TODO EVERYWHERE, MERGE FAIL_RECORD WITH GLOBAL ONLY IF NO RESULT FOUND */
 
 
 /* Init functions */
