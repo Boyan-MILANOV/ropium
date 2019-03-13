@@ -11,6 +11,7 @@ using std::vector;
 using std::pair; 
 
 class FailRecord;
+class SearchEnvironment; 
 
 /* ---------------------------------------------------------------------
  *                          Constraints 
@@ -129,7 +130,7 @@ using cstr_sig_t = uint64_t;
 class Constraint{
     SubConstraint* _constr[COUNT_NB_CONSTR];
     cstr_sig_t _signature;
-    bool _computed_signature;
+    SearchEnvironment* _signature_env_ptr;
     public:
         Constraint();
         // Accessors 
@@ -142,8 +143,7 @@ class Constraint{
         bool verify_address(addr_t a, FailRecord* fail_record=nullptr);
         bool keep_reg(int num, FailRecord* fail_record=nullptr);
         Constraint* copy();
-        cstr_sig_t signature();
-        cstr_sig_t signature(int lmax); 
+        cstr_sig_t signature(SearchEnvironment* env);
         pair<bool, addr_t> valid_padding();
         ~Constraint();
 };

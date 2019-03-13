@@ -62,13 +62,15 @@ class AssignArg {
  *                    FailRecord
  * ************************************************* */ 
 
-enum FailType{FAIL_NO_GADGET, FAIL_LMAX, FAIL_MODIFIED_REG, FAIL_BAD_BYTES, FAIL_NO_VALID_PADDING, FAIL_OTHER};
- 
+enum FailType{FAIL_NO_CHAIN, FAIL_LMAX, FAIL_MODIFIED_REG, FAIL_BAD_BYTES, FAIL_NO_VALID_PADDING, FAIL_OTHER};
+enum NoChainStatus{NO_CHAIN_YES, NO_CHAIN_NO, NO_CHAIN_UNKNOWN};
+
 class FailRecord{
     bool _max_len;                          /* Reached length limit */ 
     bool _no_valid_padding;                 /* Couldn't find a valid padding for gadgets */ 
     bool _modified_reg[NB_REGS_MAX];        /* Modified reg that should be kept */ 
     bool _bad_bytes[256];                   /* Gadget could be used but bad bytes in addresses */
+    NoChainStatus _no_chain;
     
     public:
         FailRecord();
@@ -78,11 +80,13 @@ class FailRecord{
         bool no_valid_padding();
         bool modified_reg(int reg_num);
         bool* bad_bytes(); 
+        bool no_chain();
         // Modifiers
         void set_max_len(bool val);
         void set_no_valid_padding(bool val);
         void add_modified_reg(int reg_num);
         void add_bad_byte(unsigned char bad_byte);
+        void set_no_chain(NoChainStatus val);
         // Assign
         void copy_from(FailRecord* other);
         void merge_with(FailRecord* other);
@@ -102,8 +106,8 @@ class RegTransitivityRecord{
     vector<cstr_sig_t> _query[NB_REG_RECORD][NB_REG_RECORD][NB_OP_RECORD][NB_CST_RECORD];
     int (*_cst_list_index)(cst_t);
     public:
-        void add_fail(int dest_reg, int src_reg, Binop op, cst_t src_cst, Constraint* constr);
-        bool is_impossible(int dest_reg, int src_reg, Binop op, cst_t src_cst, Constraint* constr);
+        void add_fail(int dest_reg, int src_reg, Binop op, cst_t src_cst, SearchEnvironment* env);
+        bool is_impossible(int dest_reg, int src_reg, Binop op, cst_t src_cst, SearchEnvironment* env);
 };
 
 /* *********************************************************************
@@ -147,7 +151,7 @@ class SearchResultsBinding{
  *                         SearchEnvironment 
  * ******************************************************************* */
 #define DEFAULT_LMAX 100
-#define DEFAULT_MAX_DEPTH 8
+#define DEFAULT_MAX_DEPTH 5
 
 enum SearchStrategyType{STRATEGY_REG_TRANSITIVITY, STRATEGY_POP_CONSTANT, STRATEGY_ANY_REG_TRANSITIVITY , 
                         STRATEGY_ADJUST_RET, STRATEGY_ADJUST_STORE, NB_STRATEGY_TYPES};
@@ -214,7 +218,6 @@ class SearchEnvironment{
         AdjustRetRecord* adjust_ret_record();
         void set_adjust_ret_record(AdjustRetRecord* rec);
         FailRecord* fail_record();
-        
 };
 
 
