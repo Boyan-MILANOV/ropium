@@ -542,20 +542,15 @@ ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* en
      * search might have failed because of other reasons than inability to 
      * mke the chain (max_depth reached, bad args, ...) */
     if( res == nullptr && !env->fail_record()->max_len() && 
-            env->fail_record()->no_chain() == NO_CHAIN_YES && 
+            env->depth() == 1 && 
             dest.type == DST_REG && assign.type == ASSIGN_REG_BINOP_CST){
         cout << "DEBUG, adding impossible " << dest.reg << ": " << assign.reg << " " << assign.op << " " << assign.cst << endl;
+        cout << "DEBUG signature: " << env->constraint()->signature(env) << endl;
         env->reg_transitivity_record()->add_fail(dest.reg, assign.reg, assign.op, assign.cst, env);
     }
     /* Restore env */
     env->set_depth(env->depth()-1);
-    
-    /* If no result found, set the no_chain fail. 
-     * Better to do it 'centralized here' than in each individual function */ 
-    if( res == nullptr ){
-        env->fail_record()->set_no_chain(NO_CHAIN_YES);
-    }
-    
+	
     return res;
 }
 
@@ -594,11 +589,9 @@ ROPChain* search_shortest(DestArg dest, AssignArg assign, SearchEnvironment* env
         /* Erase previous if any */
         if( g_search_verbose ){
             if( wrote_status){
-                /*cout << g_ANSI_back_one_line << g_ANSI_back_one_line;
+                cout << g_ANSI_back_one_line << g_ANSI_back_one_line;
                 cout << g_blank_line << endl << g_blank_line << endl; 
-                cout << g_ANSI_back_one_line << g_ANSI_back_one_line;*/
-                // debug
-                cout << endl;
+                cout << g_ANSI_back_one_line << g_ANSI_back_one_line;
             }else{
                 cout << endl;
             }
@@ -625,7 +618,7 @@ ROPChain* search_shortest(DestArg dest, AssignArg assign, SearchEnvironment* env
             best_res = res;
             lmax =  res->len()-1;
         }else{
-            /* If fail is not because of lmax, don't continue DEBUG */
+            /* If fail is not because of lmax, don't continue */
             if( ! g_fail_record.max_len() )
                 break;
             /* Not found */
@@ -769,10 +762,10 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
 ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
     ROPChain* res = nullptr;
     FailRecord local_fail_record;
-    
+
     /* Reset fail record */
     env->fail_record()->reset();
-    
+
     switch(dest.type){
         // reg <- ?
         case DST_REG:
@@ -1271,7 +1264,7 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     
     /* Check for special cases */
     /* Accept only two recursive calls */ 
-    if( env->calls_count(strategy) > 2 ){
+    if( env->calls_count(strategy) > 1 ){
         return nullptr;
     }
     /* Can never adjust ip */
@@ -1301,12 +1294,12 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     delete tmp_constraint;
     tmp_constraint = nullptr;
     
+     if( possible_gadgets.empty() ){
+        local_fail_record.merge_with(env->fail_record());
+    }
+    
     if( possible_gadgets.empty() ){
         local_fail_record.merge_with(env->fail_record());
-        // DEBUG
-        if( dest.reg == X64_RSI && assign.reg == X64_RBX && env->depth() <= 6 ){
-            cout << "DEBUG, maybe bug here ultimate 0 ?? " << endl;
-        }
     }
     
     /* For each possible gadget, try to adjust */ 
@@ -1439,10 +1432,6 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
     
     // DEBUG Keep old adjust ? maybe not --> makes it very slow 
     //env->set_adjust_ret_record(&prev_adjust_ret);
-    // DEBUG
-    if( dest.reg == X64_RSI && assign.reg == X64_RBX && res == nullptr ){
-        cout << "DEBUG, bug here" << endl;
-    }
     
     /* Return result */
     return res;
@@ -1563,7 +1552,6 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
     bool already_right_dest;
     Constraint *tmp_constraint = nullptr, *saved_constraint = env->constraint();
     addr_t padding;
-    int debug_count = 0;
 
     /* Reset env fail record */ 
     env->fail_record()->reset();
@@ -1678,8 +1666,7 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
 			if( env->fail_record()->modified_reg(std::get<0>(*it).addr_reg)){
 				// If we fail because of previous reg modified, just 
 				// try the other order :)
-				// DEBUG goto try_reversed_order;
-                continue;
+				goto try_reversed_order;
             }else{
 				// Otherwise, continue :) 
 				continue;
@@ -1730,7 +1717,7 @@ try_reversed_order:
     }else{
         env->fail_record()->reset();
     }
-    //cout << "\n\nDEBUG, count: " << debug_count << endl;
+    cout << "\n\nDEBUG, count: " << debug_count << endl;
     
     /* Return result */
     return res;
