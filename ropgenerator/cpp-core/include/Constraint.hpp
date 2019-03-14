@@ -129,8 +129,6 @@ using cstr_sig_t = uint64_t;
 
 class Constraint{
     SubConstraint* _constr[COUNT_NB_CONSTR];
-    cstr_sig_t _signature;
-    SearchEnvironment* _signature_env_ptr;
     public:
         Constraint();
         // Accessors 
@@ -160,6 +158,11 @@ class Constraint{
  * missing has default 0b000 (all types allowed). Forbidden type is
  * set to 1 
  *  
+ * The depth is stored on 8 bits after the return type. We assume that 
+ * the depth will never be bigger than 8. A depth of 1 gives the signature
+ * 0b00000001n a depth of 5 gives 0b00011111. I.E set as many bits to 1 as
+ * the depth value. This is to keep the requirement of inclusion between 
+ * weaker and stronger constraints/signatures. 
  * 
  * Requirement: sig1 included in sig2 <=> constr1 is weaker than constr2
  * 
@@ -169,7 +172,8 @@ class Constraint{
 #define MODIFIED_REGS_SIG_SIZE NB_REGS_MAX
 #define RET_TYPE_BIT MODIFIED_REGS_SIG_SIZE
 #define RET_TYPE_SIG_SIZE 3
-
+#define DEPTH_BIT 40 // DEBUG (MODIFIED_REGS_SIG_SIZE + RET_TYPE_SIG_SIZE)
+#define DEPTH_SIG_SIZE 8 
 
 
 /* 
