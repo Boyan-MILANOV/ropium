@@ -99,7 +99,7 @@ class FailRecord{
 #define NB_OP_RECORD 4
 #define NB_REG_RECORD 10
 #define NB_CST_RECORD 13
-#define MAX_SIGNATURES_PER_QUERY 30
+#define MAX_SIGNATURES_PER_QUERY 40
 
 class RegTransitivityRecord{
     // reg <- reg op cst 

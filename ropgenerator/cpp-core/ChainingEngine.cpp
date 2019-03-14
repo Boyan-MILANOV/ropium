@@ -229,10 +229,12 @@ bool RegTransitivityRecord::is_impossible(int dest_reg, int src_reg, Binop op, c
     int cst_index;
     vector<cstr_sig_t>::iterator it; 
     cstr_sig_t sig; 
-    // Check regs
+    /* Check regs, if they are not supported we don't know if they are impossible
+     * so we return false
+     * */
     if( dest_reg >= NB_REG_RECORD || src_reg >= NB_REG_RECORD || 
         dest_reg < 0 || src_reg < 0)
-        return true;
+        return false;
     // Check cst and operation
     if( op == OP_ADD || op == OP_SUB ){
         if( (cst_index=record_cst_list_addsub_index(src_cst)) == -1)
@@ -541,11 +543,8 @@ ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* en
      * don't update the fail_record. If there is not no_chain, then the 
      * search might have failed because of other reasons than inability to 
      * mke the chain (max_depth reached, bad args, ...) */
-    if( res == nullptr && !env->fail_record()->max_len() && 
-            env->depth() == 1 && 
+    if( res == nullptr && !env->fail_record()->max_len() &&
             dest.type == DST_REG && assign.type == ASSIGN_REG_BINOP_CST){
-        cout << "DEBUG, adding impossible " << dest.reg << ": " << assign.reg << " " << assign.op << " " << assign.cst << endl;
-        cout << "DEBUG signature: " << env->constraint()->signature(env) << endl;
         env->reg_transitivity_record()->add_fail(dest.reg, assign.reg, assign.op, assign.cst, env);
     }
     /* Restore env */
@@ -1552,6 +1551,7 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
     bool already_right_dest;
     Constraint *tmp_constraint = nullptr, *saved_constraint = env->constraint();
     addr_t padding;
+    int debug_count = 0;
 
     /* Reset env fail record */ 
     env->fail_record()->reset();
