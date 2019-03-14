@@ -449,15 +449,25 @@ SubAssertionType SubAssertion::type(){return _type;}
 
 // AssertRegsEqual
 AssertRegsEqual::AssertRegsEqual(): SubAssertion(ASSERT_REGS_EQUAL){
-    std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
-    for( int i =0; i < NB_REGS_MAX; i++)
-        _regs[i][i] = true; 
+    for( int i =0; i < NB_REGS_MAX; i++){
+        _regs[i][i] = true;
+        for( int j=i+1; j < NB_REGS_MAX; j++){
+            _regs[i][j] = false;
+            _regs[j][i] = false; 
+        }
+    }
 }       
 AssertRegsEqual::AssertRegsEqual( bool array[NB_REGS_MAX][NB_REGS_MAX]): SubAssertion(ASSERT_REGS_EQUAL){
-    std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
+    for( int i =0; i < NB_REGS_MAX; i++){
+        for( int j=i+1; j < NB_REGS_MAX; j++){
+            _regs[i][j] = array[i][j];
+        }
+    }
 }       
 
-bool ** AssertRegsEqual::regs(){return (bool**)_regs;}
+bool AssertRegsEqual::get(int reg1, int reg2){
+    return _regs[reg1][reg2];
+}
 
 void AssertRegsEqual::add(int reg1, int reg2){
     _regs[reg1][reg2] = true; 
@@ -485,33 +495,45 @@ void AssertRegsEqual::merge(SubAssertion* a, bool del){
         throw_exception("RegsEsqul: Merging wrong assertion !!");
     for( int i=0; i<NB_REGS_MAX; i++)
         for( int j=0; j<NB_REGS_MAX; j++)
-            _regs[i][j] |= a->regs()[i][j];
+            _regs[i][j] |= a->get(i,j);
     if( del )
         delete a; 
 }
 
 // AssertRegsNoOverlap
 AssertRegsNoOverlap::AssertRegsNoOverlap(): SubAssertion(ASSERT_REGS_NO_OVERLAP){
-    std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
-    for( int i =0; i < NB_REGS_MAX; i++)
-        _regs[i][i] = true; 
+    for( int i =0; i < NB_REGS_MAX; i++){
+        _regs[i][i] = true;
+        for( int j=i+1; j < NB_REGS_MAX; j++){
+            _regs[i][j] = false;
+            _regs[j][i] = false; 
+        }
+    }
 }
 
 AssertRegsNoOverlap::AssertRegsNoOverlap(int reg1, int reg2): SubAssertion(ASSERT_REGS_NO_OVERLAP){
-	std::memset(_regs, false, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
-    for( int i =0; i < NB_REGS_MAX; i++){
-        _regs[i][i] = true; 
+	for( int i =0; i < NB_REGS_MAX; i++){
+        _regs[i][i] = true;
+        for( int j=i+1; j < NB_REGS_MAX; j++){
+            _regs[i][j] = false;
+            _regs[j][i] = false; 
+        }
     }
-	_regs[reg1][reg2] = true;
+    _regs[reg1][reg2] = true;
 	_regs[reg2][reg1] = true;
 }
 
 AssertRegsNoOverlap::AssertRegsNoOverlap(bool array[NB_REGS_MAX][NB_REGS_MAX]): SubAssertion(ASSERT_REGS_NO_OVERLAP){
-    std::memcpy(_regs, array, sizeof(bool)*NB_REGS_MAX*NB_REGS_MAX);
+    for( int i =0; i < NB_REGS_MAX; i++){
+        for( int j=i+1; j < NB_REGS_MAX; j++){
+            _regs[i][j] = array[i][j];
+        }
+    }
 }
 
-bool ** AssertRegsNoOverlap::regs(){return (bool**)_regs;}
-
+bool AssertRegsNoOverlap::get(int reg1, int reg2){
+    return _regs[reg1][reg2];
+}
 void AssertRegsNoOverlap::add(int reg1, int reg2){
     _regs[reg1][reg2] = true; 
     _regs[reg2][reg1] = true; 
@@ -539,7 +561,7 @@ void AssertRegsNoOverlap::merge(SubAssertion* a, bool del){
         throw_exception("NoOverlap: Merging wrong assertion !!");
     for( int i=0; i<NB_REGS_MAX; i++)
         for( int j=0; j<NB_REGS_MAX; j++)
-            _regs[i][j] |= a->regs()[i][j];
+            _regs[i][j] |= a->get(i,j);
     if( del )
         delete a; 
 }

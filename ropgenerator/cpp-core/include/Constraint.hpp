@@ -194,9 +194,9 @@ class SubAssertion{
         virtual bool validate(CondObjectPtr c){throw_exception("Should not be called here");}
         virtual SubAssertion* copy(){throw_exception("Should not be called here");}
         virtual void merge(SubAssertion* a, bool del){throw_exception("SHould not be called here");}
-        // From AssertRegsEqual
+        // From AssertRegsNoOverlap and AssertRegsEqual
+        virtual bool get(int reg1, int reg2){throw_exception("Should not be called here");}
         virtual void add(int reg1, int reg2){throw_exception("Should not be called here");}
-        virtual bool** regs(){throw_exception("Should not be called here");}
         // From AssertValidRead
         virtual void add(int reg){throw_exception("Should not be called here");}
         virtual bool* reg(){throw_exception("Should not be called here");}
@@ -210,8 +210,8 @@ class AssertRegsEqual: public SubAssertion{
     public:
         AssertRegsEqual();
         AssertRegsEqual( bool array[NB_REGS_MAX][NB_REGS_MAX]);
-        virtual bool** regs();  
         void add(int reg1, int reg2);
+        virtual bool get(int reg1, int reg2);
         bool validate( CondObjectPtr c);
         virtual SubAssertion* copy(); 
         virtual void merge(SubAssertion* a, bool del); 
@@ -224,7 +224,7 @@ class AssertRegsNoOverlap: public SubAssertion{
         AssertRegsNoOverlap();
         AssertRegsNoOverlap(int reg1, int reg2);
         AssertRegsNoOverlap( bool array[NB_REGS_MAX][NB_REGS_MAX]);
-        virtual bool ** regs(); 
+        virtual bool get(int reg1, int reg2);
         void add(int reg1, int reg2);
         bool validate( CondObjectPtr c);
         virtual SubAssertion* copy();

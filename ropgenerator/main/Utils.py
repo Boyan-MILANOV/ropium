@@ -301,14 +301,14 @@ def parse_expr( string ):
         # Get the mem part 
         parsed_mem = parse_expr(mem_string)
         if( not parsed_mem[0] ):
-            # cstmem ? 
-            if( parse_cst(mem_string) is None ):
-                 return (False, "Invalid or unsupported address: " + mem_string, None)
-            else:
-                tmp_res = [True, AssignType.CSTMEM_BINOP_CST, (parse_cst(mem_string),)]
+            return (False, "Invalid or unsupported address: " + mem_string, None)
         # normal mem ? 
-        elif( parsed_mem[1] == AssignType.REG_BINOP_CST):
+        if( parsed_mem[1] == AssignType.REG_BINOP_CST):
             tmp_res = [True, AssignType.MEM_BINOP_CST, parsed_mem[2:5]]
+        # cst mem ? 
+        elif( parsed_mem[1] == AssignType.CST):
+            tmp_res = [True, AssignType.CSTMEM_BINOP_CST, parsed_mem[2]]
+        # not supported :/ 
         else:
             return (False, "Address not supported: " + mem_string, None)
         
@@ -368,7 +368,7 @@ def parse_expr( string ):
         if( value is None ):
             return (False, "Expression not supported: " + string, None)
         else:
-            return (True, AssignType.CST, (value,))
+            return (True, AssignType.CST, (value,),)
 
 def parse_cst(string):
     try:
