@@ -33,9 +33,9 @@ class DestArg {
     Binop addr_op;
     int reg; 
     
-    DestArg(DestType t, int r);   /* For DEST_REG */ 
+    //DestArg(DestType t, int r);   /* For DEST_REG */ 
     DestArg(DestType t, int addr_r, Binop op, cst_t addr_c); /* For DEST_MEM */
-    DestArg(DestType t, cst_t addr_c); /* For DEST_CSTMEM */
+    DestArg(DestType t, cst_t val); /* For DEST_CSTMEM */
     bool operator==(DestArg& other);
 };
 

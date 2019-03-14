@@ -220,8 +220,8 @@ template <class T> vector<tuple<DestArg, AssignArg, vector<int>>>* MEMDict<T>::g
     vector<pair<AssignArg, vector<int>>>::iterator it2;
     Assertion* tmp_assertion = nullptr;
     
-    for( tmp_op = 0; tmp_op != COUNT_NB_BINOP; tmp_op++){
-        for( tmp_addr_reg = 0; tmp_addr_reg < NB_REGS_MAX; tmp_addr_reg++ ){
+    for( tmp_op = 0; tmp_op < COUNT_NB_BINOP; tmp_op++){
+        for( tmp_addr_reg = 0; tmp_addr_reg < curr_arch()->nb_regs(); tmp_addr_reg++ ){
             /* If no gadgets here, continue */ 
             if( _addresses[tmp_op][tmp_addr_reg] == nullptr )
                 continue;
@@ -234,6 +234,7 @@ template <class T> vector<tuple<DestArg, AssignArg, vector<int>>>* MEMDict<T>::g
             /* Add an assertion to say that this memory write is correct */ 
             tmp_assertion = a->copy();
             tmp_assertion->add(new AssertValidWrite(tmp_addr_reg), true);
+            tmp_assertion->add(new AssertRegsNoOverlap(tmp_addr_reg, curr_arch()->sp()), true);
             /* Search suitable gadgets */
             for( it = _addresses[tmp_op][tmp_addr_reg]->begin(); it != _addresses[tmp_op][tmp_addr_reg]->end(); it++ ){
                 /* Iterator through the REGList corresponding to this memory store */ 

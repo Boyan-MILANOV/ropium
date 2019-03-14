@@ -14,17 +14,34 @@
  * *************************************************** */
  
 /* Don't forget to initialize unused reg fields to -1 */ 
-DestArg::DestArg(DestType t, int r):type(t), addr_reg(-1), reg(r){}  /* For DEST_REG */ 
+/* For DEST_MEM */
 DestArg::DestArg(DestType t, int addr_r, Binop o, cst_t addr_c): type(t), 
-    addr_reg(addr_r), addr_cst(addr_c), addr_op(o), reg(-1){} /* For DEST_MEM */
-DestArg::DestArg(DestType t, cst_t addr_c): type(t), addr_reg(-1), addr_cst(addr_c), reg(-1){} /* For DEST_CSTMEM */
+    addr_reg(addr_r), addr_cst(addr_c), addr_op(o), reg(-1){} 
+/* For both DST_REG and DST_CSTMEM because the program doesn't make the 
+ * difference between cst_t and int so it always calls the DST_REG constructor
+ * even for CST_MEM :(. It's ugly, I know, fuck it. */ 
+DestArg::DestArg(DestType t, cst_t val): type(t), addr_reg(-1){
+    if( t == DST_REG ){
+        reg = val;
+    }else if( t == DST_CSTMEM ){
+        addr_cst = val;
+    }
+}
+
 bool DestArg::operator==(DestArg& other){
-    return (    type == other.type &&
-                addr_reg == other.addr_reg && 
-                addr_cst == other.addr_cst &&
-                addr_op == other.addr_op &&
-                reg == other.reg
-            );
+    if( type != other.type ){
+        return false;
+    }
+    switch( type ){
+        case DST_REG:
+            return (reg == other.reg);
+        case DST_MEM:
+            return (addr_reg == other.addr_reg && addr_op == other.addr_op && addr_cst == other.addr_cst);
+        case DST_CSTMEM:
+            return (addr_cst == other.addr_cst);
+        default:
+            throw_exception("Unsupported assign type in DestArg::operator==");
+    }
 }
 
 AssignArg::AssignArg():type(ASSIGN_INVALID), addr_reg(-1), reg(-1){} /* DEFAULT ONE */
@@ -34,14 +51,24 @@ AssignArg::AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c):type(t), 
 AssignArg::AssignArg(AssignType t, cst_t ac, cst_t c):type(t), addr_reg(-1), addr_cst(ac), reg(-1), cst(c){} /* For ASSIGN_CST_MEM */
 AssignArg::AssignArg(AssignType t):type(t), addr_reg(-1), reg(-1){} /* For ASSIGN_SYSCALL and INT80 */ 
 bool AssignArg::operator==(AssignArg& other){
-    return (    type == other.type &&
-                addr_reg == other.addr_reg && 
-                addr_cst == other.addr_cst &&
-                addr_op == other.addr_op &&
-                reg == other.reg &&
-                cst == other.cst &&
-                op == other.op
-            );
+    if( type != other.type ){
+        return false;
+    }
+    switch(type){
+        case ASSIGN_CST:
+            return (cst == other.cst);
+        case ASSIGN_REG_BINOP_CST:
+            return (cst == other.cst && op == other.op && reg == other.reg);
+        case ASSIGN_MEM_BINOP_CST:
+            return (cst == other.cst && addr_cst == other.addr_cst && addr_op == other.addr_op && addr_reg == other.addr_reg);
+        case ASSIGN_CSTMEM_BINOP_CST:
+            return (cst == other.cst && addr_cst == other.addr_cst);
+        case ASSIGN_SYSCALL:
+        case ASSIGN_INT80:
+            return true;
+        default:
+            throw_exception("Unsupported assign type in AssignArg::operator==");
+    }
 }
 
 
@@ -316,8 +343,8 @@ Assertion* SearchEnvironment::assertion(){return _assertion;}
 void SearchEnvironment::set_assertion(Assertion* a){ _assertion = a; }
 unsigned int SearchEnvironment::lmax(){return _lmax;}
 void SearchEnvironment::set_lmax(unsigned int val){
-    if( val >= 40000 || val == 0)
-        throw_exception("Ooops lmax is really big or null,  MAYBE AN UNEXPECTED ERROR?");
+    if( val >= 40000 )
+        throw_exception("Ooops lmax is really big, UNEXPECTED ERROR?");
     _lmax = val;
 }
 unsigned int SearchEnvironment::depth(){return _depth;}
@@ -812,19 +839,11 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
                     res = chain_adjust_ret(dest, assign, env);
                     if( res == nullptr ){
                         local_fail_record.merge_with(env->fail_record());
-                        res = chain_any_reg_transitivity(dest, assign, env);
-                    }
-                    if( res == nullptr ){
-                        local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
                     }
                     break;
                 case ASSIGN_REG_BINOP_CST: // mem(reg op cst) <- reg op cst
                     res = chain_adjust_ret(dest, assign, env);
-                    if( res == nullptr ){
-                        local_fail_record.merge_with(env->fail_record());
-                        res = chain_any_reg_transitivity(dest, assign, env);
-                    }
                     if( res == nullptr ){
                         local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
@@ -834,19 +853,11 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
                     res = chain_adjust_ret(dest, assign, env);
                     if( res == nullptr ){
                         local_fail_record.merge_with(env->fail_record());
-                        res = chain_any_reg_transitivity(dest, assign, env);
-                    }
-                    if( res == nullptr ){
-                        local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
                     }
                     break;
                 case ASSIGN_CSTMEM_BINOP_CST:
                     res = chain_adjust_ret(dest, assign, env);
-                    if( res == nullptr ){
-                        local_fail_record.merge_with(env->fail_record());
-                        res = chain_any_reg_transitivity(dest, assign, env);
-                    }
                     if( res == nullptr ){
                         local_fail_record.merge_with(env->fail_record());
 						res = chain_adjust_store(dest, assign, env);
@@ -1533,9 +1544,12 @@ pair<bool,AssignArg> _adjust_store_adapt_assign_arg(AssignArg requested, AssignA
  * !! Expects dest to be DST_CSTMEM
  */ 
  
- /* Maximum gadgets to try for each storing register 
-  * i.e mem(REG+...) <- ... */ 
+/* Maximum gadgets to try for each storing register 
+* i.e mem(REG+...) <- ... */ 
 #define ADJUST_STORE_MAX_PER_STORE_REG 4
+/* Given reg1, reg2, cst, op, max gadgets to get
+ * for mem(reg1 op cst ) <- reg2 ... */
+#define ADJUST_STORE_MAX_POSSIBLE_PER_STORE 1
 ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* env){
     SearchStrategyType strategy = STRATEGY_ADJUST_STORE;
     ROPChain *res=nullptr, *set_dest_reg=nullptr, *set_assign_reg=nullptr, *chain1=nullptr, *chain2=nullptr;
@@ -1551,7 +1565,9 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
     bool already_right_dest;
     Constraint *tmp_constraint = nullptr, *saved_constraint = env->constraint();
     addr_t padding;
-    int debug_count = 0;
+    int gadget_sp_inc; 
+    int dest_used_reg=-1; // The reg that is used in dest
+    int assign_used_reg=-1; // The reg that is used in assign
 
     /* Reset env fail record */ 
     env->fail_record()->reset();
@@ -1578,23 +1594,28 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
     env->add_call(strategy);
     
     /* Set env */
-    /* Get only valid RET gadgets */ 
+    /* Get only valid RET gadgets, and not too big sp inc*/ 
     tmp_constraint = env->constraint()->copy();
     tmp_constraint->update(new ConstrReturn(true, false, false));
-    env->set_constraint(tmp_constraint);
+    tmp_constraint->add(new ConstrMaxSpInc(env->lmax()*curr_arch()->octets()), true);
     /* 0. Find all possible memory writes */
-    possible = gadget_db()->get_possible_stores_reg(env->constraint(), env->assertion(), 1 , &local_fail_record);
+    possible = gadget_db()->get_possible_stores_reg(tmp_constraint, env->assertion(), 1 , &local_fail_record, -1, -1);
     /* Restore env */ 
     delete tmp_constraint;
     tmp_constraint = nullptr;
-    env->set_constraint(saved_constraint);
     
     // DEBUG
-    cout << "Possible: " << possible->size() << endl;
-    /* Loop through all possibilities */ 
+    /*
+    cout << "DEBUG start possible: " << endl;
     for( it = possible->begin(); it != possible->end(); it++ ){
-        //cout << "\nDEBUG, trying with " << gadget_db()->get(std::get<2>(*it).at(0))->asm_str() << endl << endl << endl;
-        debug_count++;
+        cout << "\n\t DEBUG trying with " << gadget_db()->get(std::get<2>(*it).at(0))->asm_str() << endl << endl << endl;
+    }
+    cout << "---------------------------------\n\n"; */ 
+    /* Loop through all possibilities */
+    for( it = possible->begin(); it != possible->end(); it++ ){
+        /* Get sp increment for the gadget (will determine the max
+         * length allowed for adjustement ROPChains) */ 
+        gadget_sp_inc = gadget_db()->get(std::get<2>(*it).at(0))->sp_inc()/curr_arch()->octets();
         /* Build new arguments for dest and assign */ 
         /* Dest */
         if( dest == std::get<0>(*it) ){
@@ -1616,12 +1637,22 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
             }
 			already_right_assign = false;
 		}
-        /* Try to adjust the reg that references memory first then the
+        /* Get regs that are used in dest and assign (for the keep_regs 
+         * constraints */ 
+        /* Get the regs that must be kept, depends on the DestType */ 
+        dest_used_reg = std::get<0>(*it).addr_reg;
+        assign_used_reg = std::get<1>(*it).reg;
+        
+        /* --------------------------------------------------------------------------------------------
+         * (A.) Try to adjust the reg that references memory first then the
          * one that is stored */
         /* 1. Set dest reg */ 
-        if( !already_right_dest){
+        if( already_right_dest){
+            set_dest_reg = new ROPChain();
+        }else{
 			/* Set env */ 
 			tmp_constraint = saved_constraint->copy();
+            env->set_lmax(saved_lmax-gadget_sp_inc);
 			/* If assign is already the good one, we should not modify it*/ 
 			if( already_right_assign ){
 				tmp_constraint->add(new ConstrKeepRegs(assign.reg), true);
@@ -1633,19 +1664,23 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
 			delete tmp_constraint;
 			tmp_constraint = nullptr;
 			env->set_constraint(saved_constraint);
+            env->set_lmax(saved_lmax);
 		}
 		/* 2. Set assign reg */ 
-		if( set_dest_reg != nullptr || already_right_dest ){
+        if( already_right_assign ){
+            set_assign_reg = new ROPChain();
+        }else if( (set_dest_reg != nullptr )){
 			/* Set env */ 
-			if( set_dest_reg != nullptr && set_dest_reg->len()+1 >= saved_lmax ){
+			if( set_dest_reg != nullptr && set_dest_reg->len()+1+gadget_sp_inc-1 >= saved_lmax ){
 				delete set_dest_reg;
 				set_dest_reg = nullptr;
+                local_fail_record.set_max_len(true);
 				continue;
 			}else if( set_dest_reg != nullptr){
-				env->set_lmax(saved_lmax-set_dest_reg->len());
+				env->set_lmax(saved_lmax-set_dest_reg->len()-gadget_sp_inc);
 			}
 			tmp_constraint = saved_constraint->copy();
-			tmp_constraint->add(new ConstrKeepRegs(dest.addr_reg), true);
+			tmp_constraint->add(new ConstrKeepRegs(dest_used_reg), true);
 			env->set_constraint(tmp_constraint);
 			/* Search */
 			set_assign_reg = search(DestArg(DST_REG, std::get<1>(*it).reg), assign_to_store_reg, env);
@@ -1658,9 +1693,9 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
 			local_fail_record.merge_with(env->fail_record());
 		}
 		/* Check result */ 
-		if( set_assign_reg == nullptr ){
-			delete set_dest_reg;
-			set_dest_reg = nullptr;
+		if( set_assign_reg == nullptr || set_dest_reg == nullptr){
+			delete set_dest_reg; set_dest_reg = nullptr;
+            delete set_assign_reg; set_assign_reg = nullptr;
 			local_fail_record.merge_with(env->fail_record());
             /* Check fail record */
 			if( env->fail_record()->modified_reg(std::get<0>(*it).addr_reg)){
@@ -1679,15 +1714,70 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
 		}
 		
 try_reversed_order:
-        /* Try to adjust the reg that is stored first */ 
-        /* Check if this step previously failed because the addr_reg
-         *  couldn't be kept, if it's not the reason then skip this part */ 
-		tmp_constraint = env->constraint()->copy();
-		delete tmp_constraint; // DEBUG DUMMY 
-        tmp_constraint = nullptr;
+        /* --------------------------------------------------------------------------------------------
+         * (B.) Try to adjust the reg that is stored first, then the
+         * one that is dereferenced */
+        /* 1. Set assign reg */ 
+        if( already_right_assign ){
+            set_assign_reg = new ROPChain();
+        }else{
+            /* Set env */
+			tmp_constraint = saved_constraint->copy();
+			/* If dest is already the good one, we should not modify it*/ 
+			if( already_right_dest ){
+				tmp_constraint->add(new ConstrKeepRegs(dest.addr_reg), true);
+			}
+			env->set_constraint(tmp_constraint);
+            env->set_lmax(saved_lmax - gadget_sp_inc);
+			/* Search */
+			set_assign_reg = search(DestArg(DST_REG, std::get<1>(*it).reg), assign_to_store_reg, env);
+			/* Restore env */
+			delete tmp_constraint;
+			tmp_constraint = nullptr;
+			env->set_constraint(saved_constraint);
+            env->set_lmax(saved_lmax);
+        }
+        /* 2. Set dest reg */ 
+        if( already_right_dest ){
+            set_dest_reg = new ROPChain();
+        }else if( (set_assign_reg != nullptr )){
+			/* Set env */ 
+			if( set_assign_reg != nullptr && set_assign_reg->len()+1+gadget_sp_inc-1 >= saved_lmax ){
+				delete set_assign_reg;
+				set_assign_reg = nullptr;
+                local_fail_record.set_max_len(true);
+				continue;
+			}else if( set_assign_reg != nullptr){
+				env->set_lmax(saved_lmax-set_assign_reg->len()-gadget_sp_inc);
+			}
+			tmp_constraint = saved_constraint->copy();
+			tmp_constraint->add(new ConstrKeepRegs(assign_used_reg), true);
+			env->set_constraint(tmp_constraint);
+			/* Search */
+			set_assign_reg = search(DestArg(DST_REG, std::get<0>(*it).addr_reg), assign_to_dest_reg, env);
+			/* Restore env */
+			env->set_lmax(saved_lmax);
+			env->set_constraint(saved_constraint);
+			delete tmp_constraint;
+			tmp_constraint = nullptr;
+		}else{
+			local_fail_record.merge_with(env->fail_record());
+		}
+        /* Check result */ 
+		if( set_assign_reg == nullptr || set_dest_reg == nullptr){
+			delete set_dest_reg; set_dest_reg = nullptr;
+            delete set_assign_reg; set_assign_reg = nullptr;
+			local_fail_record.merge_with(env->fail_record());
+		}else{
+			/* Found both, build res and exit the search loop */
+			chain1 = set_assign_reg;
+			chain2 = set_dest_reg;
+			break;
+		}
 	}
     
-    /* Build result ropchain if any */
+    /* --------------------------------------------------------------------------------------------
+     * Build result ropchain if any */
     if( chain1 != nullptr && chain2 != nullptr ){
 		res = chain1;
 		res->add_chain(chain2);
@@ -1717,7 +1807,6 @@ try_reversed_order:
     }else{
         env->fail_record()->reset();
     }
-    cout << "\n\nDEBUG, count: " << debug_count << endl;
     
     /* Return result */
     return res;
