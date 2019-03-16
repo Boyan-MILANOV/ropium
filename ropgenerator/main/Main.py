@@ -7,6 +7,7 @@ from ropgenerator.main.Load import load, loaded_binary
 from ropgenerator.core.Database import *
 from ropgenerator.core.Gadget import *
 from ropgenerator.semantic.Main import semantic_mode
+from ropgenerator.exploit.Main import exploit_mode
 from prompt_toolkit import PromptSession, ANSI
 from ropgenerator.core.Log import *
 
@@ -70,9 +71,7 @@ def main():
                 else:
                     error("You have to load a binary before entering semantic mode")
             elif( command == CMD_EXPLOIT ):
-                #if( not exploit_mode()):
-                #    finish = True
-                print(str_special("Work in progess... ;)"))
+                finish = not exploit_mode()
             elif( command == "test" ):
                 print_gadget(gadget_db_get(int(args[1])))
             else:

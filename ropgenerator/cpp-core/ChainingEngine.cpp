@@ -82,34 +82,29 @@ FailRecord::FailRecord(){
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, 256);
-    _no_chain = NO_CHAIN_UNKNOWN;
 }
 
 FailRecord::FailRecord(bool max_len): _max_len(max_len){
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, 256);
-    _no_chain = NO_CHAIN_UNKNOWN;
 }
  
 bool FailRecord::max_len(){ return _max_len;}
 bool FailRecord::no_valid_padding(){ return _no_valid_padding;}
 bool FailRecord::modified_reg(int reg_num){ return _modified_reg[reg_num];}
 bool* FailRecord::bad_bytes(){ return _bad_bytes;}
-bool FailRecord::no_chain(){ return _no_chain;}
 
 void FailRecord::set_max_len(bool val){ _max_len = val;}
 void FailRecord::set_no_valid_padding(bool val){ _no_valid_padding = val;}
 void FailRecord::add_modified_reg(int reg_num){ _modified_reg[reg_num] = true;}
 void FailRecord::add_bad_byte(unsigned char bad_byte){ _bad_bytes[bad_byte] = true; }
-void FailRecord::set_no_chain(NoChainStatus val){ _no_chain = val;}
 
 void FailRecord::copy_from(FailRecord* other){
     _max_len = other->_max_len;
     _no_valid_padding = other->_no_valid_padding;
     memcpy(_modified_reg, other->_modified_reg, sizeof(_modified_reg));
     memcpy(_bad_bytes, other->_bad_bytes, sizeof(_bad_bytes));
-    _no_chain = other->_no_chain;
 }
 void FailRecord::merge_with(FailRecord* other){
     unsigned int i;
@@ -121,20 +116,12 @@ void FailRecord::merge_with(FailRecord* other){
     for( i = 0; i < sizeof(_bad_bytes); i++){
         _bad_bytes[i] |= other->_bad_bytes[i];
     }
-    /* If not no_chain on one, then we don't keep
-     * it. We need to guarantee no_chain everywhere 
-     * because it's used to set the records */  
-    if( _no_chain == NO_CHAIN_UNKNOWN )
-        _no_chain = other->_no_chain;
-    else if( _no_chain == NO_CHAIN_NO || other->_no_chain == NO_CHAIN_NO ) 
-        _no_chain = NO_CHAIN_NO;
 }
 void FailRecord::reset(){
     _max_len = false;
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, 256);
-    _no_chain = NO_CHAIN_UNKNOWN;
 }
 
 
@@ -540,11 +527,9 @@ ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* en
     
     /* Check context */ 
     if( env->reached_max_depth() ){
-        env->fail_record()->set_no_chain(NO_CHAIN_NO);
         return nullptr;
     }else if( env->lmax() == 0 ){
         env->fail_record()->set_max_len(true);
-        env->fail_record()->set_no_chain(NO_CHAIN_NO);
         return nullptr;
     }
     
@@ -565,11 +550,9 @@ ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* en
     }
     /* Update records*/
     /* If we didn't find a chain, update the reg_transitivity record 
-     * we need to test for lmax and no_chain fail reasons. If there is lmax, 
+     * we need to test for lmax fail reason. If there is lmax, 
      * then maybe a longer length would ahve allowed the chain, so we
-     * don't update the fail_record. If there is not no_chain, then the 
-     * search might have failed because of other reasons than inability to 
-     * mke the chain (max_depth reached, bad args, ...) */
+     * don't update the fail_record.  */
     if( res == nullptr && !env->fail_record()->max_len() &&
             dest.type == DST_REG && assign.type == ASSIGN_REG_BINOP_CST){
         env->reg_transitivity_record()->add_fail(dest.reg, assign.reg, assign.op, assign.cst, env);
@@ -580,9 +563,9 @@ ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* en
     return res;
 }
 
+/* Constants for printing when doing a shortest search */
 string g_ANSI_back_one_line = "\x1b[F";
 string g_blank_line = string(50, ' ');
-
 
 ROPChain* search_shortest(DestArg dest, AssignArg assign, SearchEnvironment* env){
     ROPChain* best_res = nullptr;
@@ -667,7 +650,6 @@ ROPChain* search_shortest(DestArg dest, AssignArg assign, SearchEnvironment* env
     return best_res;
     
 }
-
 
 vector<int> _gadget_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env, int nb=1){
     if( assign.type == ASSIGN_SYSCALL ){
@@ -757,7 +739,6 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
     gadgets = _gadget_db_lookup(dest, assign, env, nb);
     /* Check result */ 
     if( gadgets.empty() ){
-        env->fail_record()->set_no_chain(NO_CHAIN_YES);
         res = nullptr;
     }else{
         res = new ROPChain();
@@ -841,7 +822,6 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
             }
             break;
         case DST_MEM:
-			// DEBUG, TODO, is any_reg_transitivity useful ??
             switch(assign.type){
                 case ASSIGN_CST: // mem(reg op cst) <- cst 
                     res = chain_adjust_ret(dest, assign, env);
@@ -912,9 +892,6 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
             break;
     }
     
-    /* Here don't set no_chain, because we don't really now what 
-     * happended in the functions. This function is only a 
-     * 'dispatcher', so we can't tell :/ */
     if( res == nullptr ){
         env->fail_record()->merge_with(&local_fail_record);
         g_fail_record.merge_with(env->fail_record());
@@ -1616,13 +1593,6 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
     delete tmp_constraint;
     tmp_constraint = nullptr;
     
-    // DEBUG
-    /*
-    cout << "DEBUG start possible: " << endl;
-    for( it = possible->begin(); it != possible->end(); it++ ){
-        cout << "\n\t DEBUG trying with " << gadget_db()->get(std::get<2>(*it).at(0))->asm_str() << endl << endl << endl;
-    }
-    cout << "---------------------------------\n\n"; */ 
     /* Loop through all possibilities */
     for( it = possible->begin(); it != possible->end(); it++ ){
         /* Get sp increment for the gadget (will determine the max

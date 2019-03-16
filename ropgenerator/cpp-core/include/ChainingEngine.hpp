@@ -63,14 +63,12 @@ class AssignArg {
  * ************************************************* */ 
 
 enum FailType{FAIL_NO_CHAIN, FAIL_LMAX, FAIL_MODIFIED_REG, FAIL_BAD_BYTES, FAIL_NO_VALID_PADDING, FAIL_OTHER};
-enum NoChainStatus{NO_CHAIN_YES, NO_CHAIN_NO, NO_CHAIN_UNKNOWN};
 
 class FailRecord{
     bool _max_len;                          /* Reached length limit */ 
     bool _no_valid_padding;                 /* Couldn't find a valid padding for gadgets */ 
     bool _modified_reg[NB_REGS_MAX];        /* Modified reg that should be kept */ 
     bool _bad_bytes[256];                   /* Gadget could be used but bad bytes in addresses */
-    NoChainStatus _no_chain;
     
     public:
         FailRecord();
@@ -80,13 +78,11 @@ class FailRecord{
         bool no_valid_padding();
         bool modified_reg(int reg_num);
         bool* bad_bytes(); 
-        bool no_chain();
         // Modifiers
         void set_max_len(bool val);
         void set_no_valid_padding(bool val);
         void add_modified_reg(int reg_num);
         void add_bad_byte(unsigned char bad_byte);
-        void set_no_chain(NoChainStatus val);
         // Assign
         void copy_from(FailRecord* other);
         void merge_with(FailRecord* other);
