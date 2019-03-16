@@ -154,7 +154,7 @@ class SearchResultsBinding{
 #define DEFAULT_MAX_DEPTH 5
 
 enum SearchStrategyType{STRATEGY_REG_TRANSITIVITY, STRATEGY_POP_CONSTANT, STRATEGY_ANY_REG_TRANSITIVITY , 
-                        STRATEGY_ADJUST_RET, STRATEGY_ADJUST_STORE, NB_STRATEGY_TYPES};
+                        STRATEGY_ADJUST_RET, STRATEGY_ADJUST_STORE, STRATEGY_ADJUST_LOAD, NB_STRATEGY_TYPES};
 
 class SearchEnvironment{
     /* Constraints and contextual infos */ 

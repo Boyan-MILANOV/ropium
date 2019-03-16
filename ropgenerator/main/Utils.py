@@ -254,9 +254,9 @@ def parse_query(req):
     elif( assign_type == AssignType.REG_BINOP_CST):
         assign_res = AssignArg(AssignType.REG_BINOP_CST, assign_tuple[0],assign_tuple[1],assign_tuple[2])
     elif( assign_type == AssignType.MEM_BINOP_CST):
-        assign_res = AssignArg(AssignType.MEM_BINOP_CST, assign_tuple[0][0],assign_tuple[0][1],assign_tuple[0][2], assign_tuple[1])
+        assign_res = AssignArg(AssignType.MEM_BINOP_CST, assign_tuple[0][0],assign_tuple[0][1],assign_tuple[0][2], assign_tuple[2])
     elif( assign_type == AssignType.CSTMEM_BINOP_CST):
-        assign_res = AssignArg(AssignType.CSTMEM_BINOP_CST, assign_tuple[0],assign_tuple[1])
+        assign_res = AssignArg(AssignType.CSTMEM_BINOP_CST, assign_tuple[0],assign_tuple[2])
     elif( assign_type == AssignType.SYSCALL):
         assign_res = AssignArg(AssignType.SYSCALL)
     elif( assign_type == AssignType.INT80):
