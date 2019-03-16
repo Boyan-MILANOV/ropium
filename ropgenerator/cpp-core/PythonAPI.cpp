@@ -205,6 +205,8 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     /* ROPChain Bindings */ 
     
     py::class_<ROPChain>(m, "ROPChain")
+        .def("add_chain", &ROPChain::add_chain)
+        .def("len", &ROPChain::len)
         .def("to_str_console", &ROPChain::to_str_console)
         .def("to_str_python", &ROPChain::to_str_python);
     
@@ -251,7 +253,11 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("init_chaining_engine", &init_chaining_engine);    
     
     py::class_<SearchParametersBinding>(m, "SearchParametersBinding")
-        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool>());
+        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool>())
+        .def_readwrite("keep_regs", &SearchParametersBinding::keep_regs)
+        .def_readwrite("bad_bytes", &SearchParametersBinding::bad_bytes)
+        .def_readwrite("lmax", &SearchParametersBinding::lmax)
+        .def_readwrite("shortest", &SearchParametersBinding::shortest);
     
     py::class_<SearchResultsBinding>(m, "SearchResultsBinding")
         .def_readonly("chain", &SearchResultsBinding::chain)
