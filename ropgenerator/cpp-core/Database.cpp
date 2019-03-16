@@ -133,6 +133,41 @@ vector<int> MEMList::find(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Con
         return _addresses[op][addr_reg]->at(addr_cst)->find(cst, constr, assert, n, fail_record);
 }
 
+vector<pair<AssignArg, vector<int>>>* MEMList::get_possible(Constraint*c, Assertion *a, int n, FailRecord* fail_record, int addr_reg){
+	int tmp_addr_reg;
+	int tmp_op;
+	vector<pair<AssignArg, vector<int>>> * res = new vector<pair<AssignArg, vector<int>>>();
+	Assertion* tmp_assertion;
+	unordered_map<cst_t, shared_ptr<CSTList>>::iterator it;
+	vector<int> tmp_gadgets; 
+	cst_t cst_fixed = 0; // This the cst2 in mem(reg op cst) + cst2
+	
+	for( tmp_addr_reg =  0; tmp_addr_reg < curr_arch()->nb_regs(); tmp_addr_reg++ ){
+		/* Test if requested reg */
+		if( addr_reg != -1 && addr_reg != tmp_addr_reg )
+			continue;
+		/* Add assertion to say that read is valid */
+		tmp_assertion = a->copy();
+		tmp_assertion->add(new AssertValidRead(tmp_addr_reg), true);
+		/* Search */ 
+		for( tmp_op = 0; tmp_op < COUNT_NB_BINOP; tmp_op++){
+			/* Test if no gadgets */ 
+			if( _addresses[tmp_op][tmp_addr_reg] == nullptr )
+				continue;
+			for( it = _addresses[tmp_op][tmp_addr_reg]->begin(); it != _addresses[tmp_op][tmp_addr_reg]->end(); it++ ){
+				tmp_gadgets = _addresses[tmp_op][tmp_addr_reg]->at(it->first)->find(cst_fixed, c, tmp_assertion, n, fail_record);
+				if( !tmp_gadgets.empty()){
+					res->push_back(make_pair(AssignArg(ASSIGN_MEM_BINOP_CST, tmp_addr_reg, (Binop)tmp_op, it->first, cst_fixed), tmp_gadgets));
+				}
+			}
+		}
+		delete tmp_assertion; 
+	}
+	
+	/* Return res */ 
+	return res;
+}
+
 MEMList::~MEMList(){
     for( int j= 0; j < COUNT_NB_BINOP; j++) 
         for( int i = 0; i < NB_REGS_MAX; i++)
@@ -228,8 +263,10 @@ template <class T> vector<tuple<DestArg, AssignArg, vector<int>>>* MEMDict<T>::g
             /* If dest_addr_reg is specified check if it is the right one */
             if( dest_addr_reg != -1 && dest_addr_reg != tmp_addr_reg)
                 continue;
-            /* Don't use sp if not specified */
+            /* Don't use sp nor ip if not specified */
             if( dest_addr_reg != curr_arch()->sp() && tmp_addr_reg == curr_arch()->sp())
+				continue;
+			if( dest_addr_reg != curr_arch()->ip() && tmp_addr_reg == curr_arch()->ip())
 				continue;
             /* Add an assertion to say that this memory write is correct */ 
             tmp_assertion = a->copy();
@@ -534,6 +571,41 @@ vector<int> Database::find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst
 /* More advanced functions */ 
 vector<tuple<DestArg, AssignArg, vector<int>>>* Database::get_possible_stores_reg(Constraint*c, Assertion*a, int n, FailRecord* fail_record, int dest_addr_reg, int assign_reg){
     return _reg_binop_cst_to_mem.get_possible_stores_reg(c, a, n, fail_record, dest_addr_reg, assign_reg);
+}
+
+/* Find gadgets of the form reg <- mem(reg2 op cst)
+ * n is the number of gadgets to return per case
+ * 
+ * If dest_reg and/or assign_addr_reg are set, return gadgets using 
+ * only them 
+ * */
+vector<tuple<int, AssignArg, vector<int>>>* Database::get_possible_loads_reg(Constraint*c, Assertion *a, int n, FailRecord* fail_record, int dest_reg, int assign_addr_reg){
+	int tmp_dest_reg;
+	Assertion *tmp_assertion; 
+	vector<tuple<int, AssignArg, vector<int>>>* res = new vector<tuple<int, AssignArg, vector<int>>>();
+	vector<pair<AssignArg, vector<int>>>* tmp_possible; 
+	vector<pair<AssignArg, vector<int>>>::iterator it;
+	/* Go through all possible dest_reg */ 
+	for( tmp_dest_reg = 0; tmp_dest_reg <= curr_arch()->nb_regs(); tmp_dest_reg++ ){
+		/* If no gadgets here, continue */ 
+		if( _mem_binop_cst_to_reg[tmp_dest_reg] == nullptr )
+			continue;
+		/* If dest_addr_reg is specified check if it is the right one */
+		if( dest_reg != -1 && dest_reg != tmp_dest_reg)
+			continue;
+		/* Don't use sp nor ip if not specified */
+		if( dest_reg != curr_arch()->sp() && tmp_dest_reg == curr_arch()->sp())
+			continue;
+		if( dest_reg != curr_arch()->ip() && tmp_dest_reg == curr_arch()->ip())
+			continue;
+		/* Get possible gadgets */ 
+		tmp_possible = _mem_binop_cst_to_reg[tmp_dest_reg]->get_possible(c, a, n, fail_record, assign_addr_reg);
+		for( it = tmp_possible->begin(); it != tmp_possible->end(); it++){
+			res->push_back(make_tuple(tmp_dest_reg, it->first, it->second));
+		}
+		delete tmp_possible; tmp_possible = nullptr;
+	}
+	return res; 
 }
 
 /* Destructor */ 

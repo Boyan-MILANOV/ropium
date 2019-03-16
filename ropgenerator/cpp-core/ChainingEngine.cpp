@@ -48,7 +48,7 @@ AssignArg::AssignArg():type(ASSIGN_INVALID), addr_reg(-1), reg(-1){} /* DEFAULT 
 AssignArg::AssignArg(AssignType t, cst_t c):type(t), addr_reg(-1), reg(-1), cst(c){} /* For ASSIGN_CST */
 AssignArg::AssignArg(AssignType t, int r, Binop o, cst_t c):type(t), addr_reg(-1), reg(r), op(o), cst(c){} /* For ASSIGN_REG_BINOP_CST */
 AssignArg::AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c):type(t), addr_reg(ar), addr_cst(ac), addr_op(o), reg(-1), cst(c){} /* For ASSIGN_MEM_BINOP_CST */
-AssignArg::AssignArg(AssignType t, cst_t ac, cst_t c):type(t), addr_reg(-1), addr_cst(ac), reg(-1), cst(c){} /* For ASSIGN_CST_MEM */
+AssignArg::AssignArg(AssignType t, cst_t ac, cst_t c):type(t), addr_reg(-1), addr_cst(ac), reg(-1), cst(c){} /* For ASSIGN_CSTMEM_BINOP_CST */
 AssignArg::AssignArg(AssignType t):type(t), addr_reg(-1), reg(-1){} /* For ASSIGN_SYSCALL and INT80 */ 
 bool AssignArg::operator==(AssignArg& other){
     if( type != other.type ){
@@ -458,11 +458,11 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
 ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* env);
 ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* env);
+ROPChain* chain_adjust_load(DestArg dest, AssignArg assign, SearchEnvironment* env);
 
 /* Globals */
 RegTransitivityRecord g_reg_transitivity_record = RegTransitivityRecord();
 FailRecord g_fail_record = FailRecord();
-
 
 /* Function to be used from python */
 SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBinding params){
@@ -818,11 +818,19 @@ ROPChain* chain(DestArg dest, AssignArg assign, SearchEnvironment* env){
                     res = chain_adjust_ret(dest, assign, env);
                     if( res == nullptr ){
                         local_fail_record.merge_with(env->fail_record());
+                        res = chain_adjust_load(dest, assign, env);
+                    }
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
                         res = chain_any_reg_transitivity(dest, assign, env);
                     }
                     break;
                 case ASSIGN_CSTMEM_BINOP_CST:
                     res = chain_adjust_ret(dest, assign, env);
+                    if( res == nullptr ){
+                        local_fail_record.merge_with(env->fail_record());
+                        res = chain_adjust_load(dest, assign, env);
+                    }
                     if( res == nullptr ){
                         local_fail_record.merge_with(env->fail_record());
                         res = chain_any_reg_transitivity(dest, assign, env);
@@ -1145,9 +1153,13 @@ ROPChain* chain_any_reg_transitivity(DestArg dest, AssignArg assign, SearchEnvir
     env->fail_record()->reset(); 
     
     /* Check for special cases */
-    /* Don't call this strategy consecutively, transitivity is handled
+    /* Don't call this strategy too many times, transitivity is handled
      * via reg_transitivity() so no need to do it within this function 
      * too */
+     if( !env->calls_history().empty() && env->calls_history().back() == strategy ){
+		 return nullptr;
+	 }
+     
      if( env->calls_count(strategy) > 2 ){
         return nullptr;
     }
@@ -1471,7 +1483,7 @@ pair<bool,cst_t> _invert_operation(cst_t adjust_cst, Binop op, cst_t cst){
 /* We want to to mem(requested) <- ... 
  * we only have mem(available) <- ...
  *  - requested is reg_binop_cst or cst
- *  - available is reg2_binop_cst 
+ *  - available is reg2_binop2_cst2
  * Find the AssignArg 'res' such that we can emulate 'requested'
  * by putting 'res' into reg2 (in available) 
  *
@@ -1657,6 +1669,8 @@ ROPChain* chain_adjust_store(DestArg dest, AssignArg assign, SearchEnvironment* 
 			if( already_right_assign ){
 				tmp_constraint->add(new ConstrKeepRegs(assign.reg), true);
 			}
+			/* In any case, don't modify the register that goes in assign */
+			tmp_constraint->add(new ConstrKeepRegs(assign_used_reg), true);
 			env->set_constraint(tmp_constraint);
 			/* Search */
 			set_dest_reg = search(DestArg(DST_REG, std::get<0>(*it).addr_reg), assign_to_dest_reg, env);
@@ -1727,6 +1741,8 @@ try_reversed_order:
 			if( already_right_dest ){
 				tmp_constraint->add(new ConstrKeepRegs(dest.addr_reg), true);
 			}
+			/* In any case, don't modify the reg that is put in dest */ 
+			tmp_constraint->add(new ConstrKeepRegs(dest_used_reg), true);
 			env->set_constraint(tmp_constraint);
             env->set_lmax(saved_lmax - gadget_sp_inc);
 			/* Search */
@@ -1800,6 +1816,183 @@ try_reversed_order:
     
     /* Restore env */ 
     env->remove_last_call();
+    /* Merge local fail record with global one */
+    if( res == nullptr ){
+        g_fail_record.merge_with(&local_fail_record);
+        env->fail_record()->merge_with(&local_fail_record);
+    }else{
+        env->fail_record()->reset();
+    }
+    
+    /* Return result */
+    return res;
+}
+
+/* Similar to adjust_store_adapt_dest_arg
+ * 
+ * We want to to mem(requested) <- ... 
+ * we only have mem(available) <- ...
+ *  - requested is reg_binop_cst or cst
+ *  - available is reg2_binop2_cst2
+ *  !!! We assume that assign.op is ADD and assign.cst is 0 !!! 
+ * Find the AssignArg 'res' such that we can emulate 'requested'
+ * by putting 'res' into reg2 (in available) 
+ *
+ * Example:
+ *  - requested= mem(rax+8)
+ *  - available= mem(rdx+16)
+ *  - res is what we want to put in rdx = rax-8
+ */
+pair<bool,AssignArg> _adjust_load_adapt_assign_arg(AssignArg requested, AssignArg available){
+    bool success;
+    cst_t res_cst;
+    AssignArg res;
+    
+    if( available.type != ASSIGN_CSTMEM_BINOP_CST && available.type != ASSIGN_MEM_BINOP_CST )
+        return make_pair(false, res); 
+    switch(requested.type){
+        case ASSIGN_CSTMEM_BINOP_CST:
+            /* Find the right cst to put in the register */
+            std::tie(success,res_cst) = _invert_operation(requested.addr_cst, available.addr_op, available.addr_cst);
+            if( success )
+                return make_pair(true,AssignArg(ASSIGN_CST, res_cst));
+            break;
+        case ASSIGN_MEM_BINOP_CST:
+            /* Find the cst to put in the register */
+            std::tie(success, res_cst)= _invert_operation(requested.addr_cst, available.addr_op, available.addr_cst);
+            if( success )
+                return make_pair(true, AssignArg(ASSIGN_REG_BINOP_CST, requested.addr_reg, requested.addr_op, res_cst));
+            break;
+        default:
+            break;
+    }
+    return make_pair(false, res);
+}
+
+/* Read memory into a register 
+ * reg1 <- mem(X) becomes:
+ *     reg2 <- X op2 cst2
+ * 	   reg1 <- mem(reg2 op cst)
+ * */
+ROPChain* chain_adjust_load(DestArg dest, AssignArg assign, SearchEnvironment* env){
+	vector<tuple<int, AssignArg, vector<int>>> * possible; 
+	vector<tuple<int, AssignArg, vector<int>>>::iterator it;
+	FailRecord local_fail_record; 
+	unsigned int saved_lmax = env->lmax();
+	SearchStrategyType strategy = STRATEGY_ADJUST_LOAD;
+	ROPChain * res = nullptr, *set_addr_reg=nullptr; 
+	Constraint *tmp_constraint = nullptr, *saved_constraint = env->constraint()->copy();
+	int gadget_sp_inc;
+	AssignArg assign_to_addr_reg;
+    bool already_right_addr; 
+    bool success; 
+    int addr_used_reg;
+    addr_t padding;
+	
+	/* Reset env fail record */ 
+    env->fail_record()->reset();
+
+    /* Check for special cases */
+    /* Don't call this strategy consecutively, transitivity is handled
+     * via other chaining functions so no need to do it within this function 
+     * too */
+    if( !env->calls_history().empty() && env->calls_history().back() == strategy){
+        return nullptr;
+    }
+    /* Accept only one recursive call */ 
+    if( env->calls_count(strategy) > 0 ){
+        return nullptr;
+    }
+    /* If lmax is < 3, impossible to use this strat
+     * At least 1 for store, 2 for setting regs */
+    if( env->lmax() < 2 ){
+        env->fail_record()->set_max_len(true);
+        return nullptr;
+    }
+    /* This strategy only supports mem expressions without constants 
+     * added (e.g mem(rbx+8)+1 not supported, but mem(rbx+2) is ok */
+     if( assign.cst != 0){
+		 return nullptr;
+	 }
+    
+    /* Set env */ 
+    env->add_call(strategy);
+    
+    /* Set env */
+    /* Get only valid RET gadgets, and not too big sp inc*/ 
+    tmp_constraint = env->constraint()->copy();
+    tmp_constraint->update(new ConstrReturn(true, false, false));
+    tmp_constraint->add(new ConstrMaxSpInc(env->lmax()*curr_arch()->octets()), true);  
+	/* 0. Get possible memory reads to this register */
+	possible = gadget_db()->get_possible_loads_reg(env->constraint(), env->assertion(), 1, &local_fail_record, dest.reg, -1 );
+	/* Restore env */ 
+    delete tmp_constraint;
+    tmp_constraint = nullptr;
+	/* Loop through all possibilities */
+    for( it = possible->begin(); it != possible->end(); it++ ){
+		/* Get sp increment for the gadget (will determine the max
+         * length allowed for adjustement ROPChains) */ 
+        gadget_sp_inc = gadget_db()->get(std::get<2>(*it).at(0))->sp_inc()/curr_arch()->octets();
+        /* Build new arguments for assign */ 
+		if( assign == std::get<1>(*it)){
+			already_right_addr = true;
+		}else{
+			already_right_addr = false;
+			std::tie(success, assign_to_addr_reg) = _adjust_load_adapt_assign_arg(assign, std::get<1>(*it));
+			if( !success ){
+				continue;
+			}
+		}
+		/* Get regs that are used in dest and assign (for the keep_regs 
+         * constraints */ 
+        addr_used_reg = std::get<1>(*it).addr_reg;
+				
+		/* 2. Set the address reg */
+		if( already_right_addr ){
+			set_addr_reg = new ROPChain();
+		}else{
+			/* Test length */ 
+			if( gadget_sp_inc-1+1 >= saved_lmax ){
+                local_fail_record.set_max_len(true);
+				continue;
+			}else{
+				env->set_lmax(saved_lmax-gadget_sp_inc);
+				set_addr_reg = search(DestArg(DST_REG, addr_used_reg), assign_to_addr_reg, env);
+				env->set_lmax(saved_lmax);
+			}
+		}
+		/* Check result */ 
+		if( set_addr_reg == nullptr ){
+			local_fail_record.merge_with(env->fail_record());
+            continue;
+		}else{
+			/* Found it, exit the search loop */
+			break;
+		}
+	}
+	/* --------------------------------------------------------------------------------------------
+     * Build result ropchain if any */
+    if( set_addr_reg != nullptr ){
+		res = set_addr_reg;
+		res->add_gadget(std::get<2>(*it).at(0));
+		/* Add padding */ 
+		std::tie(success, padding) = env->constraint()->valid_padding();
+		if( success ){
+                res->add_padding(padding, ((gadget_db()->get(std::get<2>(*it).at(0))->sp_inc()/curr_arch()->octets()) -1));
+		}else{
+			local_fail_record.set_no_valid_padding(true);
+			delete set_addr_reg;
+			res = nullptr;
+		}
+	}
+ 
+    /* Delete the possible gadgets vector */ 
+    delete possible;
+    possible = nullptr;
+   
+    /* Restore env */ 
+    env->remove_last_call();
+    env->set_lmax(saved_lmax);
     /* Merge local fail record with global one */
     if( res == nullptr ){
         g_fail_record.merge_with(&local_fail_record);

@@ -46,6 +46,7 @@ class MEMList{
         MEMList(); 
         void add(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets );
         vector<int> find(Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* constr, Assertion* assert, int n, FailRecord* fail_record);
+        vector<pair<AssignArg, vector<int>>>* get_possible(Constraint*c, Assertion *a, int n, FailRecord* fail_record, int addr_reg);
         ~MEMList();
 };
 
@@ -86,6 +87,7 @@ class Database{
         Database(); 
         int add(shared_ptr<Gadget> g); 
         shared_ptr<Gadget> get(int num);
+        int entries_count();
         /* Find gadgets */ 
         vector<int> find_cst_to_reg(int reg_dest, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record); 
         vector<int> find_reg_binop_cst_to_reg(int reg_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record);
@@ -96,7 +98,8 @@ class Database{
         
         /* More advanced functions */
         vector<tuple<DestArg, AssignArg, vector<int>>>* get_possible_stores_reg(Constraint*c, Assertion*a, int n, FailRecord* fail_record, int dest_addr_reg, int assign_reg);
-        int entries_count();
+        vector<tuple<int, AssignArg, vector<int>>>* get_possible_loads_reg(Constraint*c, Assertion *a, int n, FailRecord* fail_record, int dest_reg, int assign_reg);
+        
         ~Database(); 
 };
 
