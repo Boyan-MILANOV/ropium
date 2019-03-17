@@ -206,6 +206,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     
     py::class_<ROPChain>(m, "ROPChain")
         .def("add_chain", &ROPChain::add_chain)
+        .def("add_padding", &ROPChain::add_padding, "value"_a, "n"_a=1, "comment"_a='Padding')
         .def("len", &ROPChain::len)
         .def("to_str_console", &ROPChain::to_str_console)
         .def("to_str_python", &ROPChain::to_str_python);
