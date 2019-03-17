@@ -581,7 +581,6 @@ vector<tuple<DestArg, AssignArg, vector<int>>>* Database::get_possible_stores_re
  * */
 vector<tuple<int, AssignArg, vector<int>>>* Database::get_possible_loads_reg(Constraint*c, Assertion *a, int n, FailRecord* fail_record, int dest_reg, int assign_addr_reg){
 	int tmp_dest_reg;
-	Assertion *tmp_assertion; 
 	vector<tuple<int, AssignArg, vector<int>>>* res = new vector<tuple<int, AssignArg, vector<int>>>();
 	vector<pair<AssignArg, vector<int>>>* tmp_possible; 
 	vector<pair<AssignArg, vector<int>>>::iterator it;
