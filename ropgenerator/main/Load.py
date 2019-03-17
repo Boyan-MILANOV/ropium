@@ -16,6 +16,7 @@ from ropgenerator.core.Symbolic import raw_to_IRBlock
 from ropgenerator.core.Gadget import *
 from ropgenerator.core.Database import *
 from ropgenerator.core.ChainingEngine import *
+from ropgenerator.main.Scanner import init_scanner
 
 # Command options
 OPTION_ARCH = '--arch'
@@ -202,6 +203,7 @@ def load(args):
         
     print('')
     info(str_bold("Scanning file")+ " '" + filename + "'\n")
+    init_scanner(filename)
     
     # # Cleaning the data structures
     # initDB()

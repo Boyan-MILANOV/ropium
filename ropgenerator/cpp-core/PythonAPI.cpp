@@ -127,6 +127,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     
     m.def("set_arch", &set_arch);
     m.def("curr_arch_bits", [](){return curr_arch()->bits();});
+    m.def("curr_arch_octets", [](){return curr_arch()->octets();});
     m.def("curr_arch_type", [](){return curr_arch()->type();});
     m.def("curr_arch_ip", [](){return curr_arch()->ip();});
     
@@ -205,8 +206,9 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     /* ROPChain Bindings */ 
     
     py::class_<ROPChain>(m, "ROPChain")
+        .def(py::init<>())
         .def("add_chain", &ROPChain::add_chain)
-        .def("add_padding", &ROPChain::add_padding, "value"_a, "n"_a=1, "comment"_a='Padding')
+        .def("add_padding", &ROPChain::add_padding, "value"_a, "n"_a=1, "comment"_a="Padding")
         .def("len", &ROPChain::len)
         .def("to_str_console", &ROPChain::to_str_console)
         .def("to_str_python", &ROPChain::to_str_python);

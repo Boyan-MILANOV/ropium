@@ -4,6 +4,7 @@
 import subprocess
 import mmap
 import re
+from ropgenerator.core.Architecture import *
 
 import lief
 
@@ -22,7 +23,7 @@ def init_scanner(filename):
     if( not g_binary_lief is None ):
         g_binary_name = filename
 
-def set_offset(off):
+def set_binary_offset(off):
     global g_offset
     g_offset = off
 
@@ -48,6 +49,17 @@ def get_symtab_functions():
             res[s.name] = s.value+g_offset
     return res
 
+# Return a dict
+# (func_name: func_address)
+def get_all_functions():
+    pltgot_funcs = get_pltgot_functions()
+    symtab_funcs = get_symtab_functions()
+    # Merge
+    res = symtab_funcs
+    res.update(pltgot_funcs)
+    # Return 
+    return res
+
 # Returns the address of a section
 def get_section_address(section):
     global g_offset
@@ -58,19 +70,18 @@ def get_section_address(section):
     
 # Returns the address of a function as a pair
 # (func_name, address)
-def get_function_address(func_name){
-    pltgot_funcs = get_pltgot_functions
+def get_function_address(func_name):
+    pltgot_funcs = get_pltgot_functions()
     symtab_funcs = get_symtab_functions()
     if( func_name in pltgot_funcs ):
         return (func_name, pltgot_funcs[func_name])
     if( func_name in symtab_funcs ):
         return (func_name, symtab_funcs[func_name])
     return (None, None)
-}
 
 def verify_bad_bytes(addr, bad_bytes):
     addrBytes = re.findall('..',('{:'+'{:02d}'\
-        .format(Arch.currentArch.octets)+'x}').format(addr))
+        .format(curr_arch_octets())+'x}').format(addr))
     for byte in bad_bytes:
         if( byte in addrBytes):
             return False
@@ -142,7 +153,7 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
         # Check flags (depends on binary format)
         if( curr_bin_type() == BinType.ELF32 or
             curr_bin_type() == BinType.ELF64):
-            if( not ((segment.flags & lief.ELF.SEGMENT_FLAGS.R != 0 ) &&
+            if( not ((segment.flags & lief.ELF.SEGMENT_FLAGS.R != 0 ) and
                     (segment.flags & lief.ELF.SEGMENT_FLAGS.W == 0 ))):
                 continue
         data = segment.content

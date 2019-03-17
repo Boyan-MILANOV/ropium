@@ -9,7 +9,7 @@ from ropgenerator.main.Load import biggest_gadget_address
 #   Parsing functions  #
 ########################
 
-def parseFunction(string):
+def parse_function(string):
     def seek(char, string):
         for i in range(0, len(string)):
             if string[i] == char:
@@ -17,17 +17,15 @@ def parseFunction(string):
         return ([],-1)
         
     if( not string ):
-        error("Missing fuction to call")
-        return (None, None)
+        return (None, "Missing fuction to call")
     
-    # COmpress the string
+    # Compress the string
     string = "".join(string.split())
     
     # Get the function name 
     (funcName, index) = seek("(", string)
     if( not funcName ):
-        error("Invalid function call")
-        return (None, None)
+        return (None, "Invalid function call")
     rest = string[index+1:]
     args = []
     arg = ''
@@ -43,11 +41,9 @@ def parseFunction(string):
         elif( c == '"' or c == "'" ):
             (s, index)= seek(c, rest[i+1:])
             if( s == 0 ):
-                error("Error. Empty string argument ?")
-                return (None, None)
+                return (None, "Error. Empty string argument ?")
             elif( not s ):
-                error("Missing closing {} for string".format(c))
-                return (None, None)
+                return (None, "Missing closing {} for string".format(c))
             # Parse the string 
             j = 0
             s = str(s)
@@ -58,11 +54,9 @@ def parseFunction(string):
                         try:
                             char = int(s[j+2:j+4], 16) 
                         except:
-                            error("Invalid byte: '{}'".format(s[j:j+4]))
-                            return (None, None)
+                            return (None, "Invalid byte: '{}'".format(s[j:j+4]))
                     else:
-                        error("Invalid byte: '{}'".format(s[j:j+4]))
-                        return (None, None)
+                        return (None, "Invalid byte: '{}'".format(s[j:j+4]))
                     parsed_string += chr(char)
                     j+= 4
                 else:
@@ -72,16 +66,14 @@ def parseFunction(string):
             
             i += index +2
             if( i >= len(rest)):
-                error("Error. Missing ')'")
-                return (None, None)
+                return (None, "Missing ')'")
             elif( rest[i] == ')' ):
                 end = True
                 i += 1
             elif( rest[i] == "," ):
                 i += 1
             else:
-                error("Error. Missing ',' or ')' after string")
-                return (None, None)
+                return (None, "Missing ',' or ')' after string")
         # Constant
         else:
             # Get the constant 
@@ -98,34 +90,24 @@ def parseFunction(string):
                 else:
                     arg += rest[j]
             if( not ok ):
-                error("Missing ')' after argument")
-                return (None, None)
+                return (None,"Missing ')' after argument")
             if( (not arg) and args):
-                error("Missing argument")
-                return (None, None)
+                return (None,"Missing argument")
             # Convert to int 
-            try:
-                value = int(arg)
-            except:
-                try:
-                    value = int(arg, 16)
-                except:
-                    try:
-                        value = int(arg, 2)
-                    except:
-                        error("Invalid operand: " + arg )
-                        return (None, None)
+            value = parse_cst(arg)
+            if( value is None ):
+                return (None, "Invalid constant '{}'".format(arg))
+            elif( value >= 2**curr_arch_bits() ):
+                return (None, "Constant {} is too big".format(right))
             args.append(value)
             i = j+1
         if( end):
             break
     
     if( not end ):
-        error("Error. Missing ')'")
-        return    (None, None)     
+        return    (None, "Error. Missing ')'")     
     if( i < len(rest)):
-        error("Error. Extra argument: {}".format(rest[i:]))
-        return (None, None)
+        return (None, "Error. Extra argument: {}".format(rest[i:]))
 
     # str() to set its type to str ;) 
     return (str(funcName), args)
