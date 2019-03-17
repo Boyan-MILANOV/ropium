@@ -56,6 +56,25 @@ def get_section_address(section):
         return None
     return g_binary_lief.get_section(section).virtual_address
     
+# Returns the address of a function as a pair
+# (func_name, address)
+def get_function_address(func_name){
+    pltgot_funcs = get_pltgot_functions
+    symtab_funcs = get_symtab_functions()
+    if( func_name in pltgot_funcs ):
+        return (func_name, pltgot_funcs[func_name])
+    if( func_name in symtab_funcs ):
+        return (func_name, symtab_funcs[func_name])
+    return (None, None)
+}
+
+def verify_bad_bytes(addr, bad_bytes):
+    addrBytes = re.findall('..',('{:'+'{:02d}'\
+        .format(Arch.currentArch.octets)+'x}').format(addr))
+    for byte in bad_bytes:
+        if( byte in addrBytes):
+            return False
+    return True
     
 # Find a string chnk by chunk in the binary
 def find_bytes(byte_string, bad_bytes = [], add_null=False ):
@@ -116,14 +135,6 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
                 if( not last_is_null ):
                     substring = substring + '\x00'
             index = index -1
-    
-    def _verify_bad_bytes(addr, bad_bytes):
-        addrBytes = re.findall('..',('{:'+'{:02d}'\
-            .format(Arch.currentArch.octets)+'x}').format(addr))
-        for byte in bad_bytes:
-            if( byte in addrBytes):
-                return False
-        return True
                 
     # Getting all readable segments
     segments = []
@@ -180,7 +191,7 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
                 segment_changed = False
             # Check for bad bytes in the address 
             if( not segment_changed ):
-                if( _verify_bad_bytes(start+offset, bad_bytes)):
+                if( verify_bad_bytes(start+offset, bad_bytes)):
                     found = True
                 else:
                     m_tmp = m_tmp[offset:]
