@@ -14,6 +14,8 @@
  * *************************************************** */
  
 /* Don't forget to initialize unused reg fields to -1 */ 
+
+DestArg::DestArg():type(DST_INVALID), addr_reg(-1), reg(-1){} /* DEFAULT ONE */ 
 /* For DEST_MEM */
 DestArg::DestArg(DestType t, int addr_r, Binop o, cst_t addr_c): type(t), 
     addr_reg(addr_r), addr_cst(addr_c), addr_op(o), reg(-1){} 

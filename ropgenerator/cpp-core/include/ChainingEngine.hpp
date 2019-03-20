@@ -23,6 +23,7 @@ enum DestType {
     DST_REG,
     DST_MEM,
     DST_CSTMEM,
+    DST_INVALID
 };
 
 class DestArg {
@@ -33,6 +34,7 @@ class DestArg {
     Binop addr_op;
     int reg; 
     
+    DestArg();
     //DestArg(DestType t, int r);   /* For DEST_REG */ 
     DestArg(DestType t, int addr_r, Binop op, cst_t addr_c); /* For DEST_MEM */
     DestArg(DestType t, cst_t val); /* For DEST_CSTMEM */
