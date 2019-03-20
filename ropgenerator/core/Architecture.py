@@ -3,7 +3,22 @@ Architecture, ArchType, BinType, set_arch, set_bin_type, curr_bin_type,\
 curr_arch_bits, curr_arch_octets, curr_arch_type, curr_arch_ip,\
 RegX86, RegX64
 
-OPTION_ARCH_NAMES = {'X86':'X86', 'X64':'X64'}
+OPTION_ARCH_NAMES = {ArchType.ARCH_X86:'X86', ArchType.ARCH_X64:'X64'}
+OPTION_ARCH_NAMES_REVERSE = {'X86':ArchType.ARCH_X86, 'X64':ArchType.ARCH_X64}
+
+def str_to_arch_type(string):
+    if( string in OPTION_ARCH_NAMES_REVERSE ):
+        return OPTION_ARCH_NAMES_REVERSE[string]
+    return None
+
+def is_supported_arch_str(arch):
+    return arch in OPTION_ARCH_NAMES_REVERSE
+
+def available_archs_str():
+    return OPTION_ARCH_NAMES_REVERSE.keys()
+    
+def available_archs_type():
+    return OPTION_ARCH_NAMES.keys()
 
 def is_supported_reg(reg_str):
     if( curr_arch_type() == ArchType.ARCH_X86 ):
@@ -20,6 +35,8 @@ def reg_str_to_num(reg_str):
         return map_x64_reg_names[reg_str]
     else:
         raise Exception("Arch not supported in this function")
+
+
 
 map_x86_reg_names = { 
 "eax",RegX86.EAX,
