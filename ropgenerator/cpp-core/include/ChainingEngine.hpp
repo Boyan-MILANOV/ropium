@@ -131,7 +131,9 @@ class SearchParametersBinding{
     vector<unsigned char> bad_bytes;
     unsigned int lmax; 
     bool shortest;
-    SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s );
+    bool no_padding;
+    bool single_gadget;
+    SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s , bool np, bool sg );
 };
 
 class SearchResultsBinding{
@@ -165,6 +167,7 @@ class SearchEnvironment{
     unsigned int _lmax;
     /* ROPChain options */ 
     bool _no_padding;
+    bool _single_gadget;
     /* Comments about gadgets */ 
     string _comment[NB_STRATEGY_TYPES];
     /* Records for optimisations and infos */ 
@@ -178,7 +181,7 @@ class SearchEnvironment{
     public: 
         /* Constructor */ 
         SearchEnvironment(Constraint* c, Assertion* a, unsigned int lm, 
-                             unsigned int max_depth, bool no_padd, 
+                             unsigned int max_depth, bool no_padd, bool single_gadget,
                              RegTransitivityRecord* reg_trans_record);
         /* Destructor  */ 
         ~SearchEnvironment();
@@ -197,6 +200,8 @@ class SearchEnvironment{
         void set_depth(unsigned int val);
         bool no_padding();
         void set_no_padding(bool val);
+        bool single_gadget();
+        void set_single_gadget(bool val);
         void add_call(SearchStrategyType type);
         void remove_last_call();
         vector<SearchStrategyType>& calls_history();
