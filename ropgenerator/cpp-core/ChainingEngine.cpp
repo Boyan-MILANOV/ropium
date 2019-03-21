@@ -295,13 +295,14 @@ void AdjustRetRecord::reset(){
  * ******************************************************************* */
 
 SearchEnvironment::SearchEnvironment(Constraint* c, Assertion* a, unsigned int lm=DEFAULT_LMAX, 
-                                     unsigned int max_depth=DEFAULT_MAX_DEPTH, bool no_padd=false, 
+                                     unsigned int max_depth=DEFAULT_MAX_DEPTH, bool no_padd=false, bool single=false,
                                      RegTransitivityRecord* reg_trans_record=nullptr){
     _constraint = c;
     _assertion = a;
     _lmax = lm;
     _max_depth = max_depth;
     _no_padding = no_padd;
+    _single_gadget = single;
     if( reg_trans_record != nullptr )
         _reg_transitivity_record = reg_trans_record;
     else
@@ -340,6 +341,8 @@ unsigned int SearchEnvironment::depth(){return _depth;}
 void SearchEnvironment::set_depth(unsigned int val){_depth = val;}
 bool SearchEnvironment::no_padding(){return _no_padding;}
 void SearchEnvironment::set_no_padding(bool val){_no_padding = val;}
+bool SearchEnvironment::single_gadget(){return _single_gadget;}
+void SearchEnvironment::set_single_gadget(bool val){_single_gadget = val;}
 void SearchEnvironment::add_call(SearchStrategyType type){
     _calls_count[type]++;
     _calls_history.push_back(type);
@@ -401,8 +404,8 @@ string SearchEnvironment::pop_comment(SearchStrategyType t){
 /* *********************************************************************
  *                         Search Parameters Bindings
  * ******************************************************************* */
-SearchParametersBinding::SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s ):
-    keep_regs(k), bad_bytes(b), lmax(l), shortest(s){}
+SearchParametersBinding::SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s, bool np, bool sg  ):
+    keep_regs(k), bad_bytes(b), lmax(l), shortest(s), no_padding(np), single_gadget(sg){}
 
 SearchResultsBinding::SearchResultsBinding(){
     found = false;
@@ -485,7 +488,7 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
         assertion->add(new AssertValidRead(assign.addr_reg), true);
     }
     
-    env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, false, 
+    env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, params.no_padding, params.single_gadget,
                                 &g_reg_transitivity_record);
     
     /* Search */ 
@@ -541,7 +544,7 @@ ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* en
     /* Try basic search */
     res = basic_db_lookup(dest, assign, env);
     /* Try chaining */ 
-    if( res == nullptr ){
+    if( res == nullptr && !env->single_gadget()){
         local_fail_record.merge_with(env->fail_record());
         res = chain(dest, assign, env);
     }
@@ -556,7 +559,8 @@ ROPChain* search_first_hit(DestArg dest, AssignArg assign, SearchEnvironment* en
      * then maybe a longer length would ahve allowed the chain, so we
      * don't update the fail_record.  */
     if( res == nullptr && !env->fail_record()->max_len() &&
-            dest.type == DST_REG && assign.type == ASSIGN_REG_BINOP_CST){
+            dest.type == DST_REG && assign.type == ASSIGN_REG_BINOP_CST &&
+            !env->single_gadget()){
         env->reg_transitivity_record()->add_fail(dest.reg, assign.reg, assign.op, assign.cst, env);
     }
     /* Restore env */

@@ -130,7 +130,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("curr_arch_octets", [](){return curr_arch()->octets();});
     m.def("curr_arch_type", [](){return curr_arch()->type();});
     m.def("curr_arch_ip", [](){return curr_arch()->ip();});
-    
+    m.def("curr_arch_sp", [](){return curr_arch()->sp();});
     
     py::enum_<RegX86>(m, "RegX86", py::arithmetic(), "X86 Registers")
         .value("EAX",X86_EAX).value("EBX",X86_EBX)
@@ -257,11 +257,13 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("init_chaining_engine", &init_chaining_engine);    
     
     py::class_<SearchParametersBinding>(m, "SearchParametersBinding")
-        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool>())
+        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool, bool , bool>(), py::arg("keep_regs"),py::arg("bad_bytes"),py::arg("lmax"),py::arg("shortest")=false,py::arg("no_padding")=false,py::arg("single_gadget")=false)
         .def_readwrite("keep_regs", &SearchParametersBinding::keep_regs)
         .def_readwrite("bad_bytes", &SearchParametersBinding::bad_bytes)
         .def_readwrite("lmax", &SearchParametersBinding::lmax)
-        .def_readwrite("shortest", &SearchParametersBinding::shortest);
+        .def_readwrite("shortest", &SearchParametersBinding::shortest)
+        .def_readwrite("no_padding", &SearchParametersBinding::no_padding)
+        .def_readwrite("single_gadget", &SearchParametersBinding::single_gadget);
     
     py::class_<SearchResultsBinding>(m, "SearchResultsBinding")
         .def_readonly("chain", &SearchResultsBinding::chain)
