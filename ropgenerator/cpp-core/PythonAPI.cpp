@@ -131,6 +131,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("curr_arch_type", [](){return curr_arch()->type();});
     m.def("curr_arch_ip", [](){return curr_arch()->ip();});
     m.def("curr_arch_sp", [](){return curr_arch()->sp();});
+    m.def("curr_arch_endianess", [](){return curr_arch()->endianness();});
     
     py::enum_<RegX86>(m, "RegX86", py::arithmetic(), "X86 Registers")
         .value("EAX",X86_EAX).value("EBX",X86_EBX)
