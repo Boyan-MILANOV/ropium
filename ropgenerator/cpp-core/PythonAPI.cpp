@@ -113,7 +113,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("ARCH_X64", ARCH_X64)
         .export_values();
         
-    py::enum_<EndiannessType>(m, "EndianessType", py::arithmetic(), "Endianness")
+    py::enum_<EndiannessType>(m, "EndiannessType", py::arithmetic(), "Endianness")
         .value("ENDIAN_LITTLE", ENDIAN_LITTLE)
         .value("ENDIAN_BIG", ENDIAN_BIG)
         .export_values();
@@ -256,6 +256,10 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("get_default_lmax", [](){return DEFAULT_LMAX;});
     m.def("set_search_verbose", &set_search_verbose);
     m.def("init_chaining_engine", &init_chaining_engine);    
+    
+    py::class_<FailRecord>(m, "FailRecord")
+        .def("bad_byte", &FailRecord::bad_byte)
+        .def("bad_byte_index", &FailRecord::bad_byte_index);
     
     py::class_<SearchParametersBinding>(m, "SearchParametersBinding")
         .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool, bool , bool>(), py::arg("keep_regs"),py::arg("bad_bytes"),py::arg("lmax"),py::arg("shortest")=false,py::arg("no_padding")=false,py::arg("single_gadget")=false)
