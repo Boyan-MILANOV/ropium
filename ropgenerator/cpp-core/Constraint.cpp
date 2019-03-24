@@ -58,7 +58,7 @@ bool ConstrBadBytes::verify_address(addr_t a, FailRecord* fail_record=nullptr){
     for( i = 0; i < curr_arch()->octets(); i++ ){
         if( std::find(_bad_bytes.begin(), _bad_bytes.end(), (unsigned char)((a >> i*8)&0xFF)) != _bad_bytes.end()){
             if( fail_record != nullptr){
-                fail_record->add_bad_byte((unsigned char)((a >> i*8)&0xFF));
+                fail_record->add_bad_byte((unsigned char)((a >> i*8)&0xFF), i);
             }
             return false;
         }

@@ -83,30 +83,38 @@ FailRecord::FailRecord(){
     _max_len = false;
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
-    memset(_bad_bytes, false, 256);
+    memset(_bad_bytes, false, sizeof(_bad_bytes));
+    memset(_bad_bytes_index, -1, sizeof(_bad_bytes_index));
 }
 
 FailRecord::FailRecord(bool max_len): _max_len(max_len){
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
-    memset(_bad_bytes, false, 256);
+    memset(_bad_bytes, false, sizeof(_bad_bytes));
+    memset(_bad_bytes_index, -1, sizeof(_bad_bytes_index));
 }
  
 bool FailRecord::max_len(){ return _max_len;}
 bool FailRecord::no_valid_padding(){ return _no_valid_padding;}
 bool FailRecord::modified_reg(int reg_num){ return _modified_reg[reg_num];}
 bool* FailRecord::bad_bytes(){ return _bad_bytes;}
+bool FailRecord::bad_byte(unsigned char bad_byte){ return _bad_bytes[bad_byte];}
+int FailRecord::bad_byte_index(unsigned char bad_byte){return _bad_bytes_index[bad_byte];}
 
 void FailRecord::set_max_len(bool val){ _max_len = val;}
 void FailRecord::set_no_valid_padding(bool val){ _no_valid_padding = val;}
 void FailRecord::add_modified_reg(int reg_num){ _modified_reg[reg_num] = true;}
-void FailRecord::add_bad_byte(unsigned char bad_byte){ _bad_bytes[bad_byte] = true; }
+void FailRecord::add_bad_byte(unsigned char bad_byte, int index){ 
+	_bad_bytes[bad_byte] = true; 
+	_bad_bytes_index[bad_byte] = index;
+}
 
 void FailRecord::copy_from(FailRecord* other){
     _max_len = other->_max_len;
     _no_valid_padding = other->_no_valid_padding;
     memcpy(_modified_reg, other->_modified_reg, sizeof(_modified_reg));
     memcpy(_bad_bytes, other->_bad_bytes, sizeof(_bad_bytes));
+    memcpy(_bad_bytes_index, other->_bad_bytes_index, sizeof(_bad_bytes_index));
 }
 void FailRecord::merge_with(FailRecord* other){
     unsigned int i;
@@ -117,6 +125,8 @@ void FailRecord::merge_with(FailRecord* other){
     }
     for( i = 0; i < sizeof(_bad_bytes); i++){
         _bad_bytes[i] |= other->_bad_bytes[i];
+		if( _bad_bytes[i] && (_bad_bytes_index[i] < other->_bad_bytes_index[i]) )
+			_bad_bytes_index[i] = other->_bad_bytes_index[i];
     }
 }
 void FailRecord::reset(){
@@ -124,6 +134,7 @@ void FailRecord::reset(){
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, 256);
+    memset(_bad_bytes_index, -1, 256);
 }
 
 
@@ -504,7 +515,7 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
     delete env; 
     delete constraint; 
     delete assertion; 
-    
+
     /* Return res */ 
     return res;
 }
@@ -1041,13 +1052,14 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     string comment;
     char val_str[128];
     Constraint *prev_constraint = env->constraint(), *tmp_constraint=nullptr;
+    FailRecord local_fail_record;
 
     /* Reset env fail record */ 
     env->fail_record()->reset();
 
     /* Check for special cases */
     /* If constant contains bad bytes */
-    if( ! env->constraint()->verify_address((addr_t)assign.cst) ){
+    if( ! env->constraint()->verify_address((addr_t)assign.cst, env->fail_record()) ){
         return nullptr;
     }
     /* Check length, we need at least two */
@@ -1097,7 +1109,9 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
                 res = nullptr;
                 break;
             }
-        }
+        }else{
+			local_fail_record.merge_with(env->fail_record());
+		}
     }
     
     /* Restore env */
@@ -1112,6 +1126,7 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     }
     /* Merge fail record with global */ 
     if( res == nullptr ){
+		env->fail_record()->merge_with(&local_fail_record);
         g_fail_record.merge_with(env->fail_record());
     }else{
         env->fail_record()->reset();
@@ -1794,8 +1809,8 @@ try_reversed_order:
     env->remove_last_call();
     /* Merge local fail record with global one */
     if( res == nullptr ){
-        g_fail_record.merge_with(&local_fail_record);
-        env->fail_record()->merge_with(&local_fail_record);
+		env->fail_record()->merge_with(&local_fail_record);
+        g_fail_record.merge_with(env->fail_record());
     }else{
         env->fail_record()->reset();
     }

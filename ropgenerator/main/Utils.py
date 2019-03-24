@@ -3,6 +3,7 @@
 from ropgenerator.core.Expression import *
 from ropgenerator.core.Architecture import *
 from ropgenerator.core.ChainingEngine import *
+from ropgenerator.core.Symbolic import pycst_to_cppcst
 from ropgenerator.main.Load import biggest_gadget_address
 
 ########################
@@ -232,7 +233,7 @@ def parse_query(req):
     if( not success ):
         return (False, assign_type)
     if( assign_type == AssignType.CST ):
-        assign_res = AssignArg(AssignType.CST, assign_tuple[0])
+        assign_res = AssignArg(AssignType.CST, pycst_to_cppcst(assign_tuple[0]))
     elif( assign_type == AssignType.REG_BINOP_CST):
         assign_res = AssignArg(AssignType.REG_BINOP_CST, assign_tuple[0],assign_tuple[1],assign_tuple[2])
     elif( assign_type == AssignType.MEM_BINOP_CST):

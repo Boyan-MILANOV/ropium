@@ -71,6 +71,7 @@ class FailRecord{
     bool _no_valid_padding;                 /* Couldn't find a valid padding for gadgets */ 
     bool _modified_reg[NB_REGS_MAX];        /* Modified reg that should be kept */ 
     bool _bad_bytes[256];                   /* Gadget could be used but bad bytes in addresses */
+    int _bad_bytes_index[256];				/* Index of the byte that was bad */ 
     
     public:
         FailRecord();
@@ -79,12 +80,14 @@ class FailRecord{
         bool max_len(); 
         bool no_valid_padding();
         bool modified_reg(int reg_num);
+        bool bad_byte(unsigned char bad_byte);
+        int bad_byte_index(unsigned char bad_byte);
         bool* bad_bytes(); 
         // Modifiers
         void set_max_len(bool val);
         void set_no_valid_padding(bool val);
         void add_modified_reg(int reg_num);
-        void add_bad_byte(unsigned char bad_byte);
+        void add_bad_byte(unsigned char bad_byte, int index=-1);
         // Assign
         void copy_from(FailRecord* other);
         void merge_with(FailRecord* other);
