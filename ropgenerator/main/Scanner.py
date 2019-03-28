@@ -102,7 +102,17 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
     global g_offset
     global g_binary_lief
     
+    def _sub_finder(data, pattern):
+        matches = []
+        for i in range(len(data)):
+            if data[i] == pattern[0] and data[i:i+len(pattern)] == pattern:
+                return i
+        return -1
+    
     def _find_substr(m,string):
+        """
+        m, string: list of bytes
+        """
         if( not string ):
             return [-1,0]
         # Initialize
@@ -113,7 +123,7 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
         while( offset == -1 ):
             if( len(substring) <= 0 ):
                 return [-1,0]
-            offset = m.find(substring)
+            offset = _sub_finder(m, substring)
             if( offset != -1 ):
                 return [offset, index]
             else:
@@ -121,6 +131,9 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
             index = index -1
     
     def _find_substr_add_null(m, string):
+        """
+        m, string: list of bytes
+        """
         if( not string ):
             return [-1,0]
         # Initialize
@@ -135,7 +148,7 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
         while( offset == -1 ):
             if( len(substring) <= 0 ):
                 return [-1,0]
-            offset = m.find(substring)
+            offset = _sub_finder(m, string)
             if( offset != -1 ):
                 return [offset, index]
             else:
@@ -157,61 +170,63 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
                     (segment.flags & lief.ELF.SEGMENT_FLAGS.W == 0 ))):
                 continue
         data = segment.content
-        addr = segment.virtual_address + offset
+        addr = segment.virtual_address + g_offset
         segments.append((data, addr))
     if( not segments ):
             return []
             
     # Getting bytes as substrings  
     res = []
-    substring = str(byte_string)
+    # byte_string to a list of bytes
+    substring = [ord(i) for i in byte_string]
+    # Search 
     while( substring ):
         found = False
         segment_num = 0
-        (m, segment_addr) = segments[segment_num]
+        (segment_data, segment_addr) = segments[segment_num]
         start = 0
-        end = len(m)-1
+        end = len(segment_data)-1
         ## 
-        m_tmp = str(m)
+        segment_data_tmp = segment_data
         segment_changed = False
         while( not found ):
-            if( not m_tmp ):
+            if( not segment_data_tmp ):
                 segment_changed = True
                 segment_num += 1
                 
             if( segment_num >= len(segments)):
                 # Coudln't find substring in any segments 
-                return []
+                return None
                 
             if( segment_changed ):
-                (m, segment_addr) = segments[segment_num]
+                (segment_data, segment_addr) = segments[segment_num]
                 start = 0
-                end = len(m)-1
-                m_tmp = str(m)
+                end = len(segment_data_tmp)-1
+                segment_data_tmp = segment_data
                 
             # Get substring address 
             if( add_null ):
-                (offset, index ) = _find_substr_add_null(m_tmp, substring)
+                (offset, index ) = _find_substr_add_null(segment_data_tmp, substring)
             else:
-                (offset, index ) = _find_substr(m_tmp, substring)
+                (offset, index ) = _find_substr(segment_data_tmp, substring)
             # We didn't find any match, try next segment 
             if( index == 0 ):
                 segment_num += 1
                 segment_changed = True
             else:
                 segment_changed = False
-            # Check for bad bytes in the address 
+            # Check for bad bytes in the address
             if( not segment_changed ):
                 if( verify_bad_bytes(start+offset, bad_bytes)):
                     found = True
                 else:
-                    m_tmp = m_tmp[offset:]
+                    segment_data_tmp = segment_data_tmp[offset:]
                 
         # We add the best substring we found
         if( add_null and substring[:index] != '\x00'):
-            res.append([offset+segment_addr+_offset,substring[:index]+"\x00"])
+            res.append([offset+segment_addr+g_offset,substring[:index]+"\x00"])
         else:
-            res.append([offset+segment_addr+_offset,substring[:index]])
+            res.append([offset+segment_addr+g_offset,substring[:index]])
         
         # And continue...
         substring = substring[index:]

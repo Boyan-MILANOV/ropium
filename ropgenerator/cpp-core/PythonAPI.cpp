@@ -262,13 +262,19 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def("bad_byte_index", &FailRecord::bad_byte_index);
     
     py::class_<SearchParametersBinding>(m, "SearchParametersBinding")
-        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool, bool , bool>(), py::arg("keep_regs"),py::arg("bad_bytes"),py::arg("lmax"),py::arg("shortest")=false,py::arg("no_padding")=false,py::arg("single_gadget")=false)
+        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool, bool , bool, addr_t, addr_t>(), 
+                            py::arg("keep_regs"),py::arg("bad_bytes"), py::arg("lmax"),py::arg("shortest")=false, 
+                            py::arg("no_padding")=false,py::arg("single_gadget")=false, py::arg("lower_valid_write_addr")=0, 
+                            py::arg("higher_valid_write_addr")=0
+                            )
         .def_readwrite("keep_regs", &SearchParametersBinding::keep_regs)
         .def_readwrite("bad_bytes", &SearchParametersBinding::bad_bytes)
         .def_readwrite("lmax", &SearchParametersBinding::lmax)
         .def_readwrite("shortest", &SearchParametersBinding::shortest)
         .def_readwrite("no_padding", &SearchParametersBinding::no_padding)
-        .def_readwrite("single_gadget", &SearchParametersBinding::single_gadget);
+        .def_readwrite("single_gadget", &SearchParametersBinding::single_gadget)
+        .def_readwrite("lower_valid_write_addr", &SearchParametersBinding::lower_valid_write_addr)
+        .def_readwrite("higher_valid_write_addr", &SearchParametersBinding::higher_valid_write_addr);
     
     py::class_<SearchResultsBinding>(m, "SearchResultsBinding")
         .def_readonly("chain", &SearchResultsBinding::chain)
