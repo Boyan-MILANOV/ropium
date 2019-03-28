@@ -37,7 +37,6 @@ def reg_str_to_num(reg_str):
         raise Exception("Arch not supported in this function")
 
 
-
 map_x86_reg_names = { 
 "eax",RegX86.EAX,
 "ebx",RegX86.EBX,

@@ -415,8 +415,8 @@ string SearchEnvironment::pop_comment(SearchStrategyType t){
 /* *********************************************************************
  *                         Search Parameters Bindings
  * ******************************************************************* */
-SearchParametersBinding::SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s, bool np, bool sg  ):
-    keep_regs(k), bad_bytes(b), lmax(l), shortest(s), no_padding(np), single_gadget(sg){}
+SearchParametersBinding::SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s, bool np, bool sg, addr_t lower_addr, addr_t higher_addr  ):
+    keep_regs(k), bad_bytes(b), lmax(l), shortest(s), no_padding(np), single_gadget(sg), lower_valid_write_addr(lower_addr), higher_valid_write_addr(higher_addr){}
 
 SearchResultsBinding::SearchResultsBinding(){
     found = false;
