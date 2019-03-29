@@ -319,8 +319,10 @@ SearchEnvironment::SearchEnvironment(Constraint* c, Assertion* a, unsigned int l
     else
         throw_exception("Implement the global variable");
     memset(_calls_count, 0, sizeof(_calls_count));
-    for( int i = 0; i < NB_STRATEGY_TYPES; i++ )
+    for( int i = 0; i < NB_STRATEGY_TYPES; i++ ){
         _comment[i] = "";
+        _initial_comment[i] = "";
+    }
     _depth = 0;
     _reg_transitivity_unusable = new vector<int>();
 }
@@ -410,13 +412,26 @@ string SearchEnvironment::pop_comment(SearchStrategyType t){
     _comment[t] = "";
     return res;
 }
-
+bool SearchEnvironment::has_initial_comment(SearchStrategyType t){
+    return ! _initial_comment[t].empty();
+}
+void SearchEnvironment::set_initial_comment(SearchStrategyType t, string comment){
+    _initial_comment[t] = comment;
+}
+string SearchEnvironment::pop_initial_comment(SearchStrategyType t){
+    string res = _initial_comment[t];
+    _initial_comment[t] = "";
+    return res;
+}
 
 /* *********************************************************************
  *                         Search Parameters Bindings
  * ******************************************************************* */
-SearchParametersBinding::SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s, bool np, bool sg, addr_t lower_addr, addr_t higher_addr  ):
-    keep_regs(k), bad_bytes(b), lmax(l), shortest(s), no_padding(np), single_gadget(sg), lower_valid_write_addr(lower_addr), higher_valid_write_addr(higher_addr){}
+SearchParametersBinding::SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s, bool np, bool sg, 
+      addr_t lower_addr, addr_t higher_addr, std::string ic   ):
+    keep_regs(k), bad_bytes(b), lmax(l), shortest(s), no_padding(np), single_gadget(sg), 
+    lower_valid_write_addr(lower_addr), higher_valid_write_addr(higher_addr),
+    initial_pop_constant_comment(ic){}
 
 SearchResultsBinding::SearchResultsBinding(){
     found = false;
@@ -501,6 +516,9 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
     
     env = new SearchEnvironment(constraint, assertion, params.lmax, DEFAULT_MAX_DEPTH, params.no_padding, params.single_gadget,
                                 &g_reg_transitivity_record);
+    
+    if( !params.initial_pop_constant_comment.empty())
+        env->set_initial_comment(STRATEGY_POP_CONSTANT, params.initial_pop_constant_comment);
     
     /* Search */ 
     chain = search(dest, assign, env, params.shortest);
@@ -1072,6 +1090,10 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     env->add_call(strategy);
     env->set_no_padding(true);
     /* Check for comments */
+    /* First look if we have an initial one */ 
+    if( env->has_initial_comment(strategy) && env->depth() == 1){
+        env->push_comment(strategy, env->pop_initial_comment(strategy));
+    }
     had_comment = env->has_comment(strategy);
     if( had_comment ){
         comment = env->pop_comment(strategy);

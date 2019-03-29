@@ -169,6 +169,8 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
             if( not ((segment.flags & lief.ELF.SEGMENT_FLAGS.R != 0 ) and
                     (segment.flags & lief.ELF.SEGMENT_FLAGS.W == 0 ))):
                 continue
+        else:
+            continue
         data = segment.content
         addr = segment.virtual_address + g_offset
         segments.append((data, addr))
@@ -234,3 +236,30 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
     
     return res
 
+# Get writable memory space
+def get_readwrite_memory(min_size=-1):
+    """
+    return a couple (lower_addr, higher_addr)
+    or (0,0) if fails
+    
+    if min size == -1, try to find the biggest 
+    """
+    best_memory = (0,0)
+    # Trying all read/write segments
+    for segment in g_binary_lief.segments:
+        # Check flags (depends on binary format)
+        if( curr_bin_type() == BinType.ELF32 or
+            curr_bin_type() == BinType.ELF64):
+            # Is it read/write ? :) 
+            if( (segment.flags & lief.ELF.SEGMENT_FLAGS.R != 0 ) and
+                    (segment.flags & lief.ELF.SEGMENT_FLAGS.W != 0 )):
+                # If we want to maximum size, update the best_memory found 
+                if( min_size == -1 ):
+                    if( best_memory[1]-best_memory[0]+1 < segment.virtual_size ):
+                        best_memory = (segment.virtual_address + g_offset, segment.virtual_address + g_offset + segment.virtual_size -1)
+                # Else just return if big enough 
+                elif( segment.virtual_size > min_size ):
+                    return (segment.virtual_address + g_offset, segment.virtual_address + g_offset + segment.virtual_size -1)
+        else:
+            continue
+    return best_memory
