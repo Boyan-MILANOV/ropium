@@ -11,6 +11,9 @@ def str_to_arch_type(string):
         return OPTION_ARCH_NAMES_REVERSE[string]
     return None
 
+def arch_type_to_str(t):
+    return OPTION_ARCH_NAMES[t]
+
 def is_supported_arch_str(arch):
     return arch in OPTION_ARCH_NAMES_REVERSE
 
