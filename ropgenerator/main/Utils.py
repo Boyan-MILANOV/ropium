@@ -164,7 +164,7 @@ def parse_offset(string):
         try: 
             offset = int(string, 16)
         except:
-            return (False, "Error. '" + args[i+1] +"' is not a valid offset")
+            return (False, "Error. '" + string +"' is not a valid offset")
     # Check if not negative
     if( offset < 0 ):
         return (False, "Error. Offset must be positive")
