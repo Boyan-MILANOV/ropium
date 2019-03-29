@@ -5,6 +5,8 @@ from prompt_toolkit import PromptSession, ANSI
 
 from ropgenerator.core.IO import *
 from ropgenerator.semantic.Find import find
+from ropgenerator.core.Architecture import *
+from ropgenerator.main.Load import loaded_binary
 
 import sys
 
@@ -56,7 +58,7 @@ def semantic_mode():
             elif( command == CMD_MAIN ):
                 finish = True
             elif( command == CMD_REGS ):
-                print("WIP... TODO")
+                registers_cmd()
             else:
                 error("Unknown command '{}'".format(command))
             if( command != None ):
@@ -64,3 +66,22 @@ def semantic_mode():
         except KeyboardInterrupt:
             pass
     return True
+
+
+def registers_cmd():
+    """
+    print available regs in current architecture
+    """
+    if( not loaded_binary()):
+        error("You must load a binary before listing available registers")
+        return 
+    print(banner([str_bold("Available registers")]))
+    for name,num in get_curr_reg_map().items():
+        if( num == curr_arch_ip() ):
+            print("\t"+str_special(name)+" - instruction pointer")
+        elif( num == curr_arch_sp() ):
+            print("\t"+str_special(name)+" - stack pointer")
+        elif( is_ignored_reg(num) ):
+            print("\t"+str_special(name)+" - (ignored)")
+        else:
+            print("\t"+str_special(name))

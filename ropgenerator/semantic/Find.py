@@ -33,7 +33,7 @@ OUTPUT = None # The one choosen
 
 
 # Help for the search command
-CMD_FIND_HELP = banner([str_bold("'query' command"),
+CMD_FIND_HELP = banner([str_bold("'find' command"),
                 str_special("(Find gadgets/ropchains that execute specific operations)")])
 CMD_FIND_HELP += "\n\n\t"+str_bold("Usage")+":\tfind [OPTIONS] <reg>=<expr>"+\
                 "\n\t\tfind [OPTIONS] <reg>=mem(<expr>)"+\

@@ -1,7 +1,7 @@
 from ropgenerator_core_ import\
 Architecture, ArchType, BinType, EndiannessType, set_arch, set_bin_type, curr_bin_type,\
 curr_arch_bits, curr_arch_octets, curr_arch_type, curr_arch_ip, curr_arch_sp, curr_arch_endianess,\
-RegX86, RegX64
+RegX86, RegX64, is_ignored_reg
 
 OPTION_ARCH_NAMES = {ArchType.ARCH_X86:'X86', ArchType.ARCH_X64:'X64'}
 OPTION_ARCH_NAMES_REVERSE = {'X86':ArchType.ARCH_X86, 'X64':ArchType.ARCH_X64}
@@ -83,3 +83,10 @@ map_x64_reg_names = {
 "of":RegX64.OF,
 "pf":RegX64.PF
 }
+
+def get_curr_reg_map():
+    if( curr_arch_type() == ArchType.ARCH_X86 ):
+        return map_x86_reg_names
+    elif( curr_arch_type() == ArchType.ARCH_X64 ):
+        return map_x64_reg_names
+        

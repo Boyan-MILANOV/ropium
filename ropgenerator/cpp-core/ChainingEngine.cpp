@@ -133,8 +133,8 @@ void FailRecord::reset(){
     _max_len = false;
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
-    memset(_bad_bytes, false, 256);
-    memset(_bad_bytes_index, -1, 256);
+    memset(_bad_bytes, false, sizeof(_bad_bytes));
+    memset(_bad_bytes_index, -1, sizeof(_bad_bytes));
 }
 
 
