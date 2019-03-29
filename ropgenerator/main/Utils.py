@@ -189,6 +189,20 @@ def parse_lmax(string):
     lmax = lmax // (curr_arch_bits()//8)
     return (True, lmax)
 
+def parse_range(string):
+    splited = string.split(",")
+    if( len(splited) != 2 ):
+        return (False, "Error. Invalid address range '{}'".format(string))
+    lower = parse_cst(splited[0], check_size=True)
+    higher = parse_cst(splited[1], check_size=True)
+    if( lower is None ):
+        return (False, "Error. Invalid address '{}'".format(splited[0]))
+    if( higher is None ):
+        return (False, "Error. Invalid address '{}'".format(splited[1]))
+    if( lower > higher ):
+        return (False, "Error. Lower address '{}' is bigger that higher address '{}'".format(splited[0], splited[1]))
+    return (True, (lower, higher))
+
 def parse_query(req):
     """
     Parses a user request for a gadget
@@ -353,17 +367,20 @@ def parse_expr( string ):
         else:
             return (True, AssignType.CST, (value,),)
 
-def parse_cst(string):
+def parse_cst(string, check_size=False):
     try:
-        cst = int(string, 10)
+        cst = int(string, 2)
     except:
         try:
-            cst = int(string, 16)
+            cst = int(string, 10)
         except:
             try:
-                cst = int(string,2)
+                cst = int(string,16)
             except:
                 return None
+    if( check_size ):
+        if( cst > (2**curr_arch_bits())-1):
+            return None
     return cst
 
 

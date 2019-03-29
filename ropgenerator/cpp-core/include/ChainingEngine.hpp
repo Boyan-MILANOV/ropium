@@ -4,6 +4,7 @@
 #include "Database.hpp"
 #include "Expression.hpp"
 #include "ROPChain.hpp"
+#include <string>
 
 /* *****************************************************
  *             Classes to specify queries 
@@ -138,7 +139,8 @@ class SearchParametersBinding{
     bool single_gadget;
     addr_t lower_valid_write_addr;
     addr_t higher_valid_write_addr; // invalid values are 0 
-    SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s , bool np, bool sg , addr_t la, addr_t ha);
+    std::string initial_pop_constant_comment; 
+    SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s , bool np, bool sg , addr_t la, addr_t ha, string ic);
 };
 
 class SearchResultsBinding{
@@ -175,6 +177,7 @@ class SearchEnvironment{
     bool _single_gadget;
     /* Comments about gadgets */ 
     string _comment[NB_STRATEGY_TYPES];
+    string _initial_comment[NB_STRATEGY_TYPES]; // This is only for pretty printing when using high level strategies from python
     /* Records for optimisations and infos */ 
     RegTransitivityRecord* _reg_transitivity_record; // Use a pointer in case we use a global record
     AdjustRetRecord _adjust_ret_record;
@@ -220,6 +223,9 @@ class SearchEnvironment{
         bool has_comment(SearchStrategyType t);
         void push_comment(SearchStrategyType t, string comment);
         string pop_comment(SearchStrategyType t);
+        bool has_initial_comment(SearchStrategyType t);
+        void set_initial_comment(SearchStrategyType t, string comment);
+        string pop_initial_comment(SearchStrategyType t);
         
         /* Record functions */ 
         RegTransitivityRecord* reg_transitivity_record();
