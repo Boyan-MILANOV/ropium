@@ -16,6 +16,10 @@ void set_gadgets_offset(addr_t offset){
     g_gadgets_offset=offset;
 }
 
+addr_t get_gadgets_offset(){
+    return g_gadgets_offset;
+}
+
 /* *********************************************************************
  *                          Gadget class 
  * ******************************************************************* */

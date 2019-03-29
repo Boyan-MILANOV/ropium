@@ -2,10 +2,13 @@
 #include "Database.hpp"
 #include "CommonUtils.hpp"
 #include "Exception.hpp"
+#include "Gadget.hpp"
 #include "IO.hpp"
 #include <algorithm>
+#include <iomanip>
 
 ROPChain::ROPChain():_len(0), _nb_gadgets(0), _nb_instr(0), _nb_instr_ir(0){}
+
 // Accessors
 int ROPChain::len(){return _len;}
 int ROPChain::nb_gadgets(){return _nb_gadgets;}
@@ -76,11 +79,12 @@ bool ROPChain::lthan(ROPChain* other){
 }
 
 // String representation 
-string valid_addr_str(int octets, shared_ptr<Gadget> g, vector<unsigned char> bad_bytes){
+string valid_addr_str(int octets, shared_ptr<Gadget> g, vector<unsigned char> bad_bytes, bool offset=false, bool color=false){
     int i;
     vector<addr_t>::iterator it; 
     vector<addr_t>* addr_list = g->addresses();
     addr_t address;
+    addr_t off = get_gadgets_offset();
     for( it = addr_list->begin(); it != addr_list->end(); it++){
         // Test if bad bytes inside 
         for( i=0; i < octets; i++)
@@ -93,7 +97,17 @@ string valid_addr_str(int octets, shared_ptr<Gadget> g, vector<unsigned char> ba
     }
     delete addr_list;
     if( i == octets ){
-        return value_to_hex_str(octets, address);
+        if( offset ){
+            if( color )
+                return str_special(value_to_hex_str(octets, address-off)) + " + off";
+            else
+                return value_to_hex_str(octets, address-off) + " + off";
+        }else{
+            if( color )
+                return str_special(value_to_hex_str(octets, address));
+            else
+                return value_to_hex_str(octets, address);
+        }
     }else{
         throw_exception("In valid_addr_str: Error, No valid address found for the gadget to print ! :( ");
     }
@@ -132,16 +146,18 @@ string ROPChain::to_str_python(int octets, vector<unsigned char> bad_bytes, bool
     else if( octets == 8 )
         endian = "'<Q'";
     else
-        return string("Doesn't support printing for non 4 or 8 octets");
-    pack = p + " += pack(" + endian + ","; 
+        return string("Doesn't support printing for non 4 or 8 octets address size");
+    pack = p + " += pack(" + endian + ", "; 
     
-    if( init )
-        ss << "\n" << tab << "from struct import pack\n" << tab << p << " += ''";   
-    
+    if( init ){
+        ss << "\n" << tab << "from struct import pack" ;
+        ss << "\n" << tab << "off = 0x" << std::hex << get_gadgets_offset();
+        ss << "\n" << tab << p << " += ''"; 
+    }
     for(it = _chain.begin(); it != _chain.end(); it++){
         if( *it >= 0 ){
-            // Gadget 
-            ss << "\n" << tab << pack << str_special(valid_addr_str(octets, gadget_db()->get(*it), bad_bytes)) <<
+            // Gadget
+            ss << "\n" << tab << pack << valid_addr_str(octets, gadget_db()->get(*it), bad_bytes, true, true) <<
                 ") # " << str_bold(gadget_db()->get(*it)->asm_str());
         }else{
             // Padding 

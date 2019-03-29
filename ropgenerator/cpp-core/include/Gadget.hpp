@@ -73,5 +73,6 @@ class Gadget{
 
 ostream& operator<<(ostream& os, Gadget* g);
 void set_gadgets_offset(addr_t offset);
+addr_t get_gadgets_offset();
 
 #endif
