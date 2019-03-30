@@ -95,9 +95,6 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
     badbytes : bad bytes for substrings addresses
     add_null : if True then add terminaison null bytes in the end of the substrings 
     
-    Example: 
-        byte_string = 'abc' then result is the address of a string 'abc\x00'
-        or a list of addresses s.t elements form 'abc' like 'ab\x00' 'c\x00' 
     """
     global g_offset
     global g_binary_lief
@@ -128,7 +125,7 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
                 return [offset, index]
             else:
                 substring = substring[:-1]
-            index = index -1
+            index -= 1
     
     def _find_substr_add_null(m, string):
         """
@@ -139,26 +136,28 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
         # Initialize
         offset = -1
         index = len(string)
-        last_is_null = (string[-1] == '\x00')
+        last_is_null = (string[-1] == 0x00)
         if( not last_is_null ):
-            substring = string + '\x00'
+            substring = string + [0x00]
         else:
             substring = string
         # Search biggest substring 
         while( offset == -1 ):
             if( len(substring) <= 0 ):
                 return [-1,0]
-            offset = _sub_finder(m, string)
+            offset = _sub_finder(m, substring)
             if( offset != -1 ):
                 return [offset, index]
             else:
                 substring = substring[:-2]
                 if( not substring ):
                     return [-1,0]
-                last_is_null = (substring[-1] == '\x00')    
+                if( last_is_null ):
+                    index -= 1 # Because we remove two real chars from the string
+                last_is_null = (substring[-1] == 0x00)    
                 if( not last_is_null ):
-                    substring = substring + '\x00'
-            index = index -1
+                    substring = substring + [0x00]
+            index -= 1
                 
     # Getting all readable segments
     segments = []
@@ -212,7 +211,7 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
             else:
                 (offset, index ) = _find_substr(segment_data_tmp, substring)
             # We didn't find any match, try next segment 
-            if( index == 0 ):
+            if( offset == -1 ):
                 segment_num += 1
                 segment_changed = True
             else:
@@ -225,8 +224,8 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
                     segment_data_tmp = segment_data_tmp[offset:]
                 
         # We add the best substring we found
-        if( add_null and substring[:index] != '\x00'):
-            res.append([offset+segment_addr+g_offset,substring[:index]+"\x00"])
+        if( add_null and substring[:index] != 0x00):
+            res.append([offset+segment_addr+g_offset,substring[:index]+[0x00]])
         else:
             res.append([offset+segment_addr+g_offset,substring[:index]])
         
