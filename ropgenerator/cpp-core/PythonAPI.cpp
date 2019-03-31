@@ -210,7 +210,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     py::class_<ROPChain>(m, "ROPChain")
         .def(py::init<>())
         .def("add_chain", &ROPChain::add_chain)
-        .def("add_padding", &ROPChain::add_padding, "value"_a, "n"_a=1, "comment"_a="Padding")
+        .def("add_padding", &ROPChain::add_padding, "value"_a, "n"_a=1, "comment"_a="Padding", "offset"_a=false)
         .def("len", &ROPChain::len)
         .def("to_str_console", &ROPChain::to_str_console)
         .def("to_str_python", &ROPChain::to_str_python);
@@ -248,7 +248,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def(py::init<>());
         
     py::class_<AssignArg>(m, "AssignArg")
-        .def(py::init<AssignType, cst_t>())
+        .def(py::init<AssignType, cst_t, bool>(), py::arg("type"), py::arg("cst"), py::arg("offset")=false)
         .def(py::init<AssignType, int, Binop, cst_t>())
         .def(py::init<AssignType, int, Binop, cst_t, cst_t>())
         .def(py::init<AssignType, cst_t, cst_t>())

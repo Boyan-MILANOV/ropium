@@ -268,10 +268,6 @@ def load(args):
                     gadget.set_ret_type(RetType.UNKNOWN)
                 # Add address
                 gadget.add_address(addr)
-                # DEBUG
-                if( addr == 0 ):
-                    print("DEBUG, addr added: " + hex(addr))
-                    x = 0/0
                 biggest_gadget_addr = max(addr, biggest_gadget_addr)
                 # Add instruction count
                 gadget.set_nb_instr(len(asm_instr_list))
