@@ -47,7 +47,7 @@ bool DestArg::operator==(DestArg& other){
 }
 
 AssignArg::AssignArg():type(ASSIGN_INVALID), addr_reg(-1), reg(-1){} /* DEFAULT ONE */
-AssignArg::AssignArg(AssignType t, cst_t c):type(t), addr_reg(-1), reg(-1), cst(c){} /* For ASSIGN_CST */
+AssignArg::AssignArg(AssignType t, cst_t c, bool offset):type(t), addr_reg(-1), reg(-1), cst(c), cst_has_offset(offset){} /* For ASSIGN_CST */
 AssignArg::AssignArg(AssignType t, int r, Binop o, cst_t c):type(t), addr_reg(-1), reg(r), op(o), cst(c){} /* For ASSIGN_REG_BINOP_CST */
 AssignArg::AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c):type(t), addr_reg(ar), addr_cst(ac), addr_op(o), reg(-1), cst(c){} /* For ASSIGN_MEM_BINOP_CST */
 AssignArg::AssignArg(AssignType t, cst_t ac, cst_t c):type(t), addr_reg(-1), addr_cst(ac), reg(-1), cst(c){} /* For ASSIGN_CSTMEM_BINOP_CST */
@@ -58,7 +58,7 @@ bool AssignArg::operator==(AssignArg& other){
     }
     switch(type){
         case ASSIGN_CST:
-            return (cst == other.cst);
+            return (cst == other.cst) && ((cst_has_offset == other.cst_has_offset) || get_gadgets_offset()==0);
         case ASSIGN_REG_BINOP_CST:
             return (cst == other.cst && op == other.op && reg == other.reg);
         case ASSIGN_MEM_BINOP_CST:
@@ -134,7 +134,7 @@ void FailRecord::reset(){
     _no_valid_padding = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, sizeof(_bad_bytes));
-    memset(_bad_bytes_index, -1, sizeof(_bad_bytes));
+    memset(_bad_bytes_index, -1, sizeof(_bad_bytes_index));
 }
 
 
@@ -1114,14 +1114,14 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
         tmp_constraint->add(new ConstrMaxSpInc(env->lmax()*curr_arch()->octets()), true);
         env->set_constraint(tmp_constraint);
         /* Get gadget that does dest.reg <- mem(rsp+offset)+0 */ 
-        pop = basic_db_lookup(dest, AssignArg(ASSIGN_MEM_BINOP_CST, curr_arch()->sp(), OP_ADD, offset, 0), env);
+        pop = basic_db_lookup(dest, AssignArg(ASSIGN_MEM_BINOP_CST, curr_arch()->sp(), OP_ADD, offset, (cst_t)0), env);
         if( pop != nullptr ){
             /* If found, padd it and return */ 
             res = pop; 
             std::tie(success, padding) = env->constraint()->valid_padding();
             if( success ){
                 res->add_padding(padding, offset/8);
-                res->add_padding(assign.cst, 1, comment);
+                res->add_padding(assign.cst, 1, comment, assign.cst_has_offset);
                 /* sp_inc - 2*arch_octets for the return and the const, -offset because we already added*/ 
                 res->add_padding(padding, (gadget_db()->get(pop->chain().at(0))->sp_inc()-offset-(2*curr_arch()->octets()))/8 );
                 break;
@@ -1378,7 +1378,7 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
             tmp_constraint->add(new ConstrKeepRegs(dest.reg), true);
             env->set_constraint(tmp_constraint);
         }
-        adjust_gadgets = _gadget_db_lookup(DestArg(DST_REG, curr_arch()->ip()), AssignArg(ASSIGN_MEM_BINOP_CST, curr_arch()->sp(), OP_ADD, offset,0) , env, ADJUST_RET_MAX_ADJUST_GADGETS);
+        adjust_gadgets = _gadget_db_lookup(DestArg(DST_REG, curr_arch()->ip()), AssignArg(ASSIGN_MEM_BINOP_CST, curr_arch()->sp(), OP_ADD, offset,(cst_t)0) , env, ADJUST_RET_MAX_ADJUST_GADGETS);
         /* Restore normal constraint */
         if( tmp_constraint != nullptr ){
             delete tmp_constraint;
@@ -1422,7 +1422,7 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
                 /* Set comment */ 
                 env->push_comment(STRATEGY_POP_CONSTANT, string("Address of ") + str_bold(gadget_db()->get(*it2)->asm_str()));
                 /* Search */ 
-                set_ret_reg_chain = search(DestArg(DST_REG, ret_reg), AssignArg(ASSIGN_CST, *ait), env);
+                set_ret_reg_chain = search(DestArg(DST_REG, ret_reg), AssignArg(ASSIGN_CST, *ait, true), env);
                 /* Restore env */ 
                 env->set_lmax(prev_lmax);
                 env->pop_comment(STRATEGY_POP_CONSTANT);

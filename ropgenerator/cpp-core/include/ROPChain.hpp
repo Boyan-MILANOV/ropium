@@ -15,6 +15,7 @@ class ROPChain{
     vector<addr_t> _padding_values;  // Padding number n is stored in _chain 
                                     // as -n-1
     vector<string> _padding_comments; 
+    vector<bool> _padding_offsets; // If an offset should be added to the padding
     int _len; 
     int _nb_gadgets; 
     int _nb_instr, _nb_instr_ir;
@@ -29,9 +30,10 @@ class ROPChain{
         vector<int>& chain();
         vector<addr_t>& padding_values();
         vector<string>& padding_comments();
+        vector<bool>& padding_offsets();
         // Modifiers
         void add_gadget(int g);
-        void add_padding(addr_t value, int n=1,  string comment="Padding");
+        void add_padding(addr_t value, int n=1,  string comment="Padding", bool offset=false);
         void add_chain(ROPChain* other);
         // Sort
         bool lthan(ROPChain* other); 

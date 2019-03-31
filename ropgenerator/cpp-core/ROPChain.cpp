@@ -17,6 +17,7 @@ int ROPChain::nb_instr_ir(){return _nb_instr_ir;}
 vector<int>& ROPChain::chain(){return _chain;}
 vector<addr_t>& ROPChain::padding_values(){return _padding_values;}
 vector<string>& ROPChain::padding_comments(){return _padding_comments;}
+vector<bool>& ROPChain::padding_offsets(){return _padding_offsets;}
 
 // Modifiers
 void ROPChain::add_gadget(int g){
@@ -27,7 +28,7 @@ void ROPChain::add_gadget(int g){
     _nb_gadgets++; 
 }
 
-void ROPChain::add_padding(addr_t value, int n,  string comment){
+void ROPChain::add_padding(addr_t value, int n,  string comment, bool offset){
     int num; 
     if( n == 0 )
         return;
@@ -35,7 +36,8 @@ void ROPChain::add_padding(addr_t value, int n,  string comment){
     num = _padding_values.size()+1;
     // Add padding 
     _padding_values.push_back(value);
-    _padding_comments.push_back(comment); 
+    _padding_comments.push_back(comment);
+    _padding_offsets.push_back(offset);
     // Add to the chain 
     _len += n; 
     for( ;n>0; n--)
@@ -60,7 +62,8 @@ void ROPChain::add_chain(ROPChain* other){
             num = _padding_values.size()+1;
             // Add padding 
             _padding_values.push_back(other->padding_values().at(-1*(*it) -1));
-            _padding_comments.push_back(other->padding_comments().at(-1*(*it) -1)); 
+            _padding_comments.push_back(other->padding_comments().at(-1*(*it) -1));
+            _padding_offsets.push_back(other->padding_offsets().at(-1*(*it) -1));
             _chain.push_back(-1*num);
         }
     }
@@ -161,9 +164,15 @@ string ROPChain::to_str_python(int octets, vector<unsigned char> bad_bytes, bool
                 ") # " << str_bold(gadget_db()->get(*it)->asm_str());
         }else{
             // Padding 
-            padd_num = -1*(*it)-1; 
-            ss << "\n" << tab << pack << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num))) << ") # " << 
-            _padding_comments.at(padd_num); 
+            padd_num = -1*(*it)-1;
+            if( _padding_offsets.at(padd_num))
+                /* We substract the offset because we'll print '+off', that's an ugly hack but fuck it it's 
+                 * working */ 
+                ss << "\n" << tab << pack << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num) - get_gadgets_offset())) << " + off) # " << 
+                _padding_comments.at(padd_num); 
+            else
+                ss << "\n" << tab << pack << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num))) << ") # " << 
+                _padding_comments.at(padd_num); 
         }
     }
     return ss.str(); 
@@ -179,5 +188,6 @@ void ROPChain::copy_from(ROPChain* other){
     _chain = other->chain();
     _padding_values = other->padding_values();
     _padding_comments = other->padding_comments();
+    _padding_offsets = other->padding_offsets();
     return;
 }

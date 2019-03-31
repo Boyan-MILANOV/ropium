@@ -225,9 +225,9 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
                 
         # We add the best substring we found
         if( add_null and substring[:index] != 0x00):
-            res.append([offset+segment_addr+g_offset,substring[:index]+[0x00]])
+            res.append([offset+segment_addr,substring[:index]+[0x00]])
         else:
-            res.append([offset+segment_addr+g_offset,substring[:index]])
+            res.append([offset+segment_addr,substring[:index]])
         
         # And continue...
         substring = substring[index:]

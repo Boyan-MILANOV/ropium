@@ -51,9 +51,11 @@ class AssignArg {
     int reg;
     Binop op;
     cst_t cst;
+    bool cst_has_offset; // If the arg is a constant, indicate if it has been modified with 
+                 // an offset (for add_padding, to pretty print with offset)
     
     AssignArg();
-    AssignArg(AssignType t, cst_t c); /* For ASSIGN_CST */
+    AssignArg(AssignType t, cst_t c, bool offset=false); /* For ASSIGN_CST */
     AssignArg(AssignType t, int r, Binop o, cst_t c); /* For ASSIGN_REG_BINOP_CST */
     AssignArg(AssignType t, int ar, Binop o, cst_t ac, cst_t c); /* For ASSIGN_MEM_BINOP_CST */
     AssignArg(AssignType t, cst_t ac, cst_t c); /* For ASSIGN_CSTMEM_BINOP_CST */
