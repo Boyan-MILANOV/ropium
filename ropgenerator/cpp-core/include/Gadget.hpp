@@ -35,7 +35,8 @@ class Gadget{
     
     
     public:
-        // Constructor 
+        // Constructor
+        Gadget(GadgetType special_type);
         Gadget(shared_ptr<IRBlock> irblock); 
         // Accessors 
         int id(); 

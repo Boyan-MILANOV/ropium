@@ -21,6 +21,41 @@ int find_insert_index(vector<int>& gadget_list, int gadget_num, vector<shared_pt
     return first; 
 }
 
+void SimpleGadgetList::add(int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets){
+	int insert_idx = find_insert_index(_gadgets, gadget_num, gadgets);
+    _gadgets.insert(_gadgets.begin()+insert_idx, gadget_num);
+    _pre_conds.insert(_pre_conds.begin()+insert_idx, pre_cond);
+}
+vector<int> SimpleGadgetList::find(Constraint* constr, Assertion *assert, int n, FailRecord *fail_record){
+	vector<int> res; 
+    shared_ptr<Gadget> g; 
+    CondObjectPtr constr_cond, all_conds;
+    ConstrEval eval;
+    
+    
+    for( unsigned int i = 0; i < _gadgets.size() &&  res.size() < n; i++){
+        
+        
+        g = gadget_db()->get(_gadgets.at(i));        
+        // Verify constraint 
+        std::tie(eval, constr_cond) = constr->verify(g, fail_record);
+        if( eval == EVAL_VALID || eval == EVAL_MAYBE){
+            /* Check with assertion to verify
+                - remaining constraint
+                - semantic pre_conditions
+                - memory accesses pre-conditions
+            */
+            all_conds = constr_cond && _pre_conds.at(i) && g->mem_pre_cond();
+            if( assert->validate(all_conds) ){
+                res.push_back(_gadgets.at(i));
+            }
+        }
+    }
+    return res;
+}
+
+
+
 /* CSTList */
 CSTList::CSTList(){} 
 void CSTList::add(cst_t val, int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets){
@@ -318,6 +353,18 @@ int Database::add(shared_ptr<Gadget> g){
     /* Add gadget to the list */ 
     _gadgets.push_back(g);
     
+    
+    /* Check for special gadgets */ 
+    if( g->type() == INT80 ){
+		_int80.add(num, NewCondTrue(), _gadgets);
+		_entries_count++;
+		return num;
+	}else if( g->type() == SYSCALL ){
+		_syscall.add(num, NewCondTrue(), _gadgets);
+		_entries_count++;
+		return num;
+	}
+    
     /* Get semantics for ... -> reg */ 
     for( rit = g->semantics()->regs().begin(); rit != g->semantics()->regs().end(); rit++){
         reg = (*rit).first;
@@ -566,6 +613,14 @@ vector<int> Database::find_reg_binop_cst_to_mem(Binop op_dest, int reg_dest, cst
 vector<int> Database::find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int addr_reg,
                                     cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record){
     return _mem_binop_cst_to_mem.find_mem( op_dest, reg_dest, cst_dest, addr_reg, addr_cst, cst, op, c, a, n, fail_record);
+}
+
+vector<int> Database::find_syscall(Constraint *c, Assertion *a, int n, FailRecord* fail_record){
+	return _syscall.find(c, a, n, fail_record);
+}
+
+vector<int> Database::find_int80(Constraint *c, Assertion *a, int n, FailRecord* fail_record){
+	return _int80.find(c, a, n, fail_record);
 }
 
 /* More advanced functions */ 

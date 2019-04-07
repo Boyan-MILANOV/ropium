@@ -302,8 +302,6 @@ pair<ConstrEval,CondObjectPtr> Constraint::verify(shared_ptr<Gadget> g, FailReco
     CondObjectPtr cond; 
     CondObjectPtr res_cond = NewCondTrue(); 
     bool maybe = false;
-    if( g->type() == INT80 or g->type() == SYSCALL )
-        return make_pair(EVAL_VALID, NewCondTrue());
         
     for( int i = 0; i < COUNT_NB_CONSTR; i++){
         if( _constr[i] != nullptr ){

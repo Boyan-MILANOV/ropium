@@ -20,7 +20,15 @@ class FailRecord;
 class AssignArg;
 class DestArg;
 
-class CSTList{
+class SimpleGadgetList{
+	vector<int> _gadgets;
+	vector<CondObjectPtr> _pre_conds;
+	public:
+		void add(int gadget_num, CondObjectPtr pre_cond, vector<shared_ptr<Gadget>>& gadgets);
+		vector<int> find(Constraint* constr, Assertion *assert, int n, FailRecord *fail_record);
+};
+
+class CSTList{ // Now redundant with SimpleGadgetList somehow :S 
     unordered_map<cst_t, vector<int>> _values;
     unordered_map<cst_t, vector<CondObjectPtr>> _pre_conds; 
     public:
@@ -81,7 +89,8 @@ class Database{
     MEMDict<CSTList> _cst_to_mem; 
     MEMDict<REGList> _reg_binop_cst_to_mem; 
     MEMDict<MEMList> _mem_binop_cst_to_mem;
-    // TODO Syscalls and INT80
+    SimpleGadgetList _syscall;
+    SimpleGadgetList _int80;
 
     public: 
         Database(); 
@@ -95,6 +104,8 @@ class Database{
         vector<int> find_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record); 
         vector<int> find_reg_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int reg, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record);
         vector<int> find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record);
+        vector<int> find_int80(Constraint *c, Assertion *a, int n, FailRecord* fail_record);
+        vector<int> find_syscall(Constraint *c, Assertion *a, int n, FailRecord* fail_record);
         
         /* More advanced functions */
         vector<tuple<DestArg, AssignArg, vector<int>>>* get_possible_stores_reg(Constraint*c, Assertion*a, int n, FailRecord* fail_record, int dest_addr_reg, int assign_reg);

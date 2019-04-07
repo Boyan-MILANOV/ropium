@@ -214,9 +214,9 @@ def parse_query(req):
     """
     # Check for int80 and syscall
     if( req == 'int80' ):
-        return (True, None, (AssignType.INT80, None))
+        return (True, DestArg(), AssignArg(AssignType.INT80))
     elif( req == 'syscall' ):
-        return (True, None, (AssignType.SYSCALL, None))
+        return (True, DestArg(), AssignArg(AssignType.SYSCALL))
     
     # Check for Regular query 
     args = [x for x in req.split('=',1) if x]
