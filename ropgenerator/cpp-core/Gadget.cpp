@@ -85,6 +85,35 @@ CondObjectPtr generate_mem_pre_cond(vector<ExprObjectPtr>& read_list, vector<Exp
 }
 
 
+// Special gadget
+Gadget::Gadget(GadgetType special_type){
+    int i;
+    // Set type
+    _type = special_type;
+    // Null semantics 
+    _semantics = nullptr;
+    // Get the registers that have been modified 
+    for( i = 0; i < NB_REGS_MAX; i++)
+        _reg_modified[i] = false;
+        
+    // nb instructions (set to 0, o be set later)
+    _nb_instr = 1;
+    _nb_instr_ir = 1;
+        
+    // Get the sp_inc 
+    _known_sp_inc = true;
+    _sp_inc = 0;
+    // Get the memory reads and writes from the irblock 
+    _mem_pre_cond = NewCondTrue();
+    
+    // Get the return type
+    // Test for ret/jmp 
+    _ret_type = RET_UNKNOWN; 
+    _ret_reg = -1; 
+    _ret_pre_cond = nullptr;
+    
+}
+
 // Constructor
 Gadget::Gadget(shared_ptr<IRBlock> irblock){
     vector<reg_pair>::iterator reg_it;
@@ -95,6 +124,9 @@ Gadget::Gadget(shared_ptr<IRBlock> irblock){
     bool is_inc;
     cst_t inc;
     CondObjectPtr tmp;
+    // Set the type
+    _type = REGULAR; 
+    
     // Get the semantics 
     _semantics = irblock->compute_semantics(true); 
     _semantics->simplify(); 

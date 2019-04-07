@@ -250,6 +250,27 @@ def load(args):
                 count += 1
                 gadget_db_get(dup[raw]).add_address(addr)
                 continue
+            # Check for int80 or syscall gadgets
+            if( raw == b'\xCD\x80' and curr_arch_type() in [ArchType.ARCH_X86, ArchType.ARCH_X64]):
+                gadget = Gadget(GadgetType.INT80)
+                gadget.set_hex_str("\\xcd\\x80")
+                gadget.set_asm_str("int 0x80")
+                dup[raw] = gadget_db_add(gadget)
+                # Add address
+                gadget.add_address(addr)
+                biggest_gadget_addr = max(addr, biggest_gadget_addr)
+                continue
+            elif( raw == b'\x0F\x05' and curr_arch_type() in [ArchType.ARCH_X86, ArchType.ARCH_X64]):
+                gadget = Gadget(GadgetType.SYSCALL)
+                gadget.set_hex_str("\\x0f\\x05")
+                gadget.set_asm_str("syscall")
+                dup[raw] = gadget_db_add(gadget)
+                # Add address
+                gadget.add_address(addr)
+                biggest_gadget_addr = max(addr, biggest_gadget_addr)
+                continue
+                
+            # Normal gadget
             (irblock, asm_instr_list) = raw_to_IRBlock(raw)
             if( not irblock is None ):
                 # Create C++ object 

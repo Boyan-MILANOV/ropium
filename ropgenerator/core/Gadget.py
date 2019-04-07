@@ -1,3 +1,3 @@
 from ropgenerator_core_ import \
-Gadget, print_gadget, RetType, \
+Gadget, print_gadget, RetType, GadgetType, \
 set_gadgets_offset

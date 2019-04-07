@@ -170,6 +170,12 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     
     /* Gadget Bindings */ 
     
+    py::enum_<GadgetType>(m, "GadgetType", py::arithmetic(), "Gadget type")
+        .value("REGULAR", REGULAR)
+        .value("INT80", INT80)
+        .value("SYSCALL", SYSCALL)
+        .export_values();
+    
     py::enum_<RetType>(m, "RetType", py::arithmetic(), "Return Type")
         .value("RET", RET_RET)
         .value("JMP",RET_JMP)
@@ -178,6 +184,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .export_values();
     
     py::class_<Gadget, shared_ptr<Gadget>>(m, "Gadget")
+        .def(py::init<GadgetType>())
         .def(py::init<shared_ptr<IRBlock>>())
         .def("set_asm_str", &Gadget::set_asm_str)
         .def("set_hex_str", &Gadget::set_hex_str)
@@ -263,10 +270,11 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def("bad_byte_index", &FailRecord::bad_byte_index);
     
     py::class_<SearchParametersBinding>(m, "SearchParametersBinding")
-        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool, bool , bool, addr_t, addr_t, string>(), 
+        .def(py::init<vector<int>, vector<unsigned char>, unsigned int, bool, bool , bool, addr_t, addr_t, string, bool>(), 
                             py::arg("keep_regs"),py::arg("bad_bytes"), py::arg("lmax"),py::arg("shortest")=false, 
                             py::arg("no_padding")=false,py::arg("single_gadget")=false, py::arg("lower_valid_write_addr")=0, 
-                            py::arg("higher_valid_write_addr")=0, py::arg("initial_pop_constant_comment")=""
+                            py::arg("higher_valid_write_addr")=0, py::arg("initial_pop_constant_comment")="",
+                            py::arg("chainable")=true
                             )
         .def_readwrite("keep_regs", &SearchParametersBinding::keep_regs)
         .def_readwrite("bad_bytes", &SearchParametersBinding::bad_bytes)
@@ -274,6 +282,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .def_readwrite("shortest", &SearchParametersBinding::shortest)
         .def_readwrite("no_padding", &SearchParametersBinding::no_padding)
         .def_readwrite("single_gadget", &SearchParametersBinding::single_gadget)
+        .def_readwrite("chainable", &SearchParametersBinding::chainable)
         .def_readwrite("lower_valid_write_addr", &SearchParametersBinding::lower_valid_write_addr)
         .def_readwrite("higher_valid_write_addr", &SearchParametersBinding::higher_valid_write_addr)
         .def_readwrite("initial_pop_constant_comment", &SearchParametersBinding::initial_pop_constant_comment);

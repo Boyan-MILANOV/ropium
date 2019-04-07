@@ -139,10 +139,11 @@ class SearchParametersBinding{
     bool shortest;
     bool no_padding;
     bool single_gadget;
+    bool chainable;
     addr_t lower_valid_write_addr;
     addr_t higher_valid_write_addr; // invalid values are 0 
     std::string initial_pop_constant_comment; 
-    SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s , bool np, bool sg , addr_t la, addr_t ha, string ic);
+    SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s , bool np, bool sg , addr_t la, addr_t ha, string ic, bool chnbl);
 };
 
 class SearchResultsBinding{

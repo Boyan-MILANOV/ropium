@@ -428,8 +428,8 @@ string SearchEnvironment::pop_initial_comment(SearchStrategyType t){
  *                         Search Parameters Bindings
  * ******************************************************************* */
 SearchParametersBinding::SearchParametersBinding(vector<int> k, vector<unsigned char> b, unsigned int l, bool s, bool np, bool sg, 
-      addr_t lower_addr, addr_t higher_addr, std::string ic   ):
-    keep_regs(k), bad_bytes(b), lmax(l), shortest(s), no_padding(np), single_gadget(sg), 
+      addr_t lower_addr, addr_t higher_addr, std::string ic, bool chnbl  ):
+    keep_regs(k), bad_bytes(b), lmax(l), shortest(s), no_padding(np), single_gadget(sg), chainable(chnbl),
     lower_valid_write_addr(lower_addr), higher_valid_write_addr(higher_addr),
     initial_pop_constant_comment(ic){}
 
@@ -489,7 +489,7 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
     Assertion* assertion = new Assertion();
     ROPChain* chain;
     SearchResultsBinding res;
-    
+        
     /* Initialize the global fail record */ 
     g_fail_record.reset();
     
@@ -500,7 +500,9 @@ SearchResultsBinding search(DestArg dest, AssignArg assign,SearchParametersBindi
         constraint->add(new ConstrBadBytes(params.bad_bytes), true);
     /* Add chainable constraint if the query dest isn't the instruction 
      * pointer */
-    constraint->add(new ConstrReturn(true, false, false), true);
+    if( params.chainable ){
+		constraint->add(new ConstrReturn(true, false, false), true);
+	}
     
     /* Add basic assertions */
     /* Always valid to write to stack pointer */ 
@@ -688,9 +690,9 @@ ROPChain* search_shortest(DestArg dest, AssignArg assign, SearchEnvironment* env
 
 vector<int> _gadget_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env, int nb=1){
     if( assign.type == ASSIGN_SYSCALL ){
-        throw_exception("DEBUG TO IMPLEMENT");
+        return gadget_db()->find_syscall(env->constraint(), env->assertion(), nb, env->fail_record());
     }else if( assign.type == ASSIGN_INT80 ){
-        throw_exception("DEBUG TO IMPLEMENT");
+        return gadget_db()->find_int80(env->constraint(), env->assertion(), nb, env->fail_record());
     }else{
         switch(dest.type){
             // reg <- ? 
@@ -762,6 +764,8 @@ ROPChain* basic_db_lookup(DestArg dest, AssignArg assign, SearchEnvironment* env
         }
         tmp_constraint->add(new ConstrReturn(true, true, true), true);
     }
+    
+    /* If the destination is 
     
     /* Set the constraint if not yet done */ 
     if( tmp_constraint == nullptr ){
