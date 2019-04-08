@@ -1,3 +1,7 @@
+<p align="center" >
+<img width="100%" src="https://github.com/Boyan-MILANOV/ropgenerator/tree/cpp-version/ressources/ascii_screen.png"/><br />
+</p>
+
 # About
 
 ROPGenerator is a tool that makes ROP-exploits easy. It automatically extracts and analyses gadgets from binaries and
