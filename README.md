@@ -15,24 +15,30 @@ Key features:
 # Content
 - [About](#about)
 - [Installation](#installation)
+- [Getting started](#getting-started)
 
 # Installation
-## Install dependencies
-Install pybind11: 
+Frist install [pybind11](https://github.com/pybind/pybind11): 
 
 ```console
-TODO
+sudo apt install python3-dev
+apt install cmake
+git clone https://github.com/pybind/pybind11 && cd pybind11 
+mkdir build
+cd build
+cmake ..
+make check -j 4
 ```
 
-Install latest ROPgadget release: 
+Then you need the latest [ROPgadget](https://github.com/JonathanSalwan/ROPgadget) release: 
 
 ```console
-git clone https://github.com/JonathanSalwan/ROPgadget
-cd ROPgadget
+sudo pip install capstone
+git clone https://github.com/JonathanSalwan/ROPgadget && cd ROPgadget
 python setup.py install 
 ```
 
-## Install ROPGenerator
+Finally install ROPGenerator:
 
 ```console
 git clone https://github.com/Boyan-MILANOV/ropgenerator
@@ -40,5 +46,5 @@ cd ropgenerator
 python3 setup.py install --user
 ``` 
 
-## Getting started
+# Getting started
 TODO
