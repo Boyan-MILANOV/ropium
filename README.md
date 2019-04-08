@@ -1,5 +1,5 @@
 <p align="center" >
-<img width="100%" src="https://github.com/Boyan-MILANOV/ropgenerator/tree/cpp-version/ressources/ascii_screen.png"/><br />
+<img src="https://github.com/Boyan-MILANOV/ropgenerator/tree/cpp-version/ressources/ascii_screen.png"/><br />
 </p>
 
 # About
