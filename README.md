@@ -1,0 +1,44 @@
+# About
+
+ROPGenerator is a tool that makes ROP-exploits easy. It automatically extracts and analyses gadgets from binaries and
+lets you find ROP-chains with semantic queries. The tool supports *X86* and *X64* architectures, soon to be 
+extended with *ARM*. 
+
+Key features:
+
+   - **Automatic chaining**: ROPGenerator automatically combines gadgets to create complex ROP-chains
+   - **Semantic queries**: ROPGenerator builds ROP-chains from simple queries: ``rax=rbx+8``, ``mem(rdi+0x20)=rax``, ``...``
+   - **Functions**: ROPGenerator supports calling functions with different conventions: ``System V AMD64``, ``CDECL``,  ``...`` 
+   - **Syscalls**: ROPGenerator can build chains for various syscalls: ``execve()``, ``setuid()``, ``mmap()``, ``...`` 
+     
+     
+# Content
+- [About](#about)
+- [Installation](#installation)
+
+# Installation
+## Install dependencies
+Install pybind11: 
+
+```console
+TODO
+```
+
+Install latest ROPgadget release: 
+
+```console
+git clone https://github.com/JonathanSalwan/ROPgadget
+cd ROPgadget
+python setup.py install 
+```
+
+## Install ROPGenerator
+
+```console
+git clone https://github.com/Boyan-MILANOV/ropgenerator
+cd ropgenerator
+python3 setup.py install --user
+``` 
+
+## Getting started
+TODO
