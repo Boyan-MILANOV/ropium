@@ -24,31 +24,26 @@ Key features:
 # Installation
 Frist install [pybind11](https://github.com/pybind/pybind11): 
 
-```console
-sudo apt install python3-dev
-apt install cmake
-git clone https://github.com/pybind/pybind11 && cd pybind11 
-mkdir build
-cd build
-cmake ..
-make check -j 4
-```
+      sudo apt install python3-dev
+      apt install cmake
+      git clone https://github.com/pybind/pybind11 && cd pybind11 
+      mkdir build
+      cd build
+      cmake ..
+      make check -j 4
 
 Then you need the latest [ROPgadget](https://github.com/JonathanSalwan/ROPgadget) release: 
 
-```console
-sudo pip install capstone
-git clone https://github.com/JonathanSalwan/ROPgadget && cd ROPgadget
-python setup.py install 
-```
+
+      sudo pip install capstone
+      git clone https://github.com/JonathanSalwan/ROPgadget && cd ROPgadget
+      python setup.py install 
 
 Finally install ROPGenerator:
 
-```console
-git clone https://github.com/Boyan-MILANOV/ropgenerator
-cd ropgenerator
-python3 setup.py install --user
-``` 
+      git clone https://github.com/Boyan-MILANOV/ropgenerator && cd ropgenerator
+      python3 setup.py install --user
+
 
 # Getting started
 TODO
