@@ -46,8 +46,12 @@ Finally install and run ROPGenerator:
 
 # Getting started
 ## Load & Analyze binary 
-
 <p align="center">
-  <img src="/ressources/load.gif" width="650" align="middle">
+  <img src="/ressources/load.gif" width="800" align="middle">
+</p>
+
+## Find ROP-chains
+<p align="center">
+  <img src="/ressources/find.gif" width="1100" align="middle">
 </p>
 
