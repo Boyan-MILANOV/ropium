@@ -1521,6 +1521,10 @@ pair<bool,AssignArg> _adjust_store_adapt_dest_arg(DestArg requested, DestArg ava
     cst_t res_cst;
     AssignArg res;
     
+    // Don't adjust for sp and ip
+    if( requested.addr_reg == curr_arch()->ip() || requested.addr_reg == curr_arch()->sp())
+        return make_pair(false, res);
+        
     if( available.type != DST_MEM )
         return make_pair(false, res); 
     switch(requested.type){
@@ -1558,6 +1562,11 @@ pair<bool,AssignArg> _adjust_store_adapt_assign_arg(AssignArg requested, AssignA
     bool success;
     cst_t res_cst; 
     AssignArg res = requested;
+    
+    // Don't adjust for sp and ip
+    if( requested.reg == curr_arch()->ip() || requested.reg == curr_arch()->sp())
+        return make_pair(false, res);
+    
     if( available.type != ASSIGN_REG_BINOP_CST ){
         return make_pair(false, res);
     }
@@ -1875,6 +1884,10 @@ pair<bool,AssignArg> _adjust_load_adapt_assign_arg(AssignArg requested, AssignAr
                 return make_pair(true,AssignArg(ASSIGN_CST, res_cst));
             break;
         case ASSIGN_MEM_BINOP_CST:
+            /* Forbid using sp or ip in the assignment*/ 
+            if( requested.addr_reg == curr_arch()->ip() || requested.addr_reg == curr_arch()->sp() ){
+                return make_pair(false, res);
+            }
             /* Find the cst to put in the register */
             std::tie(success, res_cst)= _invert_operation(requested.addr_cst, available.addr_op, available.addr_cst);
             if( success )
@@ -1947,7 +1960,13 @@ ROPChain* chain_adjust_load(DestArg dest, AssignArg assign, SearchEnvironment* e
     tmp_constraint = nullptr;
 	/* Loop through all possibilities */
     for( it = possible->begin(); it != possible->end(); it++ ){
-		/* Get sp increment for the gadget (will determine the max
+		/* Don't use ip or sp */
+        if( std::get<1>(*it).addr_reg == curr_arch()->ip() || 
+                std::get<1>(*it).addr_reg == curr_arch()->sp() ){
+            continue;
+        }
+        
+        /* Get sp increment for the gadget (will determine the max
          * length allowed for adjustement ROPChains) */ 
         gadget_sp_inc = gadget_db()->get(std::get<2>(*it).at(0))->sp_inc()/curr_arch()->octets();
         /* Build new arguments for assign */ 
