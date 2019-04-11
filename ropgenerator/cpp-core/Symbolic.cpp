@@ -570,7 +570,6 @@ Semantics* IRBlock::compute_semantics(bool discard_ignored_regs){
                     delete instr_table;
                     throw_exception("Invalid arg type for dst in IR_UNKNOWN instruction"); 
                 }
-                
             }
         }catch(too_many_values& e){
             delete src1;
