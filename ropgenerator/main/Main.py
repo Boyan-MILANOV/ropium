@@ -67,16 +67,18 @@ def main():
                 print(helpStr)
             elif( command == CMD_SEARCH ):
                 if( loaded_binary() ):
+                    print('')
                     finish = not semantic_mode()
                 else:
                     error("You have to load a binary before entering semantic mode")
             elif( command == CMD_EXPLOIT ):
+                print('')
                 finish = not exploit_mode()
             elif( command == "test" ):
                 print_gadget(gadget_db_get(int(args[1])))
             else:
                 error("Unknown command '{}'".format(command))
-            if( command != None ):
+            if( command != None and command != CMD_SEARCH and command != CMD_EXPLOIT):
                 print('')
         except KeyboardInterrupt:
             pass

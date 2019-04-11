@@ -10,6 +10,7 @@ from ropgenerator.main.Load import biggest_gadget_address
 #   Parsing functions  #
 ########################
 
+
 def parse_function(string):
     def seek(char, string):
         for i in range(0, len(string)):
