@@ -314,7 +314,7 @@ bool Gadget::lthan(shared_ptr<Gadget> other){
     }else{
         return _nb_instr_ir < other->nb_instr_ir(); 
     }
-    /* TODO DEBUG: maybe check also pre-conditions and mem accesses, also return types ? */ 
+    /* TODO: maybe check also pre-conditions and mem accesses, also return types ? */
 }
 
 ostream& operator<<(ostream& os, Gadget* g){

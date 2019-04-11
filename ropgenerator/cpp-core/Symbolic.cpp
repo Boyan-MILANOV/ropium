@@ -579,7 +579,7 @@ Semantics* IRBlock::compute_semantics(bool discard_ignored_regs){
             delete comb; 
             delete tmp;
             delete dst;
-            return new Semantics(); // DEBUG faire remonter l'erreur et annuler le gadget pour opti ;) 
+            return new Semantics(); // TODO faire remonter l'erreur et annuler le gadget pour test/opti ;) 
         }
     }
     
