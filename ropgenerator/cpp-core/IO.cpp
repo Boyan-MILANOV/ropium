@@ -40,6 +40,9 @@ void verbose(string s){
     if( g_VERBOSE )
         cout << str_ropg("\t\t> ") << s << endl; 
 }
+void set_verbose(bool val){
+    g_VERBOSE = val;
+}
 
 // String coloration 
 string str_bold(string s){

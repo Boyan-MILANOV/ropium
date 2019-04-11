@@ -22,6 +22,7 @@ void error(string s);
 void fatal(string s);
 void alert(string s);
 void verbose(string s);
+void set_verbose(bool val);
 
 string banner(vector<string> s);
 string str_bold(string s);
