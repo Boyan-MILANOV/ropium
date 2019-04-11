@@ -27,6 +27,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     m.def("fatal",&fatal);
     m.def("alert", &alert);
     m.def("verbose",&verbose);
+    m.def("set_io_verbose", &set_verbose);
     m.def("banner",&banner);
 
     m.def("str_bold",&str_bold);
