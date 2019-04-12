@@ -384,4 +384,8 @@ def parse_cst(string, check_size=False):
             return None
     return cst
 
+def bytes_to_str(bytes_str):
+    return ''.join([chr(b) for b in bytes_str])
+
+        
 
