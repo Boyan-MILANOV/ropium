@@ -1,5 +1,6 @@
 from ropgenerator_core_ import ROPChain
 from ropgenerator.core.IO import *
+from ropgenerator.core.Gadget import get_gadgets_offset
 
 ### PwnChain -> list of ROP-chains wuth comments :)
 class PwnChain:
@@ -30,13 +31,14 @@ class PwnChain:
             return ""
         tab = "" if no_tab else "\t"
         sep = "-"
-        padding_message = "Padding goes here"
+        padding_message = "Padding & offset go here"
         res = ""
         res += tab+"# " +sep*len(padding_message) + "\n"
-        res += tab+"# "+str_exploit("Padding goes there\n")
+        res += tab+"# "+str_exploit(padding_message)
         res += tab+"# " +sep*len(padding_message) + "\n"
         res += tab+"from struct import pack\n"
-        res += tab+"p = ''\n\n"
+        res += tab+"p = '' # Padding\n"
+        res += tab +'off = ' + hex(get_gadgets_offset()) + " # Offset\n\n"
         for i in range(0, len(self.chains)):
             info_str = tab + "# " + sep*len(self.comments[i]) + '\n\t# ' + str_exploit(self.comments[i]+'\n') + tab + "# " + sep*len(self.comments[i]) + '\n'
             chain_str = self.chains[i].to_str_python(octets, bad_bytes, False, no_tab) + '\n'

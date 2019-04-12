@@ -206,6 +206,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     );
     
     m.def("set_gadgets_offset", &set_gadgets_offset);
+    m.def("get_gadgets_offset", &get_gadgets_offset);
     
     /* Database Bindings */
 
