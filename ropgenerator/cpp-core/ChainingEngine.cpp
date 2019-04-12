@@ -82,6 +82,7 @@ bool AssignArg::operator==(AssignArg& other){
 FailRecord::FailRecord(){
     _max_len = false;
     _no_valid_padding = false;
+    _bad_byte = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, sizeof(_bad_bytes));
     memset(_bad_bytes_index, -1, sizeof(_bad_bytes_index));
@@ -89,6 +90,7 @@ FailRecord::FailRecord(){
 
 FailRecord::FailRecord(bool max_len): _max_len(max_len){
     _no_valid_padding = false;
+    _bad_byte = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, sizeof(_bad_bytes));
     memset(_bad_bytes_index, -1, sizeof(_bad_bytes_index));
@@ -98,7 +100,8 @@ bool FailRecord::max_len(){ return _max_len;}
 bool FailRecord::no_valid_padding(){ return _no_valid_padding;}
 bool FailRecord::modified_reg(int reg_num){ return _modified_reg[reg_num];}
 bool* FailRecord::bad_bytes(){ return _bad_bytes;}
-bool FailRecord::bad_byte(unsigned char bad_byte){ return _bad_bytes[bad_byte];}
+bool FailRecord::bad_byte(){return _bad_byte;}
+bool FailRecord::get_bad_byte(unsigned char bad_byte){ return _bad_bytes[bad_byte];}
 int FailRecord::bad_byte_index(unsigned char bad_byte){return _bad_bytes_index[bad_byte];}
 
 void FailRecord::set_max_len(bool val){ _max_len = val;}
@@ -107,11 +110,13 @@ void FailRecord::add_modified_reg(int reg_num){ _modified_reg[reg_num] = true;}
 void FailRecord::add_bad_byte(unsigned char bad_byte, int index){ 
 	_bad_bytes[bad_byte] = true; 
 	_bad_bytes_index[bad_byte] = index;
+    _bad_byte = true;
 }
 
 void FailRecord::copy_from(FailRecord* other){
     _max_len = other->_max_len;
     _no_valid_padding = other->_no_valid_padding;
+    _bad_byte = other->_bad_byte;
     memcpy(_modified_reg, other->_modified_reg, sizeof(_modified_reg));
     memcpy(_bad_bytes, other->_bad_bytes, sizeof(_bad_bytes));
     memcpy(_bad_bytes_index, other->_bad_bytes_index, sizeof(_bad_bytes_index));
@@ -120,6 +125,7 @@ void FailRecord::merge_with(FailRecord* other){
     unsigned int i;
     _max_len |= other->_max_len;
     _no_valid_padding |= other->_no_valid_padding;
+    _bad_byte |= other->_bad_byte;
     for( i = 0; i < sizeof(_modified_reg); i++){
         _modified_reg[i] |= other->_modified_reg[i];
     }
@@ -132,6 +138,7 @@ void FailRecord::merge_with(FailRecord* other){
 void FailRecord::reset(){
     _max_len = false;
     _no_valid_padding = false;
+    _bad_byte = false;
     memset(_modified_reg, false, NB_REGS_MAX);
     memset(_bad_bytes, false, sizeof(_bad_bytes));
     memset(_bad_bytes_index, -1, sizeof(_bad_bytes_index));
@@ -1461,7 +1468,7 @@ ROPChain* chain_adjust_ret(DestArg dest, AssignArg assign, SearchEnvironment* en
             }
         }
         /* If could not set ret_reg, put it in the record */ 
-        if( !found && !adjust_gadgets.empty() && !env->fail_record()->max_len()){
+        if( !found && !adjust_gadgets.empty() && !env->fail_record()->max_len() && !env->fail_record()->bad_byte()){
             env->adjust_ret_record()->add_fail(ret_reg);
         }
     }

@@ -270,6 +270,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     
     py::class_<FailRecord>(m, "FailRecord")
         .def("bad_byte", &FailRecord::bad_byte)
+        .def("get_bad_byte", &FailRecord::get_bad_byte)
         .def("bad_byte_index", &FailRecord::bad_byte_index);
     
     py::class_<SearchParametersBinding>(m, "SearchParametersBinding")

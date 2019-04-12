@@ -204,11 +204,7 @@ def load(args):
     print('')
     info(str_bold("Scanning file")+ " '" + filename + "'\n")
     init_scanner(filename)
-    
-    # # Cleaning the data structures
-    # initDB()
-    # Arch.reinit()
-    
+        
     # # Get architecture and OS info  
     arch = getPlatformInfo(filename)
     if(arch == user_arch == None):
