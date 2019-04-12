@@ -39,6 +39,6 @@ class PwnChain:
         res += tab+"p = ''\n\n"
         for i in range(0, len(self.chains)):
             info_str = tab + "# " + sep*len(self.comments[i]) + '\n\t# ' + str_exploit(self.comments[i]+'\n') + tab + "# " + sep*len(self.comments[i]) + '\n'
-            chain_str = self.chains[i].to_str_console(octets, bad_bytes) + '\n'
+            chain_str = self.chains[i].to_str_python(octets, bad_bytes, False, no_tab) + '\n'
             res += info_str + chain_str
         return res
