@@ -97,7 +97,7 @@ You can save shellcodes in ROPGenerator, then use them with advanced commands, s
 **Boyan MILANOV** - bmilanov (at) quarkslab (dot) com 
 
 # Licence
-ROPGenrator is provided under the MIT licence.
+ROPGenerator is provided under the MIT licence.
 
 # Special thanks
 ROPGenerator uses the following awesome projects: 
