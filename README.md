@@ -22,7 +22,11 @@ Key features:
 - [Getting started](#getting-started)
    - [Load a binary](#load-a-binary)
    - [Find ROP-chains](#find-rop-chains)
+   - [Use constraints](#use-constraints)
    - [Call functions](#call-functions)
+   - [Make syscalls](#make-syscalls)
+   - [Alloc-Copy-Execute shellcode](#alloc-copy-execute-shellcode)
+   
 - [Contact](#contact)
 - [Licence](#licence)
 - [Special thanks](#special-thanks)
@@ -61,9 +65,33 @@ Finally install and run ROPGenerator:
   <img src="/ressources/find.gif" width="800" align="middle">
 </p>
 
+### Use constraints
+ROPGenerator support many options for ROP-chains, including: 
+   - Bad bytes to avoid
+   - Registers that shouldn't be clobbered 
+   - Offset to add to gadget addresses 
+   - Maximum length 
+   - Output format (*raw*, *python code*, ...)
+   
+<p align="center">
+  <img src="/ressources/options.gif" width="800" align="middle">
+</p>
+
 ### Call functions
 <p align="center">
   <img src="/ressources/function.gif" width="800" align="middle">
+</p>
+
+### Make syscalls
+<p align="center">
+  <img src="/ressources/syscall.gif" width="800" align="middle">
+</p>
+
+### Alloc-Copy-Execute shellcode
+You can save shellcodes in ROPGenerator, then use them with advanced commands, such as **ace** which automatically delivers the shellcode in memory, makes the memory executable, and jumps to execute it
+
+<p align="center">
+  <img src="/ressources/ace.gif" width="800" align="middle">
 </p>
 
 # Contact
