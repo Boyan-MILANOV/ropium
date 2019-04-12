@@ -124,13 +124,13 @@ string ROPChain::to_str_console(int octets, vector<unsigned char> bad_bytes){
     for(it = _chain.begin(); it != _chain.end(); it++){
         if( *it >= 0 ){
             // Gadget 
-            ss << "\n\t" << str_special(valid_addr_str(octets, gadget_db()->get(*it), bad_bytes)) << " (" << 
-                str_bold(gadget_db()->get(*it)->asm_str()) << ")";
+            ss << "\t" << str_special(valid_addr_str(octets, gadget_db()->get(*it), bad_bytes)) << " (" << 
+                str_bold(gadget_db()->get(*it)->asm_str()) << ")\n";
         }else{
             // Padding 
             padd_num = -1*(*it)-1;
-            ss << "\n\t" << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num))) << " (" << 
-            _padding_comments.at(padd_num) << ")"; 
+            ss << "\t" << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num))) << " (" << 
+            _padding_comments.at(padd_num) << ")\n"; 
         }
     } 
     return ss.str(); 
@@ -153,26 +153,26 @@ string ROPChain::to_str_python(int octets, vector<unsigned char> bad_bytes, bool
     pack = p + " += pack(" + endian + ", "; 
     
     if( init ){
-        ss << "\n" << tab << "from struct import pack" ;
+        ss << tab << "from struct import pack" ;
         ss << "\n" << tab << "off = 0x" << std::hex << get_gadgets_offset();
-        ss << "\n" << tab << p << " += ''"; 
+        ss << "\n" << tab << p << " += ''" << endl; 
     }
     for(it = _chain.begin(); it != _chain.end(); it++){
         if( *it >= 0 ){
             // Gadget
-            ss << "\n" << tab << pack << valid_addr_str(octets, gadget_db()->get(*it), bad_bytes, true, true) <<
-                ") # " << str_bold(gadget_db()->get(*it)->asm_str());
+            ss <<  tab << pack << valid_addr_str(octets, gadget_db()->get(*it), bad_bytes, true, true) <<
+                ") # " << str_bold(gadget_db()->get(*it)->asm_str()) << "\n";
         }else{
             // Padding 
             padd_num = -1*(*it)-1;
             if( _padding_offsets.at(padd_num))
                 /* We substract the offset because we'll print '+off', that's an ugly hack but fuck it it's 
                  * working */ 
-                ss << "\n" << tab << pack << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num) - get_gadgets_offset())) << " + off) # " << 
-                _padding_comments.at(padd_num); 
+                ss << tab << pack << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num) - get_gadgets_offset())) << " + off) # " << 
+                _padding_comments.at(padd_num) << "\n" ; 
             else
-                ss << "\n" << tab << pack << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num))) << ") # " << 
-                _padding_comments.at(padd_num); 
+                ss << tab << pack << str_special(value_to_hex_str(octets, (addr_t)_padding_values.at(padd_num))) << ") # " << 
+                _padding_comments.at(padd_num) << "\n"; 
         }
     }
     return ss.str(); 

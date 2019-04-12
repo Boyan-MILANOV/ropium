@@ -89,6 +89,7 @@ def find(args):
     if( not keyboard_interrupt ):
         # Print result 
         if( res.found ):
+            print('')
             if( OUTPUT == OUTPUT_CONSOLE ):
                 print(res.chain.to_str_console(curr_arch_bits()//8, bad_bytes ))
             elif( OUTPUT == OUTPUT_PYTHON ):
