@@ -26,7 +26,6 @@ Key features:
    - [Call functions](#call-functions)
    - [Make syscalls](#make-syscalls)
    - [Alloc-Copy-Execute shellcode](#alloc-copy-execute-shellcode)
-   
 - [Contact](#contact)
 - [Licence](#licence)
 - [Special thanks](#special-thanks)
