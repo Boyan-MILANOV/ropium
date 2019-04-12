@@ -155,7 +155,7 @@ string ROPChain::to_str_python(int octets, vector<unsigned char> bad_bytes, bool
     if( init ){
         ss << tab << "from struct import pack" ;
         ss << "\n" << tab << "off = 0x" << std::hex << get_gadgets_offset();
-        ss << "\n" << tab << p << " += ''" << endl; 
+        ss << "\n" << tab << p << " = ''" << endl; 
     }
     for(it = _chain.begin(); it != _chain.end(); it++){
         if( *it >= 0 ){
