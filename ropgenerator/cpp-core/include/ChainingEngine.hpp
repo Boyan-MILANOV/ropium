@@ -75,6 +75,7 @@ class FailRecord{
     bool _modified_reg[NB_REGS_MAX];        /* Modified reg that should be kept */ 
     bool _bad_bytes[256];                   /* Gadget could be used but bad bytes in addresses */
     int _bad_bytes_index[256];				/* Index of the byte that was bad */ 
+    bool _bad_byte;                         /* At least one bad_byte fail occured */ 
     
     public:
         FailRecord();
@@ -83,9 +84,10 @@ class FailRecord{
         bool max_len(); 
         bool no_valid_padding();
         bool modified_reg(int reg_num);
-        bool bad_byte(unsigned char bad_byte);
+        bool get_bad_byte(unsigned char bad_byte);
         int bad_byte_index(unsigned char bad_byte);
         bool* bad_bytes(); 
+        bool bad_byte();
         // Modifiers
         void set_max_len(bool val);
         void set_no_valid_padding(bool val);
