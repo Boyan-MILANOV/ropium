@@ -80,11 +80,10 @@ def get_function_address(func_name):
     return (None, None)
 
 def verify_bad_bytes(addr, bad_bytes):
-    addrBytes = re.findall('..',('{:'+'{:02d}'\
-        .format(curr_arch_octets())+'x}').format(addr))
-    for byte in bad_bytes:
-        if( byte in addrBytes):
+    for i in range(0, curr_arch_octets()):
+        if( (addr & 0xff) in bad_bytes ):
             return False
+        addr = addr >> 8
     return True
     
 # Find a string chnk by chunk in the binary
