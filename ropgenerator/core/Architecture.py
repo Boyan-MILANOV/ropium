@@ -41,21 +41,21 @@ def reg_str_to_num(reg_str):
 
 
 map_x86_reg_names = { 
-"eax",RegX86.EAX,
-"ebx",RegX86.EBX,
-"ecx",RegX86.ECX,
-"edx",RegX86.EDX,
-"esi",RegX86.ESI,
-"edi",RegX86.EDI,
-"esp",RegX86.ESP,
-"eip",RegX86.EIP,
-"ebp",RegX86.EBP,
-"zf",RegX86.ZF,
-"cf",RegX86.CF,
-"sf",RegX86.SF,
-"pf",RegX86.PF,
-"af",RegX86.AF,
-"of",RegX86.OF
+"eax":RegX86.EAX,
+"ebx":RegX86.EBX,
+"ecx":RegX86.ECX,
+"edx":RegX86.EDX,
+"esi":RegX86.ESI,
+"edi":RegX86.EDI,
+"esp":RegX86.ESP,
+"eip":RegX86.EIP,
+"ebp":RegX86.EBP,
+"zf":RegX86.ZF,
+"cf":RegX86.CF,
+"sf":RegX86.SF,
+"pf":RegX86.PF,
+"af":RegX86.AF,
+"of":RegX86.OF
 }
 
 map_x64_reg_names = {

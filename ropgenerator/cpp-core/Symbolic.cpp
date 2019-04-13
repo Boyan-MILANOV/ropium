@@ -232,11 +232,16 @@ struct too_many_values: public std::exception{
  * know where to insert it in the previous value using a Concat() expression
  */ 
 inline ExprObjectPtr IRBlock::full_reg_assignment(ExprObjectPtr expr, ExprObjectPtr prev, SymArg& reg){
-    // Check if we need to convert prev
+    /* DEBUG cout << "DEBUG, assign: " << expr << endl;
+    cout << "DEBUG, to prev: "  << prev << endl;
+    cout << "DEBUG symarg is "; reg.print(cout); cout << endl; */
+    
+    // Check if we need to convert the expr assigned 
     if( expr->expr_ptr()->size() != reg.high()-reg.low()+1 ){
         expr = expr->convert(reg.high()-reg.low()+1);
+        // DEBUG cout << "DEBUG, adjusted expr to: " << expr << endl;
     }
-        
+    
     if( reg.low() == 0 && reg.high() == reg.size()-1)
         return expr; 
     else if( reg.low() == 0 ){
@@ -496,6 +501,8 @@ Semantics* IRBlock::compute_semantics(bool discard_ignored_regs){
         if( ! instr_table[instr_count++] ){
             continue;
         }
+        // DEBUG
+        //it->print(cout);
         // Else, execute
         try{
             // Skip instructions setting ignored registers 

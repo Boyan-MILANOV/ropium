@@ -139,7 +139,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     py::enum_<RegX86>(m, "RegX86", py::arithmetic(), "X86 Registers")
         .value("EAX",X86_EAX).value("EBX",X86_EBX)
         .value("ECX",X86_ECX).value("EDX",X86_EDX)
-        .value("ESI",X86_ESI).value("EDI",X86_EDX)
+        .value("ESI",X86_ESI).value("EDI",X86_EDI)
         .value("ESP",X86_ESP).value("EIP",X86_EIP)
         .value("EBP",X86_EBP).value("ZF",X86_ZF)
         .value("CF",X86_CF).value("SF",X86_SF)
