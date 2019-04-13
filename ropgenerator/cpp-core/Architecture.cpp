@@ -38,7 +38,7 @@ Architecture arch_X86 = Architecture(
     0x1000, 
     ENDIAN_LITTLE, 
     X86_NB_REGS, 
-    {X86_AF, X86_CF, X86_ZF, X86_SF, X86_PF},
+    {X86_AF, X86_CF, X86_ZF, X86_SF, X86_PF, X86_OF},
     RegX86Names
 );
 

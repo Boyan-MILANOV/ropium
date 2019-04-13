@@ -548,12 +548,13 @@ pair<ExprObjectPtr, CondObjectPtr> tweak_expression(ExprPtr p){
             }else{
                 std::tie(expr2, cond2) = arg2; 
             }
-            // Concat(0, Extract(reg, x, 0)) -> reg if reg < 2^x
+            // Concat(0, Extract(reg, x, 0)) -> reg if reg < 2^x and size is sizeof(reg)
             if( expr1->expr_ptr()->type() == EXPR_CST &&
                 expr1->expr_ptr()->value() == 0 &&
                 expr2->expr_ptr()->type() == EXPR_EXTRACT &&
                 expr2->expr_ptr()->low() == 0 && 
-                expr2->expr_ptr()->arg_expr_ptr()->type() == EXPR_REG 
+                expr2->expr_ptr()->arg_expr_ptr()->type() == EXPR_REG &&
+                p->size() == curr_arch()->bits()
                 ){
                 return make_pair(NewExprReg(expr2->expr_ptr()->arg_expr_ptr()->num(), curr_arch()->bits()), 
                                  cond1 && cond2 && NewCondCompare(COND_LT, NewExprReg(expr2->expr_ptr()->arg_expr_ptr()->num(),
