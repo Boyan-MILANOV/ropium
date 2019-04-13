@@ -34,18 +34,19 @@ Key features:
 First install [pybind11](https://github.com/pybind/pybind11): 
 
       sudo apt install python3-dev
-      apt install cmake
+      sudo apt install cmake
+      pip3 install pytest 
+      pip3 install pybind11
       git clone https://github.com/pybind/pybind11 && cd pybind11 
-      mkdir build
-      cd build
+      mkdir build && cd build
       cmake ..
       make check -j 4
 
 Then you need the latest [ROPgadget](https://github.com/JonathanSalwan/ROPgadget) release: 
 
-      sudo pip install capstone
+      pip install capstone --user
       git clone https://github.com/JonathanSalwan/ROPgadget && cd ROPgadget
-      python setup.py install 
+      python setup.py install --user 
 
 Finally install and run ROPGenerator:
 
