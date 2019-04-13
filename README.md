@@ -42,7 +42,12 @@ First install [pybind11](https://github.com/pybind/pybind11):
       cmake ..
       make check -j 4
 
-Then you need the latest [ROPgadget](https://github.com/JonathanSalwan/ROPgadget) release: 
+Then install [BARF](https://github.com/programa-stic/barf-project):
+
+      git clone https://github.com/programa-stic/barf-project && cd barf-project
+      python3 setup.py install --user
+
+You also need the latest [ROPgadget](https://github.com/JonathanSalwan/ROPgadget) release: 
 
       pip install capstone --user
       git clone https://github.com/JonathanSalwan/ROPgadget && cd ROPgadget
