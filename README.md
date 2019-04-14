@@ -49,7 +49,7 @@ Then install [BARF](https://github.com/programa-stic/barf-project):
 
 You also need the latest [ROPgadget](https://github.com/JonathanSalwan/ROPgadget) release: 
 
-      pip install capstone --user
+      pip install capstone
       git clone https://github.com/JonathanSalwan/ROPgadget && cd ROPgadget
       python setup.py install --user 
 
