@@ -80,10 +80,18 @@ class REILOperationNotSupported(Exception):
         return self.msg
         
 def pycst_to_cppcst(val):
-    if( val >= 2**(curr_arch_bits()-1)):
-        return val - (2**curr_arch_bits());
-    else:
-        return val
+    # For 64 bits 
+    if( curr_arch_bits() == 64 ):
+        if( val >= 2**(curr_arch_bits()-1)):
+            return val - (2**curr_arch_bits());
+        else:
+            return val
+    # For 32 bits
+    elif( curr_arch_bits() == 32 ):
+        if( val >= 0 ):
+            return val
+        else:
+            return (2**32) - val
 
 def barf_operand_to_IR(operand, alias_mapper):
     if( isinstance(operand, ReilImmediateOperand )):
