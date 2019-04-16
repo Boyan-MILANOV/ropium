@@ -43,6 +43,8 @@ def reg_str_to_num(reg_str):
     else:
         raise Exception("Arch not supported in this function")
 
+def is_arm(arch_type):
+    return arch_type in [ArchType.ARCH_ARM32]
 
 map_x86_reg_names = { 
 "eax":RegX86.EAX,
