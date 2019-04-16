@@ -52,6 +52,7 @@ def semantic_mode():
             if( command == CMD_FIND ):
                 find(args[1:])
             elif( command == CMD_EXIT ):
+                print('')
                 return False
             elif( command == CMD_HELP ):
                 print(helpStr)
