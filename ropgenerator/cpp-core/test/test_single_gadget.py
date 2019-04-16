@@ -15,11 +15,12 @@ from barf.arch.x86.x86 import *
 
 # X64 
 set_bin_type(BinType.ELF32)
-set_arch(ArchType.ARCH_X86)
+set_arch(ArchType.ARCH_ARM32)
 
 #raw = "\x48\x89\xD8" # MOV RAX,RBX
 #raw = b'\x01\xF8\x30\xED\x01\xC8\x5F\xC3'
-raw = b'\x30\xED\x01\xC8\xC3'
+#raw = b'\x30\xED\x01\xC8\xC3'
+raw = b'\xf0\x8f\xbd\xe8'
 
 init_gadget_db();
 

@@ -83,10 +83,10 @@ bool ROPChain::lthan(ROPChain* other){
 
 // String representation 
 string valid_addr_str(int octets, shared_ptr<Gadget> g, vector<unsigned char> bad_bytes, bool offset=false, bool color=false){
-    int i;
+    int i=0;
     vector<addr_t>::iterator it; 
     vector<addr_t>* addr_list = g->addresses();
-    addr_t address;
+    addr_t address=0;
     addr_t off = get_gadgets_offset();
     for( it = addr_list->begin(); it != addr_list->end(); it++){
         // Test if bad bytes inside 

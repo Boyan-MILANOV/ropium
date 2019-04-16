@@ -110,6 +110,7 @@ map_arm32_reg_names = {
 "r13":RegARM32.R13,
 "r14":RegARM32.R14,
 "r15":RegARM32.R15,
+"apsr":RegARM32.APSR
 }
 
 def get_curr_reg_map():
