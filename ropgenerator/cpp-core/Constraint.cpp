@@ -261,6 +261,15 @@ SubConstraint* ConstrMinSpInc::copy(){
     return new ConstrMinSpInc(_inc); 
 }
 
+// ConstrThumbMode
+ConstrThumbMode::ConstrThumbMode(): SubConstraint(CONSTR_THUMB_MODE){}
+pair<ConstrEval,CondObjectPtr> ConstrThumbMode::verify(shared_ptr<Gadget> g, FailRecord* fail_record){
+    return make_pair(EVAL_MAYBE, NewCondCPUMode(COND_THUMB_MODE));
+}
+SubConstraint* ConstrThumbMode::copy(){
+    return new ConstrThumbMode();
+}
+
 
 // Constraint class (collection of subconstraints)
 Constraint::Constraint(){
@@ -754,6 +763,17 @@ void AssertRegInfTo::merge(SubAssertion* a, bool del){
         delete a; 
 }
 
+// AssertThumbMode
+AssertThumbMode::AssertThumbMode():SubAssertion(ASSERT_THUMB_MODE){}
+bool AssertThumbMode::validate(CondObjectPtr c){
+    return ( c->cond_ptr()->type() == COND_THUMB_MODE );
+}
+SubAssertion* AssertThumbMode::copy(){
+    return new AssertThumbMode();
+}
+
+
+
 // Assertion class (collection of subassertions)
 Assertion::Assertion(){
     std::memset(_assert, 0, COUNT_NB_ASSERT*sizeof(SubAssertion*)); 
@@ -797,8 +817,10 @@ bool Assertion::validate(CondObjectPtr c){
             return  validate(c->cond_ptr()->left_condobject_ptr()) && 
                     validate(c->cond_ptr()->right_condobject_ptr());
         case COND_OR:
-            return  validate(c->cond_ptr()->left_condobject_ptr()) && 
+            return  validate(c->cond_ptr()->left_condobject_ptr()) || 
                     validate(c->cond_ptr()->right_condobject_ptr());
+        case COND_THUMB_MODE:
+            return _assert[ASSERT_THUMB_MODE] != nullptr;
         default:
             return false; 
     }
