@@ -118,10 +118,10 @@ def get_gadgets(filename, extra_args='', thumb=False):
     cmd_string = ''
     try:
         cmd = [ropgadget,"--binary", filename, "--dump", "--all"]
+        if( thumb ):
+            cmd += ["--thumb", "--depth", "6"] # Reduce depth for thumb
         if( extra_args ):
             cmd += extra_args.split(" ")
-        if( thumb ):
-            cmd.append("--thumb")
         cmd_string = " ".join(cmd)
         notify("Executing ROPgadget as: " + cmd_string)
         (outdata, errdata) = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
@@ -253,80 +253,109 @@ def load(args):
         thumb_gadget_list = get_gadgets(filename, ropgadget_options, thumb=True)
     else:
         thumb_gadget_list = []
+    if( thumb_gadget_list is None ):
+        return
         
     notify("Gadgets generated: " +  str_special(str(len(gadget_list) + len(thumb_gadget_list))))
-
-    # DEBUG
-    return 
     
     # Analyse gadgets 
     keyboard_interrupt = False
-    try: 
-        init_gadget_db()
-        init_chaining_engine()
-        start_time = datetime.now()
-        dup = dict()
-        count = 0
-        total = 0
-        print('')
-        info(str_bold("Analyzing gadgets\n"))
-        for( addr, raw) in gadget_list:
-            total += 1
-            charging_bar(len(gadget_list), total)
-            if( raw in dup ):
-                count += 1
-                gadget_db_get(dup[raw]).add_address(addr)
-                continue
-            # Check for int80 or syscall gadgets
-            if( raw == b'\xCD\x80' and curr_arch_type() in [ArchType.ARCH_X86, ArchType.ARCH_X64]):
-                gadget = Gadget(GadgetType.INT80)
-                gadget.set_hex_str("\\xcd\\x80")
-                gadget.set_asm_str("int 0x80")
-                dup[raw] = gadget_db_add(gadget)
-                # Add address
-                gadget.add_address(addr)
-                biggest_gadget_addr = max(addr, biggest_gadget_addr)
-                continue
-            elif( raw == b'\x0F\x05' and curr_arch_type() in [ArchType.ARCH_X86, ArchType.ARCH_X64]):
-                gadget = Gadget(GadgetType.SYSCALL)
-                gadget.set_hex_str("\\x0f\\x05")
-                gadget.set_asm_str("syscall")
-                dup[raw] = gadget_db_add(gadget)
-                # Add address
-                gadget.add_address(addr)
-                biggest_gadget_addr = max(addr, biggest_gadget_addr)
-                continue
-                
-            # Normal gadget
-            (irblock, asm_instr_list) = raw_to_IRBlock(raw)
-            if( not irblock is None ):
-                # Create C++ object 
-                gadget = Gadget(irblock)
-                # Set different strings 
-                asm_str = '; '.join(str(i) for i in asm_instr_list)
-                gadget.set_asm_str(asm_str)
-                gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(c) for c in raw))
-                # Manually check for call (ugly but no other solution for now)
-                if( str(asm_instr_list[-1]).split(" ")[0] == "call" and
-                    gadget.ret_type() == RetType.JMP):
-                    gadget.set_ret_type(RetType.CALL)
-                # Manually detect false positives for ret (e.g pop rax; jmp rax)
-                elif( str(asm_instr_list[-1]).split(" ")[0] == "jmp" and
-                    gadget.ret_type() == RetType.RET):
-                    gadget.set_ret_type(RetType.UNKNOWN)
-                # Add address
-                gadget.add_address(addr)
-                biggest_gadget_addr = max(addr, biggest_gadget_addr)
-                # Add instruction count
-                gadget.set_nb_instr(len(asm_instr_list))
-                gadget.set_nb_instr_ir(irblock.nb_instr())
-                # Add to database 
-                dup[raw] = gadget_db_add(gadget)
-    except KeyboardInterrupt:
-        keyboard_interrupt = True
-        charging_bar(len(gadget_list), len(gadget_list))
-    except:
-        print("<!> Unexpected exception was caught !")
+    nb_gadgets = len(gadget_list) + len(thumb_gadget_list)
+    # DEBUG try: 
+    init_gadget_db()
+    init_chaining_engine()
+    start_time = datetime.now()
+    dup = dict()
+    count = 0
+    total = 0
+    print('')
+    info(str_bold("Analyzing gadgets\n"))
+    ### For NON-THUMB gadgets
+    for( addr, raw) in gadget_list:
+        total += 1
+        charging_bar(nb_gadgets, total)
+        if( raw in dup ):
+            count += 1
+            gadget_db_get(dup[raw]).add_address(addr)
+            continue
+        # Check for int80 or syscall gadgets
+        if( raw == b'\xCD\x80' and curr_arch_type() in [ArchType.ARCH_X86, ArchType.ARCH_X64]):
+            gadget = Gadget(GadgetType.INT80)
+            gadget.set_hex_str("\\xcd\\x80")
+            gadget.set_asm_str("int 0x80")
+            dup[raw] = gadget_db_add(gadget)
+            # Add address
+            gadget.add_address(addr)
+            biggest_gadget_addr = max(addr, biggest_gadget_addr)
+            continue
+        elif( raw == b'\x0F\x05' and curr_arch_type() in [ArchType.ARCH_X86, ArchType.ARCH_X64]):
+            gadget = Gadget(GadgetType.SYSCALL)
+            gadget.set_hex_str("\\x0f\\x05")
+            gadget.set_asm_str("syscall")
+            dup[raw] = gadget_db_add(gadget)
+            # Add address
+            gadget.add_address(addr)
+            biggest_gadget_addr = max(addr, biggest_gadget_addr)
+            continue
+            
+        # Regular gadget
+        (irblock, asm_instr_list) = raw_to_IRBlock(raw)
+        if( not irblock is None ):
+            # Create C++ object 
+            gadget = Gadget(irblock)
+            # Set different strings 
+            asm_str = '; '.join(str(i) for i in asm_instr_list)
+            gadget.set_asm_str(asm_str)
+            gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(c) for c in raw))
+            # Manually check for call (ugly but no other solution for now)
+            if( str(asm_instr_list[-1]).split(" ")[0] == "call" and
+                gadget.ret_type() == RetType.JMP):
+                gadget.set_ret_type(RetType.CALL)
+            # Manually detect false positives for ret (e.g pop rax; jmp rax)
+            elif( str(asm_instr_list[-1]).split(" ")[0] == "jmp" and
+                gadget.ret_type() == RetType.RET):
+                gadget.set_ret_type(RetType.UNKNOWN)
+            # Add address
+            gadget.add_address(addr)
+            biggest_gadget_addr = max(addr, biggest_gadget_addr)
+            # Add instruction count
+            gadget.set_nb_instr(len(asm_instr_list))
+            gadget.set_nb_instr_ir(irblock.nb_instr())
+            # Add to database 
+            dup[raw] = gadget_db_add(gadget)
+   
+    ### For THUMB gadgets
+    dup2 = dict()
+    for (addr, raw) in thumb_gadget_list:
+        total += 1
+        charging_bar(nb_gadgets, total)
+        if( raw in dup2 ):
+            count += 1
+            gadget_db_get(dup2[raw]).add_address(addr)
+            continue
+        # Regular gadget
+        (irblock, asm_instr_list) = raw_to_IRBlock(raw, thumb=True)
+        if( not irblock is None ):
+            # Create C++ object 
+            gadget = Gadget(irblock)
+            # Set different strings 
+            asm_str = '; '.join(str(i) for i in asm_instr_list)
+            gadget.set_asm_str(asm_str)
+            gadget.set_hex_str("\\x" + '\\x'.join("{:02x}".format(c) for c in raw))
+            # Add address
+            gadget.add_address(addr)
+            biggest_gadget_addr = max(addr, biggest_gadget_addr)
+            # Add instruction count
+            gadget.set_nb_instr(len(asm_instr_list))
+            gadget.set_nb_instr_ir(irblock.nb_instr())
+            # Add to database 
+            dup2[raw] = gadget_db_add(gadget)
+        
+    # except KeyboardInterrupt:
+        # keyboard_interrupt = True
+        # charging_bar(nb_gadgets, nb_gadgets)
+    # except:
+        # print("<!> Unexpected exception was caught !")
         
     end_time = datetime.now()
     

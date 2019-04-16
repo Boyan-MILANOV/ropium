@@ -44,7 +44,7 @@ helpStr += '\n\t' + str_bold(CMD_EXIT) + ': \t\texit ROPGenerator'
 
 
 def main():
-    print(str_ropg(str_bold(ASCII_art)))
+    # DEBUG print(str_ropg(str_bold(ASCII_art)))
     init_logs(ROPGenerator_dir+log_file)
     finish = False
     promptSession = PromptSession(ANSI(u"("+ str_ropg(u'main') +u")> "))
