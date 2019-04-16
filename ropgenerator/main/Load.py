@@ -32,10 +32,11 @@ helpStr = banner([str_bold("'load' command"),
 helpStr += "\n\n\t"+str_bold("Usage")+":\tload [OPTIONS] <filename>"
 helpStr += "\n\n\t"+str_bold("Options")+":"
 helpStr += "\n\t\t"+str_special(OPTION_ARCH_SHORT)+","+str_special(OPTION_ARCH)+\
-" <arch>"+"\t\tmanualy specify architecture.\n\t\t\t\t\t\tAvailable: 'X86', 'X64'"
+" <arch>"+"\t\tmanualy specify architecture"
 helpStr += '\n\n\t\t'+str_special(OPTION_ROPGADGET_OPTIONS_SHORT)+","+str_special(OPTION_ROPGADGET_OPTIONS)+\
 " <opts>"+"\textra options for ROPgadget.\n\t\t\t\t\t\t<opts> must be a list of\n\t\t\t\t\t\toptions between ''"+\
 "\n\t\t\t\t\t\te.g: \'-depth 4\'"
+helpStr += "\n\n\t"+str_bold("Supported achitectures")+": "+', '.join([str_special(s) for s in available_archs_str()])
 helpStr += "\n\n\t"+str_bold("Examples")+":\n\t\tload /bin/ls \n\t\tload ../test/vuln_prog \n\t\tload -r '-norop' /bin/tar"
 
 
@@ -51,6 +52,7 @@ def getPlatformInfo(filename):
     Return : the corresponding architecture 
     """
     INTEL_strings = ["x86", "x86-64", "X86", "X86-64", "Intel", "80386"]
+    ARM_strings = ["ARM", "ARM32", "ARMv7", "ARMv8", "ARM64", "aarch64"]
     ELF32_strings = ["ELF 32-bit"]
     ELF64_strings = ["ELF 64-bit"]
     PE32_strings = ["PE32 "]
@@ -78,26 +80,33 @@ def getPlatformInfo(filename):
             notify("Unknown binary type")
             set_bin_type(BinType.BIN_UNKNOWN)
             return None
+    elif([sub for sub in ARM_strings if sub in output]):
+        if( [sub for sub in ELF32_strings if sub in output]):
+            notify("ELF 32-bits detected")
+            set_bin_type(BinType.ELF32)
+            return ArchType.ARCH_ARM32
+        elif( [sub for sub in ELF64_strings if sub in output]):
+            notify("DEBUG ARM64 not yet supported")
+            return None
+        elif( [sub for sub in PE32_strings if sub in output]):
+            notify("PE 32-bits detected")
+            set_bin_type(BinType.PE32)
+            return ArchType.ARCH_ARM32
+        elif( [sub for sub in PE64_strings if sub in output]):
+            notify("DEBUG ARM64 not yet supported")
+            return None
+        else:
+            notify("Unknown binary type")
+            set_bin_type(BinType.BIN_UNKNOWN)
+            return None
     else:
         return None
 
-def get_gadgets(filename, extra_args=''):
-    """
-    Returns a list of gadgets extracted from a file 
-    Precondition: the file exists 
-    
-    Returns
-    -------
-    list of pairs (addr, asm) if succesful
-    None if failure 
-    """    
-   
-    ropgadget = "ROPgadget"
+
+
+def run_ropgadget(cmd, thumb=False):
     cmd_string = ''
     try:
-        cmd = [ropgadget,"--binary", filename, "--dump", "--all"]
-        if( extra_args ):
-            cmd += extra_args.split(" ")
         cmd_string = " ".join(cmd)
         notify("Executing ROPgadget as: " + cmd_string)
         (outdata, errdata) = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
@@ -119,19 +128,53 @@ def get_gadgets(filename, extra_args=''):
     # Get the gadget list 
     # Pairs (address, raw_asm)
     first = True
-    count = 0
     res = []
     outs = io.StringIO(outdata.decode("ascii"))
     l = outs.readline()
+    count = 0
+    # Add 1 to THUMB addresses because ROPgadget doesn't
+    add_to_addr = 1 if thumb else 0
     while( l ):
         if('0x' in l):
             arr = l.split(' ')
             addr = arr[0]
             raw = b16decode(arr[-1].upper().strip())
-            res.append((int(addr,16), raw))
-            count += 1 
+            res.append((int(addr,16) + add_to_addr, raw))
+            count += 1
         l = outs.readline()
-    notify("Gadgets generated: " +  str_special(str(count)))
+    return res
+    
+
+def get_gadgets(filename, arch, extra_args=''):
+    """
+    Returns a list of gadgets extracted from a file 
+    Precondition: the file exists 
+    
+    Returns
+    -------
+    list of pairs (addr, asm) if succesful
+    None if failure 
+    """    
+   
+    ropgadget = "ROPgadget"
+    cmd = [ropgadget,"--binary", filename, "--dump", "--all"]
+    if( extra_args ):
+        cmd += extra_args.split(" ")
+    res = run_ropgadget(cmd)
+    if( res is None ):
+        return None
+        
+    # If ARM, get THUMB gadgets as well
+    if( is_arm(arch)):
+        notify("ARM Specific: Getting THUMB gadgets")
+        cmd.append("--thumb")
+        res_thumb = run_ropgadget(cmd, thumb=True)
+        if( res_thumb is None ):
+            notify("Failed to get THUMB gadgets !")
+        else:
+            res += res_thumb
+            
+    notify("Gadgets generated: " +  str_special(str(len(res))))
     return res
     
 def load(args):
@@ -219,15 +262,15 @@ def load(args):
         set_arch(arch)
     else:
         set_arch(user_arch)
-        
-    # # Init the binary scanner
-    # initScanner(filename)
     
-    # # Extract the gadget list 
-    gadget_list = get_gadgets(filename, ropgadget_options)
+    # Extract the gadget list 
+    gadget_list = get_gadgets(filename, arch, ropgadget_options)
     if( not gadget_list ):
         return 
         
+    # DEBUG
+    return 
+    
     # Analyse gadgets 
     keyboard_interrupt = False
     try: 
