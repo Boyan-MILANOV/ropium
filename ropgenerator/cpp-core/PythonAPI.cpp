@@ -166,7 +166,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("R6",ARM32_R6).value("R7",ARM32_R7).value("R8",ARM32_R8)
         .value("R9",ARM32_R9).value("R10",ARM32_R10).value("R11",ARM32_R11)
         .value("R12",ARM32_R12).value("R13",ARM32_R13).value("R14",ARM32_R14)
-        .value("R15",ARM32_R15).export_values();
+        .value("R15",ARM32_R15).value("APSR", ARM32_APSR).export_values();
     
     py::enum_<BinType>(m, "BinType", py::arithmetic(), "Binary Type")
         .value("ELF32", BIN_ELF32)

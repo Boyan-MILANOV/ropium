@@ -70,7 +70,7 @@ Architecture arch_ARM32 = Architecture(
     0X4000,
     ENDIAN_LITTLE,
     ARM32_NB_REGS,
-    {},
+    {ARM32_APSR},
     RegARM32Names
 );
 

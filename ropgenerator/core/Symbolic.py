@@ -162,6 +162,11 @@ def raw_to_IRBlock(raw, thumb=False):
         return (None, string) 
     
     asm_instr_string = '; '.join(str(i) for i in string)
+    # Check if branch instructions in the middle of the gadget
+    for ins in string[:-1]:
+        if( str(ins)[0:2] == "bl" ):
+            return (None, "Branch in the middle of the gadget") 
+    
     res = IRBlock()
     # Translate instruction by instruction
     try:

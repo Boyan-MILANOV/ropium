@@ -1118,7 +1118,7 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
     for( offset = 0; offset < env->lmax(); offset += curr_arch()->octets() ){
         /* Set constraint on sp_inc to avoid gadgets like
          * pop rax; jmp rax; which have a valid ret and valid semantics
-         * but don't work in practice :( */ 
+         * but don't work in practice :( */
         delete tmp_constraint;
         tmp_constraint = prev_constraint->copy();
         tmp_constraint->add(new ConstrMinSpInc(offset+(dest.reg==curr_arch()->ip()?1:2)*(curr_arch()->octets())), true);
@@ -1131,7 +1131,7 @@ ROPChain* chain_pop_constant(DestArg dest, AssignArg assign, SearchEnvironment* 
             res = pop; 
             std::tie(success, padding) = env->constraint()->valid_padding();
             if( success ){
-                res->add_padding(padding, offset/8);
+                res->add_padding(padding, offset/curr_arch()->octets());
                 res->add_padding(assign.cst, 1, comment, assign.cst_has_offset);
                 /* sp_inc - 2*arch_octets for the return and the const, -offset because we already added*/ 
                 res->add_padding(padding, (gadget_db()->get(pop->chain().at(0))->sp_inc()-offset-(2*curr_arch()->octets()))/8 );
