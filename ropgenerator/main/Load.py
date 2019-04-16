@@ -103,10 +103,25 @@ def getPlatformInfo(filename):
         return None
 
 
-
-def run_ropgadget(cmd, thumb=False):
+def get_gadgets(filename, extra_args='', thumb=False):
+    """
+    Returns a list of gadgets extracted from a file 
+    Precondition: the file exists 
+    
+    Returns
+    -------
+    list of pairs (addr, asm) if succesful
+    None if failure 
+    """    
+   
+    ropgadget = "ROPgadget"
     cmd_string = ''
     try:
+        cmd = [ropgadget,"--binary", filename, "--dump", "--all"]
+        if( extra_args ):
+            cmd += extra_args.split(" ")
+        if( thumb ):
+            cmd.append("--thumb")
         cmd_string = " ".join(cmd)
         notify("Executing ROPgadget as: " + cmd_string)
         (outdata, errdata) = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
@@ -128,11 +143,10 @@ def run_ropgadget(cmd, thumb=False):
     # Get the gadget list 
     # Pairs (address, raw_asm)
     first = True
+    count = 0
     res = []
     outs = io.StringIO(outdata.decode("ascii"))
     l = outs.readline()
-    count = 0
-    # Add 1 to THUMB addresses because ROPgadget doesn't
     add_to_addr = 1 if thumb else 0
     while( l ):
         if('0x' in l):
@@ -142,39 +156,7 @@ def run_ropgadget(cmd, thumb=False):
             res.append((int(addr,16) + add_to_addr, raw))
             count += 1
         l = outs.readline()
-    return res
-    
 
-def get_gadgets(filename, arch, extra_args=''):
-    """
-    Returns a list of gadgets extracted from a file 
-    Precondition: the file exists 
-    
-    Returns
-    -------
-    list of pairs (addr, asm) if succesful
-    None if failure 
-    """    
-   
-    ropgadget = "ROPgadget"
-    cmd = [ropgadget,"--binary", filename, "--dump", "--all"]
-    if( extra_args ):
-        cmd += extra_args.split(" ")
-    res = run_ropgadget(cmd)
-    if( res is None ):
-        return None
-        
-    # If ARM, get THUMB gadgets as well
-    if( is_arm(arch)):
-        notify("ARM Specific: Getting THUMB gadgets")
-        cmd.append("--thumb")
-        res_thumb = run_ropgadget(cmd, thumb=True)
-        if( res_thumb is None ):
-            notify("Failed to get THUMB gadgets !")
-        else:
-            res += res_thumb
-            
-    notify("Gadgets generated: " +  str_special(str(len(res))))
     return res
     
 def load(args):
@@ -264,10 +246,16 @@ def load(args):
         set_arch(user_arch)
     
     # Extract the gadget list 
-    gadget_list = get_gadgets(filename, arch, ropgadget_options)
+    gadget_list = get_gadgets(filename, ropgadget_options )
     if( not gadget_list ):
         return 
+    if( is_arm(arch)):
+        thumb_gadget_list = get_gadgets(filename, ropgadget_options, thumb=True)
+    else:
+        thumb_gadget_list = []
         
+    notify("Gadgets generated: " +  str_special(str(len(gadget_list) + len(thumb_gadget_list))))
+
     # DEBUG
     return 
     
