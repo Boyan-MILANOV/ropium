@@ -19,7 +19,7 @@ class SearchEnvironment;
 
 enum SubConstraintType: int {  CONSTR_RETURN=0, CONSTR_BAD_BYTES, CONSTR_KEEP_REGS, 
                             CONSTR_VALID_READ, CONSTR_VALID_WRITE, CONSTR_MAX_SP_INC, 
-                            CONSTR_MIN_SP_INC,
+                            CONSTR_MIN_SP_INC, CONSTR_THUMB_MODE,
                             COUNT_NB_CONSTR};
                             
 enum ConstrEval {EVAL_VALID, EVAL_INVALID, EVAL_MAYBE};
@@ -124,6 +124,13 @@ class ConstrMinSpInc: public SubConstraint{
         virtual SubConstraint* copy();
 };
 
+class ConstrThumbMode: public SubConstraint{
+    public:
+        ConstrThumbMode();
+        pair<ConstrEval,CondObjectPtr> verify(shared_ptr<Gadget> g, FailRecord* fail_record);
+        virtual SubConstraint* copy();
+};
+
 // Constraint class (collection of subconstraints)
 using cstr_sig_t = uint64_t;
 
@@ -181,7 +188,7 @@ class Constraint{
  */ 
  
 enum SubAssertionType: int {    ASSERT_REGS_EQUAL=0, ASSERT_REGS_NO_OVERLAP, ASSERT_VALID_READ, 
-                                ASSERT_VALID_WRITE, ASSERT_REG_SUP_TO, ASSERT_REG_INF_TO, 
+                                ASSERT_VALID_WRITE, ASSERT_REG_SUP_TO, ASSERT_REG_INF_TO, ASSERT_THUMB_MODE,
                                 COUNT_NB_ASSERT};
 
 class SubAssertion{
@@ -287,6 +294,13 @@ class AssertRegInfTo: public SubAssertion{
         bool validate( CondObjectPtr c);
         virtual SubAssertion* copy();
         virtual void merge(SubAssertion* a, bool del); 
+};
+
+class AssertThumbMode: public SubAssertion{
+    public:
+        AssertThumbMode();
+        bool validate(CondObjectPtr c);
+        virtual SubAssertion* copy();
 };
 
 // Assertion class (collection of subassertions)

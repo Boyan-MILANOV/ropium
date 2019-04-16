@@ -119,7 +119,7 @@ def get_gadgets(filename, arch, extra_args='', thumb=False):
     try:
         cmd = [ropgadget,"--binary", filename, "--dump", "--all"]
         if( thumb ):
-            cmd += ["--thumb", "--depth", "6"] # Reduce depth for thumb
+            cmd += ["--thumb", "--depth", "6"]
         else:
             cmd += ["--depth", "6"]
         if( extra_args ):
