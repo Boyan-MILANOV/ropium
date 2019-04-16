@@ -16,7 +16,7 @@ from ropgenerator.core.Symbolic import raw_to_IRBlock
 from ropgenerator.core.Gadget import *
 from ropgenerator.core.Database import *
 from ropgenerator.core.ChainingEngine import *
-from ropgenerator.main.Scanner import init_scanner
+from ropgenerator.main.Scanner import init_scanner, find_opcode
 
 # Command options
 OPTION_ARCH = '--arch'
@@ -103,7 +103,7 @@ def getPlatformInfo(filename):
         return None
 
 
-def get_gadgets(filename, extra_args='', thumb=False):
+def get_gadgets(filename, arch, extra_args='', thumb=False):
     """
     Returns a list of gadgets extracted from a file 
     Precondition: the file exists 
@@ -125,7 +125,7 @@ def get_gadgets(filename, extra_args='', thumb=False):
         if( extra_args ):
             cmd += extra_args.split(" ")
         cmd_string = " ".join(cmd)
-        notify("Executing ROPgadget as: " + cmd_string)
+        notify("Executing: " + cmd_string)
         (outdata, errdata) = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE).communicate()
     except Exception as e:
         error("Could not execute '"+ cmd_string + "'")
@@ -158,7 +158,17 @@ def get_gadgets(filename, extra_args='', thumb=False):
             res.append((int(addr,16) + add_to_addr, raw))
             count += 1
         l = outs.readline()
-
+        
+    # Find svc gadgets ?
+    if( is_arm(arch) and not thumb ):
+        svc_gadgets = [ (x,b'\x00\x00\x00\xef') for x in find_opcode(b'\x00\x00\x00\xef', 4)] # Assuming little endian
+    elif( is_arm(arch) and thumb ):
+        svc_gadgets = [ (x+1,b'\x00\xdf')  for x in find_opcode(b'\x00\xdf', 2)] # Assuming little endian
+    else:
+        svc_gadgets = []
+    
+    # Return res
+    res += svc_gadgets
     return res
     
 def load(args):
@@ -248,11 +258,11 @@ def load(args):
         set_arch(user_arch)
     
     # Extract the gadget list 
-    gadget_list = get_gadgets(filename, ropgadget_options )
+    gadget_list = get_gadgets(filename, arch, ropgadget_options )
     if( not gadget_list ):
         return 
     if( is_arm(arch)):
-        thumb_gadget_list = get_gadgets(filename, ropgadget_options, thumb=True)
+        thumb_gadget_list = get_gadgets(filename, arch, ropgadget_options, thumb=True)
     else:
         thumb_gadget_list = []
     if( thumb_gadget_list is None ):
@@ -280,7 +290,7 @@ def load(args):
                 count += 1
                 gadget_db_get(dup[raw]).add_address(addr)
                 continue
-            # Check for int80 or syscall gadgets
+            # Check for int80 or syscall or svc gadgets
             if( raw == b'\xCD\x80' and curr_arch_type() in [ArchType.ARCH_X86, ArchType.ARCH_X64]):
                 gadget = Gadget(GadgetType.INT80)
                 gadget.set_hex_str("\\xcd\\x80")
@@ -299,7 +309,15 @@ def load(args):
                 gadget.add_address(addr)
                 biggest_gadget_addr = max(addr, biggest_gadget_addr)
                 continue
-                
+            elif( raw == b'\x00\x00\x00\xef' and curr_arch_type() in [ArchType.ARCH_ARM32]):
+                gadget = Gadget(GadgetType.SVC)
+                gadget.set_hex_str("\\x00\\x00\\x00\\xef")
+                gadget.set_asm_str("svc #0")
+                dup[raw] = gadget_db_add(gadget)
+                # Add address
+                gadget.add_address(addr)
+                biggest_gadget_addr = max(addr, biggest_gadget_addr)
+                continue
             # Regular gadget
             (irblock, asm_instr_list) = raw_to_IRBlock(raw)
             if( not irblock is None ):
@@ -335,6 +353,18 @@ def load(args):
                 count += 1
                 gadget_db_get(dup2[raw]).add_address(addr)
                 continue
+            
+            # Check for SVC 
+            if( raw == b'\x00\xdf' and curr_arch_type() in [ArchType.ARCH_ARM32]):
+                gadget = Gadget(GadgetType.SVC)
+                gadget.set_hex_str("\\x00\\xdf")
+                gadget.set_asm_str("svc #0")
+                dup[raw] = gadget_db_add(gadget)
+                # Add address
+                gadget.add_address(addr)
+                biggest_gadget_addr = max(addr, biggest_gadget_addr)
+                continue
+                
             # Regular gadget
             (irblock, asm_instr_list) = raw_to_IRBlock(raw, thumb=True)
             if( not irblock is None ):
@@ -352,7 +382,7 @@ def load(args):
                 gadget.set_nb_instr_ir(irblock.nb_instr())
                 # Add to database 
                 dup2[raw] = gadget_db_add(gadget)
-        
+    
     except KeyboardInterrupt:
         keyboard_interrupt = True
         charging_bar(nb_gadgets, nb_gadgets)

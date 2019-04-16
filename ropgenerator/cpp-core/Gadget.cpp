@@ -87,6 +87,12 @@ CondObjectPtr generate_mem_pre_cond(vector<ExprObjectPtr>& read_list, vector<Exp
 
 // Special gadget
 Gadget::Gadget(GadgetType special_type){
+    /* DEBUG FOR LATER: 
+     * Maybe keep only specials that have the form <special_instr> + <normal gadget>
+     * Then we build a gadget from <normal gadget>, and change the appropriate fields afterwards
+     * to make it special. THis way we allow syscall; ret;  or int 0x80; pop rax; ret;  etc...
+     *  */ 
+    
     int i;
     // Set type
     _type = special_type;
@@ -111,7 +117,6 @@ Gadget::Gadget(GadgetType special_type){
     _ret_type = RET_UNKNOWN; 
     _ret_reg = -1; 
     _ret_pre_cond = nullptr;
-    
 }
 
 // Constructor

@@ -91,6 +91,7 @@ class Database{
     MEMDict<MEMList> _mem_binop_cst_to_mem;
     SimpleGadgetList _syscall;
     SimpleGadgetList _int80;
+    SimpleGadgetList _svc;
 
     public: 
         Database(); 
@@ -106,6 +107,7 @@ class Database{
         vector<int> find_mem_binop_cst_to_mem(Binop op_dest, int reg_dest, cst_t cst_dest, Binop op, int addr_reg, cst_t addr_cst, cst_t cst, Constraint* c, Assertion* a, int n, FailRecord* fail_record);
         vector<int> find_int80(Constraint *c, Assertion *a, int n, FailRecord* fail_record);
         vector<int> find_syscall(Constraint *c, Assertion *a, int n, FailRecord* fail_record);
+        vector<int> find_svc(Constraint *c, Assertion *a, int n, FailRecord* fail_record);
         
         /* More advanced functions */
         vector<tuple<DestArg, AssignArg, vector<int>>>* get_possible_stores_reg(Constraint*c, Assertion*a, int n, FailRecord* fail_record, int dest_addr_reg, int assign_reg);
