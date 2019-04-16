@@ -86,6 +86,38 @@ def verify_bad_bytes(addr, bad_bytes):
         addr = addr >> 8
     return True
     
+# Find opcode
+def find_opcode(byte_string, addr_align=1):
+    """
+    Returns a list of addresses
+    """
+    # Getting all executable segments
+    segments = []
+    for segment in g_binary_lief.segments:
+        # Check flags (depends on binary format)
+        if( curr_bin_type() == BinType.ELF32 or
+            curr_bin_type() == BinType.ELF64):
+            if( segment.flags & lief.ELF.SEGMENT_FLAGS.X == 0 ):
+                continue
+        else:
+            continue
+        data = segment.content
+        addr = segment.virtual_address + g_offset
+        segments.append((data, addr))
+    if( not segments ):
+            return []
+    res = []
+    # byte_string to a list of bytes
+    pattern = [i for i in byte_string]
+    for segment in segments:
+        for i in range(0, len(segment[0])):
+            if( (i+segment[1]) % addr_align != 0 ):
+                continue
+            if( segment[0][i: i+len(pattern)] == pattern ):
+                res.append(i+segment[1])
+    return res
+    
+    
 # Find a string chnk by chunk in the binary
 def find_bytes(byte_string, bad_bytes = [], add_null=False ):
     """

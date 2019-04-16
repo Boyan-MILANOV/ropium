@@ -185,6 +185,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("REGULAR", REGULAR)
         .value("INT80", INT80)
         .value("SYSCALL", SYSCALL)
+        .value("SVC", SVC)
         .export_values();
     
     py::enum_<RetType>(m, "RetType", py::arithmetic(), "Return Type")

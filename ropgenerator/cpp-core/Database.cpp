@@ -363,7 +363,11 @@ int Database::add(shared_ptr<Gadget> g){
 		_syscall.add(num, NewCondTrue(), _gadgets);
 		_entries_count++;
 		return num;
-	}
+	}else if( g->type() == SVC ){
+        _svc.add(num, NewCondTrue(), _gadgets); // DEBUG HERE ADD CONSTRAINT IF THUMB
+        _entries_count++;
+        return num;
+    }
     
     /* Get semantics for ... -> reg */ 
     for( rit = g->semantics()->regs().begin(); rit != g->semantics()->regs().end(); rit++){
@@ -621,6 +625,10 @@ vector<int> Database::find_syscall(Constraint *c, Assertion *a, int n, FailRecor
 
 vector<int> Database::find_int80(Constraint *c, Assertion *a, int n, FailRecord* fail_record){
 	return _int80.find(c, a, n, fail_record);
+}
+
+vector<int> Database::find_svc(Constraint *c, Assertion *a, int n, FailRecord* fail_record){
+	return _svc.find(c, a, n, fail_record);
 }
 
 /* More advanced functions */ 

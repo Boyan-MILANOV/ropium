@@ -9,7 +9,7 @@ using std::vector;
 using std::string; 
 using std::shared_ptr;
 
-enum GadgetType{ REGULAR, INT80, SYSCALL}; 
+enum GadgetType{ REGULAR, INT80, SYSCALL, SVC}; 
 enum RetType{ RET_RET, RET_CALL, RET_JMP, RET_UNKNOWN};
 using addr_t= uint64_t; 
 
