@@ -2,17 +2,21 @@ from ropgenerator_core_ import \
 ArgType, ArgEmpty, ArgCst, ArgReg, ArgTmp, ArgUnknown, \
 IROperation, IRInstruction, IRBlock, print_irblock
 
+import sys
 from ropgenerator.core.Architecture import *
 from ropgenerator.core.Log import *
 
 from barf.core.reil import ReilMnemonic, ReilImmediateOperand, ReilRegisterOperand
-from barf.arch import ARCH_X86_MODE_32
-from barf.arch import ARCH_X86_MODE_64
+
+from barf.arch import ARCH_X86_MODE_32, ARCH_X86_MODE_64, ARCH_ARM_MODE_ARM, ARCH_ARM_MODE_THUMB
+# Intel 
 from barf.arch.x86.translator import X86Translator
 from barf.arch.x86.disassembler import X86Disassembler
 from barf.arch.x86.x86 import *
-
-import sys
+# ARM 
+from barf.arch.arm.translator import ArmTranslator
+from barf.arch.arm.disassembler import ArmDisassembler
+from barf.arch.arm.arm import *
 
 def raw_to_REIL(asmStr, disassembler, ir_translator):
     """
@@ -80,6 +84,7 @@ class REILOperationNotSupported(Exception):
         return self.msg
         
 def pycst_to_cppcst(val):
+    # !!! Assuming little endian :O
     # For 64 bits 
     if( curr_arch_bits() == 64 ):
         if( val >= 2**(curr_arch_bits()-1)):
@@ -118,6 +123,8 @@ def barf_operand_to_IR(operand, alias_mapper):
                 reg_num = map_x86_reg_names.get(reg_str, None)
             elif( curr_arch_type() == ArchType.ARCH_X64 ):
                 reg_num = map_x64_reg_names.get(reg_str, None)
+            elif( curr_arch_type() == ArchType.ARCH_ARM32 ):
+                reg_num = map_arm32_reg_names.get(reg_str, None)
             else:
                 raise Exception("Error, arch not supported in here")
             if( reg_num is None ):
@@ -130,7 +137,7 @@ def barf_operand_to_IR(operand, alias_mapper):
     else:
         raise("Unsupported reil type")
         
-def raw_to_IRBlock(raw):
+def raw_to_IRBlock(raw, thumb=False):
     # Check for Architecture    
     if( curr_arch_type() == ArchType.ARCH_X86):
         disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_32)
@@ -140,6 +147,14 @@ def raw_to_IRBlock(raw):
         disassembler = X86Disassembler(architecture_mode=ARCH_X86_MODE_64)
         ir_translator = X86Translator(architecture_mode=ARCH_X86_MODE_64)
         alias_mapper = X86ArchitectureInformation(ARCH_X86_MODE_64).alias_mapper
+    elif( curr_arch_type() == ArchType.ARCH_ARM32 and  not thumb):
+        disassembler = ArmDisassembler(architecture_mode=ARCH_ARM_MODE_ARM)
+        ir_translator = ArmTranslator(architecture_mode=ARCH_ARM_MODE_ARM)
+        alias_mapper = ArmArchitectureInformation(ARCH_ARM_MODE_ARM).alias_mapper
+    elif( curr_arch_type() == ArchType.ARCH_ARM32 and thumb):
+        disassembler = ArmDisassembler(architecture_mode=ARCH_ARM_MODE_THUMB)
+        ir_translator = ArmTranslator(architecture_mode=ARCH_ARM_MODE_THUMB)
+        alias_mapper = ArmArchitectureInformation(ARCH_ARM_MODE_THUMB).alias_mapper
     else:
         raise Exception("ARCH TYPE NOT SUPPORTED")
     (irsb,string) = raw_to_REIL(raw, disassembler, ir_translator)
@@ -148,10 +163,10 @@ def raw_to_IRBlock(raw):
     
     asm_instr_string = '; '.join(str(i) for i in string)
     res = IRBlock()
-    # Translate instruction by instructionCstTooBig
+    # Translate instruction by instruction
     try:
         for instr in irsb:
-            #print(instr) # DEBUG 
+            # print(instr) # DEBUG 
             i = None
             if( instr.mnemonic == ReilMnemonic.NOP):
                 pass
