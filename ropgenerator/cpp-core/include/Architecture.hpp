@@ -28,7 +28,11 @@ enum RegX64 : int {X64_RAX=0, X64_RBX, X64_RCX, X64_RDX, X64_RSI, X64_RDI,
                     X64_ZF, X64_AF, X64_CF, X64_DF, X64_ES, X64_FS, X64_OF, 
                     X64_PF, X64_NB_REGS};
 
-enum ArchType {ARCH_X86, ARCH_X64};
+enum RegARM32 : int {ARM32_R0, ARM32_R1, ARM32_R2, ARM32_R3, ARM32_R4, ARM32_R5, ARM32_R6, ARM32_R7, 
+                    ARM32_R8, ARM32_R9, ARM32_R10, ARM32_R11, ARM32_R12, ARM32_R13, ARM32_R14, ARM32_R15, 
+                    ARM32_NB_REGS};
+
+enum ArchType {ARCH_X86, ARCH_X64, ARCH_ARM32};
 
 class Architecture{
     ArchType _type; 

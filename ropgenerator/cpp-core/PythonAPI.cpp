@@ -112,6 +112,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
     py::enum_<ArchType>(m, "ArchType", py::arithmetic(), "Arch Type")
         .value("ARCH_X86", ARCH_X86)
         .value("ARCH_X64", ARCH_X64)
+        .value("ARCH_ARM32", ARCH_ARM32)
         .export_values();
         
     py::enum_<EndiannessType>(m, "EndiannessType", py::arithmetic(), "Endianness")
@@ -158,6 +159,14 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("DF",X64_DF).value("ES",X64_ES).value("FS",X64_FS)
         .value("OF",X64_OF).value("PF",X64_PF)
         .export_values();
+    
+    py::enum_<RegARM32>(m, "RegARM32", py::arithmetic(), "ARMv7 Registers")
+        .value("R0",ARM32_R0).value("R1",ARM32_R1).value("R2",ARM32_R2)
+        .value("R3",ARM32_R3).value("R4",ARM32_R4).value("R5",ARM32_R5)
+        .value("R6",ARM32_R6).value("R7",ARM32_R7).value("R8",ARM32_R8)
+        .value("R9",ARM32_R9).value("R10",ARM32_R10).value("R11",ARM32_R11)
+        .value("R12",ARM32_R12).value("R13",ARM32_R13).value("R14",ARM32_R14)
+        .value("R15",ARM32_R15).export_values();
     
     py::enum_<BinType>(m, "BinType", py::arithmetic(), "Binary Type")
         .value("ELF32", BIN_ELF32)

@@ -58,6 +58,24 @@ Architecture arch_X64 = Architecture(
     RegX64Names
 );
 
+// ARM32
+vector<string> RegARM32Names = {"r0","r1","r2","r3","r4","r5","r6","r7","r8","r9",
+    "r10","r11","r12","r13","r14","r15"};
+
+Architecture arch_ARM32 = Architecture(
+    ARCH_ARM32,
+    "ARM32",
+    (int)ARM32_R15, (int)ARM32_R13,
+    4, 32,
+    0X4000,
+    ENDIAN_LITTLE,
+    ARM32_NB_REGS,
+    {},
+    RegARM32Names
+);
+
+
+
 // global variable for selected architecture 
 Architecture* g_current_arch = nullptr; 
 
@@ -66,7 +84,9 @@ bool set_arch(ArchType a){
     if( a == ARCH_X86 )
         g_current_arch = &arch_X86; 
     else if( a == ARCH_X64 )
-        g_current_arch = &arch_X64; 
+        g_current_arch = &arch_X64;
+    else if ( a == ARCH_ARM32 )
+        g_current_arch = &arch_ARM32;
     else
         return false; 
     return true; 

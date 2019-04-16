@@ -1,10 +1,10 @@
 from ropgenerator_core_ import\
 Architecture, ArchType, BinType, EndiannessType, set_arch, set_bin_type, curr_bin_type,\
 curr_arch_bits, curr_arch_octets, curr_arch_type, curr_arch_ip, curr_arch_sp, curr_arch_endianess, curr_arch_min_page_size,\
-RegX86, RegX64, is_ignored_reg
+RegX86, RegX64, RegARM32, is_ignored_reg
 
-OPTION_ARCH_NAMES = {ArchType.ARCH_X86:'X86', ArchType.ARCH_X64:'X64'}
-OPTION_ARCH_NAMES_REVERSE = {'X86':ArchType.ARCH_X86, 'X64':ArchType.ARCH_X64}
+OPTION_ARCH_NAMES = {ArchType.ARCH_X86:'X86', ArchType.ARCH_X64:'X64', ArchType.ARCH_ARM32:'ARM32'}
+OPTION_ARCH_NAMES_REVERSE = {'X86':ArchType.ARCH_X86, 'X64':ArchType.ARCH_X64, 'ARM32':ArchType.ARCH_ARM32}
 
 def str_to_arch_type(string):
     if( string in OPTION_ARCH_NAMES_REVERSE ):
@@ -28,6 +28,8 @@ def is_supported_reg(reg_str):
         return (reg_str in map_x86_reg_names)
     elif( curr_arch_type() == ArchType.ARCH_X64 ):
         return (reg_str in map_x64_reg_names)
+    elif( curr_arch_type() == ArchType.ARCH_ARM32 ):
+        return (reg_str in map_arm32_reg_names)
     else:
         return False
 
@@ -36,6 +38,8 @@ def reg_str_to_num(reg_str):
         return map_x86_reg_names[reg_str]
     elif( curr_arch_type() == ArchType.ARCH_X64 ):
         return map_x64_reg_names[reg_str]
+    elif( curr_arch_type() == ArchType.ARCH_ARM32 ):
+        return map_arm32_reg_names[reg_str]
     else:
         raise Exception("Arch not supported in this function")
 
@@ -87,9 +91,32 @@ map_x64_reg_names = {
 "pf":RegX64.PF
 }
 
+map_arm32_reg_names = {
+"r0":RegARM32.R0,
+"r1":RegARM32.R1,
+"r2":RegARM32.R2,
+"r3":RegARM32.R3,
+"r4":RegARM32.R4,
+"r5":RegARM32.R5,
+"r6":RegARM32.R6,
+"r7":RegARM32.R7,
+"r8":RegARM32.R8,
+"r9":RegARM32.R9,
+"r10":RegARM32.R10,
+"r11":RegARM32.R11,
+"r12":RegARM32.R12,
+"r13":RegARM32.R13,
+"r14":RegARM32.R14,
+"r15":RegARM32.R15,
+}
+
 def get_curr_reg_map():
     if( curr_arch_type() == ArchType.ARCH_X86 ):
         return map_x86_reg_names
     elif( curr_arch_type() == ArchType.ARCH_X64 ):
         return map_x64_reg_names
+    elif( curr_arch_type() == ArchType.ARCH_ARM32 ):
+        return map_arm32_reg_names
+    else:
+        return None
         
