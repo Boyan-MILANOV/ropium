@@ -78,11 +78,13 @@ def main():
                 print_gadget(gadget_db_get(int(args[1])))
             else:
                 error("Unknown command '{}'".format(command))
-            if( command != None and command != CMD_SEARCH and command != CMD_EXPLOIT):
+            if( command != None and command != CMD_SEARCH and command != CMD_EXPLOIT and command != CMD_EXIT):
                 print('')
         except KeyboardInterrupt:
             pass
+        except EOFError:
+            finish = True
     close_logs()
-    print('Thank you for using ROPGenerator !')
+    print('\nThank you for using ROPGenerator !')
     return
 
