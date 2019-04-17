@@ -216,7 +216,6 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
         found = False
         segment_num = 0
         (segment_data, segment_addr) = segments[segment_num]
-        start = 0
         end = len(segment_data)-1
         ## 
         segment_data_tmp = segment_data
@@ -232,7 +231,6 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
                 
             if( segment_changed ):
                 (segment_data, segment_addr) = segments[segment_num]
-                start = 0
                 end = len(segment_data_tmp)-1
                 segment_data_tmp = segment_data
                 
@@ -249,7 +247,7 @@ def find_bytes(byte_string, bad_bytes = [], add_null=False ):
                 segment_changed = False
             # Check for bad bytes in the address
             if( not segment_changed ):
-                if( verify_bad_bytes(start+offset, bad_bytes)):
+                if( verify_bad_bytes(segment_addr+offset, bad_bytes)):
                     found = True
                 else:
                     segment_data_tmp = segment_data_tmp[offset:]
@@ -274,6 +272,7 @@ def get_readwrite_memory(min_size=-1):
     
     if min size == -1, try to find the biggest 
     """
+    global g_offset
     best_memory = (0,0)
     # Trying all read/write segments
     for segment in g_binary_lief.segments:

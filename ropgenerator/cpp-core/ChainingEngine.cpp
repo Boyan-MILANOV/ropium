@@ -15,17 +15,18 @@
  
 /* Don't forget to initialize unused reg fields to -1 */ 
 
-DestArg::DestArg():type(DST_INVALID), addr_reg(-1), reg(-1){} /* DEFAULT ONE */ 
+DestArg::DestArg():type(DST_INVALID), addr_reg(-1), reg(-1), addr_cst_has_offset(false){} /* DEFAULT ONE */ 
 /* For DEST_MEM */
 DestArg::DestArg(DestType t, int addr_r, Binop o, cst_t addr_c): type(t), 
-    addr_reg(addr_r), addr_cst(addr_c), addr_op(o), reg(-1){} 
+    addr_reg(addr_r), addr_cst(addr_c), addr_op(o), reg(-1), addr_cst_has_offset(false){} 
 /* For both DST_REG and DST_CSTMEM because the program doesn't make the 
  * difference between cst_t and int so it always calls the DST_REG constructor
- * even for CST_MEM :(. It's ugly, I know, fuck it. */ 
-DestArg::DestArg(DestType t, cst_t val): type(t), addr_reg(-1){
+ * even for DST_CSTMEM :(. It's ugly, I know, fuck it. */ 
+DestArg::DestArg(DestType t, cst_t val, bool offset): type(t), addr_reg(-1), addr_cst_has_offset(offset){
     if( t == DST_REG ){
         reg = val;
     }else if( t == DST_CSTMEM ){
+        reg = -1;
         addr_cst = val;
     }
 }
@@ -40,7 +41,7 @@ bool DestArg::operator==(DestArg& other){
         case DST_MEM:
             return (addr_reg == other.addr_reg && addr_op == other.addr_op && addr_cst == other.addr_cst);
         case DST_CSTMEM:
-            return (addr_cst == other.addr_cst);
+            return (addr_cst == other.addr_cst) && (addr_cst_has_offset == other.addr_cst_has_offset);
         default:
             throw_exception("Unsupported assign type in DestArg::operator==");
     }
@@ -58,7 +59,7 @@ bool AssignArg::operator==(AssignArg& other){
     }
     switch(type){
         case ASSIGN_CST:
-            return (cst == other.cst) && ((cst_has_offset == other.cst_has_offset) || get_gadgets_offset()==0);
+            return (cst == other.cst) && (cst_has_offset == other.cst_has_offset);
         case ASSIGN_REG_BINOP_CST:
             return (cst == other.cst && op == other.op && reg == other.reg);
         case ASSIGN_MEM_BINOP_CST:
@@ -1539,7 +1540,7 @@ pair<bool,AssignArg> _adjust_store_adapt_dest_arg(DestArg requested, DestArg ava
             /* Find the right cst to put in the register */
             std::tie(success,res_cst) = _invert_operation(requested.addr_cst, available.addr_op, available.addr_cst);
             if( success )
-                return make_pair(true,AssignArg(ASSIGN_CST, res_cst));
+                return make_pair(true,AssignArg(ASSIGN_CST, res_cst, requested.addr_cst_has_offset)); // If "addr_cst_has_offset" on requested, propagate it 
             break;
         case DST_MEM:
             /* Find the cst to put in the register */

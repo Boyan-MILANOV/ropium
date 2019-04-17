@@ -34,11 +34,12 @@ class DestArg {
     cst_t addr_cst;
     Binop addr_op;
     int reg; 
+    bool addr_cst_has_offset; // If the dest is a cst_mem, indicate if needs to be adjusted with offset (for add_padding() method )
     
     DestArg();
-    //DestArg(DestType t, int r);   /* For DEST_REG */ 
+    //DestArg(DestType t, cst_t r);   /* For DEST_REG */ 
     DestArg(DestType t, int addr_r, Binop op, cst_t addr_c); /* For DEST_MEM */
-    DestArg(DestType t, cst_t val); /* For DEST_CSTMEM */
+    DestArg(DestType t, cst_t val, bool offset=false); /* For DEST_CSTMEM */
     bool operator==(DestArg& other);
 };
 
