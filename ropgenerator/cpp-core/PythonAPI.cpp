@@ -264,7 +264,7 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         
     py::class_<DestArg>(m, "DestArg")
         .def(py::init<DestType, int, Binop, cst_t>())
-        .def(py::init<DestType, cst_t>())
+        .def(py::init<DestType, cst_t, bool>(), py::arg("type"), py::arg("val"), py::arg("offset")=false)
         .def(py::init<>());
         
     py::class_<AssignArg>(m, "AssignArg")
