@@ -17,6 +17,11 @@ SubConstraint::SubConstraint(SubConstraintType t): _type(t){}
 SubConstraintType SubConstraint::type(){return _type;}
 
 // ConstrReturn
+ConstrReturn::ConstrReturn(): SubConstraint(CONSTR_RETURN){
+    _ret = false;
+    _jmp = false;
+    _call = false;
+}
 ConstrReturn::ConstrReturn(bool r=false, bool j=false, bool c=false): SubConstraint(CONSTR_RETURN), _ret(r), _jmp(j), _call(c){}
 bool ConstrReturn::ret(){return _ret;}
 bool ConstrReturn::jmp(){return _jmp;}
