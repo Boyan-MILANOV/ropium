@@ -48,9 +48,8 @@ class SubConstraint{
 
 class ConstrReturn: public SubConstraint{
     bool _ret, _jmp, _call; 
-    public: 
-        ConstrReturn();
-        ConstrReturn(bool r, bool j, bool c);
+    public:
+        ConstrReturn(bool r=false, bool j=false, bool c=false);
         bool ret(); 
         bool jmp();
         bool call();

@@ -419,7 +419,7 @@ ExprObjectPtr ExprConcat::convert(int size){
 
 ////////////////////////////////////////////////////////////////////////
 // ExprUnknown
-ExprUnknown::ExprUnknown(int size=-1): Expr(EXPR_UNKNOWN){
+ExprUnknown::ExprUnknown(int size): Expr(EXPR_UNKNOWN){
     set_size(size);
 };
 void ExprUnknown::print(ostream& os){  

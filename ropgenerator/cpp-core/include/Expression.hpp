@@ -336,7 +336,7 @@ class ExprConcat: public Expr{
 // Unknown/Unsupported Expression 
 class ExprUnknown: public Expr{
     public:
-        ExprUnknown(int size);
+        ExprUnknown(int size=-1);
         void print(ostream& os);
         bool equal(shared_ptr<Expr> other);
         bool lthan(ExprPtr other);
