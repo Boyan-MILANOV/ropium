@@ -82,7 +82,8 @@ class BuildExt(build_ext):
         build_ext.build_extensions(self)
 
 
-os.environ["CC"]="g++"
+#os.environ["CC"]="g++"
+os.environ["CC"]="clang"
 
 setup(  name='ropgenerator',
         version = "2.0",
@@ -98,7 +99,7 @@ setup(  name='ropgenerator',
         "Topic :: Security",
         ],    
         packages=['ropgenerator', 'ropgenerator.main', 'ropgenerator.core', 'ropgenerator.semantic', 'ropgenerator.exploit', 'ropgenerator.exploit.syscall'],
-        scripts=['ROPGenerator'],
+        scripts=['ROPGenerator', 'ROPGenerator.py'],
         keywords='rop generator chain gadget semantic automated exploit ropchain',
         zip_safe = False,
         data_files=[(ROPGenerator_dir, [])], 
