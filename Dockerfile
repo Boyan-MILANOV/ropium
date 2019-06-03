@@ -4,7 +4,7 @@ FROM python:3.7.3-stretch
 # > At the moment, setting "LANG=C" on a Linux system *fundamentally breaks Python 3*, and that's not OK.
 ENV LANG C.UTF-8
 ENV APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE DontWarn
-
+COPY patch/ropgadget.diff /
 RUN set -ex \
 	&& apt-get update \
 	&& apt-get install -y \
@@ -29,7 +29,8 @@ RUN set -ex \
 	&& python3 setup.py install \
 	&& cd / \
 	&& git clone https://github.com/JonathanSalwan/ROPgadget \
-	&& cd ROPgadget && python3 setup.py install \
+	&& cd ROPgadget && /bin/cat /ropgadget.diff | /usr/bin/patch /ROPgadget/ropgadget/core.py \
+	&& python3 setup.py install \
 	&& cd / \
 	&& git clone https://github.com/Boyan-MILANOV/ropgenerator \
 	&& cd ropgenerator && python3 setup.py install \

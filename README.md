@@ -99,7 +99,7 @@ You can save shellcodes in ROPGenerator, then use them with advanced commands, s
   <img src="/ressources/ace.gif" width="800" align="middle">
 </p>
 
-# Docker
+# Docker (Experimental)
 
 You can create your docker container by running the following command.
 
@@ -110,6 +110,20 @@ It compiles a lot of things :)
 ```bash
 # Create your docker image
 docker build . --tag boyan:ropgenerator
+
+# Run the image in interactive mode
+docker run -it boyan:ropgenerator bash
+
+root@c7117e962741:/# ROPGenerator
+
+▒▒▒▒▒▒▒╗░▒▒▒▒▒▒╗░▒▒▒▒▒▒  ═════════════════════════
+▒▒╔══▒▒║▒▒╔═══▒▒╗▒▒╔══▒╗
+▒▒▒▒▒▒╔╝▒▒║   ▒▒║▒▒▒▒▒▒║ G  E  N  E  R  A  T  O  R
+▒▒╔══▒▒╗╚▒▒▒▒▒▒╔╝▒▒╔═══╝
+╚═╝  ╚═╝ ╚═════╝ ╚═╝     ════════════════════ v2.0
+
+
+(main)>                                               
 ```
 
 
