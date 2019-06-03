@@ -35,5 +35,3 @@ RUN set -ex \
 	&& cd ropgenerator && python3 setup.py install \
 	&& rm -rf /usr/bin/clang \
 	&& rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# 	&& apt-get -y remove --purge make gcc g++ git libc-dev clang-9 lldb-9 lld-9 mysql-common '^libmagic*' '^llvm*' '^libgdk*' '^x11-*' '^libx11-*' \
