@@ -77,7 +77,7 @@ ROPGenerator support many options for ROP-chains, including:
    - Offset to add to gadget addresses 
    - Maximum length 
    - Output format (*raw*, *python code*, ...)
-   
+
 <p align="center">
   <img src="/ressources/options.gif" width="800" align="middle">
 </p>
@@ -99,7 +99,37 @@ You can save shellcodes in ROPGenerator, then use them with advanced commands, s
   <img src="/ressources/ace.gif" width="800" align="middle">
 </p>
 
+# Docker (Experimental)
+
+You can create your docker container by running the following command.
+
+The actual image is around 2 GB based on a Debian Stretch with a Python 3.7.3 installed
+
+It compiles a lot of things :)
+
+```bash
+# Create your docker image
+docker build . --tag boyan:ropgenerator
+
+# Run the image in interactive mode
+docker run -it boyan:ropgenerator bash
+
+root@c7117e962741:/# ROPGenerator
+
+▒▒▒▒▒▒▒╗░▒▒▒▒▒▒╗░▒▒▒▒▒▒  ═════════════════════════
+▒▒╔══▒▒║▒▒╔═══▒▒╗▒▒╔══▒╗
+▒▒▒▒▒▒╔╝▒▒║   ▒▒║▒▒▒▒▒▒║ G  E  N  E  R  A  T  O  R
+▒▒╔══▒▒╗╚▒▒▒▒▒▒╔╝▒▒╔═══╝
+╚═╝  ╚═╝ ╚═════╝ ╚═╝     ════════════════════ v2.0
+
+
+(main)>                                               
+```
+
+
+
 # Contact
+
 **Boyan MILANOV** - bmilanov (at) quarkslab (dot) com 
 
 # Licence
