@@ -26,6 +26,7 @@ Key features:
    - [Call functions](#call-functions)
    - [Make syscalls](#make-syscalls)
    - [Alloc-Copy-Execute shellcode](#alloc-copy-execute-shellcode)
+- [Docker](#docker)
 - [Contact](#contact)
 - [Licence](#licence)
 - [Special thanks](#special-thanks)
@@ -99,21 +100,17 @@ You can save shellcodes in ROPGenerator, then use them with advanced commands, s
   <img src="/ressources/ace.gif" width="800" align="middle">
 </p>
 
-# Docker (Experimental)
+# Docker
 
-You can create your docker container by running the following command.
-
-The actual image is around 2 GB based on a Debian Stretch with a Python 3.7.3 installed
-
-It compiles a lot of things :)
+If needed you can run ROPGenerator in a docker container. The container can be generated from the *Dockerfile* as
+follows:
 
 ```bash
-# Create your docker image
+# Create your docker image (this will take time!)
 docker build . --tag boyan:ropgenerator
 
-# Run the image in interactive mode
+# Run the image in interactive mode and start ROPGenerator 
 docker run -it boyan:ropgenerator bash
-
 root@c7117e962741:/# ROPGenerator
 
 ▒▒▒▒▒▒▒╗░▒▒▒▒▒▒╗░▒▒▒▒▒▒  ═════════════════════════
@@ -122,11 +119,9 @@ root@c7117e962741:/# ROPGenerator
 ▒▒╔══▒▒╗╚▒▒▒▒▒▒╔╝▒▒╔═══╝
 ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ════════════════════ v2.0
 
-
 (main)>                                               
 ```
-
-
+The actual image is around 2 GB based on a Debian Stretch with a Python 3.7.3 installed. 
 
 # Contact
 
@@ -141,3 +136,6 @@ ROPGenerator uses the following awesome projects:
    - [LIEF](https://github.com/lief-project/LIEF) : Binary Parsing and Instrumentation library 
    - [ROPgadget](https://github.com/JonathanSalwan/ROPgadget) : Gadget extractor
    - [prompt-toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) : Python CLI interface library 
+   
+Contributors:
+   - [migounette](https://github.com/migounette) : Docker container support
