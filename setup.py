@@ -81,10 +81,6 @@ class BuildExt(build_ext):
             ext.extra_compile_args = opts
         build_ext.build_extensions(self)
 
-
-#os.environ["CC"]="g++"
-os.environ["CC"]="clang"
-
 setup(  name='ropgenerator',
         version = "2.0",
         description = "ROPGenerator makes ROP exploits easy by finding and\
