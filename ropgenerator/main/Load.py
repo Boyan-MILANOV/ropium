@@ -244,7 +244,7 @@ def load(args):
         
     # # Get architecture and OS info  
     arch = getPlatformInfo(filename)
-    if(arch == user_arch == None):
+    if(arch is None and user_arch is None):
         error("Error. Could not determine architecture")
         return 
     elif( arch and user_arch and (arch != user_arch) ):
