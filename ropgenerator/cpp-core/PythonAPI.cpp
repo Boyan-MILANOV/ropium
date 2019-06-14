@@ -77,7 +77,6 @@ PYBIND11_MODULE(ropgenerator_core_, m){
         .value("AND",IR_AND)
         .value("BSH",IR_BSH)
         .value("DIV",IR_DIV)
-        .value("LDM",IR_LDM)
         .value("MOD",IR_MOD)
         .value("MUL",IR_MUL)
         .value("NOP",IR_NOP)
