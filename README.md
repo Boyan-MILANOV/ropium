@@ -107,11 +107,10 @@ follows:
 
 ```bash
 # Create your docker image (this will take time!)
-docker build . --tag boyan:ropgenerator
+docker build . --tag ropgenerator
 
-# Run the image in interactive mode and start ROPGenerator 
-docker run -it boyan:ropgenerator bash
-root@c7117e962741:/# ROPGenerator
+# Run the image in interactive mode, bind mounting the file to analyze
+docker run --rm -it -v /FULL/HOST/PATH/FILE:/tmp/FILE:ro ropgenerator
 
 ▒▒▒▒▒▒▒╗░▒▒▒▒▒▒╗░▒▒▒▒▒▒  ═════════════════════════
 ▒▒╔══▒▒║▒▒╔═══▒▒╗▒▒╔══▒╗
@@ -119,9 +118,9 @@ root@c7117e962741:/# ROPGenerator
 ▒▒╔══▒▒╗╚▒▒▒▒▒▒╔╝▒▒╔═══╝
 ╚═╝  ╚═╝ ╚═════╝ ╚═╝     ════════════════════ v2.0
 
-(main)>                                               
+(main)> load /tmp/FILE                                
 ```
-The actual image is around 2 GB based on a Debian Stretch with a Python 3.7.3 installed. 
+The actual image is around 200 MB based on a Debian Stretch with a Python 3.7.3 installed. 
 
 # Contact
 
