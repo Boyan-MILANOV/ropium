@@ -1,1 +1,0 @@
-g++ -std=c++11 -O0 -g3 -Iinclude Expression.cpp Condition.cpp Simplification.cpp Gadget.cpp Exception.cpp Semantic.cpp Architecture.cpp Symbolic.cpp Constraint.cpp Database.cpp CommonUtils.cpp $1 -o testme
