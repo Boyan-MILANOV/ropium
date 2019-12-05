@@ -12,6 +12,14 @@ using std::vector;
 using std::stringstream;
 using std::make_shared;
 
+Semantics::Semantics(IRContext* r): regs(r){}
+Semantics::~Semantics(){
+    delete regs;
+    regs = nullptr;
+}
+
+/* ======================================= */
+
 SymbolicEngine::SymbolicEngine(ArchType a){
     if(a == ArchType::X86){
         arch = new ArchX86();
@@ -90,7 +98,7 @@ Expr _get_operand(IROperand& arg, IRContext* irctx, vector<Expr>& tmp_vars){
 }
 
 
-void SymbolicEngine::execute_block(IRBlock* block){
+Semantics* SymbolicEngine::execute_block(IRBlock* block){
     Expr rvalue, dst, src1, src2;
     IRBasicBlock::iterator instr;
     bool stop = false;
@@ -238,4 +246,5 @@ void SymbolicEngine::execute_block(IRBlock* block){
             throw runtime_exception("SymbolicEngine::execute_block(): unknown IR instruction type");
         }
     }
+    return new Semantics(regs);
 }

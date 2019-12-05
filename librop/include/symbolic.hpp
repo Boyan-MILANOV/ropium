@@ -9,6 +9,16 @@
 using std::tuple;
 using std::string;
 
+/* Semantics
+   =========  */
+class Semantics{
+public:
+    IRContext* regs; // Takes ownership
+    Semantics(IRContext* regs);
+    ~Semantics();
+};
+
+
 /* SymbolicEngine
    ============== */
 
@@ -19,7 +29,7 @@ public:
     SymbolicEngine(ArchType arch);
     ~SymbolicEngine();
     // TODO return semantics
-    void execute_block(IRBlock* block);
+    Semantics* execute_block(IRBlock* block);
 };
 
 #endif
