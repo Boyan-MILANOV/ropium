@@ -376,7 +376,7 @@ inline IROperand x86_arg_extract(IROperand& arg, exprsize_t high, exprsize_t low
     }
 }
 
-/* Translate capstone argument to maat IR argument 
+/* Translate capstone argument to IR argument 
  * Arguments:
  *      mode - the current CPU mode for registers translation 
  *      addr - the address of the instruction being translated
