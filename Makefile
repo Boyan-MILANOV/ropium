@@ -30,22 +30,25 @@ CXXFLAGS += -std=c++11 -fPIC -I librop/include -I librop/dependencies/murmur3 -W
 # Source files
 SRCDIR=./librop
 SRCS+=$(wildcard $(SRCDIR)/symbolic/*.cpp)
-SRCS+=$(wildcard $(SRCDIR)/dependencies/murmur3/*.cpp)
+SRCS+=$(wildcard $(SRCDIR)/dependencies/murmur3/*.c)
 OBJS=$(SRCS:.cpp=.o)
 
-TESTDIR = 
-#TESTDIR = ./tests/unit-tests
-#TESTSRCS = $(wildcard $(TESTDIR)/*.cpp)
-#TESTOBJS = $(TESTSRCS:.cpp=.o)
+TESTDIR = ./tests/
+TESTSRCS = $(wildcard $(TESTDIR)/*.cpp)
+TESTOBJS = $(TESTSRCS:.cpp=.o)
 
 INCLUDEDIR = ./librop/include
 
 # Compile lib and tests 
-all: lib
+all: tests lib
 
 # librop
 lib: $(OBJS)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(OUTDIR)/libropgenerator.so -shared $(OBJS) $(LDLIBS)
+
+# unit tests
+tests: $(TESTOBJS) $(OBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(OUTDIR)/tests $(TESTOBJS) $(OBJS) $(LDLIBS)
 
 # generic 
 %.o : %.cpp
