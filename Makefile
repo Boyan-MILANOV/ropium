@@ -11,7 +11,7 @@ CXXFLAGS ?=
 CXXFLAGS ?=
 LDFLAGS ?=
 LDLIBS ?=
-#LDLIBS += -lcapstone
+LDLIBS += -lcapstone
 
 ## Flags for debug mode
 DEBUG ?= 0
@@ -29,26 +29,31 @@ CXXFLAGS += -std=c++11 -fPIC -I librop/include -I librop/dependencies/murmur3 -W
 
 # Source files
 SRCDIR=./librop
-SRCS+=$(wildcard $(SRCDIR)/symbolic/*.cpp)
-SRCS+=$(wildcard $(SRCDIR)/dependencies/murmur3/*.c)
+SRCS=$(wildcard $(SRCDIR)/symbolic/*.cpp)
+SRCS+=$(wildcard $(SRCDIR)/ir/*.cpp)
+SRCS+=$(wildcard $(SRCDIR)/arch/*.cpp)
 OBJS=$(SRCS:.cpp=.o)
 
-TESTDIR = ./tests/
+TESTDIR = ./tests
 TESTSRCS = $(wildcard $(TESTDIR)/*.cpp)
 TESTOBJS = $(TESTSRCS:.cpp=.o)
+
+DEPDIR = ./librop/dependencies
+DEPSRCS = $(DEPDIR)/murmur3/murmur3.c 
+DEPOBJS = $(DEPSRCS:.c=.o)
 
 INCLUDEDIR = ./librop/include
 
 # Compile lib and tests 
-all: tests lib
+all: lib tests
 
 # librop
-lib: $(OBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(OUTDIR)/libropgenerator.so -shared $(OBJS) $(LDLIBS)
+lib: $(OBJS) $(DEPOBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(OUTDIR)/libropgenerator.so -shared $(OBJS) $(DEPOBJS) $(LDLIBS)
 
 # unit tests
-tests: $(TESTOBJS) $(OBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(OUTDIR)/tests $(TESTOBJS) $(OBJS) $(LDLIBS)
+tests: $(TESTOBJS) $(OBJS) $(DEPOBJS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(OUTDIR)/tests $(TESTOBJS) $(OBJS) $(DEPOBJS) $(LDLIBS)
 
 # generic 
 %.o : %.cpp
@@ -92,14 +97,14 @@ install_bindings:
 
 # make test command
 test:
-	$(OUTDIR)/unit-tests
-	$(OUTDIR)/advanced-tests
+	$(OUTDIR)/tests
 
 # cleaning 
 cleanall: clean
 
 clean:
 	rm -f $(OBJS)
+	rm -f $(DEPOBJS)
 	rm -f $(TESTOBJS)
 	rm -f $(BINDINGS_OBJS)
 	rm -f `find . -type f -name "*.gch"`

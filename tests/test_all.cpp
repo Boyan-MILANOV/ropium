@@ -10,6 +10,7 @@ using std::string;
 
 void test_expression();
 void test_simplification();
+void test_ir();
 
 int main(int argc, char ** argv){
     string bold = "\033[1m";
@@ -25,6 +26,7 @@ int main(int argc, char ** argv){
             /* If no args specified, test all */
                 test_expression();
                 test_simplification();
+                test_ir();
             }else{
             /* Iterate through all options */
                 for( int i = 1; i < argc; i++){
@@ -32,6 +34,8 @@ int main(int argc, char ** argv){
                         test_expression();
                     else if (!strcmp(argv[i], "simp"))
                         test_simplification();
+                    else if (!strcmp(argv[i], "ir"))
+                        test_ir();
                     else
                         std::cout << "[" << red << "!" << def << "] Skipping unknown test: " << argv[i] << std::endl;
                 }

@@ -58,13 +58,11 @@ public:
    }
 };
 
-class constraint_exception: public std::exception {
+class ir_exception: public std::exception {
     string _msg;
 public:
-    explicit constraint_exception(string msg): _msg(msg){};
-    virtual const char * what () const throw () {
-      return _msg.c_str();
-   }
+    explicit ir_exception(string msg): _msg(msg){};
+    virtual const char * what () const throw () {return _msg.c_str();}
 };
 
 /* Symbolic Exception */
