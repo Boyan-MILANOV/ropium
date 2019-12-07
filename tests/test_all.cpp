@@ -11,6 +11,7 @@ using std::string;
 void test_expression();
 void test_simplification();
 void test_ir();
+void test_database();
 
 int main(int argc, char ** argv){
     string bold = "\033[1m";
@@ -27,6 +28,7 @@ int main(int argc, char ** argv){
                 test_expression();
                 test_simplification();
                 test_ir();
+                test_database();
             }else{
             /* Iterate through all options */
                 for( int i = 1; i < argc; i++){
@@ -36,6 +38,8 @@ int main(int argc, char ** argv){
                         test_simplification();
                     else if (!strcmp(argv[i], "ir"))
                         test_ir();
+                    else if( !strcmp(argv[i], "db"))
+                        test_database();
                     else
                         std::cout << "[" << red << "!" << def << "] Skipping unknown test: " << argv[i] << std::endl;
                 }

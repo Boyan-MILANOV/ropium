@@ -28,7 +28,6 @@ public:
 
     SymbolicEngine(ArchType arch);
     ~SymbolicEngine();
-    // TODO return semantics
     Semantics* execute_block(IRBlock* block);
 };
 

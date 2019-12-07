@@ -20,6 +20,7 @@ typedef uint16_t exprsize_t ;
 typedef uint32_t hash_t;
 typedef int64_t cst_t;
 typedef uint64_t ucst_t;
+typedef ucst_t addr_t;
 
 /* Types of expressions
    ====================

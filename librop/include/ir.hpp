@@ -4,8 +4,7 @@
 #include <vector>
 #include "expression.hpp"
 
-/* Type aliasing */
-typedef ucst_t addr_t; 
+/* Type aliasing */ 
 typedef unsigned int IRVar;
 typedef unsigned int IRBasicBlockId;
 
