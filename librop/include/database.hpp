@@ -1,3 +1,6 @@
+#ifndef DATABASE_H
+#define DATABASE_H
+
 #include <tuple>
 #include <unordered_map>
 #include "utils.hpp"
@@ -34,18 +37,30 @@ enum class GadgetType{
 };
 
 // Generic database for different kinds of gadgets
+int find_insert_index(vector<gadget_t>& gadget_list, int gadget_num, vector<Gadget*> all);
+
 template<class K> 
 class BaseDB{
 public:
-    unordered_map<K, gadget_t> db;
+    unordered_map<K, vector<gadget_t>> db;
+    
     // Template methods
-    void add(K key, gadget_t gadget_num){
-        db[key] = gadget_num;
+    void add(K key, Gadget* gadget, vector<Gadget*>& all){
+        vector<gadget_t>::iterator it;
+        int index;
+        if( db.count(key) > 0 ){
+            index = find_insert_index(db[key], gadget->id, all);
+            db[key].insert(db[key].begin()+index, gadget->id);
+        }else{
+            db[key] = vector<gadget_t>{gadget->id};
+        }
     }
-    gadget_t get(K key){
-        typename unordered_map<K, gadget_t>::iterator it;
+
+    vector<gadget_t>& get(K key){
+        typename unordered_map<K, vector<gadget_t>>::iterator it;
         if( (it = db.find(key)) == db.end()){
-            return NO_GADGET;
+            db[key] = vector<gadget_t>{};
+            return db[key];
         }else{
             return it->second;
         }
@@ -75,3 +90,6 @@ public:
     // Destructor
     ~GadgetDB();
 };
+
+
+#endif

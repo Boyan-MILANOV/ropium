@@ -14,10 +14,13 @@ using std::string;
 class Semantics{
 public:
     IRContext* regs; // Takes ownership
-    Semantics(IRContext* regs);
+    MemContext* mem; // Takes ownership
+    Semantics(IRContext* regs, MemContext* mem);
+    void simplify();
     ~Semantics();
 };
 
+ostream& operator<<(ostream&, Semantics& s);
 
 /* SymbolicEngine
    ============== */

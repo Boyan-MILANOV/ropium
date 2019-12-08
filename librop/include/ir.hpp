@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include "expression.hpp"
+#include "simplification.hpp"
 
 using std::unordered_map;
 
@@ -180,7 +181,6 @@ public:
     void set(IRVar num, Expr e);
     Expr get(IRVar num);
 };
-
 ostream& operator<<(ostream& os, IRContext& ctx);
 
 /* MemEngine 
@@ -188,11 +188,14 @@ ostream& operator<<(ostream& os, IRContext& ctx);
 class MemContext{
 public:
     unordered_map<Expr, Expr> writes;
-
+    ExprSimplifier* simp;
+    
+    MemContext();
     void write(Expr addr, Expr expr);
     Expr read(Expr addr, int octets);
+    ~MemContext();
 };
-
+ostream& operator<<(ostream& os, MemContext& ctx);
 
 /* Type aliasing */
 typedef vector<IRInstruction> IRBasicBlock;
@@ -222,6 +225,9 @@ public:
     string name;
     unsigned int ir_size;
     unsigned int raw_size;
+    cst_t max_sp_inc;
+    bool known_max_sp_inc;
+    
     addr_t branch_target[2]; // [0]: target when condition expression is 0
                              // [1]: target when condition expression is != 0
     IRBlock(string name, addr_t start=0, addr_t end=0);

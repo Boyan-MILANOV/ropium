@@ -22,15 +22,19 @@ namespace test{
             return 1; 
         }
         
-        unsigned int set_and_get(){
+        unsigned int base_db(){
             BaseDB<tuple<int, int>> db;
             int nb = 0;
-            db.add(make_tuple(1,2), 10);
-            nb += _assert(db.get(make_tuple(1,2)) == 10, "BaseDB, failed to add then get gadget");
-            db.add(make_tuple(1,2), 12);
-            nb += _assert(db.get(make_tuple(1,2)) == 12, "BaseDB, failed to add then get gadget");
-            db.add(make_tuple(0,456789), 7);
-            nb += _assert(db.get(make_tuple(0,456789)) == 7, "BaseDB, failed to add then get gadget");
+            Gadget *g1 = new Gadget(), *g2 = new Gadget();
+            vector<Gadget*> all;
+            g1->id = 0; g2->id = 1;
+            all.push_back(g1);
+            all.push_back(g2);
+            
+            db.add(make_tuple(1,2), g1, all);
+            nb += _assert(db.get(make_tuple(1,2))[0] == g1->id, "BaseDB, failed to add then get gadget");
+            db.add(make_tuple(1,4456), g2, all);
+            nb += _assert(db.get(make_tuple(1,4456))[0] == g2->id, "BaseDB, failed to add then get gadget");
 
             return nb; 
         }
@@ -47,7 +51,7 @@ void test_database(){
     
     // Start testing 
     cout << bold << "[" << green << "+" << def << bold << "]" << def << std::left << std::setw(34) << " Testing gadget database... " << std::flush;  
-    total += set_and_get();
+    total += base_db();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;
 }

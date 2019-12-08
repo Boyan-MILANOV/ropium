@@ -12,10 +12,26 @@ using std::vector;
 using std::stringstream;
 using std::make_shared;
 
-Semantics::Semantics(IRContext* r): regs(r){}
+Semantics::Semantics(IRContext* r, MemContext* m): regs(r), mem(m){}
+void Semantics::simplify(){
+    ExprSimplifier* simp = NewDefaultExprSimplifier();
+    for( int reg = 0; reg < regs->nb_vars(); reg++ ){
+        regs->set(reg, simp->simplify(regs->get(reg)));
+    }
+    for( unordered_map<Expr, Expr>::iterator write = mem->writes.begin(); write != mem->writes.end(); write++ ){
+        mem->writes[write->first] = simp->simplify(write->second);
+    }
+    delete simp;
+}
+
 Semantics::~Semantics(){
-    delete regs;
-    regs = nullptr;
+    delete regs; regs = nullptr;
+    delete mem; mem = nullptr;
+}
+
+ostream& operator<<(ostream& os, Semantics& s){
+    os << *(s.regs) << std::endl << *(s.mem);
+    return os;
 }
 
 /* ======================================= */
@@ -105,11 +121,14 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
     IRContext* regs = new IRContext(arch->nb_regs); // TODO: free it if not returned
     MemContext* mem = new MemContext();
     vector<Expr> tmp_vars;
+    ExprSimplifier *simp = NewDefaultExprSimplifier(); 
 
     /* Init context */
     for( reg_t reg = 0; reg < arch->nb_regs; reg++){
         regs->set(reg, exprvar(arch->bits, arch->reg_name(reg)));
     }
+    block->known_max_sp_inc = true;
+    block->max_sp_inc = 0;
 
     /* ====================== Execute an IR basic block ======================== */ 
     /* Execute the basic block as long as there is no reason to stop */
@@ -251,6 +270,30 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
         }else{
             throw runtime_exception("SymbolicEngine::execute_block(): unknown IR instruction type");
         }
+        
+        /* Check for sp increment */
+        Expr sp = regs->get(arch->sp());
+        sp = simp->simplify(sp);
+        cst_t sp_inc = 0xffffffff;
+        if( sp->is_binop(Op::ADD) && sp->args[0]->is_cst() &&
+            sp->args[0]->cst()%8 == 0 ){
+            // sp = sp0 + cst
+            sp_inc = sp->args[0]->cst();
+        }else if( sp->is_binop(Op::ADD) && sp->args[0]->is_unop(Op::NEG) &&
+                  sp->args[0]->args[0]->is_cst() && sp->args[0]->args[0]->cst()%8 == 0){
+            // sp = sp0 - cst
+            sp_inc = -1*sp->args[0]->args[0]->cst();
+        }else if( sp->is_var() && arch->reg_num(sp->name()) == arch->sp()){
+            // sp = sp0
+            sp_inc = 0;
+        }
+        // Assign max sp inc
+        if( sp_inc != 0xffffffff && block->known_max_sp_inc){
+            block->max_sp_inc = block->max_sp_inc > sp_inc ? block->max_sp_inc : sp_inc;
+        }
+
     }
-    return new Semantics(regs);
+
+    delete simp;
+    return new Semantics(regs, mem);
 }

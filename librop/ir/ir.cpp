@@ -401,8 +401,13 @@ ostream& operator<<(ostream& os, IRContext& ctx){
 }
 /* ====================================== */
 
+MemContext::MemContext(){
+    simp = NewDefaultExprSimplifier();
+}
+
 void MemContext::write(Expr addr, Expr expr){
     unordered_map<Expr, Expr>::iterator it;
+    addr = simp->simplify(addr); // Simplify address to check for collisions
     if( (it = writes.find(addr)) != writes.end()){
         if( it->second->size <= expr->size ){
             writes[addr] = expr;
@@ -416,6 +421,7 @@ void MemContext::write(Expr addr, Expr expr){
 
 Expr MemContext::read(Expr addr, int octets){
     unordered_map<Expr, Expr>::iterator it;
+    addr = simp->simplify(addr);
     if( (it = writes.find(addr)) != writes.end()){
         if( it->second->size/8 == octets ){
             return it->second;
@@ -429,6 +435,17 @@ Expr MemContext::read(Expr addr, int octets){
     }
 }
 
+MemContext::~MemContext(){
+    delete simp; simp = nullptr;
+}
+
+ostream& operator<<(ostream& os, MemContext& ctx){
+    for( auto w : ctx.writes ){
+        os << "MEM[" << w.first << "] : " << w.second << std::endl;
+    }
+    return os;
+}
+
 /* ====================================== */
 
 using std::max;
@@ -436,7 +453,7 @@ using std::min;
 
 IRBlock::IRBlock(string n, addr_t start, addr_t end): name(n), ir_size(0), 
             raw_size(0), start_addr(start), end_addr(end), _nb_tmp_vars(0),
-            _nb_instr(0), _nb_instr_ir(0){
+            _nb_instr(0), _nb_instr_ir(0), known_max_sp_inc(false){
     branch_target[0] = 0;
     branch_target[1] = 0;
 }

@@ -31,7 +31,7 @@ public:
     cst_t max_sp_inc;
     BranchType branch_type;
     reg_t jmp_reg;
-    
+    bool modified_regs[NB_REGS_MAX];
 
     // Constructor
     Gadget();
@@ -39,8 +39,9 @@ public:
     // Other
     void add_address(addr_t addr);
     void print(ostream& os);
-    bool lthan(shared_ptr<Gadget> other);
+    bool lthan(Gadget& other);
 };
+ostream& operator<<(ostream& os, Gadget& g);
 
 vector<Gadget*> gadgets_from_raw(vector<RawGadget>* raw, Arch* arch);
 

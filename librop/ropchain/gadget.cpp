@@ -1,10 +1,14 @@
 #include "ropchain.hpp"
 #include <unordered_map>
 #include <iostream>
+#include <cstring>
 
 using std::unordered_map;
 
-Gadget::Gadget():semantics(nullptr), bin_num(-1), branch_type(BranchType::NONE){}
+Gadget::Gadget():semantics(nullptr), bin_num(-1), branch_type(BranchType::NONE){
+    memset(modified_regs, 0, sizeof(modified_regs));
+}
+
 Gadget::~Gadget(){
     delete semantics;
     semantics = nullptr;
@@ -15,14 +19,24 @@ void Gadget::add_address(addr_t addr){
 }
 
 void Gadget::print(ostream& os){
-    os << asm_str;
+    os << "Gadget: " << asm_str << std::endl;
+    for( int i = 0; i < semantics->regs->nb_vars(); i++){
+        if( modified_regs[i] )
+            os << "Reg_" << i << " : " << semantics->regs->get(i) << std::endl;
+    }
+    os << *(semantics->mem) << std::endl;
 }
 
-bool Gadget::lthan(shared_ptr<Gadget> other){
-    if( nb_instr != other->nb_instr ){
-        return nb_instr < other->nb_instr;
+ostream& operator<<(ostream& os, Gadget& g){
+    g.print(os);
+    return os;
+}
+
+bool Gadget::lthan(Gadget& other){
+    if( nb_instr != other.nb_instr ){
+        return nb_instr < other.nb_instr;
     }else{
-        return nb_instr_ir < other->nb_instr_ir; 
+        return nb_instr_ir < other.nb_instr_ir; 
     }
 }
 
@@ -54,12 +68,18 @@ vector<Gadget*> gadgets_from_raw(vector<RawGadget>* raw_gadgets, Arch* arch){
                 std::cout << "DEBUG ERROR WHILE EXECUTING GADGET " << std::endl;
                 delete gadget; continue;
             }
+            semantics->simplify();
             gadget->semantics = semantics;
             // Set nb instructions
             gadget->nb_instr = irblock->_nb_instr;
             gadget->nb_instr_ir = irblock->_nb_instr_ir;
             // Get sp increment
-            // DEBUG TODO set the max sp_inc during symbolic execution
+            if( !irblock->known_max_sp_inc ){
+                std::cout << "DEBUG ERROR UNKNOWN MAX SP INC " << std::endl;
+                delete gadget; continue;
+            }else{
+                gadget->max_sp_inc = irblock->max_sp_inc;
+            }
             e = semantics->regs->get(arch->sp());
             if( e->is_binop(Op::ADD) && e->args[0]->is_cst() ){
                 if( e->args[0]->cst() % arch->octets != 0 ){
@@ -90,7 +110,18 @@ vector<Gadget*> gadgets_from_raw(vector<RawGadget>* raw_gadgets, Arch* arch){
                 std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE " << std::endl;
                 delete gadget; continue;
             }
-            
+
+            // Set name
+            gadget->asm_str = irblock->name;
+
+            // Set modified registers
+            for( int r = 0; r < arch->nb_regs; r++){
+                if( !semantics->regs->get(r)->is_var() ||
+                        semantics->regs->get(r)->name() != arch->reg_name(r)){
+                    gadget->modified_regs[r] = true;
+                }
+            }
+
             // Add gadget to result
             res.push_back(gadget);
             seen[raw.raw] = gadget;

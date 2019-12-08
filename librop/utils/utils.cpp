@@ -50,3 +50,4 @@ vector<RawGadget>* raw_gadgets_from_file(string filename){
     file.close();
     return res;
 }
+

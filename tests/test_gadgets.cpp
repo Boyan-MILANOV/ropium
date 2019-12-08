@@ -26,7 +26,7 @@ namespace test{
             std::cout << raw->at(0).raw << " and " << raw->at(0).addr << std::endl;
             
             vector<Gadget*> g = gadgets_from_raw(raw, arch);
-            std::cout << *(g[0]->semantics->regs) << std::endl;
+            std::cout << *(g[0]) << std::endl;
             delete raw;
             delete arch;
             return 1;

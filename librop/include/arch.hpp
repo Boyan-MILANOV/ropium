@@ -14,6 +14,8 @@ class Disassembler;
 /* Type aliasing */
 typedef uint16_t reg_t; 
 
+#define NB_REGS_MAX 64
+
 /* CPU modes */
 enum class CPUMode{
     X86,
