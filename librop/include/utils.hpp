@@ -1,3 +1,6 @@
+#ifndef UTILS_H
+#define UTILS_H
+
 #include <string>
 #include <cstdint>
 #include <vector>
@@ -14,7 +17,6 @@ public:
 
 // Read gadgets from file
 vector<RawGadget>* raw_gadgets_from_file(string filename);
-
 
 /* ========= Support for hashing tuples ========== */
 #include <tuple>
@@ -69,3 +71,5 @@ namespace std{
 
     };
 }
+
+#endif

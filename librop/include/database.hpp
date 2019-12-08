@@ -20,7 +20,7 @@ enum class GadgetType{
     NOP,
     // Register to register
     MOV_CST,    // reg <- cst
-    MOV_REG,    // reg <- reg 
+    MOV_REG,    // reg <- reg
     AMOV_CST,   // reg <- reg OP cst
     AMOV_REG,   // reg <- reg OP reg
     // Read from memory

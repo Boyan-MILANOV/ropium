@@ -103,13 +103,19 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
     IRBasicBlock::iterator instr;
     bool stop = false;
     IRContext* regs = new IRContext(arch->nb_regs); // TODO: free it if not returned
+    MemContext* mem = new MemContext();
     vector<Expr> tmp_vars;
+
+    /* Init context */
+    for( reg_t reg = 0; reg < arch->nb_regs; reg++){
+        regs->set(reg, exprvar(arch->bits, arch->reg_name(reg)));
+    }
 
     /* ====================== Execute an IR basic block ======================== */ 
     /* Execute the basic block as long as there is no reason to stop */
     for( instr = block->get_bblock(0).begin(); instr != block->get_bblock(0).end(); instr++){
         // FOR DEBUG
-        // std::cout << "DEBUG, executing " << *instr << std::endl;
+        std::cout << "DEBUG, executing " << *instr << std::endl;
 
         /* Get operands expressions */
         src1 = _get_operand(instr->src1, regs, tmp_vars);
@@ -192,11 +198,11 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
             /* Store memory */
             dst = _get_operand(instr->dst, regs, tmp_vars);
             /* THEN execute the store */
-            // TODO
+            mem->write(dst, src1);
         }else if( instr->op == IROperation::LDM){
-            /* Load memory */
-            // TODO 
-            /* Affect lvalue
+            /* Load memory */  
+            // Affect lvalue
+            rvalue = mem->read(src1, (instr->dst.high-instr->dst.low+1)/8);
             if( instr->dst.is_tmp()){
                 _set_tmp_var(instr->dst.tmp(), rvalue, instr->dst.high, instr->dst.low, tmp_vars);
             }else if( instr->dst.is_var()){
@@ -204,7 +210,7 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
                                                                 instr->dst.high, instr->dst.low));
             }else{
                 throw runtime_exception("SymbolicEngine::execute_block() got invalid dst operand type");
-            } */
+            }
         }else if( instr->op == IROperation::BCC){
             // NOT SUPPORTED
             throw runtime_exception("BCC Not supported in gadgets");

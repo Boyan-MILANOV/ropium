@@ -401,11 +401,42 @@ ostream& operator<<(ostream& os, IRContext& ctx){
 }
 /* ====================================== */
 
+void MemContext::write(Expr addr, Expr expr){
+    unordered_map<Expr, Expr>::iterator it;
+    if( (it = writes.find(addr)) != writes.end()){
+        if( it->second->size <= expr->size ){
+            writes[addr] = expr;
+        }else{
+            writes[addr] = concat(extract(it->second, it->second->size-1, expr->size), expr);
+        }
+    }else{
+        writes[addr] = expr;
+    }
+}
+
+Expr MemContext::read(Expr addr, int octets){
+    unordered_map<Expr, Expr>::iterator it;
+    if( (it = writes.find(addr)) != writes.end()){
+        if( it->second->size/8 == octets ){
+            return it->second;
+        }else if( it->second->size/8 > octets ){
+            return extract(it->second, (octets*8)-1, 0);
+        }else{
+            return concat(exprmem(octets*8 - it->second->size, addr + it->second->size), it->second);
+        }
+    }else{
+        return exprmem(octets*8, addr);
+    }
+}
+
+/* ====================================== */
+
 using std::max;
 using std::min;
 
 IRBlock::IRBlock(string n, addr_t start, addr_t end): name(n), ir_size(0), 
-            raw_size(0), start_addr(start), end_addr(end), branch_type(BranchType::NONE), _nb_tmp_vars(0){
+            raw_size(0), start_addr(start), end_addr(end), _nb_tmp_vars(0),
+            _nb_instr(0), _nb_instr_ir(0){
     branch_target[0] = 0;
     branch_target[1] = 0;
 }

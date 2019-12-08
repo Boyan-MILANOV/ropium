@@ -2,7 +2,10 @@
 #define IR_H
 
 #include <vector>
+#include <unordered_map>
 #include "expression.hpp"
+
+using std::unordered_map;
 
 /* Type aliasing */ 
 typedef unsigned int IRVar;
@@ -180,20 +183,19 @@ public:
 
 ostream& operator<<(ostream& os, IRContext& ctx);
 
+/* MemEngine 
+   ========== */
+class MemContext{
+public:
+    unordered_map<Expr, Expr> writes;
+
+    void write(Expr addr, Expr expr);
+    Expr read(Expr addr, int octets);
+};
+
 
 /* Type aliasing */
 typedef vector<IRInstruction> IRBasicBlock;
-
-
-/* BranchType: describes the type of branchment that is found at the 
- * end of an IR Basic Block */
-enum class BranchType{
-    NONE,           // Non branching instruction at the end
-    UNDEFINED,      // Single branch but can't resolve target address
-    BRANCH,         // Single branch
-    MULTIBRANCH,    // Two branches
-    MULTIUNDEFINED  // Two branches but can't resolve one or both target addresses
-};
 
 
 /* IRBlock
@@ -215,11 +217,11 @@ class IRBlock{
 public:
     vector<IRBasicBlock> _bblocks;
     int _nb_tmp_vars; // Number of tmp variables used in the block
+    int _nb_instr, _nb_instr_ir;
     addr_t start_addr, end_addr;
-    const string name;
+    string name;
     unsigned int ir_size;
     unsigned int raw_size;
-    BranchType branch_type;
     addr_t branch_target[2]; // [0]: target when condition expression is 0
                              // [1]: target when condition expression is != 0
     IRBlock(string name, addr_t start=0, addr_t end=0);

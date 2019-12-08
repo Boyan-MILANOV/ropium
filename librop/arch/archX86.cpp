@@ -5641,6 +5641,7 @@ IRBlock* DisassemblerX86::disasm_block(addr_t addr, code_t code, size_t code_siz
     int tmp_var_count = 0;
     addr_t curr_addr = addr;
     bool stop = false;
+    stringstream asm_str;
 
     while( (!stop) && cs_disasm_iter(_handle, (const uint8_t**)&code, &code_size, &addr, _insn) ){
         // Add instruction to IRBlock
@@ -5801,6 +5802,12 @@ IRBlock* DisassemblerX86::disasm_block(addr_t addr, code_t code, size_t code_siz
                 throw unsupported_instruction_exception(error_str);
         }
         
+        // Update asm_str
+        asm_str << " " << _insn->mnemonic << " " << _insn->op_str << ";";
+        
+        // Increment instruction count
+        block->_nb_instr++;
+        
         // Stop if last operation is a branch operation 
         for( int i = 0; i < _insn->detail->groups_count; i++){
             if(     _insn->detail->groups[i] == X86_GRP_JUMP ||
@@ -5827,32 +5834,19 @@ IRBlock* DisassemblerX86::disasm_block(addr_t addr, code_t code, size_t code_siz
     /* Set some infos about the block */
     block->end_addr = addr;
     block->raw_size = block->start_addr - addr;
-    /* Compute branching info if possible */
-    if( block->get_bblock(block->nb_bblocks()-1).back().op == IROperation::JCC ){
-        if( block->get_bblock(block->nb_bblocks()-1).back().src2.is_none() ){
-            if( !block->get_bblock(block->nb_bblocks()-1).back().src1.is_cst() ){
-                block->branch_type = BranchType::UNDEFINED;
-            }else{
-                block->branch_type = BranchType::BRANCH;
-                block->branch_target[1] = cst_sign_trunc((_mode==CPUMode::X86)?32:64, 
-                                            block->get_bblock(block->nb_bblocks()-1).back().src1.cst());
-            }
-        }else{
-            if( !block->get_bblock(block->nb_bblocks()-1).back().src1.is_cst() ||
-                !block->get_bblock(block->nb_bblocks()-1).back().src2.is_cst() ){
-                block->branch_type = BranchType::MULTIUNDEFINED;
-            }else{
-                block->branch_type = BranchType::MULTIBRANCH;
-                block->branch_target[0] = cst_sign_trunc((_mode==CPUMode::X86)?32:64, 
-                                            block->get_bblock(block->nb_bblocks()-1).back().src2.cst());
-                block->branch_target[1] = cst_sign_trunc((_mode==CPUMode::X86)?32:64, 
-                                            block->get_bblock(block->nb_bblocks()-1).back().src1.cst());
-            }
-        }
-    }else{
-        block->branch_type = BranchType::NONE;
-    }
+
     /* Save number of tmp variables */
     block->_nb_tmp_vars = tmp_var_count;
+    
+    // Get number of IR instructions
+    block->_nb_instr_ir = 0;
+    for( auto bblk : block->bblocks()){
+        block->_nb_instr_ir += bblk.size();
+    }
+
+    // Set asm_str as name
+    string s = asm_str.str();
+    s[s.size()] = '\0'; // Remove last ';'
+    block->name = s;
     return block;
 }
