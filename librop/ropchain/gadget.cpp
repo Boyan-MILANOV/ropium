@@ -58,21 +58,33 @@ vector<Gadget*> gadgets_from_raw(vector<RawGadget>* raw_gadgets, Arch* arch){
         }else{
             // New gadget
             gadget = new Gadget();
-            // Get semantics
-            if( (irblock = arch->disasm->disasm_block(raw.addr, (code_t)raw.raw.c_str(), raw.raw.size())) == nullptr){
-                std::cout << "DEBUG COULDN'T LIFT GADGET " << std::endl;
-                delete gadget; continue;
+            // Lift instructions
+            try{
+                if( (irblock = arch->disasm->disasm_block(raw.addr, (code_t)raw.raw.c_str(), raw.raw.size())) == nullptr){
+                    throw runtime_exception("disassembler returned null block");
+                }
+            }catch(std::exception& e){
+                std::cout << "DEBUG COULDN'T LIFT GADGET: " << e.what() << std::endl;
+                    delete gadget; continue;
             }
             
-            if( (semantics = sym.execute_block(irblock)) == nullptr ){
-                std::cout << "DEBUG ERROR WHILE EXECUTING GADGET " << std::endl;
-                delete gadget; continue;
+            // Get semantics
+            try{
+                if( (semantics = sym.execute_block(irblock)) == nullptr ){
+                    throw symbolic_exception("symbolic engine returned null semantics");
+                }
+            }catch(symbolic_exception& e){
+                std::cout << "DEBUG ERROR WHILE EXECUTING GADGET: " << 
+                             irblock->name << " --> " << e.what() << std::endl;
+                    delete gadget; continue;
             }
             semantics->simplify();
             gadget->semantics = semantics;
+
             // Set nb instructions
             gadget->nb_instr = irblock->_nb_instr;
             gadget->nb_instr_ir = irblock->_nb_instr_ir;
+
             // Get sp increment
             if( !irblock->known_max_sp_inc ){
                 std::cout << "DEBUG ERROR UNKNOWN MAX SP INC " << std::endl;
@@ -83,7 +95,8 @@ vector<Gadget*> gadgets_from_raw(vector<RawGadget>* raw_gadgets, Arch* arch){
             e = semantics->regs->get(arch->sp());
             if( e->is_binop(Op::ADD) && e->args[0]->is_cst() ){
                 if( e->args[0]->cst() % arch->octets != 0 ){
-                    throw runtime_exception("DEBUG ERROR got SP INC Not multiple of arch size ");
+                    std::cout << "DEBUG ERROR got SP INC Not multiple of arch size: " << irblock->name << std::endl;
+                    delete gadget; continue;
                 }
                 gadget->sp_inc = e->args[0]->cst();
             }
@@ -103,11 +116,11 @@ vector<Gadget*> gadgets_from_raw(vector<RawGadget>* raw_gadgets, Arch* arch){
                           arch->reg_num(e->args[0]->args[1]->name()) == arch->sp()){
                     gadget->branch_type = BranchType::RET;
                 }else{
-                    std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE " << std::endl;
+                    std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE: " << irblock->name << std::endl;
                     delete gadget; continue;
                 }
             }else{
-                std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE " << std::endl;
+                std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE: " << irblock->name << std::endl;
                 delete gadget; continue;
             }
 

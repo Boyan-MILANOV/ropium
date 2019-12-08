@@ -22,11 +22,15 @@ namespace test{
         
         unsigned int basic(){
             Arch* arch = new ArchX86();
-            vector<RawGadget>* raw = raw_gadgets_from_file("./tests/ressources/gadgets.txt");
+            
+            ropgadget_to_file("/tmp/gadgets.ropg", "/usr/bin/nmap");
+            
+            vector<RawGadget>* raw = raw_gadgets_from_file("/tmp/gadgets.ropg");
             std::cout << raw->at(0).raw << " and " << raw->at(0).addr << std::endl;
             
             vector<Gadget*> g = gadgets_from_raw(raw, arch);
             std::cout << *(g[0]) << std::endl;
+            std::cout << "DEBUG TOTAL GADGETS : " << g.size() << std::endl;
             delete raw;
             delete arch;
             return 1;

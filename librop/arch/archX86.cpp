@@ -5796,9 +5796,7 @@ IRBlock* DisassemblerX86::disasm_block(addr_t addr, code_t code, size_t code_siz
             case X86_INS_XCHG:      x86_xchg_d(_mode, _insn, curr_addr, block, bblkid, tmp_var_count); break;
             case X86_INS_XOR:       x86_xor_d(_mode, _insn, curr_addr, block, bblkid, tmp_var_count); break;
             default: 
-                string error_str = QuickFmt() << 
-                "DisassemblerX86:disasm_block(): unsupported instruction " << _insn->mnemonic << " at addr 0x" << std::hex << addr -_insn->size
-                >> QuickFmt::to_str;
+                string error_str = QuickFmt() << "unsupported instruction " << _insn->mnemonic >> QuickFmt::to_str;
                 throw unsupported_instruction_exception(error_str);
         }
         

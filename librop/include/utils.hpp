@@ -17,6 +17,8 @@ public:
 
 // Read gadgets from file
 vector<RawGadget>* raw_gadgets_from_file(string filename);
+// Write gadgets to file from ROPgadget output
+bool ropgadget_to_file(string filename, string bin);
 
 /* ========= Support for hashing tuples ========== */
 #include <tuple>

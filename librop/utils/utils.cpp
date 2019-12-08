@@ -2,9 +2,19 @@
 #include "exception.hpp"
 #include <iostream>
 #include <fstream>
+#include <cstdio>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <array>
+#include <vector>
+#include <exception>
 
 using std::ifstream;
+using std::ofstream;
 using std::ios;
+using std::stringstream;
+using std::vector;
 
 /* ======== Raw gadgets interface ======== */
 // Read gadgets from file
@@ -29,18 +39,22 @@ vector<RawGadget>* raw_gadgets_from_file(string filename){
                 try{
                     raw.addr = std::stoi(addr_str, 0, 16);
                     if( raw.addr == 0 )
-                        throw runtime_exception("");
+                        throw std::invalid_argument("");
                     got_addr = true;
-                }catch(std::exception& e){
-                    throw runtime_exception(QuickFmt() << "raw_gadgets_from_file: error, bad address string: " << addr_str >> QuickFmt::to_str);
+                }catch(std::invalid_argument& e){
+                    throw runtime_exception(QuickFmt() << "raw_gadgets_from_file: error, bad address string: " << line >> QuickFmt::to_str);
                 }
             }else if( !got_addr){
                 addr_str += c;
             }else{
                 byte += c;
                 if( byte.size() == 2 ){
-                    raw.raw += (char)(std::stoi(byte, 0, 16));
-                    byte = "";
+                    try{
+                        raw.raw += (char)(std::stoi(byte, 0, 16));
+                        byte = "";
+                    }catch(std::invalid_argument& e){
+                        throw runtime_exception(QuickFmt() << "raw_gadgets_from_file: error, bad byte in: " << line >> QuickFmt::to_str);
+                    }
                 }
             }
         }
@@ -51,3 +65,67 @@ vector<RawGadget>* raw_gadgets_from_file(string filename){
     return res;
 }
 
+
+// Write gadgets to file from ROPgadget output
+void split(const std::string& str, vector<string>& cont, char delim = ' ')
+{
+    std::size_t current, previous = 0;
+    current = str.find(delim);
+    while (current != std::string::npos) {
+        cont.push_back(str.substr(previous, current - previous));
+        previous = current + 1;
+        current = str.find(delim, previous);
+    }
+    cont.push_back(str.substr(previous, current - previous));
+}
+
+bool ropgadget_to_file(string out, string bin){
+    stringstream cmd;
+    ofstream out_file;
+    string output;
+    
+    out_file.open(out, ios::out);
+    
+    cmd << "ROPgadget --binary " << bin << " --dump --all --depth 5 " << std::endl; 
+    try{
+        std::array<char, 128> buffer;
+        string result;
+        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.str().c_str(), "r"), pclose);
+        string addr_str, raw_str;
+        size_t index;
+        stringstream ss;
+        vector<string> splited;
+        
+        if (!pipe) {
+            throw std::runtime_error("popen() failed!");
+        }
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            ss.str(""); ss << buffer.data();
+            splited.clear();
+            split(ss.str(), splited);
+            
+            // Get address string
+            if( splited.size() > 3 ){
+                addr_str = splited[0];
+            }else{
+                continue;
+            }
+            if( addr_str.substr(0, 2) != "0x" ){
+                continue;
+            }
+            // Get raw string
+            raw_str = splited.back();
+            if( raw_str.back() != '\n' )
+                raw_str += '\n';
+
+            // Write them to file
+            out_file << addr_str << "$" << raw_str;
+        }
+        
+    }catch(std::runtime_error& e){
+        return false;
+    }
+    
+    out_file.close();
+    return true;
+}
