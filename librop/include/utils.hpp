@@ -11,6 +11,8 @@ using std::vector;
 /* ======== Raw gadgets interface ======== */
 class RawGadget{
 public:
+    RawGadget(){};
+    RawGadget(string r, uint64_t a):raw(r), addr(a){}
     string raw;
     uint64_t addr;
 };

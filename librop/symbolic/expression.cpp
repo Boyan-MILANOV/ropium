@@ -131,7 +131,7 @@ hash_t ExprCst::hash(){
 cst_t ExprCst::cst(){ return _cst; }
 void ExprCst::print(ostream& os){os << std::showbase << cst_sign_trunc(size, _cst) << std::noshowbase;}
 // ==================================
-ExprVar::ExprVar(exprsize_t s, string n): ExprObject(ExprType::VAR, s, true), _name(n){
+ExprVar::ExprVar(exprsize_t s, string n, int num): ExprObject(ExprType::VAR, s, true), _name(n), _num(num){
     if( s > 64 ){
         throw expression_exception(QuickFmt() << "Cannot create symbolic variables of size > 64 (got "
             << std::dec << s << ")" >> QuickFmt::to_str);
@@ -146,6 +146,11 @@ hash_t ExprVar::hash(){
     }
     return _hash;
 }
+
+bool ExprVar::is_reg(int reg){
+    return _num == reg;
+}
+int ExprVar::reg(){ return _num;}
 const string& ExprVar::name(){ return _name; } 
 void ExprVar::print(ostream& os){os << _name;}
 // ==================================
@@ -366,8 +371,8 @@ void ExprUnknown::print(ostream& os){
 Expr exprcst(exprsize_t size, cst_t cst){
     return make_shared<ExprCst>(size, cst);
 }
-Expr exprvar(exprsize_t size, string name){
-    return make_shared<ExprVar>(size, name);
+Expr exprvar(exprsize_t size, string name, int num){
+    return make_shared<ExprVar>(size, name, num);
 }
 Expr exprmem(exprsize_t size, Expr addr){
     return make_shared<ExprMem>(size, addr);

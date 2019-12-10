@@ -5644,6 +5644,9 @@ IRBlock* DisassemblerX86::disasm_block(addr_t addr, code_t code, size_t code_siz
     stringstream asm_str;
 
     while( (!stop) && cs_disasm_iter(_handle, (const uint8_t**)&code, &code_size, &addr, _insn) ){
+        // DEBUG
+        // std::cout << "DEBUG, dissassembled " << _insn->mnemonic << " " << _insn->op_str << std::endl;
+        
         // Add instruction to IRBlock
         switch(_insn->id){
             case X86_INS_AAA:       x86_aaa_d(_mode, _insn, curr_addr, block, bblkid, tmp_var_count); break;

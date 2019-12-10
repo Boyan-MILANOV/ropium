@@ -120,10 +120,12 @@ public:
     virtual Op op(){throw runtime_exception("Called virtual function in ExprObject base class!");};
     virtual cst_t mode(){throw runtime_exception("Called virtual function in ExprObject base class!");};
     virtual void print(ostream& out){out << "???";};
+    virtual int reg(){throw runtime_exception("Called virtual function in ExprObject base class!");};
     
     /* Type */
     bool is_cst();
     bool is_var();
+    virtual bool is_reg(int reg){return false;}
     bool is_mem();
     virtual bool is_unop(Op op=Op::NONE);
     virtual bool is_binop(Op op=Op::NONE);
@@ -152,9 +154,12 @@ public:
 
 class ExprVar: public ExprObject{
     const string _name;
+    int _num;
 public:
-    ExprVar(exprsize_t size, string name);
+    ExprVar(exprsize_t size, string name, int num=0);
     hash_t hash();
+    bool is_reg(int reg);
+    int reg();
     const string& name();
     void print(ostream& out);
 };
@@ -222,7 +227,7 @@ public:
 /* Helper functions to create new expressions */
 // Create from scratch  
 Expr exprcst(exprsize_t size, cst_t cst);
-Expr exprvar(exprsize_t size, string name);
+Expr exprvar(exprsize_t size, string name, int num=-1);
 Expr exprmem(exprsize_t size, Expr addr);
 Expr exprbinop(Op op, Expr left, Expr right);
 Expr extract(Expr arg, unsigned long higher, unsigned long lower);

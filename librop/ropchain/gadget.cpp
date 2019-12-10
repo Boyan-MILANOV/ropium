@@ -41,7 +41,7 @@ bool Gadget::lthan(Gadget& other){
 }
 
 // Build gadget objects from raw gadgets
-vector<Gadget*> gadgets_from_raw(vector<RawGadget>* raw_gadgets, Arch* arch){
+vector<Gadget*> gadgets_from_raw(vector<RawGadget>& raw_gadgets, Arch* arch){
     vector<Gadget*> res;
     unordered_map<string, Gadget*> seen;
     unordered_map<string, Gadget*>::iterator git;
@@ -51,7 +51,7 @@ vector<Gadget*> gadgets_from_raw(vector<RawGadget>* raw_gadgets, Arch* arch){
     SymbolicEngine sym = SymbolicEngine(arch->type);
     Expr e;
     
-    for( auto raw: *raw_gadgets ){
+    for( auto raw: raw_gadgets ){
         if( (git = seen.find(raw.raw)) != seen.end()){
             // Already seen, just add a new address
             git->second->add_address(raw.addr);
@@ -126,7 +126,8 @@ vector<Gadget*> gadgets_from_raw(vector<RawGadget>* raw_gadgets, Arch* arch){
 
             // Set name
             gadget->asm_str = irblock->name;
-
+            // Set address
+            gadget->addresses.push_back(raw.addr);
             // Set modified registers
             for( int r = 0; r < arch->nb_regs; r++){
                 if( !semantics->regs->get(r)->is_var() ||

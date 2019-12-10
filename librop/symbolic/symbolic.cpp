@@ -126,7 +126,7 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
 
     /* Init context */
     for( reg_t reg = 0; reg < arch->nb_regs; reg++){
-        regs->set(reg, exprvar(arch->bits, arch->reg_name(reg)));
+        regs->set(reg, exprvar(arch->bits, arch->reg_name(reg), reg));
     }
     block->known_max_sp_inc = true;
     block->max_sp_inc = 0;
