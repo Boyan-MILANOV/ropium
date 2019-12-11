@@ -114,11 +114,12 @@ Expr _get_operand(IROperand& arg, IRContext* irctx, vector<Expr>& tmp_vars){
 }
 
 
+#define DELETE_ALL_OBJECTS() delete regs; delete mem; delete simp;
 Semantics* SymbolicEngine::execute_block(IRBlock* block){
     Expr rvalue, dst, src1, src2;
     IRBasicBlock::iterator instr;
     bool stop = false;
-    IRContext* regs = new IRContext(arch->nb_regs); // TODO: free it if not returned
+    IRContext* regs = new IRContext(arch->nb_regs);
     MemContext* mem = new MemContext();
     vector<Expr> tmp_vars;
     ExprSimplifier *simp = NewDefaultExprSimplifier(); 
@@ -203,7 +204,9 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
                     case IROperation::CONCAT:
                         rvalue = concat(src1, src2);
                         break;
-                    default: throw runtime_exception("Unsupported assignment IROperation in SymbolicEngine::execute_block()");
+                    default: 
+                        DELETE_ALL_OBJECTS()
+                        throw runtime_exception("Unsupported assignment IROperation in SymbolicEngine::execute_block()");
                 }
 
                 /* Affect lvalue */
@@ -213,6 +216,7 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
                     regs->set(instr->dst.var(), _expand_lvalue(regs->get(instr->dst.var()), rvalue,
                                                                     instr->dst.high, instr->dst.low));
                 }else{
+                    DELETE_ALL_OBJECTS()
                     throw runtime_exception("SymbolicEngine::execute_block() got invalid dst operand type");
                 }
             }else if(instr->op == IROperation::STM){
@@ -230,12 +234,14 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
                     regs->set(instr->dst.var(), _expand_lvalue(regs->get(instr->dst.var()), rvalue,
                                                                     instr->dst.high, instr->dst.low));
                 }else{
+                    DELETE_ALL_OBJECTS()
                     throw runtime_exception("SymbolicEngine::execute_block() got invalid dst operand type");
                 }
             }else if( instr->op == IROperation::BCC){
                 dst = _get_operand(instr->dst, regs, tmp_vars);
                 /* Check condition and update basic block to execute */
                 if( !dst->is_cst() || !src1->is_cst() || (src2 != nullptr && !src2->is_cst())){
+                    DELETE_ALL_OBJECTS()
                     throw symbolic_exception("BCC with non constant operand(s) not supported");
                 }
                 if( cst_sign_trunc(dst->size, dst->cst()) != 0){
@@ -251,6 +257,7 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
                     regs->set(arch->pc(), _expand_lvalue(regs->get(arch->pc()), src1,
                                                                 instr->dst.high, instr->dst.low));
                 }else{
+                    DELETE_ALL_OBJECTS()
                     throw symbolic_exception("JCC with non constant or null condition not supported");
                 }
                 /* Quit this block */
@@ -258,6 +265,7 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
                 break; // Stop executing instructions in the basic block
             }else if(instr->op == IROperation::BISZ){
                 if( !src2->is_cst() ){
+                    DELETE_ALL_OBJECTS()
                     throw symbolic_exception("BISZ with not constant mode not supported");
                 }
                 rvalue = bisz((instr->dst.high-instr->dst.low)+1 , src1, cst_sign_trunc(src2->size, src2->cst()));
@@ -268,16 +276,20 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
                     regs->set(instr->dst.var(), _expand_lvalue(regs->get(instr->dst.var()), rvalue,
                                                                     instr->dst.high, instr->dst.low));
                 }else{
+                    DELETE_ALL_OBJECTS()
                     throw runtime_exception("SymbolicEngine::execute_block() got invalid dst operand type");
                 }
             
             }else if(instr->op == IROperation::INT){
+                DELETE_ALL_OBJECTS()
                 throw symbolic_exception("INT operation not supported in gadgets");
                 break; // Stop executing instructions in the basic block
             }else if(instr->op == IROperation::SYSCALL){
+                DELETE_ALL_OBJECTS()
                 throw symbolic_exception("SYSCALL operation not supported in gadgets");
                 break; // Stop executing instructions in the basic block
             }else{
+                DELETE_ALL_OBJECTS()
                 throw runtime_exception("SymbolicEngine::execute_block(): unknown IR instruction type");
             }
             
