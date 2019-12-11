@@ -21,20 +21,16 @@ namespace test{
         }
         
         unsigned int basic(){
+            unsigned int nb = 0;
             Arch* arch = new ArchX86();
             
             ropgadget_to_file("/tmp/gadgets.ropg", "/usr/bin/nmap");
             
             vector<RawGadget>* raw = raw_gadgets_from_file("/tmp/gadgets.ropg");
-            std::cout << raw->at(0).raw << " and " << raw->at(0).addr << std::endl;
-            
-            vector<Gadget*> g = gadgets_from_raw(*raw, arch);
-            std::cout << *(g[0]) << std::endl;
-            std::cout << "DEBUG TOTAL GADGETS : " << g.size() << std::endl;
-            
+
             delete raw;
             delete arch;
-            return 1;
+            return nb;
         }
     }
 }
@@ -49,7 +45,7 @@ void test_gadgets(){
     
     // Start testing 
     cout << bold << "[" << green << "+" << def << bold << "]" << def << std::left << std::setw(34) << " Testing gadget analysis... " << std::flush;  
-    // DEBUG total += basic();
+    total += basic();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;
 }

@@ -43,6 +43,4 @@ public:
 };
 ostream& operator<<(ostream& os, Gadget& g);
 
-vector<Gadget*> gadgets_from_raw(vector<RawGadget>& raw, Arch* arch);
-
 #endif

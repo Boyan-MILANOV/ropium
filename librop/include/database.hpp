@@ -29,7 +29,7 @@ enum class GadgetType{
     AMOV_REG,   // reg <- reg OP reg
     // Read from memory
     LOAD,       // reg <- mem(reg + offset)
-    ALOAD,      // reg OP<- mem(reg)
+    ALOAD,      // reg OP<- mem(reg + offset)
     // Store to memory
     STORE,      // mem(reg + offset) <- reg
     ASTORE,     // mem(reg + offset) OP<- reg
@@ -82,15 +82,27 @@ public:
     BaseDB<tuple<reg_t, Op, reg_t, addr_t>> aload;
     BaseDB<tuple<reg_t, addr_t, reg_t>> store;
     BaseDB<tuple<reg_t, addr_t, Op, reg_t>> astore;
-    BaseDB<tuple<reg_t>> jmp;
+    BaseDB<reg_t> jmp;
 
     // Add and classify a gadget in the database
-    gadget_t add(Gadget* gadget);
+    gadget_t add(Gadget* gadget, Arch* arch);
+    // Analyse raw gadgets and fill the database accordingly
+    // return the number of successfuly analysed gadgets
+    int fill_from_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch);
+    // Get a gadget by id
     Gadget* get(gadget_t gadget_num);
     
+    // Get gadgets semantically
     vector<Gadget*>& get_mov_cst(reg_t reg, cst_t cst);
     vector<Gadget*>& get_mov_reg(reg_t dst_reg, reg_t src_reg);
-
+    vector<Gadget*>& get_amov_cst(reg_t dst_reg, reg_t src_reg, Op op, cst_t src_cst);
+    vector<Gadget*>& get_amov_reg(reg_t dst_reg, reg_t src_reg1, Op op, reg_t src_reg2);
+    vector<Gadget*>& get_load(reg_t dst_reg, reg_t addr_reg, cst_t offset);
+    vector<Gadget*>& get_aload(reg_t dst_reg, Op op, reg_t addr_reg, cst_t offset);
+    vector<Gadget*>& get_jmp(reg_t jmp_reg);
+    vector<Gadget*>& get_store(reg_t addr_reg, cst_t offset, reg_t src_reg);
+    vector<Gadget*>& get_astore(reg_t addr_reg, cst_t offset, Op op, reg_t src_reg);
+    
     // Destructor
     ~GadgetDB();
 };

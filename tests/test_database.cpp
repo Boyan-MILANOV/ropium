@@ -55,21 +55,45 @@ namespace test{
             GadgetDB db;
 
             vector<RawGadget> raw;
-            raw.push_back(RawGadget(string("\xb8\x03\x00\x00\x00\xc3", 8), 0)); // mov eax, 3; ret
+            raw.push_back(RawGadget(string("\xb8\x03\x00\x00\x00\xc3", 6), 0)); // mov eax, 3; ret
             raw.push_back(RawGadget(string("\x89\xf9\xbb\x01\x00\x00\x00\xc3", 8), 1)); // mov ecx, edi; mov ebx, 1; ret
-            
-            vector<Gadget*> gadget_list = gadgets_from_raw(raw, arch);
-            
-            for( Gadget* gadget : gadget_list ){
-                db.add(gadget);
-            }
+            raw.push_back(RawGadget(string("\xb8\x03\x00\x00\x00\xc3", 6), 2)); // mov eax, 3; ret
+            raw.push_back(RawGadget(string("\x83\xc0\x02\x89\xc6\xc3", 6), 3)); // add eax, 2; mov esi, eax; ret
+            raw.push_back(RawGadget(string("\x81\xea\x34\x12\x00\x00\xc3", 7), 4)); // sub edx, 0x1234; ret
+            raw.push_back(RawGadget(string("\x01\xe5\xc3", 3), 5)); // add ebp, esp; ret
+            raw.push_back(RawGadget(string("\x58\x5e\xc3", 3), 6)); // pop eax; pop esi; ret
+            raw.push_back(RawGadget(string("\x8b\x59\xf7\x89\xd8\xc3", 6), 7)); // mov ebx, [ecx-9]; mov eax, ebx; ret
+            raw.push_back(RawGadget(string("\x03\x39\xc3", 3), 8)); // add edi, [ecx]; ret
+            raw.push_back(RawGadget(string("\x33\x79\xf6\xc3", 4), 9)); // xor edi, [ecx-10]; ret
+            raw.push_back(RawGadget(string("\xff\xe0", 2), 10)); // jmp eax;
+            raw.push_back(RawGadget(string("\x89\x0f\x89\x5e\xfd\xc3", 6), 11)); // mov [edi], ecx; mov [esi-3], ebx; ret
+            raw.push_back(RawGadget(string("\x01\x21\xc3", 3), 12)); // add [ecx], esp; ret
+            raw.push_back(RawGadget(string("\x21\x49\xf7\xc3", 4), 13)); // and [ecx-9], ecx; ret
+
+            db.fill_from_raw_gadgets(raw, arch);
 
             // Test gadget classification
             nb += _assert_db(0, db.get_mov_cst(X86_EAX, 3));
             nb += _assert_db(1, db.get_mov_cst(X86_EBX, 1));
             nb += _assert_db(1, db.get_mov_reg(X86_ECX, X86_EDI));
-            
-            
+            nb += _assert_db(2, db.get_mov_cst(X86_EAX, 3));
+            nb += _assert_db(3, db.get_amov_cst(X86_EAX, X86_EAX, Op::ADD, 2));
+            nb += _assert_db(3, db.get_amov_cst(X86_ESI, X86_EAX, Op::ADD, 2));
+            nb += _assert_db(4, db.get_amov_cst(X86_EDX, X86_EDX, Op::ADD, -0x1234));
+            nb += _assert_db(5, db.get_amov_reg(X86_EBP, X86_ESP, Op::ADD, X86_EBP));
+            nb += _assert_db(6, db.get_load(X86_EAX, X86_ESP, 0));
+            nb += _assert_db(6, db.get_load(X86_ESI, X86_ESP, 4));
+            nb += _assert_db(7, db.get_load(X86_EBX, X86_ECX, -9));
+            nb += _assert_db(7, db.get_load(X86_EAX, X86_ECX, -9));
+            nb += _assert_db(8, db.get_aload(X86_EDI, Op::ADD, X86_ECX, 0));
+            nb += _assert_db(9, db.get_aload(X86_EDI, Op::XOR, X86_ECX, -10));
+            nb += _assert_db(10, db.get_jmp(X86_EAX));
+            nb += _assert_db(10, db.get_mov_reg(X86_EIP, X86_EAX));
+            nb += _assert_db(11, db.get_store(X86_EDI, 0, X86_ECX));
+            nb += _assert_db(11, db.get_store(X86_ESI, -3, X86_EBX));
+            nb += _assert_db(12, db.get_astore(X86_ECX, 0, Op::ADD, X86_ESP));
+            nb += _assert_db(13, db.get_astore(X86_ECX, -9, Op::AND, X86_ECX));
+
             delete arch;
             return nb;
         }
