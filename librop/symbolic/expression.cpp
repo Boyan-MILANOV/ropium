@@ -63,7 +63,7 @@ hash_t exprhash(void* hash_in, int len, uint32_t seed){
 /* Implementation of expression classes */ 
 // ==================================
 ExprObject::ExprObject(ExprType t, exprsize_t s, bool _is_simp): type(t), size(s), _hashed(false), _hash(0), 
-    _simplified_expr(nullptr), _is_simplified(_is_simp){}
+    _simplified_expr(nullptr), _is_simplified(_is_simp), _concrete_ctx_id(-1){}
 bool ExprObject::is_cst(){return type == ExprType::CST;}
 bool ExprObject::is_var(){return type == ExprType::VAR;}
 bool ExprObject::is_mem(){return type == ExprType::MEM;}
@@ -73,6 +73,7 @@ bool ExprObject::is_extract(){return type == ExprType::EXTRACT;}
 bool ExprObject::is_concat(){return type == ExprType::CONCAT;}
 bool ExprObject::is_bisz(){return type == ExprType::BISZ;}
 bool ExprObject::is_unknown(){return type == ExprType::UNKNOWN;}
+cst_t ExprObject::concretize(VarContext* ctx ){throw runtime_exception("Can not concretize base class ExprObject");}
 bool ExprObject::eq(Expr other){return hash() == other->hash();}
 bool ExprObject::neq(Expr other){return hash() != other->hash();}
 bool ExprObject::inf(Expr e2){
@@ -129,6 +130,7 @@ hash_t ExprCst::hash(){
     return _hash;
 }
 cst_t ExprCst::cst(){ return _cst; }
+cst_t ExprCst::concretize(VarContext* ctx){return _cst;}
 void ExprCst::print(ostream& os){os << std::showbase << cst_sign_trunc(size, _cst) << std::noshowbase;}
 // ==================================
 ExprVar::ExprVar(exprsize_t s, string n, int num): ExprObject(ExprType::VAR, s, true), _name(n), _num(num){
@@ -151,6 +153,18 @@ bool ExprVar::is_reg(int reg){
     return _num == reg;
 }
 int ExprVar::reg(){ return _num;}
+cst_t ExprVar::concretize(VarContext* ctx){
+    if( ctx == nullptr){
+        throw expression_exception("Cannot concretize symbolic variable without supplying a context");
+    }
+    if( _concrete_ctx_id == ctx->id )
+        return _concrete;
+    else{
+        _concrete = ctx->get(_name);
+        _concrete_ctx_id = ctx->id; 
+    }
+    return _concrete; 
+}
 const string& ExprVar::name(){ return _name; } 
 void ExprVar::print(ostream& os){os << _name;}
 // ==================================
@@ -164,6 +178,9 @@ hash_t ExprMem::hash(){
         _hashed = true;
     }
     return _hash; 
+}
+cst_t ExprMem::concretize(VarContext* ctx){
+    throw runtime_exception("concretize() not imlemented for memory expressions!");
 }
 void ExprMem::print(ostream& os){
     os << "@" << std::dec << size << "[" << std::hex << args.at(0) << "]";
@@ -192,6 +209,23 @@ bool ExprUnop::is_unop(Op op){
         return true;
     else
         return op == _op; 
+}
+
+cst_t ExprUnop::concretize(VarContext* ctx){
+    if( ctx != nullptr && _concrete_ctx_id == ctx->id )
+        return _concrete;
+    else{
+        switch(_op){
+            case Op::NEG: _concrete =cst_sign_extend(size, -(args[0]->concretize(ctx))); break;
+            case Op::NOT: _concrete =cst_sign_extend(size, ~(args[0]->concretize(ctx))); break;
+            default: throw runtime_exception("Missing case in ExprUnop::concretize()");
+        }
+        if( ctx != nullptr ){
+            _concrete_ctx_id = ctx->id; 
+        }
+        _concrete = cst_sign_extend(size, _concrete);
+    }
+    return _concrete; 
 }
 
 // ==================================
@@ -259,6 +293,48 @@ bool ExprBinop::is_binop(Op op){
         return op == _op; 
 }
 
+cst_t ExprBinop::concretize(VarContext* ctx){
+    if( ctx != nullptr && _concrete_ctx_id == ctx->id )
+        return _concrete;
+    else{
+        switch(_op){
+            case Op::ADD: _concrete = (args[0]->concretize(ctx) + args[1]->concretize(ctx)); break;
+            case Op::MUL: _concrete = ((ucst_t)args[0]->concretize(ctx) * (ucst_t)args[1]->concretize(ctx)); break;
+            case Op::MULH: _concrete = (cst_t)(((__uint128_t)cst_sign_trunc(args[0]->size, args[0]->concretize(ctx)) * 
+                                                            cst_sign_trunc(args[1]->size, (__uint128_t)args[1]->concretize(ctx))) >> size ); break;
+            case Op::DIV: _concrete = ((ucst_t)cst_sign_trunc(args[0]->size, args[0]->concretize(ctx)) / (ucst_t)cst_sign_trunc(args[1]->size, args[1]->concretize(ctx))); break;
+            case Op::SDIV: _concrete = (args[0]->concretize(ctx) / args[1]->concretize(ctx)); break;
+            case Op::AND: _concrete = (args[0]->concretize(ctx) & args[1]->concretize(ctx)); break;
+            case Op::OR: _concrete = (args[0]->concretize(ctx) | args[1]->concretize(ctx)); break;
+            case Op::XOR: _concrete = (args[0]->concretize(ctx) ^ args[1]->concretize(ctx)); break;
+            case Op::MOD: _concrete = ((ucst_t)args[0]->concretize(ctx) % (ucst_t)args[1]->concretize(ctx)); break;
+            case Op::SMOD: _concrete = (args[0]->concretize(ctx) % args[1]->concretize(ctx)); break;
+            case Op::SMULL: _concrete = (cst_t)((__int128_t)args[0]->concretize(ctx) * args[1]->concretize(ctx)); break;
+            case Op::SMULH: _concrete = (cst_t)(((__int128_t)args[0]->concretize(ctx) * args[1]->concretize(ctx)) >> size); break;
+            case Op::SHL: 
+                if( cst_sign_trunc(args[1]->size, args[1]->concretize(ctx)) >= args[0]->size ){
+                    _concrete = 0;
+                }else{ 
+                    _concrete = ((ucst_t)cst_sign_trunc(args[0]->size, args[0]->concretize(ctx))) << ((ucst_t)args[1]->concretize(ctx));
+                }
+                break;
+            case Op::SHR: 
+                if( cst_sign_trunc(args[1]->size, args[1]->concretize(ctx)) >= args[0]->size ){
+                    _concrete = 0;
+                }else{
+                    _concrete = ((ucst_t)cst_sign_trunc(args[0]->size, args[0]->concretize(ctx))) >> ((ucst_t)args[1]->concretize(ctx));
+                }
+                break;
+            default: throw runtime_exception("Missing case in ExprBinop::concretize()");
+        }
+        if( ctx != nullptr ){
+            _concrete_ctx_id = ctx->id;
+        }
+        _concrete =cst_sign_extend(size, _concrete);
+    }
+    return _concrete; 
+}
+
 // ==================================
 ExprExtract::ExprExtract(Expr arg, Expr higher, Expr lower): ExprObject(ExprType::EXTRACT, 0){
     assert(higher->is_cst() && lower->is_cst() && 
@@ -294,6 +370,27 @@ void ExprExtract::print(ostream& os){
     os << "]";
 }
 
+cst_t ExprExtract::concretize(VarContext* ctx){
+    cst_t high, low;
+    ucst_t mask;
+    if( ctx != nullptr && _concrete_ctx_id == ctx->id )
+        return _concrete;
+    else{
+        high = args[1]->concretize(ctx);
+        low = args[2]->concretize(ctx);
+        if( high == 63 ){
+            mask = 0xffffffffffffffff;
+        }else{
+            mask = (((cst_t)1 << (high+1))-1);
+        }
+        
+        _concrete =  ((ucst_t)args[0]->concretize(ctx) & mask) >> (ucst_t)low;
+        if( ctx != nullptr )
+            _concrete_ctx_id = ctx->id; 
+        _concrete = cst_sign_extend(size, _concrete);
+    }
+    return _concrete; 
+}
 
 // ==================================
 ExprConcat::ExprConcat(Expr upper, Expr lower): ExprObject(ExprType::CONCAT, upper->size+lower->size){
@@ -316,6 +413,23 @@ void ExprConcat::print(ostream& os){
     os << "," << std::hex;
     args.at(1)->print(os); 
     os << "}";
+}
+
+cst_t ExprConcat::concretize(VarContext* ctx){
+    cst_t upper, lower; 
+    if( ctx != nullptr && _concrete_ctx_id == ctx->id )
+        return _concrete;
+    else{
+        upper = args[0]->concretize(ctx);
+        lower = args[1]->concretize(ctx);
+        _concrete = cst_sign_extend(size, (((ucst_t)upper)<<(ucst_t)args[1]->size)
+                                             | (ucst_t)cst_sign_trunc(args[1]->size, lower));
+        if( ctx != nullptr )
+            _concrete_ctx_id = ctx->id; 
+         _concrete =cst_sign_extend(size, _concrete);
+    }
+   
+    return _concrete; 
 }
 
 /* ===================================== */
@@ -350,6 +464,19 @@ void ExprBisz::print(ostream& out){
     }
 }
 
+cst_t ExprBisz::concretize(VarContext* ctx){
+    if( ctx != nullptr && _concrete_ctx_id == ctx->id )
+        return _concrete;
+    else{
+        _concrete = (args[0]->concretize(ctx) == 0)? _mode : _mode^1;
+        if( ctx != nullptr )
+            _concrete_ctx_id = ctx->id;
+        _concrete =cst_sign_extend(size, _concrete);
+    }
+    
+    return _concrete;
+}
+
 // ==================================
 ExprUnknown::ExprUnknown(exprsize_t s): ExprObject(ExprType::UNKNOWN, s){}
 hash_t ExprUnknown::hash(){
@@ -362,6 +489,10 @@ hash_t ExprUnknown::hash(){
 }
 void ExprUnknown::print(ostream& os){
     os << "???";
+}
+
+cst_t ExprUnknown::concretize(VarContext* ctx){
+    throw runtime_exception("Can not concretize ExprUnknown instance");
 }
 
 // ==================================
@@ -816,4 +947,37 @@ cst_t cst_sign_extend(exprsize_t size, cst_t c){
             return ((((ucst_t)1<<size)-1) & c);
         }
     }
+}
+
+/* ====================================== */
+VarContext::VarContext(int i): id(i){}
+
+void VarContext::set(const string& name, cst_t value){
+    varmap[name] = value;
+    id++;
+}
+
+cst_t VarContext::get(const string& name){
+    map<string, cst_t>::iterator it; 
+    if( ( it = varmap.find(name)) == varmap.end())
+        throw expression_exception(QuickFmt() << "Trying to access variable '" 
+            << name << "' which is unknown in context" >> QuickFmt::to_str);
+    return it->second;
+}
+
+void VarContext::remove(const string& name){
+    varmap.erase(name);
+    id++;
+}
+
+void VarContext::print(ostream& os ){
+    os << std::endl;
+    for( auto var : varmap ){
+        os << var.first << " : " << std::hex << "0x" << var.second << std::dec << std::endl;
+    }
+}
+
+ostream& operator<<(ostream& os, VarContext& c){
+    c.print(os);
+    return os;
 }

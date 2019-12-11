@@ -91,6 +91,7 @@ bool op_is_multiplication(Op op);
 
 /* Forward declarations */
 class ExprObject;
+class VarContext;
 typedef shared_ptr<ExprObject> Expr;
 
 /* Generic base class */ 
@@ -100,6 +101,9 @@ protected:
     // Hash 
     bool _hashed;
     hash_t _hash;
+    // Concrete
+    cst_t _concrete;
+    int _concrete_ctx_id;
     // Simplification
     Expr _simplified_expr;
     bool _is_simplified;
@@ -134,6 +138,9 @@ public:
     bool is_bisz();
     bool is_unknown();
     
+    /* Concretize */
+    virtual cst_t concretize(VarContext* ctx=nullptr);
+    
     /* Equality between expressions */
     bool eq(Expr other);
     bool neq(Expr other);
@@ -149,6 +156,7 @@ public:
     ExprCst(exprsize_t size, cst_t cst);
     hash_t hash();
     cst_t cst();
+    virtual cst_t concretize(VarContext* ctx=nullptr);
     void print(ostream& out);
 };
 
@@ -160,6 +168,7 @@ public:
     hash_t hash();
     bool is_reg(int reg);
     int reg();
+    virtual cst_t concretize(VarContext* ctx=nullptr);
     const string& name();
     void print(ostream& out);
 };
@@ -168,6 +177,7 @@ class ExprMem: public ExprObject{
 public:
     ExprMem(exprsize_t size, Expr addr);
     hash_t hash();
+    virtual cst_t concretize(VarContext* ctx=nullptr);
     void print(ostream& out);
 };
 
@@ -177,6 +187,7 @@ public:
     ExprUnop(Op op, Expr arg);
     hash_t hash();
     Op op();
+    virtual cst_t concretize(VarContext* ctx=nullptr);
     void print(ostream& out);
     bool is_unop(Op op);
 };
@@ -190,6 +201,7 @@ public:
     void get_associative_args(Op op, vector<Expr>& vec);
     void get_left_associative_args(Op op, vector<Expr>& vec, Expr& leftmost);
 
+    virtual cst_t concretize(VarContext* ctx=nullptr);
     void print(ostream& out);
     bool is_binop(Op op);
 };
@@ -198,6 +210,7 @@ class ExprExtract: public ExprObject{
 public:
     ExprExtract(Expr arg, Expr higher, Expr lower);
     hash_t hash();
+    virtual cst_t concretize(VarContext* ctx=nullptr);
     void print(ostream& out);
 };
 
@@ -205,6 +218,7 @@ class ExprConcat: public ExprObject{
 public:
     ExprConcat(Expr upper, Expr lower);
     hash_t hash();
+    virtual cst_t concretize(VarContext* ctx=nullptr);
     void print(ostream& out);
 };
 
@@ -214,6 +228,7 @@ public:
     ExprBisz(exprsize_t size, Expr cond, cst_t mode);
     hash_t hash();
     cst_t mode();
+    virtual cst_t concretize(VarContext* ctx=nullptr);
     void print(ostream& out);
 };
 
@@ -221,6 +236,7 @@ class ExprUnknown: public ExprObject{
 public:
     ExprUnknown(exprsize_t size);
     hash_t hash();
+    virtual cst_t concretize(VarContext* ctx=nullptr);
     void print(ostream& out);
 };
 
@@ -331,5 +347,23 @@ cst_t cst_sign_extend(exprsize_t size, cst_t val);
 #define _concat_(e) (*(static_cast<ExprConcat*>(e.get())))
 #define _bisz_(e) (*(static_cast<ExprBisz*>(e.get())))
 #define _unknown_(e) (*(static_cast<ExprUnknown*>(e.get())))
+
+
+/* VarContext
+   ==========
+A VarContext associates a list of concrete values to a list of variables.
+It used with the variables names as keys for lookup. */
+class VarContext{
+    map<string, cst_t> varmap;
+public:
+    int id;
+    VarContext(int id=0);
+    void set(const string& name, cst_t value);
+    cst_t get(const string& name);
+    void remove(const string& name);
+    void print(ostream& os);
+};
+
+ostream& operator<<(ostream& os, VarContext& c);
 
 #endif
