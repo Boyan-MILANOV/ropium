@@ -5233,7 +5233,7 @@ inline void x86_shr_d(CPUMode mode, cs_insn* instr, addr_t addr, IRBlock* block,
     
     /* Test if masked count is 0 */
     block->add_instr(bblkid, ir_bcc(tmp0, ir_cst(cont, 31, 0), ir_cst(end, 31, 0), addr));
-    
+
     // Do shift
     /* Affect CF (last bit shifted out) */
     tmp1 = ir_tmp(tmp_var_count++, op0.size-1, 0);
@@ -5254,7 +5254,7 @@ inline void x86_shr_d(CPUMode mode, cs_insn* instr, addr_t addr, IRBlock* block,
     }else{
         x86_adjust_reg_assign(mode, addr, block, cont, tmp_var_count, dest, tmp2);
     }
-    
+
     /* Affect OF flag iff masked count == 1 */
     tmp3 = ir_tmp(tmp_var_count++, op0.size-1, 0);
     block->add_instr(cont, ir_xor(tmp3, tmp0, ir_cst(1, tmp0.size-1, 0), addr));

@@ -504,7 +504,6 @@ Expr es_generic_distribute(Expr e){
 /* Associativity deep in the AST 
  * Try to unfold nested associative operators and see if 
  * pairs can be simplified for all possible associations */
-// TODO : test for absorbing/neutral elements first
 Expr es_deep_associative(Expr e, ExprSimplifier& s){
     vector<Expr> vec;
     Expr expr, simp, tmp1, tmp2;
