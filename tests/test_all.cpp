@@ -13,6 +13,7 @@ void test_simplification();
 void test_ir();
 void test_database();
 void test_gadgets();
+void test_strategy();
 
 int main(int argc, char ** argv){
     string bold = "\033[1m";
@@ -31,6 +32,7 @@ int main(int argc, char ** argv){
                 test_ir();
                 test_gadgets();
                 test_database();
+                test_strategy();
             }else{
             /* Iterate through all options */
                 for( int i = 1; i < argc; i++){
@@ -44,6 +46,8 @@ int main(int argc, char ** argv){
                         test_database();
                     else if( !strcmp(argv[i], "gadgets"))
                         test_gadgets();
+                    else if( !strcmp(argv[i], "strategy"))
+                        test_strategy();
                     else
                         std::cout << "[" << red << "!" << def << "] Skipping unknown test: " << argv[i] << std::endl;
                 }

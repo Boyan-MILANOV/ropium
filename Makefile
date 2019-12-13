@@ -35,6 +35,7 @@ SRCS+=$(wildcard $(SRCDIR)/arch/*.cpp)
 SRCS+=$(wildcard $(SRCDIR)/ropchain/*.cpp)
 SRCS+=$(wildcard $(SRCDIR)/utils/*.cpp)
 SRCS+=$(wildcard $(SRCDIR)/database/*.cpp)
+SRCS+=$(wildcard $(SRCDIR)/compiler/*.cpp)
 OBJS=$(SRCS:.cpp=.o)
 
 TESTDIR = ./tests
