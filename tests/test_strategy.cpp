@@ -35,10 +35,12 @@ namespace test{
             node2.params[PARAM_MOVREG_DST_REG].make_reg(X86_ECX);
             sgraph.add_strategy_edge(n1, n2);
             sgraph.add_param_edge(n1, n2);
-            // std::cout << sgraph;
+            std::cout << sgraph;
             
             sgraph.rule_mov_reg_transitivity(n1);
-            // std::cout << sgraph;
+            sgraph.compute_dfs_params();
+            sgraph.compute_dfs_strategy();
+            std::cout << sgraph;
             return nb;
         }
 

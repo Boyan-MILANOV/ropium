@@ -132,8 +132,12 @@ ostream& operator<<(ostream& os, Node& node);
 class StrategyGraph{
 private:
     UniqueNameGenerator name_generator;
+    void _dfs_strategy_explore(vector<node_t>& marked, node_t n);
+    void _dfs_params_explore(vector<node_t>& marked, node_t n);
 public:
     vector<Node> nodes;
+    vector<node_t> dfs_strategy;
+    vector<node_t> dfs_params;
 
     // Create new nodes/edges
     node_t new_node(GadgetType t);
@@ -146,6 +150,9 @@ public:
     void add_param_edge(node_t from, node_t to);
     // Strategy rules
     void rule_mov_reg_transitivity(node_t n);
+    // Ordering
+    void compute_dfs_strategy();
+    void compute_dfs_params();
 };
 ostream& operator<<(ostream& os, StrategyGraph& graph);
 

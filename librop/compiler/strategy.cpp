@@ -158,6 +158,58 @@ void StrategyGraph::rule_mov_reg_transitivity(node_t n){
 }
 
 
+// Ordering
+void StrategyGraph::_dfs_strategy_explore(vector<node_t>& marked, node_t n){
+    if( nodes[n].id == -1 || std::count(dfs_strategy.begin(), dfs_strategy.end(), n))
+        return; // Ignore invalid/removed nodes
+    if( std::count(marked.begin(), marked.end(), n) != 0 ){
+        throw runtime_exception("StrategyGraph: strategy DFS: unexpected cycle detected!");
+    }else{
+        marked.push_back(n);
+    }
+    for( node_t n2 : nodes[n].strategy_edges.out ){
+        _dfs_strategy_explore(marked, n2);
+    }
+    dfs_strategy.push_back(n);
+}
+
+void StrategyGraph::compute_dfs_strategy(){
+    vector<node_t> marked;
+    dfs_strategy.clear();
+    for( Node& node : nodes ){
+        if( node.id == -1 || (std::count(marked.begin(), marked.end(), node.id) != 0))
+            continue;
+        else
+            _dfs_strategy_explore(marked, node.id);
+    }
+}
+
+void StrategyGraph::_dfs_params_explore(vector<node_t>& marked, node_t n){
+    if( nodes[n].id == -1 || std::count(dfs_params.begin(), dfs_params.end(), n))
+        return; // Ignore invalid/removed/already visited nodes
+    if( std::count(marked.begin(), marked.end(), n) != 0 ){
+        throw runtime_exception("StrategyGraph: params DFS: unexpected cycle detected!");
+    }else{
+        marked.push_back(n);
+    }
+    for( node_t n2 : nodes[n].param_edges.out ){
+        _dfs_params_explore(marked, n2);
+    }
+    dfs_params.push_back(n);
+}
+
+void StrategyGraph::compute_dfs_params(){
+    vector<node_t> marked;
+    dfs_params.clear();
+    for( Node& node : nodes ){
+        if( node.id == -1 || (std::count(marked.begin(), marked.end(), node.id) != 0))
+            continue;
+        else
+            _dfs_params_explore(marked, node.id);
+    }
+}
+
+
 /* ================ Printing =================== */
 ostream& operator<<(ostream& os, Param& param){
     string tab = "\t";
@@ -190,14 +242,28 @@ ostream& operator<<(ostream& os, Node& node){
     for( int p = 0; p < node.nb_params(); p++){
         os << node.params[p] << std::endl;
     }
+
     os << std::endl;
     return os;
 }
 
 ostream& operator<<(ostream& os, StrategyGraph& graph){
-    os << "STRATEGY GRAPH\n==============\n";
+    os << "STRATEGY GRAPH\n==============";
+    
+    os << "\n\tDFS strategy: "; 
+    for( node_t n : graph.dfs_strategy ){
+        os << n << " ";
+    }
+    
+    os << "\n\tDFS params: "; 
+    for( node_t n : graph.dfs_params ){
+        os << n << " ";
+    }
+    
+    os << std::endl;
     for( Node& n : graph.nodes ){
         os << n;
     }
+
     return os;
 }
