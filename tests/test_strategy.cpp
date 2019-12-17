@@ -1,5 +1,6 @@
 #include "strategy.hpp"
 #include "exception.hpp"
+#include "utils.hpp"
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -70,11 +71,11 @@ namespace test{
 
             //std::cout << sgraph;
             //sgraph.select_gadgets(db);
-            
+
             // Apply strat
             sgraph.rule_mov_reg_transitivity(n2);
             sgraph.select_gadgets(db);
-            
+
             return nb;
         }
 

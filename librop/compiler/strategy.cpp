@@ -237,7 +237,6 @@ const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t
             // make query
             src_reg = node.params[PARAM_MOVREG_SRC_REG].value;
             dst_reg = node.params[PARAM_MOVREG_DST_REG].value;
-            std::cout << "DEBUG, dst " << dst_reg << "  -- src " << src_reg << std::endl;
             return db.get_mov_reg(dst_reg, src_reg);
         default:
             throw runtime_exception("_get_possible_gadgets(): got unsupported node type");
@@ -285,7 +284,7 @@ void StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
     //      - If cst : is it possible really ? yes through special function
     //      - If reg : ez, iterate through possible regs
     Node& node = nodes[dfs_params[dfs_idx]];
-    std::cout << "DEBUG REC DOING NODE " << node.id << std::endl;
+    // std::cout << "DEBUG REC DOING NODE " << node.id << std::endl;
     if( node.has_free_param() ){
         // Get possible gadgets
         PossibleGadgets* possible = _get_possible_gadgets(db, node.id);
@@ -299,7 +298,7 @@ void StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
             // 2.b Try all possible gadgets
             for( Gadget* gadget : *(pos.second) ){
                 node.affected_gadget = gadget;
-                std::cout << "DEBUG, select gadget " << gadget->asm_str << std::endl;
+                // std::cout << "DEBUG, selected " << gadget->asm_str << std::endl;
                 // 3. Recursive call on next node
                 // TODO if( select_... ) return ou break don't forget DELETE ... 
                 select_gadgets(db, dfs_idx+1);
@@ -311,12 +310,12 @@ void StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
         const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
         // 2. Try all possible gadgets (or a subset)
         if( gadgets.empty() ){
-            std::cout << "DEBUG, NO GADGETS :'(" << std::endl;
+            // std::cout << "DEBUG, NO GADGETS :'(" << std::endl;
             return;
         }
         for( Gadget* gadget : gadgets ){
             node.affected_gadget = gadget;
-            std::cout << "DEBUG, selected : " << gadget->asm_str << std::endl;
+            // std::cout << "DEBUG, selected : " << gadget->asm_str << std::endl;
             // 3. Recursive call on next node
             // TODO if( select_... != null ){return ...}
             select_gadgets(db, dfs_idx+1);

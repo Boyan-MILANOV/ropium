@@ -103,8 +103,8 @@ public:
         for( auto& it : db ){
             // Check if key matches
             if( _check_key_match(key, it.first, param_is_free, nb_params)){
-                auto a = tuple_to_array(it.first);
-                res->gadgets.push_back(std::make_pair(vector<cst_t>(a.begin(), a.begin()+nb_params), &(it.second)));
+                vector<cst_t> vec = tuple_to_vector(it.first);
+                res->gadgets.push_back(std::make_pair(vec, &(it.second)));
             }
         }
         return res;

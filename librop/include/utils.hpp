@@ -4,6 +4,7 @@
 #include <string>
 #include <cstdint>
 #include <vector>
+#include "expression.hpp"
 
 using std::string;
 using std::vector;
@@ -77,7 +78,7 @@ namespace std{
 }
 
 
-/* ========= Convert tuples to array ================= */
+/* ========= Convert tuples to array/vector ================= */
 template<int... Indices>
 struct indices {
     using next = indices<Indices..., sizeof...(Indices)>;
@@ -118,6 +119,17 @@ auto tuple_to_array(Tuple&& tuple)
 -> decltype( to_array(std::declval<Tuple>(), make_indices<Tuple>()) )
 {
     return to_array(std::forward<Tuple>(tuple), make_indices<Tuple>());
+}
+
+template<typename Tuple>
+vector<cst_t> tuple_to_vector(Tuple&& tuple)
+{
+    auto array = tuple_to_array(tuple);
+    vector<cst_t> res;
+    for( auto& a : array ){
+        res.push_back(a);
+    }
+    return res;
 }
 
 #endif
