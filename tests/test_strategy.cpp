@@ -35,12 +35,46 @@ namespace test{
             node2.params[PARAM_MOVREG_DST_REG].make_reg(X86_ECX);
             sgraph.add_strategy_edge(n1, n2);
             sgraph.add_param_edge(n1, n2);
-            std::cout << sgraph;
+            //std::cout << sgraph;
             
             sgraph.rule_mov_reg_transitivity(n1);
             sgraph.compute_dfs_params();
             sgraph.compute_dfs_strategy();
-            std::cout << sgraph;
+            //std::cout << sgraph;
+            return nb;
+        }
+        
+        unsigned int basic2(){
+            unsigned int nb = 0;
+            Arch* arch = new ArchX86();
+            GadgetDB db;
+
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x89\xf9\xbb\x01\x00\x00\x00\xc3", 8), 1)); // mov ecx, edi; mov ebx, 1; ret
+            raw.push_back(RawGadget(string("\x89\xC8\xC3", 3), 2)); // mov eax, ecx; ret
+            raw.push_back(RawGadget(string("\x89\xC3\xC3", 3), 3)); // mov ebx, eax; ret
+            raw.push_back(RawGadget(string("\x89\xCB\xC3", 3), 4)); // mov ebx, ecx; ret
+            db.fill_from_raw_gadgets(raw, arch);
+            
+            StrategyGraph sgraph;
+            node_t n1 = sgraph.new_node(GadgetType::MOV_REG);
+            node_t n2 = sgraph.new_node(GadgetType::MOV_REG);
+            Node& node1 = sgraph.nodes[n1];
+            Node& node2 = sgraph.nodes[n2];
+            node1.params[PARAM_MOVREG_SRC_REG].make_reg(X86_EDI);
+            node1.params[PARAM_MOVREG_DST_REG].make_reg(n2, PARAM_MOVREG_SRC_REG);
+            node2.params[PARAM_MOVREG_SRC_REG].make_reg(0, false);
+            node2.params[PARAM_MOVREG_DST_REG].make_reg(X86_EBX);
+            sgraph.add_strategy_edge(n1, n2);
+            sgraph.add_param_edge(n1, n2);
+
+            //std::cout << sgraph;
+            //sgraph.select_gadgets(db);
+            
+            // Apply strat
+            sgraph.rule_mov_reg_transitivity(n2);
+            sgraph.select_gadgets(db);
+            
             return nb;
         }
 
@@ -59,6 +93,7 @@ void test_strategy(){
     cout << bold << "[" << green << "+" << def << bold << "]" << def << " Testing strategy graphs... " << std::flush;
     for( int i = 0; i < 1; i++){
         total += basic();
+        total += basic2();
     }
 
     // Return res

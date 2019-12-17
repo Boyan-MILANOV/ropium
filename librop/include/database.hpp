@@ -9,6 +9,7 @@
 #include "ropchain.hpp"
 #include "arch.hpp"
 
+using std::pair;
 using std::tuple;
 using std::make_tuple;
 using std::unordered_map;
@@ -37,6 +38,25 @@ enum class GadgetType{
     JMP,     // PC <- reg
 };
 
+/* PossibleGadgets
+   ===============
+    This class holds query results to the database where some parameters
+    are 'free' (ie eax = ebx + X where X is not fixed)
+*/
+
+class PossibleGadgets{
+public:
+    vector<pair<vector<cst_t>, vector<Gadget*>*>> gadgets; // Pointers to vector<Gadget*> are not owned! 
+    int size(){return gadgets.size();};
+    vector<Gadget*>& get_gadgets(int i){return *(gadgets[i].second);};
+    cst_t get_param(int i, int p){return gadgets[i].first[p];};
+    PossibleGadgets(){};
+    PossibleGadgets(const PossibleGadgets& other){
+        gadgets = std::move(other.gadgets);
+    };
+};
+
+
 // Generic database for different kinds of gadgets
 int find_insert_index(vector<Gadget*>& gadget_list, Gadget* gadget);
 
@@ -57,7 +77,7 @@ public:
         }
     }
 
-    vector<Gadget*>& get(K key){
+    const vector<Gadget*>& get(K key){
         typename unordered_map<K, vector<Gadget*>>::iterator it;
         if( (it = db.find(key)) == db.end()){
             db[key] = vector<Gadget*>{};
@@ -65,6 +85,29 @@ public:
         }else{
             return it->second;
         }
+    }
+    
+    bool _check_key_match(const K& key1, const K& key2, bool* param_is_free, int nb_params){
+        auto a1 = tuple_to_array(key1);
+        auto a2 = tuple_to_array(key2);
+        for( int p = 0; p < a1.size(); p++){
+            if( !param_is_free[p] && !(a1[p] == a2[p]))
+                return false;
+        }
+        return true;
+    }
+    
+    PossibleGadgets* get_possible(K key, bool* param_is_free, int nb_params){
+        PossibleGadgets* res = new PossibleGadgets();
+        
+        for( auto& it : db ){
+            // Check if key matches
+            if( _check_key_match(key, it.first, param_is_free, nb_params)){
+                auto a = tuple_to_array(it.first);
+                res->gadgets.push_back(std::make_pair(vector<cst_t>(a.begin(), a.begin()+nb_params), &(it.second)));
+            }
+        }
+        return res;
     }
 };
 
@@ -93,19 +136,29 @@ public:
     Gadget* get(gadget_t gadget_num);
     
     // Get gadgets semantically
-    vector<Gadget*>& get_mov_cst(reg_t reg, cst_t cst);
-    vector<Gadget*>& get_mov_reg(reg_t dst_reg, reg_t src_reg);
-    vector<Gadget*>& get_amov_cst(reg_t dst_reg, reg_t src_reg, Op op, cst_t src_cst);
-    vector<Gadget*>& get_amov_reg(reg_t dst_reg, reg_t src_reg1, Op op, reg_t src_reg2);
-    vector<Gadget*>& get_load(reg_t dst_reg, reg_t addr_reg, cst_t offset);
-    vector<Gadget*>& get_aload(reg_t dst_reg, Op op, reg_t addr_reg, cst_t offset);
-    vector<Gadget*>& get_jmp(reg_t jmp_reg);
-    vector<Gadget*>& get_store(reg_t addr_reg, cst_t offset, reg_t src_reg);
-    vector<Gadget*>& get_astore(reg_t addr_reg, cst_t offset, Op op, reg_t src_reg);
-    
+    const vector<Gadget*>& get_mov_cst(reg_t reg, cst_t cst);
+    const vector<Gadget*>& get_mov_reg(reg_t dst_reg, reg_t src_reg);
+    const vector<Gadget*>& get_amov_cst(reg_t dst_reg, reg_t src_reg, Op op, cst_t src_cst);
+    const vector<Gadget*>& get_amov_reg(reg_t dst_reg, reg_t src_reg1, Op op, reg_t src_reg2);
+    const vector<Gadget*>& get_load(reg_t dst_reg, reg_t addr_reg, cst_t offset);
+    const vector<Gadget*>& get_aload(reg_t dst_reg, Op op, reg_t addr_reg, cst_t offset);
+    const vector<Gadget*>& get_jmp(reg_t jmp_reg);
+    const vector<Gadget*>& get_store(reg_t addr_reg, cst_t offset, reg_t src_reg);
+    const vector<Gadget*>& get_astore(reg_t addr_reg, cst_t offset, Op op, reg_t src_reg);
+
+    // Get gadgets with optional parameters
+    PossibleGadgets* get_possible_mov_cst(reg_t reg, cst_t cst, bool* param_is_free);
+    PossibleGadgets* get_possible_mov_reg(reg_t dst_reg, reg_t src_reg, bool* param_is_free);
+    PossibleGadgets* get_possible_amov_cst(reg_t dst_reg, reg_t src_reg, Op op, cst_t src_cst, bool* param_is_free);
+    PossibleGadgets* get_possible_amov_reg(reg_t dst_reg, reg_t src_reg1, Op op, reg_t src_reg2, bool* param_is_free);
+    PossibleGadgets* get_possible_load(reg_t dst_reg, reg_t addr_reg, cst_t offset, bool* param_is_free);
+    PossibleGadgets* get_possible_aload(reg_t dst_reg, Op op, reg_t addr_reg, cst_t offset, bool* param_is_free);
+    PossibleGadgets* get_possible_jmp(reg_t jmp_reg, bool* param_is_free);
+    PossibleGadgets* get_possible_store(reg_t addr_reg, cst_t offset, reg_t src_reg, bool* param_is_free);
+    PossibleGadgets* get_possible_astore(reg_t addr_reg, cst_t offset, Op op, reg_t src_reg, bool* param_is_free);
+
     // Destructor
     ~GadgetDB();
 };
-
 
 #endif

@@ -25,7 +25,7 @@ else
 endif
 
 ## Final C++ flags
-CXXFLAGS += -std=c++11 -fPIC -I librop/include -I librop/dependencies/murmur3 -Wno-write-strings -Wno-sign-compare -Wno-reorder
+CXXFLAGS += -std=c++11 -fpermissive -fPIC -I librop/include -I librop/dependencies/murmur3 -Wno-write-strings -Wno-sign-compare -Wno-reorder
 
 # Source files
 SRCDIR=./librop

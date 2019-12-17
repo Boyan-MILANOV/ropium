@@ -40,7 +40,7 @@ namespace test{
             return nb; 
         }
         
-        unsigned int _assert_db(addr_t addr, vector<Gadget*>& list){
+        unsigned int _assert_db(addr_t addr, const vector<Gadget*>& list){
             for( Gadget* g : list ){
                 if( std::find(g->addresses.begin(), g->addresses.end(), addr) != g->addresses.end() )
                     return 1;

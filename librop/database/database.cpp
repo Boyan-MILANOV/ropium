@@ -217,40 +217,46 @@ Gadget* GadgetDB::get(gadget_t gadget_num){
     return all[gadget_num];
 }
 
-vector<Gadget*>& GadgetDB::get_mov_cst(reg_t reg, cst_t cst){
+const vector<Gadget*>& GadgetDB::get_mov_cst(reg_t reg, cst_t cst){
     return mov_cst.get(make_tuple(reg, cst));
 }
 
-vector<Gadget*>& GadgetDB::get_mov_reg(reg_t dst_reg, reg_t src_reg){
+const vector<Gadget*>& GadgetDB::get_mov_reg(reg_t dst_reg, reg_t src_reg){
     return mov_reg.get(make_tuple(dst_reg, src_reg));
 }
 
-vector<Gadget*>& GadgetDB::get_amov_cst(reg_t dst_reg, reg_t src_reg, Op op, cst_t src_cst){
+const vector<Gadget*>& GadgetDB::get_amov_cst(reg_t dst_reg, reg_t src_reg, Op op, cst_t src_cst){
     return amov_cst.get(make_tuple(dst_reg, src_reg, op, src_cst));
 }
 
-vector<Gadget*>& GadgetDB::get_amov_reg(reg_t dst_reg, reg_t src_reg1, Op op, reg_t src_reg2){
+const vector<Gadget*>& GadgetDB::get_amov_reg(reg_t dst_reg, reg_t src_reg1, Op op, reg_t src_reg2){
     return amov_reg.get(make_tuple(dst_reg, src_reg1, op, src_reg2));
 }
 
-vector<Gadget*>& GadgetDB::get_load(reg_t dst_reg, reg_t addr_reg, cst_t offset){
+const vector<Gadget*>& GadgetDB::get_load(reg_t dst_reg, reg_t addr_reg, cst_t offset){
     return load.get(make_tuple(dst_reg, addr_reg, offset));
 }
 
-vector<Gadget*>& GadgetDB::get_aload(reg_t dst_reg, Op op, reg_t addr_reg, cst_t offset){
+const vector<Gadget*>& GadgetDB::get_aload(reg_t dst_reg, Op op, reg_t addr_reg, cst_t offset){
     return aload.get(make_tuple(dst_reg, op, addr_reg, offset));
 }
 
-vector<Gadget*>& GadgetDB::get_jmp(reg_t jmp_reg){
+const vector<Gadget*>& GadgetDB::get_jmp(reg_t jmp_reg){
     return jmp.get(jmp_reg);
 }
 
-vector<Gadget*>& GadgetDB::get_store(reg_t addr_reg, cst_t offset, reg_t src_reg){
+const vector<Gadget*>& GadgetDB::get_store(reg_t addr_reg, cst_t offset, reg_t src_reg){
     return store.get(make_tuple(addr_reg, offset, src_reg));
 }
 
-vector<Gadget*>& GadgetDB::get_astore(reg_t addr_reg, cst_t offset, Op op, reg_t src_reg){
+const vector<Gadget*>& GadgetDB::get_astore(reg_t addr_reg, cst_t offset, Op op, reg_t src_reg){
     return astore.get(make_tuple(addr_reg, offset, op, src_reg));
+}
+
+/* ============== Get possible gadgets ===================== */
+
+PossibleGadgets* GadgetDB::get_possible_mov_reg(reg_t dst_reg, reg_t src_reg, bool* param_is_free){
+    return mov_reg.get_possible(make_tuple(dst_reg, src_reg), param_is_free, 2);
 }
 
 GadgetDB::~GadgetDB(){

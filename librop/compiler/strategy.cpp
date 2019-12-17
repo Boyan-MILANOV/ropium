@@ -209,6 +209,120 @@ void StrategyGraph::compute_dfs_params(){
     }
 }
 
+/* =============== Gadget Selection ============== */
+void StrategyGraph::_resolve_param(Param& param){
+    if( param.is_fixed )
+        return;
+    else if( !param.is_dependent())
+        throw runtime_exception("Trying to resolve free parameter");
+        
+    if( param.type == ParamType::REG ){
+        param.value = nodes[param.dep_node].params[param.dep_param_type].value;
+    }else if( param.type == ParamType::CST){
+        throw runtime_exception("_resolve_param() not implemented for constants");
+    }else{
+        throw runtime_exception("_resolve_param(): got unsupported param type");
+    }
+}
+
+const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t n){
+    Node& node = nodes[n];
+    reg_t src_reg, dst_reg;
+    // resolve parameters
+    for( int p = 0; p < node.nb_params(); p++){
+        _resolve_param(node.params[p]);
+    }
+    switch( node.type ){
+        case GadgetType::MOV_REG:
+            // make query
+            src_reg = node.params[PARAM_MOVREG_SRC_REG].value;
+            dst_reg = node.params[PARAM_MOVREG_DST_REG].value;
+            std::cout << "DEBUG, dst " << dst_reg << "  -- src " << src_reg << std::endl;
+            return db.get_mov_reg(dst_reg, src_reg);
+        default:
+            throw runtime_exception("_get_possible_gadgets(): got unsupported node type");
+    }
+}
+
+PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
+    Node& node = nodes[n];
+    bool params_status[MAX_PARAMS];
+    int p;
+    // resolve parameters
+    for( p = 0; p < node.nb_params(); p++){
+        if( node.params[p].is_dependent())
+            _resolve_param(node.params[p]);
+    }
+    
+    // Fill a table with parameters status (free or not)
+    for( p = 0; p < node.nb_params(); p++){
+        params_status[p] = node.params[p].is_free();
+    }
+    // Make the query to the db
+    switch( node.type ){
+        case GadgetType::MOV_REG:
+            return db.get_possible_mov_reg(node.params[PARAM_MOVREG_DST_REG].value,
+                                           node.params[PARAM_MOVREG_SRC_REG].value,
+                                           params_status); 
+        default:
+            throw runtime_exception("_get_possible_gadgets(): got unsupported gadget type!");
+    }
+}
+
+void StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
+    if( dfs_idx == -1 ){
+        compute_dfs_params();
+        compute_dfs_strategy();
+        return select_gadgets(db, 0);
+    }
+    
+    if( dfs_idx >= dfs_params.size()){
+        // 4. If last node, try to schedule gadgets :)
+        return;
+    }
+    
+    // 1. Try all possibilities for free parameters
+    //      - If cst : is it possible really ? yes through special function
+    //      - If reg : ez, iterate through possible regs
+    Node& node = nodes[dfs_params[dfs_idx]];
+    std::cout << "DEBUG REC DOING NODE " << node.id << std::endl;
+    if( node.has_free_param() ){
+        // Get possible gadgets
+        PossibleGadgets* possible = _get_possible_gadgets(db, node.id);
+        // 2.a. Try all possible params
+        for( auto pos: possible->gadgets ){
+            // Update free params
+            for( int p = 0; p < node.nb_params(); p++){
+                if( node.params[p].is_free())
+                    node.params[p].value = pos.first[p];
+            }
+            // 2.b Try all possible gadgets
+            for( Gadget* gadget : *(pos.second) ){
+                node.affected_gadget = gadget;
+                std::cout << "DEBUG, select gadget " << gadget->asm_str << std::endl;
+                // 3. Recursive call on next node
+                // TODO if( select_... ) return ou break don't forget DELETE ... 
+                select_gadgets(db, dfs_idx+1);
+            }
+        }
+        delete possible; possible = nullptr;
+    }else{
+        // Get matching gadgets
+        const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
+        // 2. Try all possible gadgets (or a subset)
+        if( gadgets.empty() ){
+            std::cout << "DEBUG, NO GADGETS :'(" << std::endl;
+            return;
+        }
+        for( Gadget* gadget : gadgets ){
+            node.affected_gadget = gadget;
+            std::cout << "DEBUG, selected : " << gadget->asm_str << std::endl;
+            // 3. Recursive call on next node
+            // TODO if( select_... != null ){return ...}
+            select_gadgets(db, dfs_idx+1);
+        }
+    }
+}
 
 /* ================ Printing =================== */
 ostream& operator<<(ostream& os, Param& param){

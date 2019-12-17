@@ -73,6 +73,7 @@ public:
     };
 
     bool is_dependent(){return !is_fixed && dep_node != -1;};
+    bool is_free(){return !is_dependent() && !is_fixed;};
     bool is_cst(){return type == ParamType::CST;};
     bool is_reg(){return type == ParamType::REG;};
 };
@@ -99,6 +100,8 @@ public:
 
 #define MAX_PARAMS 6
 // Different kinds parameters for nodes
+// WARNING: their values have to match the place they have in the tuple
+// when the gadgets are addded in the database !
 #define PARAM_MOVREG_DST_REG 0
 #define PARAM_MOVREG_SRC_REG 1
 #define PARAM_MOVREG_GADGET_ADDR 2
@@ -124,6 +127,13 @@ public:
             throw runtime_exception("Unsupported gadget type in Node::nb_params()");
         }
     }
+    bool has_free_param(){
+        for( int p = 0; p < nb_params(); p++){
+            if( params[p].is_free() )
+                return true;
+        }
+        return false;
+    }
 };
 ostream& operator<<(ostream& os, Node& node);
 
@@ -134,6 +144,9 @@ private:
     UniqueNameGenerator name_generator;
     void _dfs_strategy_explore(vector<node_t>& marked, node_t n);
     void _dfs_params_explore(vector<node_t>& marked, node_t n);
+    void _resolve_param(Param& param);
+    const vector<Gadget*>& _get_matching_gadgets(GadgetDB& db, node_t node);
+    PossibleGadgets* _get_possible_gadgets(GadgetDB& db, node_t n);
 public:
     vector<Node> nodes;
     vector<node_t> dfs_strategy;
@@ -153,6 +166,9 @@ public:
     // Ordering
     void compute_dfs_strategy();
     void compute_dfs_params();
+    
+    // Gadget selection
+    void select_gadgets(GadgetDB& db, node_t dfs_idx=-1);
 };
 ostream& operator<<(ostream& os, StrategyGraph& graph);
 
