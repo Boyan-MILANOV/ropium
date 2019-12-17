@@ -132,4 +132,16 @@ vector<cst_t> tuple_to_vector(Tuple&& tuple)
     return res;
 }
 
+/* =============== Printing stuff =============== */
+#define DEFAULT_ERROR_COLOR_ANSI  "\033[91m"
+#define DEFAULT_BOLD_COLOR_ANSI  "\033[1m"
+#define DEFAULT_SPECIAL_COLOR_ANSI  "\033[93m"
+#define DEFAULT_PAYLOAD_COLOR_ANSI "\033[96m"
+#define DEFAULT_EXPLOIT_DESCRIPTION_ANSI  "\033[95m"
+#define DEFAULT_END_COLOR_ANSI "\033[0m"
+
+string str_bold(string s);
+string str_special(string s);
+
+string value_to_hex_str(int octets, addr_t addr);
 #endif

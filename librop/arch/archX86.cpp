@@ -5847,7 +5847,6 @@ IRBlock* DisassemblerX86::disasm_block(addr_t addr, code_t code, size_t code_siz
 
     // Set asm_str as name
     string s = asm_str.str();
-    s[s.size()] = '\0'; // Remove last ';'
-    block->name = s;
+    block->name = s.substr(1, s.size()-2-1); // Remove last ';' and space
     return block;
 }

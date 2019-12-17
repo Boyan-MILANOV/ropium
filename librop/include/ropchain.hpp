@@ -43,4 +43,41 @@ public:
 };
 ostream& operator<<(ostream& os, Gadget& g);
 
+
+/* ======== ROPChain ========== */
+
+enum class ROPItemType{
+    GADGET,
+    CST,
+    PADDING
+};
+
+class ROPItem{
+public:
+    ROPItemType type;
+    Gadget* gadget; // If gadget
+    addr_t addr;
+    cst_t value; // If cst or padding
+    string msg;
+    
+    ROPItem(addr_t a, Gadget* g, string m=""):type(ROPItemType::GADGET), addr(a), gadget(g), msg(m){};
+    ROPItem(ROPItemType t, cst_t v, string m=""):type(t), value(v), msg(m){};
+};
+
+class ROPChain{
+private:
+    Arch *arch; // Not owned
+    vector<ROPItem> items;
+public:
+    ROPChain(Arch* arch);
+    void add_gadget(addr_t addr, Gadget* gadget);
+    void add_padding(cst_t val);
+    void add_cst(cst_t val);
+    int len();
+    void print_pretty(ostream& os, string tab="");
+    void print_python(ostream& os, string tab="");
+};
+
+ostream& operator<<(ostream& os, ROPChain& ropchain);
+
 #endif

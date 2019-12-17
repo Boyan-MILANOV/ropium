@@ -168,7 +168,8 @@ public:
     void compute_dfs_params();
     
     // Gadget selection
-    void select_gadgets(GadgetDB& db, node_t dfs_idx=-1);
+    bool select_gadgets(GadgetDB& db, node_t dfs_idx=-1);
+    ROPChain* get_ropchain(Arch* arch);
 };
 ostream& operator<<(ostream& os, StrategyGraph& graph);
 

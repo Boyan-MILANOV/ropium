@@ -74,7 +74,11 @@ namespace test{
 
             // Apply strat
             sgraph.rule_mov_reg_transitivity(n2);
-            sgraph.select_gadgets(db);
+            if( sgraph.select_gadgets(db)){
+                ROPChain* ropchain = sgraph.get_ropchain(arch);
+                std::cout << std::endl << *ropchain;
+                delete ropchain;
+            }
 
             return nb;
         }

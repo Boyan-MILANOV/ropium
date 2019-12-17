@@ -129,3 +129,32 @@ bool ropgadget_to_file(string out, string bin){
     out_file.close();
     return true;
 }
+
+
+/* ========== Printing stuff ============== */
+
+// Colors 
+string g_ERROR_COLOR_ANSI = DEFAULT_ERROR_COLOR_ANSI;
+string g_BOLD_COLOR_ANSI = DEFAULT_BOLD_COLOR_ANSI;
+string g_SPECIAL_COLOR_ANSI = DEFAULT_SPECIAL_COLOR_ANSI;
+string g_PAYLOAD_COLOR_ANSI = DEFAULT_PAYLOAD_COLOR_ANSI;
+string g_EXPLOIT_DESCRIPTION_ANSI = DEFAULT_EXPLOIT_DESCRIPTION_ANSI;
+string g_END_COLOR_ANSI = DEFAULT_END_COLOR_ANSI ;
+
+// String coloration 
+string str_bold(string s){
+    return g_BOLD_COLOR_ANSI + s + g_END_COLOR_ANSI; 
+}
+
+string str_special(string s){
+    return g_SPECIAL_COLOR_ANSI + s + g_END_COLOR_ANSI; 
+}
+
+string value_to_hex_str(int octets, addr_t addr){
+    char res[32], format[32];
+    // Get format (32 or 64 bits)
+    snprintf(format, sizeof(format), "%%0%02dllx", octets*2);
+    // Write hex bytes 
+    snprintf(res, sizeof(res), format, addr);
+    return "0x"+string(res);
+}

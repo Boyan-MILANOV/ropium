@@ -268,7 +268,7 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
     }
 }
 
-void StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
+bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
     if( dfs_idx == -1 ){
         compute_dfs_params();
         compute_dfs_strategy();
@@ -276,13 +276,11 @@ void StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
     }
     
     if( dfs_idx >= dfs_params.size()){
-        // 4. If last node, try to schedule gadgets :)
-        return;
+        // DEBUG TODO 4. If last node, try to schedule gadgets :)
+        return true;
     }
     
-    // 1. Try all possibilities for free parameters
-    //      - If cst : is it possible really ? yes through special function
-    //      - If reg : ez, iterate through possible regs
+    // 1. Try all possibilities for parameters
     Node& node = nodes[dfs_params[dfs_idx]];
     // std::cout << "DEBUG REC DOING NODE " << node.id << std::endl;
     if( node.has_free_param() ){
@@ -299,9 +297,11 @@ void StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
             for( Gadget* gadget : *(pos.second) ){
                 node.affected_gadget = gadget;
                 // std::cout << "DEBUG, selected " << gadget->asm_str << std::endl;
-                // 3. Recursive call on next node
-                // TODO if( select_... ) return ou break don't forget DELETE ... 
-                select_gadgets(db, dfs_idx+1);
+                // 3. Recursive call on next node 
+                if( select_gadgets(db, dfs_idx+1)){
+                    delete possible; possible = nullptr;
+                    return true;
+                }
             }
         }
         delete possible; possible = nullptr;
@@ -309,18 +309,26 @@ void StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
         // Get matching gadgets
         const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
         // 2. Try all possible gadgets (or a subset)
-        if( gadgets.empty() ){
-            // std::cout << "DEBUG, NO GADGETS :'(" << std::endl;
-            return;
-        }
         for( Gadget* gadget : gadgets ){
             node.affected_gadget = gadget;
             // std::cout << "DEBUG, selected : " << gadget->asm_str << std::endl;
             // 3. Recursive call on next node
-            // TODO if( select_... != null ){return ...}
-            select_gadgets(db, dfs_idx+1);
+            if( select_gadgets(db, dfs_idx+1) )
+                return true;
         }
     }
+    return false;
+}
+
+ROPChain* StrategyGraph::get_ropchain(Arch* arch){
+    // DEBUG TODO: many things
+    // For now just return the gadget list
+    vector<node_t>::reverse_iterator rit;
+    ROPChain* ropchain = new ROPChain(arch);
+    for( rit = dfs_strategy.rbegin(); rit != dfs_strategy.rend(); rit++ ){
+        ropchain->add_gadget(nodes[*rit].affected_gadget->addresses[0], nodes[*rit].affected_gadget);
+    }
+    return ropchain;
 }
 
 /* ================ Printing =================== */
