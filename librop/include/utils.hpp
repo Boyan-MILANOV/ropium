@@ -105,7 +105,7 @@ make_indices()
 
 template<typename Tuple, int... Indices>
 std::array<
-  typename std::tuple_element<0, Bare<Tuple>>::type,
+  cst_t,
     std::tuple_size<Bare<Tuple>>::value
 >
 to_array(Tuple&& tuple, indices<Indices...>)

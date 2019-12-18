@@ -2,6 +2,8 @@
 #include "exception.hpp"
 #include <algorithm>
 
+StrategyGraph::StrategyGraph(): has_gadget_selection(false){};
+
 // Create new nodes/edges
 node_t StrategyGraph::new_node(GadgetType t){
     node_t n = nodes.size();
@@ -210,16 +212,20 @@ void StrategyGraph::compute_dfs_params(){
 }
 
 /* =============== Gadget Selection ============== */
+// Get the concrete value for parameters depending on other 
+// gadgets. This functions expects all the parameters in nodes that
+// are used by the 'param' to have been resolved already
 void StrategyGraph::_resolve_param(Param& param){
-    if( param.is_fixed )
+    if( param.is_fixed)
         return;
-    else if( !param.is_dependent())
-        throw runtime_exception("Trying to resolve free parameter");
-        
+    else if( param.is_free())
+        throw runtime_exception("_resolved_param(): called on free parameter");
+
+
     if( param.type == ParamType::REG ){
         param.value = nodes[param.dep_node].params[param.dep_param_type].value;
     }else if( param.type == ParamType::CST){
-        throw runtime_exception("_resolve_param() not implemented for constants");
+        param.value = param.expr->concretize(&params_ctx);
     }else{
         throw runtime_exception("_resolve_param(): got unsupported param type");
     }
@@ -228,9 +234,12 @@ void StrategyGraph::_resolve_param(Param& param){
 const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t n){
     Node& node = nodes[n];
     reg_t src_reg, dst_reg;
+    cst_t src_cst;
     // resolve parameters
     for( int p = 0; p < node.nb_params(); p++){
         _resolve_param(node.params[p]);
+        if( node.params[p].is_cst() )
+            params_ctx.set(node.params[p].name, node.params[p].value);
     }
     switch( node.type ){
         case GadgetType::MOV_REG:
@@ -238,6 +247,11 @@ const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t
             src_reg = node.params[PARAM_MOVREG_SRC_REG].value;
             dst_reg = node.params[PARAM_MOVREG_DST_REG].value;
             return db.get_mov_reg(dst_reg, src_reg);
+        case GadgetType::MOV_CST:
+            // make query
+            dst_reg = node.params[PARAM_MOVCST_DST_REG].value;
+            src_cst = node.params[PARAM_MOVCST_SRC_CST].value;
+            return db.get_mov_cst(dst_reg, src_cst);
         default:
             throw runtime_exception("_get_possible_gadgets(): got unsupported node type");
     }
@@ -251,6 +265,8 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
     for( p = 0; p < node.nb_params(); p++){
         if( node.params[p].is_dependent())
             _resolve_param(node.params[p]);
+        if( node.params[p].is_cst() )
+            params_ctx.set(node.params[p].name, node.params[p].value);
     }
     
     // Fill a table with parameters status (free or not)
@@ -263,6 +279,10 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
             return db.get_possible_mov_reg(node.params[PARAM_MOVREG_DST_REG].value,
                                            node.params[PARAM_MOVREG_SRC_REG].value,
                                            params_status); 
+        case GadgetType::MOV_CST:
+            return db.get_possible_mov_cst(node.params[PARAM_MOVCST_DST_REG].value,
+                                           node.params[PARAM_MOVCST_SRC_CST].value,
+                                           params_status);
         default:
             throw runtime_exception("_get_possible_gadgets(): got unsupported gadget type!");
     }
@@ -272,7 +292,9 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
     if( dfs_idx == -1 ){
         compute_dfs_params();
         compute_dfs_strategy();
-        return select_gadgets(db, 0);
+        params_ctx = VarContext(); // New context for params
+        has_gadget_selection = select_gadgets(db, 0);
+        return has_gadget_selection;
     }
     
     if( dfs_idx >= dfs_params.size()){
@@ -292,6 +314,8 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
             for( int p = 0; p < node.nb_params(); p++){
                 if( node.params[p].is_free())
                     node.params[p].value = pos.first[p];
+                if( node.params[p].is_cst())
+                    params_ctx.set(node.params[p].name, node.params[p].value);
             }
             // 2.b Try all possible gadgets
             for( Gadget* gadget : *(pos.second) ){
@@ -321,9 +345,15 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
 }
 
 ROPChain* StrategyGraph::get_ropchain(Arch* arch){
+    vector<node_t>::reverse_iterator rit;
+    
+    // Check if there is a selection in the nodes
+    if( !has_gadget_selection ){
+        return nullptr;
+    }
+    
     // DEBUG TODO: many things
     // For now just return the gadget list
-    vector<node_t>::reverse_iterator rit;
     ROPChain* ropchain = new ROPChain(arch);
     for( rit = dfs_strategy.rbegin(); rit != dfs_strategy.rend(); rit++ ){
         ropchain->add_gadget(nodes[*rit].affected_gadget->addresses[0], nodes[*rit].affected_gadget);

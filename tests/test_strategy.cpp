@@ -55,8 +55,12 @@ namespace test{
             raw.push_back(RawGadget(string("\x89\xC8\xC3", 3), 2)); // mov eax, ecx; ret
             raw.push_back(RawGadget(string("\x89\xC3\xC3", 3), 3)); // mov ebx, eax; ret
             raw.push_back(RawGadget(string("\x89\xCB\xC3", 3), 4)); // mov ebx, ecx; ret
+            raw.push_back(RawGadget(string("\xbb\x04\x00\x00\x00\xc3", 6), 5)); // mov ebx, 4; ret
+            raw.push_back(RawGadget(string("\xb8\x05\x00\x00\x00\xc3", 6), 6)); // mov eax, 5; ret
+            
             db.fill_from_raw_gadgets(raw, arch);
             
+            // Test register transitivity
             StrategyGraph sgraph;
             node_t n1 = sgraph.new_node(GadgetType::MOV_REG);
             node_t n2 = sgraph.new_node(GadgetType::MOV_REG);
@@ -68,18 +72,34 @@ namespace test{
             node2.params[PARAM_MOVREG_DST_REG].make_reg(X86_EBX);
             sgraph.add_strategy_edge(n1, n2);
             sgraph.add_param_edge(n1, n2);
-
-            //std::cout << sgraph;
-            //sgraph.select_gadgets(db);
-
             // Apply strat
             sgraph.rule_mov_reg_transitivity(n2);
             if( sgraph.select_gadgets(db)){
                 ROPChain* ropchain = sgraph.get_ropchain(arch);
+                // std::cout << std::endl << *ropchain;
+                delete ropchain;
+            }
+
+            // Test constant param resolving
+            StrategyGraph graph2;
+            n1 = graph2.new_node(GadgetType::MOV_CST);
+            n2 = graph2.new_node(GadgetType::MOV_CST);
+            Node& node1a = graph2.nodes[n1];
+            Node& node2a = graph2.nodes[n2];
+            node1a.params[PARAM_MOVCST_SRC_CST].make_cst(n2, PARAM_MOVCST_SRC_CST, exprvar(32, "cst1")+1, "cst2");
+            node1a.params[PARAM_MOVCST_DST_REG].make_reg(X86_EAX);
+            node2a.params[PARAM_MOVCST_SRC_CST].make_cst(0, "cst1", false); // free
+            node2a.params[PARAM_MOVCST_DST_REG].make_reg(-1, false); // free
+            graph2.add_strategy_edge(n1, n2);
+            graph2.add_param_edge(n1, n2);
+
+            if( graph2.select_gadgets(db)){
+                ROPChain* ropchain = graph2.get_ropchain(arch);
                 std::cout << std::endl << *ropchain;
                 delete ropchain;
             }
 
+            
             return nb;
         }
 

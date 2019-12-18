@@ -56,6 +56,7 @@ public:
     // Fixed or free constant
     void make_cst(cst_t val, string n, bool fixed=true){
         type = ParamType::CST;
+        name = n;
         value = val;
         is_fixed = fixed;
         dep_node = -1;
@@ -63,8 +64,9 @@ public:
     };
     
     // Dependent constant
-    void make_cst(node_t dn, int dpt, Expr e, string n, bool fixed=true){
+    void make_cst(node_t dn, int dpt, Expr e, string n){
         type = ParamType::CST;
+        name = n;
         value = 0;
         is_fixed = false;
         dep_node = dn;
@@ -108,6 +110,12 @@ public:
 #define PARAM_MOVREG_GADGET_SP_INC 3
 #define NB_PARAM_MOVREG 4
 
+#define PARAM_MOVCST_DST_REG 0
+#define PARAM_MOVCST_SRC_CST 1
+#define PARAM_MOVCST_GADGET_ADDR 2
+#define PARAM_MOVCST_GADGET_SP_INC 3
+#define NB_PARAM_MOVCST 4
+
 class Node{
 public:
     // Fixed
@@ -121,12 +129,13 @@ public:
 
     Node(int i, GadgetType t):id(i), type(t){};
     int nb_params(){
-        if( type == GadgetType::MOV_REG ){
-            return NB_PARAM_MOVREG;
-        }else{
-            throw runtime_exception("Unsupported gadget type in Node::nb_params()");
+        switch( type ){
+            case GadgetType::MOV_REG: return NB_PARAM_MOVREG;
+            case GadgetType::MOV_CST: return NB_PARAM_MOVCST;
+            default: throw runtime_exception("Unsupported gadget type in Node::nb_params()");
         }
     }
+
     bool has_free_param(){
         for( int p = 0; p < nb_params(); p++){
             if( params[p].is_free() )
@@ -147,11 +156,14 @@ private:
     void _resolve_param(Param& param);
     const vector<Gadget*>& _get_matching_gadgets(GadgetDB& db, node_t node);
     PossibleGadgets* _get_possible_gadgets(GadgetDB& db, node_t n);
+    bool has_gadget_selection;
+    VarContext params_ctx;
 public:
     vector<Node> nodes;
     vector<node_t> dfs_strategy;
     vector<node_t> dfs_params;
 
+    StrategyGraph();
     // Create new nodes/edges
     node_t new_node(GadgetType t);
     void remove_node(node_t node);

@@ -259,6 +259,10 @@ PossibleGadgets* GadgetDB::get_possible_mov_reg(reg_t dst_reg, reg_t src_reg, bo
     return mov_reg.get_possible(make_tuple(dst_reg, src_reg), param_is_free, 2);
 }
 
+PossibleGadgets* GadgetDB::get_possible_mov_cst(reg_t dst_reg, cst_t src_cst, bool* param_is_free){
+    return mov_cst.get_possible(make_tuple(dst_reg, src_cst), param_is_free, 2);
+}
+
 GadgetDB::~GadgetDB(){
     // Delete all gadgets
     for( auto g : all ){
