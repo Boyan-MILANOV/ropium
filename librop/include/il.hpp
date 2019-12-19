@@ -23,6 +23,7 @@ enum class ILInstructionType{
 };
 
 class ILInstruction{
+public:
     ILInstructionType type;
     vector<cst_t> args;
     ILInstruction(Arch& arch, string instr_str);

@@ -100,7 +100,7 @@ public:
     };
 };
 
-#define MAX_PARAMS 6
+#define MAX_PARAMS 7
 // Different kinds parameters for nodes
 // WARNING: their values have to match the place they have in the tuple
 // when the gadgets are addded in the database !
@@ -115,6 +115,14 @@ public:
 #define PARAM_MOVCST_GADGET_ADDR 2
 #define PARAM_MOVCST_GADGET_SP_INC 3
 #define NB_PARAM_MOVCST 4
+
+#define PARAM_AMOVCST_DST_REG 0
+#define PARAM_AMOVCST_SRC_REG 1
+#define PARAM_AMOVCST_SRC_OP 2
+#define PARAM_AMOVCST_SRC_CST 3
+#define PARAM_AMOVCST_GADGET_ADDR 4
+#define PARAM_AMOVCST_GADGET_SP_INC 5
+#define NB_PARAM_AMOVCST 6
 
 class Node{
 public:

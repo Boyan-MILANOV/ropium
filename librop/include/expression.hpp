@@ -79,7 +79,8 @@ enum class Op {
     SMOD,
     NOT,
     NONE // No operation
-}; 
+};
+
 string op_to_str(Op op);
 bool operator<(Op op1, Op op2);
 bool op_is_symetric(Op op);
