@@ -94,6 +94,42 @@ reg_t ArchX86::reg_num(string name){
     else throw runtime_exception(QuickFmt () << "ArchX86::reg_num() got unknown reg name: " << name >> QuickFmt::to_str);
 }
 
+bool ArchX86::is_valid_reg(string& name){
+    return ( !name.compare("eax"))
+        || (!name.compare("ebx")) 
+        || (!name.compare("ecx")) 
+        || (!name.compare("edx")) 
+        || (!name.compare("edi")) 
+        || (!name.compare("esi"))
+        || (!name.compare("ebp"))
+        || (!name.compare("esp"))
+        || (!name.compare("eip"))
+        || (!name.compare("cs"))
+        || (!name.compare("ds"))
+        || (!name.compare("es"))
+        || (!name.compare("fs"))
+        || (!name.compare("gs")) 
+        || (!name.compare("ss")) 
+        || (!name.compare("cf")) 
+        || (!name.compare("pf")) 
+        || (!name.compare("af")) 
+        || (!name.compare("zf")) 
+        || (!name.compare("sf")) 
+        || (!name.compare("tf")) 
+        || (!name.compare("if")) 
+        || (!name.compare("df")) 
+        || (!name.compare("of")) 
+        || (!name.compare("iopl")) 
+        || (!name.compare("vm")) 
+        || (!name.compare("nt")) 
+        || (!name.compare("rf")) 
+        || (!name.compare("ac")) 
+        || (!name.compare("vip")) 
+        || (!name.compare("vif")) 
+        || (!name.compare("id"))
+        || (!name.compare("tsc"));
+}
+
 reg_t ArchX86::sp(){
     return X86_ESP;
 }
@@ -204,6 +240,50 @@ reg_t ArchX64::reg_num(string name){
     else if( !name.compare("id")) return X64_ID;
     else if( !name.compare("tsc")) return X64_TSC;
     else throw runtime_exception(QuickFmt () << "ArchX86::reg_num() got unknown reg name: " << name >> QuickFmt::to_str);
+}
+
+bool ArchX64::is_valid_reg(string& name){
+    return (!name.compare("rax")) 
+        || (!name.compare("rbx")) 
+        || (!name.compare("rcx")) 
+        || (!name.compare("rdx")) 
+        || (!name.compare("rdi")) 
+        || (!name.compare("rsi")) 
+        || (!name.compare("rbp")) 
+        || (!name.compare("rsp")) 
+        || (!name.compare("rip")) 
+        || (!name.compare("r8")) 
+        || (!name.compare("r9")) 
+        || (!name.compare("r10")) 
+        || (!name.compare("r11")) 
+        || (!name.compare("r12")) 
+        || (!name.compare("r13")) 
+        || (!name.compare("r14")) 
+        || (!name.compare("r15")) 
+        || (!name.compare("cs")) 
+        || (!name.compare("ds")) 
+        || (!name.compare("es")) 
+        || (!name.compare("fs")) 
+        || (!name.compare("gs")) 
+        || (!name.compare("ss")) 
+        || (!name.compare("cf")) 
+        || (!name.compare("pf")) 
+        || (!name.compare("af")) 
+        || (!name.compare("zf")) 
+        || (!name.compare("sf")) 
+        || (!name.compare("tf")) 
+        || (!name.compare("if")) 
+        || (!name.compare("df")) 
+        || (!name.compare("of")) 
+        || (!name.compare("iopl")) 
+        || (!name.compare("vm")) 
+        || (!name.compare("nt")) 
+        || (!name.compare("rf")) 
+        || (!name.compare("ac")) 
+        || (!name.compare("vip")) 
+        || (!name.compare("vif")) 
+        || (!name.compare("id")) 
+        || (!name.compare("tsc"));
 }
 
 reg_t ArchX64::sp(){

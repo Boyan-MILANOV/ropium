@@ -99,10 +99,9 @@ namespace test{
                 delete ropchain;
             }
 
-            
+            delete arch;
             return nb;
         }
-
     }
 }
 

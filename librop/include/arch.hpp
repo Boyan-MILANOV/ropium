@@ -65,6 +65,7 @@ public:
     virtual ~Arch();
     virtual string reg_name(reg_t num) = 0;
     virtual reg_t reg_num(string name) = 0;
+    virtual bool is_valid_reg(string& name) = 0;
     virtual reg_t sp() = 0; // Stack pointer
     virtual reg_t pc() = 0; // Program counter
     virtual reg_t tsc() = 0; // Timestamp counter
@@ -75,6 +76,7 @@ public:
     ArchNone(): Arch(ArchType::NONE, 32, 4, 20, CPUMode::NONE, (Disassembler*)nullptr){};
     string reg_name(reg_t num){return "reg" + to_string(num);};
     reg_t reg_num(string name){return 0;};
+    bool is_valid_reg(string& name){return false;};
     reg_t sp(){return 19;};
     reg_t pc(){return 18;};
     reg_t tsc(){return 17;};
@@ -128,6 +130,7 @@ public:
     ArchX86();
     string reg_name(reg_t num);
     reg_t reg_num(string name);
+    bool is_valid_reg(string& name);
     reg_t sp();
     reg_t pc();
     reg_t tsc();
@@ -190,6 +193,7 @@ public:
     ArchX64();
     string reg_name(reg_t num);
     reg_t reg_num(string name);
+    bool is_valid_reg(string& name);
     reg_t sp();
     reg_t pc();
     reg_t tsc();

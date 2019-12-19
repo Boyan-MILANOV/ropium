@@ -65,6 +65,13 @@ public:
     virtual const char * what () const throw () {return _msg.c_str();}
 };
 
+class il_exception: public std::exception {
+    string _msg;
+public:
+    explicit il_exception(string msg): _msg(msg){};
+    virtual const char * what () const throw () {return _msg.c_str();}
+};
+
 /* Symbolic Exception */
 class symbolic_exception: public std::exception {
     string _msg;
