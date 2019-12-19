@@ -13,6 +13,8 @@ enum class ILInstructionType{
     // Read from memory
     LOAD,       // reg <- mem(reg + offset)
     ALOAD,      // reg OP<- mem(reg + offset)
+    LOAD_CST,   // reg <- mem(offset)
+    ALOAD_CST,  // reg OP<- mem(offset)
     // Store to memory
     STORE,      // mem(reg + offset) <- reg
     ASTORE,     // mem(reg + offset) OP<- reg
