@@ -46,15 +46,15 @@ gadget_t GadgetDB::add(Gadget* gadget, Arch* arch){
         // AMOV_CST
         else if( e->is_binop() && e->args[0]->is_cst() && e->args[1]->is_var() && 
                  op_is_symetric(e->op())){
-            amov_cst.add(make_tuple(reg, e->args[1]->reg(), e->op(), e->args[0]->cst()), gadget);
+            amov_cst.add(make_tuple(reg, e->args[1]->reg(), (op_t)e->op(), e->args[0]->cst()), gadget);
         }else if( e->is_binop() && e->args[1]->is_cst() && e->args[0]->is_var()){
-            amov_cst.add(make_tuple(reg, e->args[0]->reg(), e->op(), e->args[1]->cst()), gadget);
+            amov_cst.add(make_tuple(reg, e->args[0]->reg(), (op_t)e->op(), e->args[1]->cst()), gadget);
         } 
         // AMOV_REG
         else if( e->is_binop() && e->args[0]->is_var() && e->args[1]->is_var()){
-            amov_reg.add(make_tuple(reg, e->args[0]->reg(), e->op(), e->args[1]->reg()), gadget);
+            amov_reg.add(make_tuple(reg, e->args[0]->reg(), (op_t)e->op(), e->args[1]->reg()), gadget);
             if( op_is_symetric(e->op())){
-                amov_reg.add(make_tuple(reg, e->args[1]->reg(), e->op(), e->args[0]->reg()), gadget);
+                amov_reg.add(make_tuple(reg, e->args[1]->reg(), (op_t)e->op(), e->args[0]->reg()), gadget);
             }
         }
         // LOAD
@@ -67,11 +67,11 @@ gadget_t GadgetDB::add(Gadget* gadget, Arch* arch){
         // ALOAD
         else if( e->is_binop() && e->args[1]->is_reg(reg) && e->args[0]->is_mem() && 
                  e->args[0]->args[0]->is_var()){
-            aload.add(make_tuple(reg, e->op(), e->args[0]->args[0]->reg(), 0), gadget);
+            aload.add(make_tuple(reg, (op_t)e->op(), e->args[0]->args[0]->reg(), 0), gadget);
         }else if( e->is_binop() && e->args[1]->is_reg(reg) &&
                   e->args[0]->is_mem() && e->args[0]->args[0]->is_binop(Op::ADD) && 
                   e->args[0]->args[0]->args[0]->is_cst() && e->args[0]->args[0]->args[1]->is_var()){
-            aload.add(make_tuple(reg, e->op(), e->args[0]->args[0]->args[1]->reg(), 
+            aload.add(make_tuple(reg, (op_t)e->op(), e->args[0]->args[0]->args[1]->reg(), 
                                               e->args[0]->args[0]->args[0]->cst()), gadget);
         }
     }
@@ -92,9 +92,9 @@ gadget_t GadgetDB::add(Gadget* gadget, Arch* arch){
         else if( e->is_binop() && e->args[0]->is_mem() && e->args[1]->is_var()
                  && (addr->eq(e->args[0]->args[0]))){
             if( addr->is_var() ){
-                astore.add(make_tuple(addr->reg(), 0, e->op(), e->args[1]->reg()), gadget);
+                astore.add(make_tuple(addr->reg(), 0, (op_t)e->op(), e->args[1]->reg()), gadget);
             }else if( addr->is_binop(Op::ADD) && addr->args[0]->is_cst() && addr->args[1]->is_var() ){
-                astore.add(make_tuple(addr->args[1]->reg(), addr->args[0]->cst(), e->op(), e->args[1]->reg()), gadget);
+                astore.add(make_tuple(addr->args[1]->reg(), addr->args[0]->cst(), (op_t)e->op(), e->args[1]->reg()), gadget);
             }
         }
     }
@@ -226,11 +226,11 @@ const vector<Gadget*>& GadgetDB::get_mov_reg(reg_t dst_reg, reg_t src_reg){
 }
 
 const vector<Gadget*>& GadgetDB::get_amov_cst(reg_t dst_reg, reg_t src_reg, Op op, cst_t src_cst){
-    return amov_cst.get(make_tuple(dst_reg, src_reg, op, src_cst));
+    return amov_cst.get(make_tuple(dst_reg, src_reg, (op_t)op, src_cst));
 }
 
 const vector<Gadget*>& GadgetDB::get_amov_reg(reg_t dst_reg, reg_t src_reg1, Op op, reg_t src_reg2){
-    return amov_reg.get(make_tuple(dst_reg, src_reg1, op, src_reg2));
+    return amov_reg.get(make_tuple(dst_reg, src_reg1, (op_t)op, src_reg2));
 }
 
 const vector<Gadget*>& GadgetDB::get_load(reg_t dst_reg, reg_t addr_reg, cst_t offset){
@@ -238,7 +238,7 @@ const vector<Gadget*>& GadgetDB::get_load(reg_t dst_reg, reg_t addr_reg, cst_t o
 }
 
 const vector<Gadget*>& GadgetDB::get_aload(reg_t dst_reg, Op op, reg_t addr_reg, cst_t offset){
-    return aload.get(make_tuple(dst_reg, op, addr_reg, offset));
+    return aload.get(make_tuple(dst_reg, (op_t)op, addr_reg, offset));
 }
 
 const vector<Gadget*>& GadgetDB::get_jmp(reg_t jmp_reg){
@@ -250,7 +250,7 @@ const vector<Gadget*>& GadgetDB::get_store(reg_t addr_reg, cst_t offset, reg_t s
 }
 
 const vector<Gadget*>& GadgetDB::get_astore(reg_t addr_reg, cst_t offset, Op op, reg_t src_reg){
-    return astore.get(make_tuple(addr_reg, offset, op, src_reg));
+    return astore.get(make_tuple(addr_reg, offset, (op_t)op, src_reg));
 }
 
 /* ============== Get possible gadgets ===================== */
@@ -267,8 +267,16 @@ PossibleGadgets* GadgetDB::get_possible_load(reg_t dst_reg, reg_t src_addr_reg, 
     return load.get_possible(make_tuple(dst_reg, src_addr_reg, src_addr_offset), param_is_free, 3);
 }
 
+PossibleGadgets* GadgetDB::get_possible_aload(reg_t dst_reg, Op op, reg_t src_addr_reg, cst_t src_addr_offset, bool* param_is_free){
+    return aload.get_possible(make_tuple(dst_reg, (op_t)op, src_addr_reg, src_addr_offset), param_is_free, 4);
+}
+
 PossibleGadgets* GadgetDB::get_possible_store(reg_t dst_addr_reg, cst_t dst_addr_cst, reg_t src_reg, bool* param_is_free){
     return store.get_possible(make_tuple(dst_addr_reg, dst_addr_cst, src_reg), param_is_free, 3);
+}
+
+PossibleGadgets* GadgetDB::get_possible_astore(reg_t dst_addr_reg, cst_t dst_addr_cst, Op op, reg_t src_reg, bool* param_is_free){
+    return astore.get_possible(make_tuple(dst_addr_reg, dst_addr_cst, (op_t)op, src_reg), param_is_free, 3);
 }
 
 GadgetDB::~GadgetDB(){

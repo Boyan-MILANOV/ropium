@@ -118,6 +118,23 @@ namespace test{
             nb += _assert(instr.args[PARAM_LOAD_DST_REG] == X86_EAX, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_LOAD_SRC_ADDR_REG] == X86_ESI, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_LOAD_SRC_ADDR_OFFSET] == -0xabcd, "Failed to parse IL Instruction");
+            
+            // aload
+            str = " eax *= mem( esp + 32 )   \t\n";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::ALOAD, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOAD_DST_REG] == X86_EAX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOAD_OP] == (int)Op::MUL, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOAD_SRC_ADDR_REG] == X86_ESP, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOAD_SRC_ADDR_OFFSET] == 32, "Failed to parse IL Instruction");
+            
+            str = " eax <<=mem(esi)";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::ALOAD, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOAD_DST_REG] == X86_EAX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOAD_OP] == (int)Op::SHL, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOAD_SRC_ADDR_REG] == X86_ESI, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOAD_SRC_ADDR_OFFSET] == 0, "Failed to parse IL Instruction");
 
             // load_cst
             str = " eax =mem(-1)";
@@ -131,6 +148,14 @@ namespace test{
             nb += _assert(instr.type == ILInstructionType::LOAD_CST, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_LOADCST_DST_REG] == X86_EAX, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_LOADCST_SRC_ADDR_OFFSET] == 0xffffffff, "Failed to parse IL Instruction");
+            
+            // aload_cst
+            str = " edi ^= mem(0)";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::ALOAD_CST, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOADCST_DST_REG] == X86_EDI, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOADCST_OP] == (int)Op::XOR, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ALOADCST_SRC_ADDR_OFFSET] == 0, "Failed to parse IL Instruction");
             
             // store
             str = " mem(eax - 2) = edx";
@@ -160,6 +185,23 @@ namespace test{
             nb += _assert(instr.args[PARAM_CSTSTORE_DST_ADDR_OFFSET] == -2, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_CSTSTORE_SRC_REG] == X86_EIP, "Failed to parse IL Instruction");
             
+            // astore
+            str = " mem(esp) |= edx";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::ASTORE, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ASTORE_DST_ADDR_REG] == X86_ESP, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ASTORE_DST_ADDR_OFFSET] == 0, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ASTORE_OP] == (int)Op::OR, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_ASTORE_SRC_REG] == X86_EDX, "Failed to parse IL Instruction");
+
+            // cst_astore
+            str = " mem(0x1800) %= ebx";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_ASTORE, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTASTORE_DST_ADDR_OFFSET] == 0x1800, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTASTORE_SRC_REG] == X86_EBX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTASTORE_OP] == (int)Op::MOD, "Failed to parse IL Instruction");
+
             return nb;
         }
 

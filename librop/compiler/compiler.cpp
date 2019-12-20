@@ -35,12 +35,8 @@ CompilerTask::~CompilerTask(){
 ROPCompiler::ROPCompiler(Arch* a, GadgetDB *d):arch(a), db(d){}
 
 ROPChain* ROPCompiler::compile(string program){
-    try{
-        vector<ILInstruction> instr = parse(program);
-        return process(instr);
-    }catch(il_exception const& e){
-        return nullptr;
-    }
+    vector<ILInstruction> instr = parse(program); // This raises il_exception if malformed program
+    return process(instr);
 }
 
 ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions){
@@ -72,7 +68,7 @@ vector<ILInstruction> ROPCompiler::parse(string program){
                 ILInstruction ins = ILInstruction(*arch, instr);
                 res.push_back(ins);
             }catch(il_exception const& e) {
-                throw il_exception("Couldn't parse IL program");
+                throw il_exception(QuickFmt() << "Invalid query: " << instr >> QuickFmt::to_str);
             }
         }
         program.erase(0, pos + 1);
@@ -127,6 +123,16 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(instr.args[PARAM_LOAD_SRC_ADDR_REG]);
         node.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(instr.args[PARAM_LOAD_SRC_ADDR_OFFSET], graph->new_name("offset"));
         graphs.push(graph);
+    }else if( instr.type == ILInstructionType::ALOAD ){
+        // ALOAD
+        graph = new StrategyGraph();
+        node_t n = graph->new_node(GadgetType::ALOAD);
+        Node& node = graph->nodes[n];
+        node.params[PARAM_ALOAD_DST_REG].make_reg(instr.args[PARAM_LOAD_DST_REG]);
+        node.params[PARAM_ALOAD_OP].make_op((Op)instr.args[PARAM_ALOAD_OP]);
+        node.params[PARAM_ALOAD_SRC_ADDR_REG].make_reg(instr.args[PARAM_ALOAD_SRC_ADDR_REG]);
+        node.params[PARAM_ALOAD_SRC_ADDR_OFFSET].make_cst(instr.args[PARAM_ALOAD_SRC_ADDR_OFFSET], graph->new_name("offset"));
+        graphs.push(graph);
     }else if( instr.type == ILInstructionType::LOAD_CST ){
         // LOAD_CST
         graph = new StrategyGraph();
@@ -149,6 +155,29 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         graph->add_strategy_edge(n2, n1);
         
         graphs.push(graph);
+    }else if( instr.type == ILInstructionType::ALOAD_CST ){
+        // ALOAD_CST
+        graph = new StrategyGraph();
+        node_t n1 = graph->new_node(GadgetType::ALOAD);
+        node_t n2 = graph->new_node(GadgetType::MOV_CST);
+        Node& node1 = graph->nodes[n1];
+        Node& node2 = graph->nodes[n2];
+        // First node is reg Op<- mem(X + C)
+        // Second is X <- src_cst - C 
+        node1.params[PARAM_ALOAD_DST_REG].make_reg(instr.args[PARAM_ALOADCST_DST_REG]);
+        node1.params[PARAM_ALOAD_OP].make_op((Op)instr.args[PARAM_ALOADCST_OP]);
+        node1.params[PARAM_ALOAD_SRC_ADDR_REG].make_reg(-1, false); // Free
+        node1.params[PARAM_ALOAD_SRC_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
+        
+        node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_ALOAD_SRC_ADDR_REG); // node2 X is same as addr reg in node1
+        node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_ALOAD_SRC_ADDR_OFFSET, 
+            instr.args[PARAM_ALOADCST_SRC_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_ALOAD_SRC_ADDR_OFFSET].name)
+            , graph->new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
+        
+        graph->add_param_edge(n2, n1);
+        graph->add_strategy_edge(n2, n1);
+        
+        graphs.push(graph);
     }else if( instr.type == ILInstructionType::STORE ){
         // STORE
         graph = new StrategyGraph();
@@ -159,7 +188,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node.params[PARAM_STORE_SRC_REG].make_reg(instr.args[PARAM_STORE_SRC_REG]);
         graphs.push(graph);
     }else if( instr.type == ILInstructionType::CST_STORE ){
-        // STORE_CST
+        // CST_STORE
         graph = new StrategyGraph();
         node_t n1 = graph->new_node(GadgetType::STORE);
         node_t n2 = graph->new_node(GadgetType::MOV_CST);
@@ -174,6 +203,39 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
         node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_STORE_DST_ADDR_OFFSET, 
             instr.args[PARAM_CSTSTORE_DST_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_STORE_DST_ADDR_OFFSET].name)
+            , graph->new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
+        
+        graph->add_param_edge(n2, n1);
+        graph->add_strategy_edge(n2, n1);
+        
+        graphs.push(graph);
+    }else if( instr.type == ILInstructionType::ASTORE ){
+        // ASTORE
+        graph = new StrategyGraph();
+        node_t n = graph->new_node(GadgetType::ASTORE);
+        Node& node = graph->nodes[n];
+        node.params[PARAM_ASTORE_DST_ADDR_REG].make_reg(instr.args[PARAM_ASTORE_DST_ADDR_REG]);
+        node.params[PARAM_ASTORE_DST_ADDR_OFFSET].make_cst(instr.args[PARAM_ASTORE_DST_ADDR_OFFSET], graph->new_name("offset"));
+        node.params[PARAM_ASTORE_OP].make_op((Op)instr.args[PARAM_ASTORE_OP]);
+        node.params[PARAM_ASTORE_SRC_REG].make_reg(instr.args[PARAM_ASTORE_SRC_REG]);
+        graphs.push(graph);
+    }else if( instr.type == ILInstructionType::CST_ASTORE ){
+        // CST_ASTORE
+        graph = new StrategyGraph();
+        node_t n1 = graph->new_node(GadgetType::ASTORE);
+        node_t n2 = graph->new_node(GadgetType::MOV_CST);
+        Node& node1 = graph->nodes[n1];
+        Node& node2 = graph->nodes[n2];
+        // First node is mem(X + C) op<- reg
+        // Second is X <- src_cst - C 
+        node1.params[PARAM_ASTORE_SRC_REG].make_reg(instr.args[PARAM_CSTASTORE_SRC_REG]);
+        node1.params[PARAM_ASTORE_OP].make_op((Op)instr.args[PARAM_CSTASTORE_OP]);
+        node1.params[PARAM_ASTORE_DST_ADDR_REG].make_reg(-1, false); // Free
+        node1.params[PARAM_ASTORE_DST_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
+        
+        node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_ASTORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
+        node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_ASTORE_DST_ADDR_OFFSET, 
+            instr.args[PARAM_CSTASTORE_DST_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_ASTORE_DST_ADDR_OFFSET].name)
             , graph->new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
         
         graph->add_param_edge(n2, n1);

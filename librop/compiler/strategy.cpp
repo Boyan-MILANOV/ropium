@@ -239,7 +239,7 @@ const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t
     Node& node = nodes[n];
     reg_t src_reg, src_reg2, dst_reg, dst_addr_reg, src_addr_reg;
     cst_t src_cst, src_addr_cst, dst_addr_cst;
-    Op src_op;
+    Op src_op, op;
 
     // resolve parameters
     for( int p = 0; p < node.nb_params(); p++){
@@ -274,11 +274,23 @@ const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t
             src_addr_reg = node.params[PARAM_LOAD_SRC_ADDR_REG].value;
             src_addr_cst = node.params[PARAM_LOAD_SRC_ADDR_OFFSET].value;
             return db.get_load(dst_reg, src_addr_reg, src_addr_cst);
+        case GadgetType::ALOAD:
+            dst_reg = node.params[PARAM_ALOAD_DST_REG].value;
+            op = (Op)node.params[PARAM_ALOAD_OP].value;
+            src_addr_reg = node.params[PARAM_ALOAD_SRC_ADDR_REG].value;
+            src_addr_cst = node.params[PARAM_ALOAD_SRC_ADDR_OFFSET].value;
+            return db.get_aload(dst_reg, op, src_addr_reg, src_addr_cst);
         case GadgetType::STORE:
             dst_addr_reg = node.params[PARAM_STORE_DST_ADDR_REG].value;
             dst_addr_cst = node.params[PARAM_STORE_DST_ADDR_OFFSET].value;
             src_reg = node.params[PARAM_STORE_SRC_REG].value;
             return db.get_store(dst_addr_reg, dst_addr_cst, src_reg);
+        case GadgetType::ASTORE:
+            dst_addr_reg = node.params[PARAM_ASTORE_DST_ADDR_REG].value;
+            dst_addr_cst = node.params[PARAM_ASTORE_DST_ADDR_OFFSET].value;
+            op = (Op)node.params[PARAM_ASTORE_OP].value;
+            src_reg = node.params[PARAM_ASTORE_SRC_REG].value;
+            return db.get_astore(dst_addr_reg, dst_addr_cst, op, src_reg);
         default:
             throw runtime_exception(QuickFmt() << "_get_matching_gadgets(): got unsupported node type " << (int)node.type >> QuickFmt::to_str);
     }
@@ -315,11 +327,24 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
                                         node.params[PARAM_LOAD_SRC_ADDR_REG].value,
                                         node.params[PARAM_LOAD_SRC_ADDR_OFFSET].value,
                                         params_status);
+        case GadgetType::ALOAD:
+            return db.get_possible_aload(node.params[PARAM_ALOAD_DST_REG].value,
+                                        (Op)node.params[PARAM_ALOAD_OP].value,
+                                        node.params[PARAM_ALOAD_SRC_ADDR_REG].value,
+                                        node.params[PARAM_ALOAD_SRC_ADDR_OFFSET].value,
+                                        params_status);
         case GadgetType::STORE:
             return db.get_possible_store(node.params[PARAM_STORE_DST_ADDR_REG].value,
                                         node.params[PARAM_STORE_DST_ADDR_OFFSET].value,
                                         node.params[PARAM_STORE_SRC_REG].value,
                                         params_status);
+        case GadgetType::ASTORE:
+            return db.get_possible_astore(node.params[PARAM_ASTORE_DST_ADDR_REG].value,
+                                        node.params[PARAM_ASTORE_DST_ADDR_OFFSET].value,
+                                        (Op)node.params[PARAM_ASTORE_OP].value,
+                                        node.params[PARAM_ASTORE_SRC_REG].value,
+                                        params_status);                                
+        
         // TODO: other types
         default:
             throw runtime_exception("_get_possible_gadgets(): got unsupported gadget type!");

@@ -43,6 +43,9 @@ namespace test{
             raw.push_back(RawGadget(string("\x89\x0f\x89\x5e\xfd\xc3", 6), 10)); // mov [edi], ecx; mov [esi-3], ebx; ret
             raw.push_back(RawGadget(string("\xbe\x16\x00\x00\x00\xc3", 6), 11)); // mov esi, 22; ret
             raw.push_back(RawGadget(string("\xbf\x78\x56\x34\x12\xc3", 6), 12)); // mov edi, 0x12345678; ret
+            raw.push_back(RawGadget(string("\x01\x21\xc3", 3), 13)); // add [ecx], esp; ret
+            raw.push_back(RawGadget(string("\x33\x79\xf6\xc3", 4), 14)); // xor edi, [ecx-10]; ret
+            raw.push_back(RawGadget(string("\x83\xc9\xff\xc3", 4), 15)); // or ecx, 0xffffffff; ret
 
             db.fill_from_raw_gadgets(raw, &arch);
 
@@ -67,6 +70,19 @@ namespace test{
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             ropchain = comp.compile(" mem(0x12345678) = ecx");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" edi += mem(ecx)");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" edi ^= mem(0)");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" mem(ecx+0x000) += esp  \t\t\n\t  ");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" ecx = -1");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" mem(0xffffffff) += esp  \t\t\n\t  ");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" mem(-1) += esp  \t\t\n\t  ");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+
             return nb;
         }
     }

@@ -112,6 +112,8 @@ public:
 };
 
 // Big gadget database
+
+typedef int op_t;
 class GadgetDB{
 public:
     // Global gadgets lisst (gadgets are owned)
@@ -119,12 +121,12 @@ public:
     // Databases for all different gadgets types
     BaseDB<tuple<reg_t, cst_t>> mov_cst;
     BaseDB<tuple<reg_t, reg_t>> mov_reg;
-    BaseDB<tuple<reg_t, reg_t, Op, cst_t>> amov_cst;
-    BaseDB<tuple<reg_t, reg_t, Op, reg_t>> amov_reg;
+    BaseDB<tuple<reg_t, reg_t, op_t, cst_t>> amov_cst;
+    BaseDB<tuple<reg_t, reg_t, op_t, reg_t>> amov_reg;
     BaseDB<tuple<reg_t, reg_t, addr_t>> load;
-    BaseDB<tuple<reg_t, Op, reg_t, addr_t>> aload;
+    BaseDB<tuple<reg_t, op_t, reg_t, addr_t>> aload;
     BaseDB<tuple<reg_t, addr_t, reg_t>> store;
-    BaseDB<tuple<reg_t, addr_t, Op, reg_t>> astore;
+    BaseDB<tuple<reg_t, addr_t, op_t, reg_t>> astore;
     BaseDB<reg_t> jmp;
 
     // Add and classify a gadget in the database

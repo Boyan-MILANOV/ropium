@@ -150,11 +150,26 @@ public:
 #define PARAM_LOAD_GADGET_SP_INC 4
 #define NB_PARAM_LOAD 5
 
+#define PARAM_ALOAD_DST_REG 0
+#define PARAM_ALOAD_OP 1
+#define PARAM_ALOAD_SRC_ADDR_REG 2
+#define PARAM_ALOAD_SRC_ADDR_OFFSET 3
+#define PARAM_ALOAD_GADGET_ADDR 4
+#define PARAM_ALOAD_GADGET_SP_INC 5
+#define NB_PARAM_ALOAD 6
+
 #define PARAM_LOADCST_DST_REG 0
 #define PARAM_LOADCST_SRC_ADDR_OFFSET 1
 #define PARAM_LOADCST_GADGET_ADDR 2
 #define PARAM_LOADCST_GADGET_SP_INC 3
 #define NB_PARAM_LOADCST 4
+
+#define PARAM_ALOADCST_DST_REG 0
+#define PARAM_ALOADCST_OP 1
+#define PARAM_ALOADCST_SRC_ADDR_OFFSET 2
+#define PARAM_ALOADCST_GADGET_ADDR 3
+#define PARAM_ALOADCST_GADGET_SP_INC 4
+#define NB_PARAM_ALOADCST 5
 
 #define PARAM_STORE_DST_ADDR_REG 0
 #define PARAM_STORE_DST_ADDR_OFFSET 1
@@ -168,6 +183,21 @@ public:
 #define PARAM_CSTSTORE_GADGET_ADDR 2
 #define PARAM_CSTSTORE_GADGET_SP_INC 3
 #define NB_PARAM_CSTSTORE 4
+
+#define PARAM_ASTORE_DST_ADDR_REG 0
+#define PARAM_ASTORE_DST_ADDR_OFFSET 1
+#define PARAM_ASTORE_OP 2
+#define PARAM_ASTORE_SRC_REG 3
+#define PARAM_ASTORE_GADGET_ADDR 4
+#define PARAM_ASTORE_GADGET_SP_INC 5
+#define NB_PARAM_ASTORE 6
+
+#define PARAM_CSTASTORE_DST_ADDR_OFFSET 0
+#define PARAM_CSTASTORE_OP 1
+#define PARAM_CSTASTORE_SRC_REG 2
+#define PARAM_CSTASTORE_GADGET_ADDR 3
+#define PARAM_CSTASTORE_GADGET_SP_INC 4
+#define NB_PARAM_CSTASTORE 5
 
 class Node{
 public:
@@ -188,7 +218,9 @@ public:
             case GadgetType::AMOV_CST: return NB_PARAM_AMOVCST;
             case GadgetType::AMOV_REG: return NB_PARAM_AMOVREG;
             case GadgetType::LOAD: return NB_PARAM_LOAD;
+            case GadgetType::ALOAD: return NB_PARAM_ALOAD;
             case GadgetType::STORE: return NB_PARAM_STORE;
+            case GadgetType::ASTORE: return NB_PARAM_ASTORE;
             default: throw runtime_exception("Unsupported gadget type in Node::nb_params()");
         }
     }
