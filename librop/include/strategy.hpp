@@ -17,7 +17,8 @@ typedef int param_t;
 
 enum class ParamType{
     CST,
-    REG
+    REG,
+    OP
 };
 
 class Param{
@@ -72,6 +73,15 @@ public:
         dep_node = dn;
         dep_param_type = dpt;
         expr = e;
+    };
+
+    // Operator
+    void make_op(Op op){
+        type = ParamType::OP;
+        value = (int)op;
+        is_fixed = true;
+        dep_node = -1;
+        expr = nullptr;
     };
 
     bool is_dependent(){return !is_fixed && dep_node != -1;};
@@ -175,6 +185,10 @@ public:
         switch( type ){
             case GadgetType::MOV_REG: return NB_PARAM_MOVREG;
             case GadgetType::MOV_CST: return NB_PARAM_MOVCST;
+            case GadgetType::AMOV_CST: return NB_PARAM_AMOVCST;
+            case GadgetType::AMOV_REG: return NB_PARAM_AMOVREG;
+            case GadgetType::LOAD: return NB_PARAM_LOAD;
+            case GadgetType::STORE: return NB_PARAM_STORE;
             default: throw runtime_exception("Unsupported gadget type in Node::nb_params()");
         }
     }

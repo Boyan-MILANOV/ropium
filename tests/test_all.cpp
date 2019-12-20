@@ -15,6 +15,7 @@ void test_database();
 void test_gadgets();
 void test_strategy();
 void test_il();
+void test_compiler();
 
 int main(int argc, char ** argv){
     string bold = "\033[1m";
@@ -35,6 +36,7 @@ int main(int argc, char ** argv){
                 test_database();
                 test_strategy();
                 test_il();
+                test_compiler();
             }else{
             /* Iterate through all options */
                 for( int i = 1; i < argc; i++){
@@ -52,6 +54,8 @@ int main(int argc, char ** argv){
                         test_strategy();
                     else if( !strcmp(argv[i], "il"))
                         test_il();
+                    else if( !strcmp(argv[i], "compiler"))
+                        test_compiler();
                     else
                         std::cout << "[" << red << "!" << def << "] Skipping unknown test: " << argv[i] << std::endl;
                 }

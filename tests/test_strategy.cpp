@@ -95,7 +95,7 @@ namespace test{
 
             if( graph2.select_gadgets(db)){
                 ROPChain* ropchain = graph2.get_ropchain(arch);
-                std::cout << std::endl << *ropchain;
+                //std::cout << std::endl << *ropchain;
                 delete ropchain;
             }
 

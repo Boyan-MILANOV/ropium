@@ -237,8 +237,10 @@ void StrategyGraph::_resolve_param(Param& param){
 
 const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t n){
     Node& node = nodes[n];
-    reg_t src_reg, dst_reg;
-    cst_t src_cst;
+    reg_t src_reg, src_reg2, dst_reg, dst_addr_reg, src_addr_reg;
+    cst_t src_cst, src_addr_cst, dst_addr_cst;
+    Op src_op;
+
     // resolve parameters
     for( int p = 0; p < node.nb_params(); p++){
         _resolve_param(node.params[p]);
@@ -246,18 +248,39 @@ const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t
             params_ctx.set(node.params[p].name, node.params[p].value);
     }
     switch( node.type ){
+        // make query
         case GadgetType::MOV_REG:
-            // make query
             src_reg = node.params[PARAM_MOVREG_SRC_REG].value;
             dst_reg = node.params[PARAM_MOVREG_DST_REG].value;
             return db.get_mov_reg(dst_reg, src_reg);
         case GadgetType::MOV_CST:
-            // make query
             dst_reg = node.params[PARAM_MOVCST_DST_REG].value;
             src_cst = node.params[PARAM_MOVCST_SRC_CST].value;
             return db.get_mov_cst(dst_reg, src_cst);
+        case GadgetType::AMOV_CST:
+            dst_reg = node.params[PARAM_AMOVCST_DST_REG].value;
+            src_reg = node.params[PARAM_AMOVCST_SRC_REG].value;
+            src_op = (Op)node.params[PARAM_AMOVCST_SRC_OP].value;
+            src_cst = node.params[PARAM_AMOVCST_SRC_CST].value;
+            return db.get_amov_cst(dst_reg, src_reg, src_op, src_cst);
+        case GadgetType::AMOV_REG:
+            dst_reg = node.params[PARAM_AMOVREG_DST_REG].value;
+            src_reg = node.params[PARAM_AMOVREG_SRC_REG1].value;
+            src_op = (Op)node.params[PARAM_AMOVREG_SRC_OP].value;
+            src_reg2 = node.params[PARAM_AMOVREG_SRC_REG2].value;
+            return db.get_amov_reg(dst_reg, src_reg, src_op, src_reg2);
+        case GadgetType::LOAD:
+            dst_reg = node.params[PARAM_LOAD_DST_REG].value;
+            src_addr_reg = node.params[PARAM_LOAD_SRC_ADDR_REG].value;
+            src_addr_cst = node.params[PARAM_LOAD_SRC_ADDR_OFFSET].value;
+            return db.get_load(dst_reg, src_addr_reg, src_addr_cst);
+        case GadgetType::STORE:
+            dst_addr_reg = node.params[PARAM_STORE_DST_ADDR_REG].value;
+            dst_addr_cst = node.params[PARAM_STORE_DST_ADDR_OFFSET].value;
+            src_reg = node.params[PARAM_STORE_SRC_REG].value;
+            return db.get_store(dst_addr_reg, dst_addr_cst, src_reg);
         default:
-            throw runtime_exception("_get_possible_gadgets(): got unsupported node type");
+            throw runtime_exception(QuickFmt() << "_get_matching_gadgets(): got unsupported node type " << (int)node.type >> QuickFmt::to_str);
     }
 }
 
@@ -287,6 +310,17 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
             return db.get_possible_mov_cst(node.params[PARAM_MOVCST_DST_REG].value,
                                            node.params[PARAM_MOVCST_SRC_CST].value,
                                            params_status);
+        case GadgetType::LOAD:
+            return db.get_possible_load(node.params[PARAM_LOAD_DST_REG].value,
+                                        node.params[PARAM_LOAD_SRC_ADDR_REG].value,
+                                        node.params[PARAM_LOAD_SRC_ADDR_OFFSET].value,
+                                        params_status);
+        case GadgetType::STORE:
+            return db.get_possible_store(node.params[PARAM_STORE_DST_ADDR_REG].value,
+                                        node.params[PARAM_STORE_DST_ADDR_OFFSET].value,
+                                        node.params[PARAM_STORE_SRC_REG].value,
+                                        params_status);
+        // TODO: other types
         default:
             throw runtime_exception("_get_possible_gadgets(): got unsupported gadget type!");
     }

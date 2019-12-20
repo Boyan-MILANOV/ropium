@@ -263,6 +263,14 @@ PossibleGadgets* GadgetDB::get_possible_mov_cst(reg_t dst_reg, cst_t src_cst, bo
     return mov_cst.get_possible(make_tuple(dst_reg, src_cst), param_is_free, 2);
 }
 
+PossibleGadgets* GadgetDB::get_possible_load(reg_t dst_reg, reg_t src_addr_reg, cst_t src_addr_offset, bool* param_is_free){
+    return load.get_possible(make_tuple(dst_reg, src_addr_reg, src_addr_offset), param_is_free, 3);
+}
+
+PossibleGadgets* GadgetDB::get_possible_store(reg_t dst_addr_reg, cst_t dst_addr_cst, reg_t src_reg, bool* param_is_free){
+    return store.get_possible(make_tuple(dst_addr_reg, dst_addr_cst, src_reg), param_is_free, 3);
+}
+
 GadgetDB::~GadgetDB(){
     // Delete all gadgets
     for( auto g : all ){

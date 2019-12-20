@@ -32,23 +32,22 @@ CompilerTask::~CompilerTask(){
 
 
 /* ============= ROPCompiler ============= */
+ROPCompiler::ROPCompiler(Arch* a, GadgetDB *d):arch(a), db(d){}
 
-ROPChain* ROPCompiler::compile(string program, Arch* arch, GadgetDB* db){
+ROPChain* ROPCompiler::compile(string program){
     try{
-        vector<ILInstruction> instr = parse(program, arch);
-        return process(instr, arch, db);
+        vector<ILInstruction> instr = parse(program);
+        return process(instr);
     }catch(il_exception const& e){
         return nullptr;
     }
 }
 
-ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions, Arch* arch, GadgetDB* db){
-    StrategyGraph* init_strategy = new StrategyGraph();
+ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions){
     CompilerTask task;
     for( ILInstruction& instr : instructions ){
-        add_il_instruction_to_strategy(*init_strategy, instr);
+        il_to_strategy(task.pending_strategies, instr);
     }
-    task.add_strategy(init_strategy);
     return task.compile(arch, db);
 }
 
@@ -60,11 +59,13 @@ bool _is_empty_line(string& s){
     return true;
 }
 
-vector<ILInstruction> ROPCompiler::parse(string program, Arch* arch){
+vector<ILInstruction> ROPCompiler::parse(string program){
     size_t pos;
     string instr;
     vector<ILInstruction> res;
-    while( (pos = program.find("\n")) != string::npos){
+    pos = 0;
+    while( !program.empty() && pos != string::npos){
+        pos = program.find('\n');
         instr = program.substr(0, pos); 
         if( !_is_empty_line(instr)){
             try{
@@ -79,19 +80,106 @@ vector<ILInstruction> ROPCompiler::parse(string program, Arch* arch){
     return res;
 }
 
-void ROPCompiler::add_il_instruction_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& instr){
+    StrategyGraph* graph;
     if( instr.type == ILInstructionType::MOV_CST ){
         // MOV_CST
-        node_t n = graph.new_node(GadgetType::MOV_CST);
-        Node& node = graph.nodes[n];
+        graph = new StrategyGraph();
+        node_t n = graph->new_node(GadgetType::MOV_CST);
+        Node& node = graph->nodes[n];
         node.params[PARAM_MOVCST_DST_REG].make_reg(instr.args[PARAM_MOVCST_DST_REG]);
-        node.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_MOVCST_SRC_CST], graph.new_name("cst"));
+        node.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_MOVCST_SRC_CST], graph->new_name("cst"));
+        graphs.push(graph);
     }else if( instr.type == ILInstructionType::MOV_REG ){
         // MOV_REG
-        node_t n = graph.new_node(GadgetType::MOV_REG);
-        Node& node = graph.nodes[n];
+        graph = new StrategyGraph();
+        node_t n = graph->new_node(GadgetType::MOV_REG);
+        Node& node = graph->nodes[n];
         node.params[PARAM_MOVREG_DST_REG].make_reg(instr.args[PARAM_MOVREG_DST_REG]);
-        node.params[PARAM_MOVCST_DST_REG].make_reg(instr.args[PARAM_MOVREG_SRC_REG]);
+        node.params[PARAM_MOVREG_SRC_REG].make_reg(instr.args[PARAM_MOVREG_SRC_REG]);
+        graphs.push(graph);
+    }else if( instr.type == ILInstructionType::AMOV_CST){
+        // AMOV_CST
+        graph = new StrategyGraph();
+        node_t n = graph->new_node(GadgetType::AMOV_CST);
+        Node& node = graph->nodes[n];
+        node.params[PARAM_AMOVCST_DST_REG].make_reg(instr.args[PARAM_AMOVCST_DST_REG]);
+        node.params[PARAM_AMOVCST_SRC_REG].make_reg(instr.args[PARAM_AMOVCST_SRC_REG]);
+        node.params[PARAM_AMOVCST_SRC_OP].make_op((Op)instr.args[PARAM_AMOVCST_SRC_OP]);
+        node.params[PARAM_AMOVCST_SRC_CST].make_cst(instr.args[PARAM_AMOVCST_SRC_CST], graph->new_name("cst"));
+        graphs.push(graph);
+    }else if( instr.type == ILInstructionType::AMOV_REG){
+        // AMOV_REG
+        graph = new StrategyGraph();
+        node_t n = graph->new_node(GadgetType::AMOV_REG);
+        Node& node = graph->nodes[n];
+        node.params[PARAM_AMOVREG_DST_REG].make_reg(instr.args[PARAM_AMOVREG_DST_REG]);
+        node.params[PARAM_AMOVREG_SRC_REG1].make_reg(instr.args[PARAM_AMOVREG_SRC_REG1]);
+        node.params[PARAM_AMOVREG_SRC_OP].make_op((Op)instr.args[PARAM_AMOVREG_SRC_OP]);
+        node.params[PARAM_AMOVREG_SRC_REG2].make_reg(instr.args[PARAM_AMOVREG_SRC_REG2]);
+        graphs.push(graph);
+    }else if( instr.type == ILInstructionType::LOAD ){
+        // LOAD
+        graph = new StrategyGraph();
+        node_t n = graph->new_node(GadgetType::LOAD);
+        Node& node = graph->nodes[n];
+        node.params[PARAM_LOAD_DST_REG].make_reg(instr.args[PARAM_LOAD_DST_REG]);
+        node.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(instr.args[PARAM_LOAD_SRC_ADDR_REG]);
+        node.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(instr.args[PARAM_LOAD_SRC_ADDR_OFFSET], graph->new_name("offset"));
+        graphs.push(graph);
+    }else if( instr.type == ILInstructionType::LOAD_CST ){
+        // LOAD_CST
+        graph = new StrategyGraph();
+        node_t n1 = graph->new_node(GadgetType::LOAD);
+        node_t n2 = graph->new_node(GadgetType::MOV_CST);
+        Node& node1 = graph->nodes[n1];
+        Node& node2 = graph->nodes[n2];
+        // First node is reg <- mem(X + C)
+        // Second is X <- src_cst - C 
+        node1.params[PARAM_LOAD_DST_REG].make_reg(instr.args[PARAM_LOADCST_DST_REG]);
+        node1.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(-1, false); // Free
+        node1.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
+        
+        node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_LOAD_SRC_ADDR_REG); // node2 X is same as addr reg in node1
+        node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_LOAD_SRC_ADDR_OFFSET, 
+            instr.args[PARAM_LOADCST_SRC_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_LOAD_SRC_ADDR_OFFSET].name)
+            , graph->new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
+        
+        graph->add_param_edge(n2, n1);
+        graph->add_strategy_edge(n2, n1);
+        
+        graphs.push(graph);
+    }else if( instr.type == ILInstructionType::STORE ){
+        // STORE
+        graph = new StrategyGraph();
+        node_t n = graph->new_node(GadgetType::STORE);
+        Node& node = graph->nodes[n];
+        node.params[PARAM_STORE_DST_ADDR_REG].make_reg(instr.args[PARAM_STORE_DST_ADDR_REG]);
+        node.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(instr.args[PARAM_STORE_DST_ADDR_OFFSET], graph->new_name("offset"));
+        node.params[PARAM_STORE_SRC_REG].make_reg(instr.args[PARAM_STORE_SRC_REG]);
+        graphs.push(graph);
+    }else if( instr.type == ILInstructionType::CST_STORE ){
+        // STORE_CST
+        graph = new StrategyGraph();
+        node_t n1 = graph->new_node(GadgetType::STORE);
+        node_t n2 = graph->new_node(GadgetType::MOV_CST);
+        Node& node1 = graph->nodes[n1];
+        Node& node2 = graph->nodes[n2];
+        // First node is mem(X + C) <- reg
+        // Second is X <- src_cst - C 
+        node1.params[PARAM_STORE_SRC_REG].make_reg(instr.args[PARAM_CSTSTORE_SRC_REG]);
+        node1.params[PARAM_STORE_DST_ADDR_REG].make_reg(-1, false); // Free
+        node1.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
+        
+        node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
+        node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_STORE_DST_ADDR_OFFSET, 
+            instr.args[PARAM_CSTSTORE_DST_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_STORE_DST_ADDR_OFFSET].name)
+            , graph->new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
+        
+        graph->add_param_edge(n2, n1);
+        graph->add_strategy_edge(n2, n1);
+        
+        graphs.push(graph);
     }else{
         throw runtime_exception("add_il_instruction_to_strategy(): unsupported ILInstructionType");
     }
