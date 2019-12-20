@@ -24,7 +24,7 @@ enum class ParamType{
 class Param{
 public:
     ParamType type;
-    string name; // Name for the param (used for patchable constants only)
+    string name; // Name for the param (used for 'free' constants only)
     // Value
     cst_t value; // Used to put constant OR regnum
     // Dependencies

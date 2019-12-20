@@ -330,10 +330,22 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
             return db.get_possible_mov_reg(node.params[PARAM_MOVREG_DST_REG].value,
                                            node.params[PARAM_MOVREG_SRC_REG].value,
                                            params_status); 
+        case GadgetType::AMOV_REG:
+            return db.get_possible_amov_reg(node.params[PARAM_AMOVREG_DST_REG].value,
+                                           node.params[PARAM_AMOVREG_SRC_REG1].value,
+                                           (Op)node.params[PARAM_AMOVREG_SRC_OP].value,
+                                           node.params[PARAM_AMOVREG_SRC_REG2].value,
+                                           params_status); 
         case GadgetType::MOV_CST:
             return db.get_possible_mov_cst(node.params[PARAM_MOVCST_DST_REG].value,
                                            node.params[PARAM_MOVCST_SRC_CST].value,
                                            params_status);
+        case GadgetType::AMOV_CST:
+            return db.get_possible_amov_cst(node.params[PARAM_AMOVCST_DST_REG].value,
+                                           node.params[PARAM_AMOVCST_SRC_REG].value,
+                                           (Op)node.params[PARAM_AMOVCST_SRC_OP].value,
+                                           node.params[PARAM_AMOVCST_SRC_CST].value,
+                                           params_status); 
         case GadgetType::LOAD:
             return db.get_possible_load(node.params[PARAM_LOAD_DST_REG].value,
                                         node.params[PARAM_LOAD_SRC_ADDR_REG].value,

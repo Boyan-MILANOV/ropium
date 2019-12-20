@@ -259,8 +259,16 @@ PossibleGadgets* GadgetDB::get_possible_mov_reg(reg_t dst_reg, reg_t src_reg, bo
     return mov_reg.get_possible(make_tuple(dst_reg, src_reg), param_is_free, 2);
 }
 
+PossibleGadgets* GadgetDB::get_possible_amov_reg(reg_t dst_reg, reg_t src_reg1, Op src_op, reg_t src_reg2, bool* param_is_free){
+    return amov_reg.get_possible(make_tuple(dst_reg, src_reg1, (op_t)src_op, src_reg2), param_is_free, 4);
+}
+
 PossibleGadgets* GadgetDB::get_possible_mov_cst(reg_t dst_reg, cst_t src_cst, bool* param_is_free){
     return mov_cst.get_possible(make_tuple(dst_reg, src_cst), param_is_free, 2);
+}
+
+PossibleGadgets* GadgetDB::get_possible_amov_cst(reg_t dst_reg, reg_t src_reg, Op src_op, cst_t src_cst, bool* param_is_free){
+    return amov_cst.get_possible(make_tuple(dst_reg, src_reg, (op_t)src_op, src_cst), param_is_free, 4);
 }
 
 PossibleGadgets* GadgetDB::get_possible_load(reg_t dst_reg, reg_t src_addr_reg, cst_t src_addr_offset, bool* param_is_free){
