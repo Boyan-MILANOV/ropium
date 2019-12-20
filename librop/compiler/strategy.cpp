@@ -4,7 +4,8 @@
 
 StrategyGraph::StrategyGraph(): has_gadget_selection(false){};
 
-// Create new nodes/edges
+
+/* =========== Basic manips on edges/nodes =========== */
 node_t StrategyGraph::new_node(GadgetType t){
     node_t n = nodes.size();
     for( node_t i = 0; i < nodes.size(); i++ ){
@@ -118,7 +119,7 @@ void StrategyGraph::add_param_edge(node_t from, node_t to){
     nodes[to].param_edges.in.push_back(from);
 }
 
-// Strategy rules
+/* =============== Strategy Rules ============== */
 
 /* MovReg dst_reg, src_reg
  * =======================
@@ -164,7 +165,7 @@ void StrategyGraph::rule_mov_reg_transitivity(node_t n){
 }
 
 
-// Ordering
+/* ===============  Ordering ============== */
 void StrategyGraph::_dfs_strategy_explore(vector<node_t>& marked, node_t n){
     if( nodes[n].id == -1 || std::count(dfs_strategy.begin(), dfs_strategy.end(), n))
         return; // Ignore invalid/removed nodes
@@ -218,7 +219,7 @@ void StrategyGraph::compute_dfs_params(){
 /* =============== Gadget Selection ============== */
 // Get the concrete value for parameters depending on other 
 // gadgets. This functions expects all the parameters in nodes that
-// are used by the 'param' to have been resolved already
+// are used by the 'param' argument to have been resolved already
 void StrategyGraph::_resolve_param(Param& param){
     if( param.is_fixed)
         return;
@@ -235,6 +236,8 @@ void StrategyGraph::_resolve_param(Param& param){
     }
 }
 
+// Wrapper that queries the database to find the list of gadgets that match
+// a strategy node
 const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t n){
     Node& node = nodes[n];
     reg_t src_reg, src_reg2, dst_reg, dst_addr_reg, src_addr_reg;
@@ -296,6 +299,15 @@ const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t
     }
 }
 
+// Wrapper to the database to get a list of gadgets that match a strategy node
+// that still has non-resolved (also called 'free') parameters. 
+// 
+// For example it can find all gadgets that match a node: X = ecx + Y
+// and return :
+//   - mov edx, ecx
+//   - add ecx, esi
+//   ... 
+
 PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
     Node& node = nodes[n];
     bool params_status[MAX_PARAMS];
@@ -351,6 +363,11 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
     }
 }
 
+/* This function tries to find a gadget selection for a strategy graph.
+ It iteratively (the order is the one of the DFS on parameter dependencies) resolves
+ parameters and queries the database to find a matching gadget on each node of the
+ strategy graph.  
+*/
 bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
     if( dfs_idx == -1 ){
         compute_dfs_params();
@@ -398,7 +415,6 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
         // 2. Try all possible gadgets (or a subset)
         for( Gadget* gadget : gadgets ){
             node.affected_gadget = gadget;
-            // std::cout << "DEBUG, selected : " << gadget->asm_str << std::endl;
             // 3. Recursive call on next node
             if( select_gadgets(db, dfs_idx+1) )
                 return true;
@@ -407,6 +423,10 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
     return false;
 }
 
+/* Function that builds a ROPChain from a valid gadget selection
+   ==> If no valid selection has been computed for the graph, it 
+       returns a NULL pointer
+*/
 ROPChain* StrategyGraph::get_ropchain(Arch* arch){
     vector<node_t>::reverse_iterator rit;
     

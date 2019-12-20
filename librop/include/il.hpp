@@ -3,7 +3,18 @@
 
 #include "arch.hpp"
 
-// High level language
+/* IL - Intermediate Language
+   ==========================
+  
+  The IL is used to write ROP programs that the ROPCompiler will
+  then try to satisfy using the available gadgets.
+  
+  It is very close to the different kinds of gadgets supported (
+  MOV_REG, MOV_CST, LOAD, STORE, etc) with a few extra types 
+  available for convenience (like CST_STORE, LOAD_CST, etc).
+  
+*/
+   
 enum class ILInstructionType{
     // Register to register
     MOV_CST,    // reg <- cst
@@ -24,11 +35,31 @@ enum class ILInstructionType{
     JMP         // PC <- reg
 };
 
+/* IL - Instruction
+   ================
+  
+  IL instructions are represented by a simple class which holds the
+  instruction type and the list of arguments of the instruction. The 
+  argument are ordered as defined in the strategy.hpp file (it holds 
+  #define enums for gadget arguments and IL arguments since those are
+  very similar in most cases).
+  
+  For example to access the destination register of a MOV_CST instruction
+  we do:   instr.args[PARAM_MOVCST_DST_REG].
+
+  Instructions are build directly from a string, examples are:
+    "eax += ebx"
+    "ecx = 678"
+    "esi = ebx ^ 0xdead"
+    "mem(edx+8) *= 2"
+    "edx = mem(ecx)"
+*/
+
 class ILInstruction{
 public:
     ILInstructionType type;
     vector<cst_t> args;
-    ILInstruction(Arch& arch, string instr_str);
+    ILInstruction(Arch& arch, string instr_str); // raises il_exception if instr_str is invalid
 };
 
 #endif

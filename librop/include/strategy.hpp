@@ -110,11 +110,13 @@ public:
     };
 };
 
-// TODO PUT THIS IN DATABASE ? 
+/* Different kinds parameters for nodes/IL instructions
+   ====================================================
+   WARNING: their values have to match the place they have in the tuple
+   when the gadgets are addded in the database !
+*/
 #define MAX_PARAMS 7
-// Different kinds parameters for nodes
-// WARNING: their values have to match the place they have in the tuple
-// when the gadgets are addded in the database !
+
 #define PARAM_MOVREG_DST_REG 0
 #define PARAM_MOVREG_SRC_REG 1
 #define PARAM_MOVREG_GADGET_ADDR 2
