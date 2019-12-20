@@ -21,6 +21,10 @@ void StrategyGraph::remove_node(node_t node){
     nodes[node].id = -1;
 }
 
+string StrategyGraph::new_name(string base){
+    return name_generator.new_name(base);
+}
+
 // Make the edges that point to the parameter 'curr_param_type' on 'curr_node' point to 'new_node'
 // and 'new_param_type'. The edges to 'curr_node' are removed and the new edges are also added as
 // 'in' edges in the new node. 
