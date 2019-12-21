@@ -284,6 +284,9 @@ public:
     // Gadget selection
     bool select_gadgets(GadgetDB& db, node_t dfs_idx=-1);
     ROPChain* get_ropchain(Arch* arch);
+    
+    // Copy
+    StrategyGraph* copy();
 };
 
 ostream& operator<<(ostream& os, StrategyGraph& graph);

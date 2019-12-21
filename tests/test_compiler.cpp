@@ -22,7 +22,7 @@ namespace test{
             return 1; 
         }
 
-        unsigned int single_instructions(){
+        unsigned int direct_match(){
             unsigned int nb = 0;
             ArchX86 arch;
             GadgetDB db;
@@ -87,6 +87,36 @@ namespace test{
 
             return nb;
         }
+        
+        unsigned int indirect_match(){
+            unsigned int nb = 0;
+            ArchX86 arch;
+            GadgetDB db;
+            ROPCompiler comp = ROPCompiler(&arch, &db);
+            ROPChain* ropchain;
+            
+            // Available gadgets
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x89\xf9\xbb\x01\x00\x00\x00\xc3", 8), 1)); // mov ecx, edi; mov ebx, 1; ret
+            raw.push_back(RawGadget(string("\x89\xC8\xC3", 3), 2)); // mov eax, ecx; ret
+            raw.push_back(RawGadget(string("\x89\xC3\xC3", 3), 3)); // mov ebx, eax; ret
+            raw.push_back(RawGadget(string("\xb9\xad\xde\x00\x00\xc3", 6), 4)); // mov ecx, 0xdead; ret
+            db.fill_from_raw_gadgets(raw, &arch);
+
+            // Test mov_reg_transitivity
+            ropchain = comp.compile("eax = edi");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile("ebx = edi");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+
+            // Test mov_cst_transitivity
+            ropchain = comp.compile("eax = 0xdead");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile("ebx = 0xdead");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+
+            return nb;
+        }
     }
 }
 
@@ -100,7 +130,8 @@ void test_compiler(){
     
     // Start testing 
     cout << bold << "[" << green << "+" << def << bold << "]" << def << std::left << std::setw(34) << " Testing ROP compiler... " << std::flush;  
-    total += single_instructions();
+    total += direct_match();
+    total += indirect_match();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;
 }

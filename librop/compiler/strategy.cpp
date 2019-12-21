@@ -412,9 +412,7 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
                                         node.params[PARAM_ASTORE_DST_ADDR_OFFSET].value,
                                         (Op)node.params[PARAM_ASTORE_OP].value,
                                         node.params[PARAM_ASTORE_SRC_REG].value,
-                                        params_status);                                
-        
-        // TODO: other types
+                                        params_status);
         default:
             throw runtime_exception("_get_possible_gadgets(): got unsupported gadget type!");
     }
@@ -506,7 +504,7 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch){
     if( !has_gadget_selection ){
         return nullptr;
     }
-    
+
     // DEBUG TODO: many things
     // For now just return the gadget list
     ROPChain* ropchain = new ROPChain(arch);
@@ -515,6 +513,16 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch){
     }
     return ropchain;
 }
+
+StrategyGraph* StrategyGraph::copy(){
+    StrategyGraph* new_graph = new StrategyGraph();
+    // Copy nodes
+    new_graph->nodes = nodes;
+    // Copy name generator (to avoid create new names for 0 that colision with previous ones)
+    new_graph->name_generator = name_generator;
+    return new_graph;
+}
+
 
 /* ================ Printing =================== */
 ostream& operator<<(ostream& os, Param& param){

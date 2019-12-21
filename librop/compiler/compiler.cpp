@@ -17,9 +17,35 @@ ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, int nb_tries){
         pending_strategies.pop();
         if( graph->select_gadgets(*db) )
             return graph->get_ropchain(arch);
-        // TODO: apply munch rules and create new strategy trees
+        // Apply strategy rules to the graph to get new candidate strategies
+        apply_rules_to_graph(graph);
+        delete graph; graph = nullptr;
     }
     return nullptr;
+}
+
+void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
+    StrategyGraph* new_graph;
+    // Iterate through all nodes of the graph
+    for( Node& node : graph->nodes ){
+        if( node.id == -1 )
+            continue; // Skip invalid/removed nodes
+        // Apply strategy rules
+        switch(node.type){
+            case GadgetType::MOV_CST:
+                new_graph = graph->copy();
+                new_graph->rule_mov_cst_transitivity(node.id); // MovCst transitivity
+                add_strategy(new_graph);
+                break;
+            case GadgetType::MOV_REG:
+                new_graph = graph->copy();
+                new_graph->rule_mov_reg_transitivity(node.id); // MovReg transitivity
+                add_strategy(new_graph);
+                break;
+            default:
+                break;
+        }
+    }
 }
 
 CompilerTask::~CompilerTask(){

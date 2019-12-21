@@ -22,6 +22,7 @@ using std::queue;
 */
 
 class CompilerTask{
+    void apply_rules_to_graph(StrategyGraph* graph);
 public:
     queue<StrategyGraph*> pending_strategies;
     void add_strategy(StrategyGraph* graph);
