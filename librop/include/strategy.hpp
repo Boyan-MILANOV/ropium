@@ -201,6 +201,12 @@ public:
 #define PARAM_CSTASTORE_GADGET_SP_INC 4
 #define NB_PARAM_CSTASTORE 5
 
+
+// Callback for custom constraints called to filter gadgets on each node
+class Node;
+class StrategyGraph;
+typedef bool (*constraint_callback_t)(Node* node, StrategyGraph* graph);
+
 class Node{
 public:
     // Fixed
@@ -211,6 +217,8 @@ public:
     // Dynamic
     Param params[MAX_PARAMS];
     Gadget* affected_gadget;
+    // Constraint
+    vector<constraint_callback_t> constraints;
 
     Node(int i, GadgetType t):id(i), type(t){};
     int nb_params(){
@@ -247,6 +255,7 @@ private:
     void _resolve_param(Param& param);
     const vector<Gadget*>& _get_matching_gadgets(GadgetDB& db, node_t node);
     PossibleGadgets* _get_possible_gadgets(GadgetDB& db, node_t n);
+    bool _check_node_constraints(Node& node);
     bool has_gadget_selection;
     VarContext params_ctx;
 public:

@@ -375,6 +375,15 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
     }
 }
 
+bool StrategyGraph::_check_node_constraints(Node& node){
+    for( constraint_callback_t constr : node.constraints ){
+        if( ! constr(&node, this))
+            return false;
+    }
+    return true;
+}
+
+
 /* This function tries to find a gadget selection for a strategy graph.
  It iteratively (the order is the one of the DFS on parameter dependencies) resolves
  parameters and queries the database to find a matching gadget on each node of the
@@ -409,6 +418,12 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
                 if( node.params[p].is_cst())
                     params_ctx.set(node.params[p].name, node.params[p].value);
             }
+
+            // Check node constraints
+            if( !_check_node_constraints(node)){
+                continue;
+            }
+
             // 2.b Try all possible gadgets
             for( Gadget* gadget : *(pos.second) ){
                 node.affected_gadget = gadget;

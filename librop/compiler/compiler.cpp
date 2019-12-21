@@ -199,6 +199,13 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node1.params[PARAM_STORE_SRC_REG].make_reg(instr.args[PARAM_CSTSTORE_SRC_REG]);
         node1.params[PARAM_STORE_DST_ADDR_REG].make_reg(-1, false); // Free
         node1.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
+        node1.constraints.push_back(
+            // Can not adjust the addr_reg if it is the same as the reg that must be written
+            // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
+            [](Node* n, StrategyGraph* g)->bool{
+                return n->params[PARAM_STORE_DST_ADDR_REG].value != n->params[PARAM_STORE_SRC_REG].value;
+            }
+        );
         
         node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
         node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_STORE_DST_ADDR_OFFSET, 
@@ -232,6 +239,14 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node1.params[PARAM_ASTORE_OP].make_op((Op)instr.args[PARAM_CSTASTORE_OP]);
         node1.params[PARAM_ASTORE_DST_ADDR_REG].make_reg(-1, false); // Free
         node1.params[PARAM_ASTORE_DST_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
+                node1.constraints.push_back(
+            // Can not adjust the addr_reg if it is the same as the reg that must be written
+            // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
+            [](Node* n, StrategyGraph* g)->bool{
+                return n->params[PARAM_ASTORE_DST_ADDR_REG].value != n->params[PARAM_ASTORE_SRC_REG].value;
+            }
+        );
+
         
         node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_ASTORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
         node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_ASTORE_DST_ADDR_OFFSET, 

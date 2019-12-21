@@ -46,6 +46,8 @@ namespace test{
             raw.push_back(RawGadget(string("\x01\x21\xc3", 3), 13)); // add [ecx], esp; ret
             raw.push_back(RawGadget(string("\x33\x79\xf6\xc3", 4), 14)); // xor edi, [ecx-10]; ret
             raw.push_back(RawGadget(string("\x83\xc9\xff\xc3", 4), 15)); // or ecx, 0xffffffff; ret
+            raw.push_back(RawGadget(string("\x21\x49\xf7\xc3", 4), 16)); // and [ecx-9], ecx; ret
+            
 
             db.fill_from_raw_gadgets(raw, &arch);
 
