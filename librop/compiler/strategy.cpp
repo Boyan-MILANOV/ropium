@@ -164,6 +164,51 @@ void StrategyGraph::rule_mov_reg_transitivity(node_t n){
     remove_node(node.id);
 }
 
+/* =============== Strategy Rules ============== */
+
+/* MovCst dst_reg, src_cst
+ * =======================
+ * MovReg R1, src_cst
+ * MovReg dst_reg, R1 
+ * ======================= */
+void StrategyGraph::rule_mov_cst_transitivity(node_t n){
+    // Get/Create nodes
+    node_t n1 = new_node(GadgetType::MOV_CST);
+    node_t n2 = new_node(GadgetType::MOV_REG);
+    Node& node = nodes[n];
+    Node& node1 = nodes[n1];
+    Node& node2 = nodes[n2];
+    if( node.type != GadgetType::MOV_CST ){
+        throw runtime_exception("Calling MovCst rule on non-MovCst node!");
+    }
+
+    // Modify parameters
+    Param& dst_reg = node.params[PARAM_MOVCST_DST_REG];
+    Param& src_cst = node.params[PARAM_MOVCST_SRC_CST];
+    node1.params[PARAM_MOVCST_SRC_CST] = node.params[PARAM_MOVCST_SRC_CST];
+    node1.params[PARAM_MOVCST_DST_REG].make_reg(node2.id, PARAM_MOVREG_SRC_REG); // node1 dst is R1, depends on R1 in node2
+    node2.params[PARAM_MOVREG_SRC_REG].make_reg(0, false); // node2 src is R1
+    node2.params[PARAM_MOVREG_DST_REG] = node.params[PARAM_MOVREG_DST_REG];
+    
+    // Add new edges
+    add_strategy_edge(node1.id, node2.id);
+    add_param_edge(node1.id, node2.id);
+
+    // Redirect the different params and edges
+    // Any arc incoming to node:src_cst goes to node1:src_cst
+    redirect_incoming_param_edges(node.id, PARAM_MOVCST_SRC_CST, node1.id, PARAM_MOVCST_SRC_CST);
+
+    // Any arc outgoing from node:dst_reg now goes out from node2:dst_reg
+    redirect_outgoing_param_edges(node.id, PARAM_MOVCST_DST_REG, node2.id, PARAM_MOVCST_DST_REG);
+    
+    // Redirect strategy edges
+    redirect_incoming_strategy_edges(node.id, node1.id);
+    redirect_outgoing_strategy_edges(node.id, node2.id);
+    
+    // Remove node
+    remove_node(node.id);
+}
+
 
 /* ===============  Ordering ============== */
 void StrategyGraph::_dfs_strategy_explore(vector<node_t>& marked, node_t n){

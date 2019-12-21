@@ -23,6 +23,15 @@ namespace test{
             return 1; 
         }
         
+        unsigned int _assert_ropchain(ROPChain* ropchain, const string& msg){
+            if( ropchain == nullptr){
+                cout << "\nFail: " << msg << endl << std::flush; 
+                throw test_exception();
+            }
+            delete ropchain;
+            return 1; 
+        }
+        
         unsigned int basic(){
             unsigned int nb = 0;
             StrategyGraph sgraph;
@@ -45,10 +54,11 @@ namespace test{
             return nb;
         }
         
-        unsigned int basic2(){
+        unsigned int rules(){
             unsigned int nb = 0;
             Arch* arch = new ArchX86();
             GadgetDB db;
+            ROPChain* ropchain;
 
             vector<RawGadget> raw;
             raw.push_back(RawGadget(string("\x89\xf9\xbb\x01\x00\x00\x00\xc3", 8), 1)); // mov ecx, edi; mov ebx, 1; ret
@@ -57,6 +67,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x89\xCB\xC3", 3), 4)); // mov ebx, ecx; ret
             raw.push_back(RawGadget(string("\xbb\x04\x00\x00\x00\xc3", 6), 5)); // mov ebx, 4; ret
             raw.push_back(RawGadget(string("\xb8\x05\x00\x00\x00\xc3", 6), 6)); // mov eax, 5; ret
+            raw.push_back(RawGadget(string("\x89\xc2\xc3", 3), 7)); // mov edx, eax; ret
             
             db.fill_from_raw_gadgets(raw, arch);
             
@@ -74,11 +85,9 @@ namespace test{
             sgraph.add_param_edge(n1, n2);
             // Apply strat
             sgraph.rule_mov_reg_transitivity(n2);
-            if( sgraph.select_gadgets(db)){
-                ROPChain* ropchain = sgraph.get_ropchain(arch);
-                // std::cout << std::endl << *ropchain;
-                delete ropchain;
-            }
+            sgraph.select_gadgets(db);
+            ropchain = sgraph.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
             // Test constant param resolving
             StrategyGraph graph2;
@@ -93,11 +102,21 @@ namespace test{
             graph2.add_strategy_edge(n1, n2);
             graph2.add_param_edge(n1, n2);
 
-            if( graph2.select_gadgets(db)){
-                ROPChain* ropchain = graph2.get_ropchain(arch);
-                //std::cout << std::endl << *ropchain;
-                delete ropchain;
-            }
+            graph2.select_gadgets(db);
+            ropchain = graph2.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+
+            // Test MovCst transitivity
+            StrategyGraph graph3;
+            n1 = graph3.new_node(GadgetType::MOV_CST);
+            Node& node1b = graph3.nodes[n1];
+            node1b.params[PARAM_MOVCST_SRC_CST].make_cst(5, "cst_1");
+            node1b.params[PARAM_MOVCST_DST_REG].make_reg(X86_EDX);
+            // Apply strat
+            graph3.rule_mov_cst_transitivity(n1);
+            graph3.select_gadgets(db);
+            ropchain = graph3.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
             delete arch;
             return nb;
@@ -117,7 +136,7 @@ void test_strategy(){
     cout << bold << "[" << green << "+" << def << bold << "]" << def << " Testing strategy graphs... " << std::flush;
     for( int i = 0; i < 1; i++){
         total += basic();
-        total += basic2();
+        total += rules();
     }
 
     // Return res

@@ -275,15 +275,17 @@ public:
     void add_strategy_edge(node_t from, node_t to);
     void add_param_edge(node_t from, node_t to);
     // Strategy rules
+    void rule_mov_cst_transitivity(node_t n);
     void rule_mov_reg_transitivity(node_t n);
     // Ordering
     void compute_dfs_strategy();
     void compute_dfs_params();
-    
+
     // Gadget selection
     bool select_gadgets(GadgetDB& db, node_t dfs_idx=-1);
     ROPChain* get_ropchain(Arch* arch);
 };
+
 ostream& operator<<(ostream& os, StrategyGraph& graph);
 
 
