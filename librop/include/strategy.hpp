@@ -209,6 +209,7 @@ typedef bool (*constraint_callback_t)(Node* node, StrategyGraph* graph);
 
 class Node{
 public:
+    int depth;
     // Fixed
     int id;
     GadgetType type;
@@ -220,7 +221,7 @@ public:
     // Constraint
     vector<constraint_callback_t> constraints;
 
-    Node(int i, GadgetType t):id(i), type(t){};
+    Node(int i, GadgetType t):id(i), type(t), depth(-1){};
     int nb_params(){
         switch( type ){
             case GadgetType::MOV_REG: return NB_PARAM_MOVREG;
@@ -258,6 +259,7 @@ private:
     bool _check_node_constraints(Node& node);
     bool has_gadget_selection;
     VarContext params_ctx;
+    int _depth;
 public:
     vector<Node> nodes;
     vector<node_t> dfs_strategy;
@@ -290,6 +292,5 @@ public:
 };
 
 ostream& operator<<(ostream& os, StrategyGraph& graph);
-
 
 #endif

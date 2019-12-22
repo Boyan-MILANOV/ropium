@@ -2,7 +2,7 @@
 #include "exception.hpp"
 #include <algorithm>
 
-StrategyGraph::StrategyGraph(): has_gadget_selection(false){};
+StrategyGraph::StrategyGraph(): has_gadget_selection(false), _depth(-1){};
 
 
 /* =========== Basic manips on edges/nodes =========== */
@@ -219,8 +219,12 @@ void StrategyGraph::_dfs_strategy_explore(vector<node_t>& marked, node_t n){
     }else{
         marked.push_back(n);
     }
+    nodes[n].depth = 0;
     for( node_t n2 : nodes[n].strategy_edges.out ){
         _dfs_strategy_explore(marked, n2);
+        // Adjust depth
+        if( nodes[n2].depth +1 < nodes[n].depth)
+            nodes[n].depth = nodes[n2].depth +1;
     }
     dfs_strategy.push_back(n);
 }
@@ -522,7 +526,6 @@ StrategyGraph* StrategyGraph::copy(){
     new_graph->name_generator = name_generator;
     return new_graph;
 }
-
 
 /* ================ Printing =================== */
 ostream& operator<<(ostream& os, Param& param){

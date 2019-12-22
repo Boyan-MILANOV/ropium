@@ -5,7 +5,14 @@
 
 /* ============= Compiler Task ============ */
 void CompilerTask::add_strategy(StrategyGraph* graph){
-    pending_strategies.push(graph);
+    // Fuck this fucking C++ shit, insert in linear time because it's time
+    // to sleep and I'm so fucking tired and lower_bound won't compile 
+    // for a FUCKING unknown reason
+    vector<StrategyGraph*>::iterator g;
+    for( g = pending_strategies.begin();
+         g != pending_strategies.end() && (*g)->nodes.size() > graph->nodes.size();
+         g++ ){}
+    pending_strategies.insert(g, graph);
 }
 
 ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, int nb_tries){
@@ -13,8 +20,8 @@ ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, int nb_tries){
     StrategyGraph* graph;
     ROPChain * ropchain;
     while( n++ < nb_tries && !pending_strategies.empty()){
-        graph = pending_strategies.front();
-        pending_strategies.pop();
+        graph = pending_strategies.back();
+        pending_strategies.pop_back();
         if( graph->select_gadgets(*db) )
             return graph->get_ropchain(arch);
         // Apply strategy rules to the graph to get new candidate strategies
@@ -24,8 +31,10 @@ ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, int nb_tries){
     return nullptr;
 }
 
+
 void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
     StrategyGraph* new_graph;
+    vector<StrategyGraph*> new_list;
     // Iterate through all nodes of the graph
     for( Node& node : graph->nodes ){
         if( node.id == -1 )
@@ -49,10 +58,10 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
 }
 
 CompilerTask::~CompilerTask(){
-    while( !pending_strategies.empty()){
-        delete pending_strategies.front();
-        pending_strategies.pop();
+    for( StrategyGraph* g : pending_strategies ){
+        delete g; g = nullptr;
     }
+    pending_strategies.clear();
 }
 
 
@@ -102,7 +111,7 @@ vector<ILInstruction> ROPCompiler::parse(string program){
     return res;
 }
 
-void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& instr){
+void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr){
     StrategyGraph* graph;
     if( instr.type == ILInstructionType::MOV_CST ){
         // MOV_CST
@@ -111,7 +120,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         Node& node = graph->nodes[n];
         node.params[PARAM_MOVCST_DST_REG].make_reg(instr.args[PARAM_MOVCST_DST_REG]);
         node.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_MOVCST_SRC_CST], graph->new_name("cst"));
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::MOV_REG ){
         // MOV_REG
         graph = new StrategyGraph();
@@ -119,7 +128,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         Node& node = graph->nodes[n];
         node.params[PARAM_MOVREG_DST_REG].make_reg(instr.args[PARAM_MOVREG_DST_REG]);
         node.params[PARAM_MOVREG_SRC_REG].make_reg(instr.args[PARAM_MOVREG_SRC_REG]);
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::AMOV_CST){
         // AMOV_CST
         graph = new StrategyGraph();
@@ -129,7 +138,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node.params[PARAM_AMOVCST_SRC_REG].make_reg(instr.args[PARAM_AMOVCST_SRC_REG]);
         node.params[PARAM_AMOVCST_SRC_OP].make_op((Op)instr.args[PARAM_AMOVCST_SRC_OP]);
         node.params[PARAM_AMOVCST_SRC_CST].make_cst(instr.args[PARAM_AMOVCST_SRC_CST], graph->new_name("cst"));
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::AMOV_REG){
         // AMOV_REG
         graph = new StrategyGraph();
@@ -139,7 +148,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node.params[PARAM_AMOVREG_SRC_REG1].make_reg(instr.args[PARAM_AMOVREG_SRC_REG1]);
         node.params[PARAM_AMOVREG_SRC_OP].make_op((Op)instr.args[PARAM_AMOVREG_SRC_OP]);
         node.params[PARAM_AMOVREG_SRC_REG2].make_reg(instr.args[PARAM_AMOVREG_SRC_REG2]);
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::LOAD ){
         // LOAD
         graph = new StrategyGraph();
@@ -148,7 +157,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node.params[PARAM_LOAD_DST_REG].make_reg(instr.args[PARAM_LOAD_DST_REG]);
         node.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(instr.args[PARAM_LOAD_SRC_ADDR_REG]);
         node.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(instr.args[PARAM_LOAD_SRC_ADDR_OFFSET], graph->new_name("offset"));
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::ALOAD ){
         // ALOAD
         graph = new StrategyGraph();
@@ -158,7 +167,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node.params[PARAM_ALOAD_OP].make_op((Op)instr.args[PARAM_ALOAD_OP]);
         node.params[PARAM_ALOAD_SRC_ADDR_REG].make_reg(instr.args[PARAM_ALOAD_SRC_ADDR_REG]);
         node.params[PARAM_ALOAD_SRC_ADDR_OFFSET].make_cst(instr.args[PARAM_ALOAD_SRC_ADDR_OFFSET], graph->new_name("offset"));
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::LOAD_CST ){
         // LOAD_CST
         graph = new StrategyGraph();
@@ -180,7 +189,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         graph->add_param_edge(n2, n1);
         graph->add_strategy_edge(n2, n1);
         
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::ALOAD_CST ){
         // ALOAD_CST
         graph = new StrategyGraph();
@@ -203,7 +212,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         graph->add_param_edge(n2, n1);
         graph->add_strategy_edge(n2, n1);
         
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::STORE ){
         // STORE
         graph = new StrategyGraph();
@@ -212,7 +221,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node.params[PARAM_STORE_DST_ADDR_REG].make_reg(instr.args[PARAM_STORE_DST_ADDR_REG]);
         node.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(instr.args[PARAM_STORE_DST_ADDR_OFFSET], graph->new_name("offset"));
         node.params[PARAM_STORE_SRC_REG].make_reg(instr.args[PARAM_STORE_SRC_REG]);
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::CST_STORE ){
         // CST_STORE
         graph = new StrategyGraph();
@@ -241,7 +250,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         graph->add_param_edge(n2, n1);
         graph->add_strategy_edge(n2, n1);
         
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::ASTORE ){
         // ASTORE
         graph = new StrategyGraph();
@@ -251,7 +260,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         node.params[PARAM_ASTORE_DST_ADDR_OFFSET].make_cst(instr.args[PARAM_ASTORE_DST_ADDR_OFFSET], graph->new_name("offset"));
         node.params[PARAM_ASTORE_OP].make_op((Op)instr.args[PARAM_ASTORE_OP]);
         node.params[PARAM_ASTORE_SRC_REG].make_reg(instr.args[PARAM_ASTORE_SRC_REG]);
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::CST_ASTORE ){
         // CST_ASTORE
         graph = new StrategyGraph();
@@ -282,7 +291,7 @@ void ROPCompiler::il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& i
         graph->add_param_edge(n2, n1);
         graph->add_strategy_edge(n2, n1);
         
-        graphs.push(graph);
+        graphs.push_back(graph);
     }else{
         throw runtime_exception("add_il_instruction_to_strategy(): unsupported ILInstructionType");
     }

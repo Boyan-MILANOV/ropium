@@ -4,9 +4,8 @@
 #include "strategy.hpp"
 #include "il.hpp"
 #include "database.hpp"
-#include <queue>
 
-using std::queue;
+using std::vector;
 
 /* CompilerTask
    ============
@@ -24,7 +23,7 @@ using std::queue;
 class CompilerTask{
     void apply_rules_to_graph(StrategyGraph* graph);
 public:
-    queue<StrategyGraph*> pending_strategies;
+    vector<StrategyGraph*> pending_strategies;
     void add_strategy(StrategyGraph* graph);
     ROPChain* compile(Arch* arch, GadgetDB* db, int nb_tries=100);
     ~CompilerTask();
@@ -45,7 +44,7 @@ class ROPCompiler{
     GadgetDB* db;
     ROPChain* process(vector<ILInstruction>& instructions);
     vector<ILInstruction> parse(string program);
-    void il_to_strategy(queue<StrategyGraph*>& graphs, ILInstruction& instr);
+    void il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr);
 public:
     ROPCompiler( Arch* arch, GadgetDB* db);
     ROPChain* compile(string program);
