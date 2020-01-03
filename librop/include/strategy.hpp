@@ -201,6 +201,11 @@ public:
 #define PARAM_CSTASTORE_GADGET_SP_INC 4
 #define NB_PARAM_CSTASTORE 5
 
+typedef struct {
+    Param offset;
+    Param value;
+} ROPPadding;
+
 
 // Callback for custom constraints called to filter gadgets on each node
 class Node;
@@ -220,6 +225,8 @@ public:
     Gadget* affected_gadget;
     // Constraint
     vector<constraint_callback_t> constraints;
+    // Gadget paddings
+    vector<ROPPadding> special_paddings;
 
     Node(int i, GadgetType t):id(i), type(t), depth(-1){};
     int nb_params(){

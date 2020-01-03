@@ -202,6 +202,7 @@ void StrategyGraph::rule_mov_cst_transitivity(node_t n){
 }
 
 
+
 /* ===============  Ordering ============== */
 void StrategyGraph::_dfs_strategy_explore(vector<node_t>& marked, node_t n){
     if( nodes[n].is_disabled() || std::count(dfs_strategy.begin(), dfs_strategy.end(), n))
@@ -264,28 +265,31 @@ void StrategyGraph::compute_dfs_params(){
 // gadgets. This functions expects all the parameters in nodes that
 // are used by the 'param' argument to have been resolved already
 void StrategyGraph::_resolve_param(Param& param){
-    if( param.is_fixed)
-        return;
-    else if( param.is_free())
-        throw runtime_exception("_resolved_param(): called on free parameter");
-
-
-    if( param.type == ParamType::REG ){
-        param.value = nodes[param.dep_node].params[param.dep_param_type].value;
-    }else if( param.type == ParamType::CST){
-        param.value = param.expr->concretize(&params_ctx);
-    }else{
-        throw runtime_exception("_resolve_param(): got unsupported param type");
+    if( param.is_dependent()){
+        if( param.type == ParamType::REG ){
+            param.value = nodes[param.dep_node].params[param.dep_param_type].value;
+        }else if( param.type == ParamType::CST){
+            param.value = param.expr->concretize(&params_ctx);
+        }else{
+            throw runtime_exception("_resolve_param(): got unsupported param type");
+        }
+    }
+    // If constant, update the context
+    if( param.type == ParamType::CST){
+        params_ctx.set(param.name, param.value);
     }
 }
 
 void StrategyGraph::_resolve_all_params(node_t n){
     Node& node = nodes[n];
+    // Resolve normal parameters
     for( int p = 0; p < node.nb_params(); p++){
-        if( node.params[p].is_dependent())
-            _resolve_param(node.params[p]);
-        if( node.params[p].is_cst() )
-            params_ctx.set(node.params[p].name, node.params[p].value);
+        _resolve_param(node.params[p]);
+    }
+    // Resolve special paddings
+    for( ROPPadding& padd : node.special_paddings ){
+        _resolve_param(padd.offset);
+        _resolve_param(padd.value);   
     }
 }
 
@@ -298,12 +302,9 @@ const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t
     cst_t src_cst, src_addr_cst, dst_addr_cst;
     Op src_op, op;
 
-    // resolve parameters
-    for( int p = 0; p < node.nb_params(); p++){
-        _resolve_param(node.params[p]);
-        if( node.params[p].is_cst() )
-            params_ctx.set(node.params[p].name, node.params[p].value);
-    }
+    // resolve parameters for node 'n'
+    _resolve_all_params(n);
+
     switch( node.type ){
         // make query
         case GadgetType::MOV_REG:
@@ -366,14 +367,10 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
     Node& node = nodes[n];
     bool params_status[MAX_PARAMS];
     int p;
-    // resolve parameters
-    for( p = 0; p < node.nb_params(); p++){
-        if( node.params[p].is_dependent())
-            _resolve_param(node.params[p]);
-        if( node.params[p].is_cst() )
-            params_ctx.set(node.params[p].name, node.params[p].value);
-    }
-    
+
+    // resolve parameters for node 'n'
+    _resolve_all_params(n);
+
     // Fill a table with parameters status (free or not)
     for( p = 0; p < node.nb_params(); p++){
         params_status[p] = node.params[p].is_free();
