@@ -7,18 +7,11 @@ StrategyGraph::StrategyGraph(): has_gadget_selection(false), _depth(-1){};
 
 /* =========== Basic manips on edges/nodes =========== */
 node_t StrategyGraph::new_node(GadgetType t){
-    node_t n = nodes.size();
-    for( node_t i = 0; i < nodes.size(); i++ ){
-        if( nodes[i].id == -1 ){
-            nodes[i] = Node(i, t);
-            return i;
-        }
-    }
     nodes.push_back(Node(nodes.size(), t));
     return nodes.size()-1;
 }
 
-void StrategyGraph::remove_node(node_t node){
+void StrategyGraph::disable_node(node_t node){
     nodes[node].id = -1;
 }
 
@@ -28,7 +21,7 @@ string StrategyGraph::new_name(string base){
 
 // Make the edges that point to the parameter 'curr_param_type' on 'curr_node' point to 'new_node'
 // and 'new_param_type'. The edges to 'curr_node' are removed and the new edges are also added as
-// 'in' edges in the new node. 
+// 'in' edges in the new node.
 void StrategyGraph::redirect_incoming_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type){
     Node& curr = nodes[curr_node];
     Node& newn = nodes[new_node];
@@ -160,11 +153,10 @@ void StrategyGraph::rule_mov_reg_transitivity(node_t n){
     redirect_incoming_strategy_edges(node.id, node1.id);
     redirect_outgoing_strategy_edges(node.id, node2.id);
     
-    // Remove node
-    remove_node(node.id);
+    // Disable node
+    disable_node(node.id);
 }
 
-/* =============== Strategy Rules ============== */
 
 /* MovCst dst_reg, src_cst
  * =======================
@@ -205,14 +197,14 @@ void StrategyGraph::rule_mov_cst_transitivity(node_t n){
     redirect_incoming_strategy_edges(node.id, node1.id);
     redirect_outgoing_strategy_edges(node.id, node2.id);
     
-    // Remove node
-    remove_node(node.id);
+    // Disable node
+    disable_node(node.id);
 }
 
 
 /* ===============  Ordering ============== */
 void StrategyGraph::_dfs_strategy_explore(vector<node_t>& marked, node_t n){
-    if( nodes[n].id == -1 || std::count(dfs_strategy.begin(), dfs_strategy.end(), n))
+    if( nodes[n].is_disabled() || std::count(dfs_strategy.begin(), dfs_strategy.end(), n))
         return; // Ignore invalid/removed nodes
     if( std::count(marked.begin(), marked.end(), n) != 0 ){
         throw runtime_exception("StrategyGraph: strategy DFS: unexpected cycle detected!");
@@ -233,7 +225,7 @@ void StrategyGraph::compute_dfs_strategy(){
     vector<node_t> marked;
     dfs_strategy.clear();
     for( Node& node : nodes ){
-        if( node.id == -1 || (std::count(marked.begin(), marked.end(), node.id) != 0))
+        if( node.is_disabled() || (std::count(marked.begin(), marked.end(), node.id) != 0))
             continue;
         else
             _dfs_strategy_explore(marked, node.id);
@@ -241,8 +233,10 @@ void StrategyGraph::compute_dfs_strategy(){
 }
 
 void StrategyGraph::_dfs_params_explore(vector<node_t>& marked, node_t n){
-    if( nodes[n].id == -1 || std::count(dfs_params.begin(), dfs_params.end(), n))
-        return; // Ignore invalid/removed/already visited nodes
+    if( std::count(dfs_params.begin(), dfs_params.end(), n))
+        return; // Ignore already visited nodes
+    // Note: we don't ignore disabled nodes because they can hold constants parameters
+    // from which other nodes depend
     if( std::count(marked.begin(), marked.end(), n) != 0 ){
         throw runtime_exception("StrategyGraph: params DFS: unexpected cycle detected!");
     }else{
@@ -258,7 +252,7 @@ void StrategyGraph::compute_dfs_params(){
     vector<node_t> marked;
     dfs_params.clear();
     for( Node& node : nodes ){
-        if( node.id == -1 || (std::count(marked.begin(), marked.end(), node.id) != 0))
+        if( node.is_disabled() || (std::count(marked.begin(), marked.end(), node.id) != 0))
             continue;
         else
             _dfs_params_explore(marked, node.id);
@@ -284,6 +278,17 @@ void StrategyGraph::_resolve_param(Param& param){
         throw runtime_exception("_resolve_param(): got unsupported param type");
     }
 }
+
+void StrategyGraph::_resolve_all_params(node_t n){
+    Node& node = nodes[n];
+    for( int p = 0; p < node.nb_params(); p++){
+        if( node.params[p].is_dependent())
+            _resolve_param(node.params[p]);
+        if( node.params[p].is_cst() )
+            params_ctx.set(node.params[p].name, node.params[p].value);
+    }
+}
+
 
 // Wrapper that queries the database to find the list of gadgets that match
 // a strategy node
@@ -450,8 +455,20 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
         return true;
     }
     
-    // 1. Try all possibilities for parameters
     Node& node = nodes[dfs_params[dfs_idx]];
+    
+    // If the node is a disabled node, juste resolve the parameters
+    // and continue the selection 
+    if( node.is_disabled()){
+        _resolve_all_params(dfs_idx);
+        // Continue to select from next node
+        if( select_gadgets(db, dfs_idx+1) )
+                return true;
+    }
+    
+    // Otherwise do proper gadget selection : 
+
+    // 1. Try all possibilities for parameters
     // std::cout << "DEBUG REC DOING NODE " << node.id << std::endl;
     if( node.has_free_param() ){
         // Get possible gadgets

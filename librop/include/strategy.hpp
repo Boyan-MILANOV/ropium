@@ -243,6 +243,10 @@ public:
         }
         return false;
     }
+    
+    bool is_disabled(){
+        return id == -1;
+    }
 };
 ostream& operator<<(ostream& os, Node& node);
 
@@ -254,6 +258,7 @@ private:
     void _dfs_strategy_explore(vector<node_t>& marked, node_t n);
     void _dfs_params_explore(vector<node_t>& marked, node_t n);
     void _resolve_param(Param& param);
+    void _resolve_all_params(node_t n);
     const vector<Gadget*>& _get_matching_gadgets(GadgetDB& db, node_t node);
     PossibleGadgets* _get_possible_gadgets(GadgetDB& db, node_t n);
     bool _check_node_constraints(Node& node);
@@ -269,7 +274,7 @@ public:
     // Create new nodes/edges
     node_t new_node(GadgetType t);
     string new_name(string base);
-    void remove_node(node_t node);
+    void disable_node(node_t node);
     void redirect_incoming_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type);
     void redirect_incoming_strategy_edges(node_t curr_node, node_t new_node);
     void redirect_outgoing_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type);
