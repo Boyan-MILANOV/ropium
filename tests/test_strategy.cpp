@@ -68,7 +68,8 @@ namespace test{
             raw.push_back(RawGadget(string("\xbb\x04\x00\x00\x00\xc3", 6), 5)); // mov ebx, 4; ret
             raw.push_back(RawGadget(string("\xb8\x05\x00\x00\x00\xc3", 6), 6)); // mov eax, 5; ret
             raw.push_back(RawGadget(string("\x89\xc2\xc3", 3), 7)); // mov edx, eax; ret
-            
+            raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 8)); // pop edi; pop esi; pop ecx; ret
+
             db.fill_from_raw_gadgets(raw, arch);
             
             // Test register transitivity
@@ -116,6 +117,18 @@ namespace test{
             graph3.rule_mov_cst_transitivity(n1);
             graph3.select_gadgets(db);
             ropchain = graph3.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+            
+            // Test MovCst transitivity
+            StrategyGraph graph4;
+            n1 = graph4.new_node(GadgetType::MOV_CST);
+            Node& node1c = graph4.nodes[n1];
+            node1c.params[PARAM_MOVCST_SRC_CST].make_cst(0x1234, "cst_2");
+            node1c.params[PARAM_MOVCST_DST_REG].make_reg(X86_ESI);
+            // Apply strat
+            graph4.rule_mov_cst_pop(n1, arch);
+            graph4.select_gadgets(db);
+            ropchain = graph4.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
             delete arch;

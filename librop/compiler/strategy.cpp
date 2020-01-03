@@ -1,4 +1,5 @@
 #include "strategy.hpp"
+#include "expression.hpp"
 #include "exception.hpp"
 #include <algorithm>
 
@@ -178,6 +179,7 @@ void StrategyGraph::rule_mov_cst_transitivity(node_t n){
     Param& dst_reg = node.params[PARAM_MOVCST_DST_REG];
     Param& src_cst = node.params[PARAM_MOVCST_SRC_CST];
     node1.params[PARAM_MOVCST_SRC_CST] = node.params[PARAM_MOVCST_SRC_CST];
+    node1.params[PARAM_MOVCST_SRC_CST].name = new_name("cst"); // copy the constant but change the name 
     node1.params[PARAM_MOVCST_DST_REG].make_reg(node2.id, PARAM_MOVREG_SRC_REG); // node1 dst is R1, depends on R1 in node2
     node2.params[PARAM_MOVREG_SRC_REG].make_reg(0, false); // node2 src is R1
     node2.params[PARAM_MOVREG_DST_REG] = node.params[PARAM_MOVREG_DST_REG];
@@ -201,6 +203,47 @@ void StrategyGraph::rule_mov_cst_transitivity(node_t n){
     disable_node(node.id);
 }
 
+/* MovCst dst_reg, src_cst
++ * =======================
++ * Load dst_reg, mem(SP + off)
++ * padding(off, src_cst) 
++ * ======================= */
+void StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
+    // Get/Create nodes
+    node_t n1 = new_node(GadgetType::LOAD);
+    Node& node = nodes[n];
+    Node& node1 = nodes[n1];
+    if( node.type != GadgetType::MOV_CST ){
+        throw runtime_exception("Calling MovCst rule on non-MovCst node!");
+    }
+
+    // Modify parameters
+    Param& dst_reg = node.params[PARAM_MOVCST_DST_REG];
+    Param& src_cst = node.params[PARAM_MOVCST_SRC_CST];
+    node1.params[PARAM_LOAD_DST_REG] = node.params[PARAM_MOVCST_DST_REG];
+    node1.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(arch->sp());
+    node1.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(-1, new_name("stack_offset"), false); // Free offset
+
+    // Set special padding at SP  offset to put the constant
+    node1.special_paddings.push_back(ROPPadding());
+    // Offset is the offset at which we pop the constant
+    node1.special_paddings.back().offset.make_cst(n1, PARAM_LOAD_SRC_ADDR_OFFSET, exprvar(arch->bits, node1.params[PARAM_LOAD_SRC_ADDR_OFFSET].name), new_name("padding_offset"));
+    // Padding value is just the constant
+    node1.special_paddings.back().value = src_cst;
+    node1.special_paddings.back().value.name = new_name("padding_value"); // Get a new name for the value parameter
+
+    // Redirect the different params and edges
+    // Leave incoming args to the constant (do nothing)
+    // Any arc outgoing from node:dst_reg now goes out from node1:dst_reg
+    redirect_outgoing_param_edges(node.id, PARAM_MOVCST_DST_REG, node1.id, PARAM_LOAD_DST_REG);
+
+    // Redirect strategy edges
+    redirect_incoming_strategy_edges(node.id, node1.id);
+    redirect_outgoing_strategy_edges(node.id, node1.id);
+
+    // Disable node
+    disable_node(node.id);
+}
 
 
 /* ===============  Ordering ============== */
@@ -466,7 +509,6 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
     // Otherwise do proper gadget selection : 
 
     // 1. Try all possibilities for parameters
-    // std::cout << "DEBUG REC DOING NODE " << node.id << std::endl;
     if( node.has_free_param() ){
         // Get possible gadgets
         PossibleGadgets* possible = _get_possible_gadgets(db, node.id);
@@ -479,6 +521,9 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
                 if( node.params[p].is_cst())
                     params_ctx.set(node.params[p].name, node.params[p].value);
             }
+            // Resolve params again (useful for special paddings that depend
+            // on regular parameters such as offsets, etc)
+            _resolve_all_params(node.id);
 
             // Check node constraints
             if( !_check_node_constraints(node)){
@@ -517,17 +562,43 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
 */
 ROPChain* StrategyGraph::get_ropchain(Arch* arch){
     vector<node_t>::reverse_iterator rit;
-    
+    cst_t default_padding = cst_sign_trunc(arch->bits, -1);
+    ROPPadding padding;
+    int padding_num = -1;
+
     // Check if there is a selection in the nodes
     if( !has_gadget_selection ){
         return nullptr;
     }
 
-    // DEBUG TODO: many things
-    // For now just return the gadget list
     ROPChain* ropchain = new ROPChain(arch);
     for( rit = dfs_strategy.rbegin(); rit != dfs_strategy.rend(); rit++ ){
+        // Add gadget
         ropchain->add_gadget(nodes[*rit].affected_gadget->addresses[0], nodes[*rit].affected_gadget);
+        // Add padding after gadget
+        if( !nodes[*rit].special_paddings.empty()){
+            padding = nodes[*rit].special_paddings[0];
+            padding_num = 0;
+        }
+
+        for( int offset = 0; offset < nodes[*rit].affected_gadget->sp_inc - arch->octets; offset += arch->octets){
+            // If special padding
+            if( padding_num != -1 && padding.offset.value == offset ){
+                ropchain->add_padding(cst_sign_trunc(arch->bits, padding.value.value));
+                // Step to next special padding (if any)
+                if( padding_num == nodes[*rit].special_paddings.size()-1 ){
+                    // No more special paddings
+                    padding_num = -1;
+                }else{
+                    // Next special padding
+                    padding = nodes[*rit].special_paddings[++padding_num];
+                }                
+            } 
+            // Else default padding
+            else{
+                ropchain->add_padding(default_padding);
+            }
+        }
     }
     return ropchain;
 }
@@ -572,6 +643,11 @@ ostream& operator<<(ostream& os, Node& node){
     os << "\n\tParams: \n";
     for( int p = 0; p < node.nb_params(); p++){
         os << node.params[p] << std::endl;
+    }
+    
+    os << "\n\tSpecial paddings: \n";
+    for( ROPPadding& padding : node.special_paddings){
+        os << "offset: " << padding.offset << ", value: " << padding.value << std::endl;
     }
 
     os << std::endl;

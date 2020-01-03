@@ -47,6 +47,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x33\x79\xf6\xc3", 4), 14)); // xor edi, [ecx-10]; ret
             raw.push_back(RawGadget(string("\x83\xc9\xff\xc3", 4), 15)); // or ecx, 0xffffffff; ret
             raw.push_back(RawGadget(string("\x21\x49\xf7\xc3", 4), 16)); // and [ecx-9], ecx; ret
+            raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 17)); // pop edi; pop esi; pop ecx; ret
             
 
             db.fill_from_raw_gadgets(raw, &arch);
@@ -83,6 +84,10 @@ namespace test{
             ropchain = comp.compile(" mem(0xffffffff) += esp  \t\t\n\t  ");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             ropchain = comp.compile(" mem(-1) += esp  \t\t\n\t  ");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" edi =   -2");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" eax = 0x12345678  ");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
 
             return nb;

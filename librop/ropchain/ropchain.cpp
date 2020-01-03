@@ -10,6 +10,10 @@ void ROPChain::add_gadget(addr_t addr, Gadget* gadget){
     items.push_back(ROPItem(addr, gadget));
 }
 
+void ROPChain::add_padding(cst_t value){
+    items.push_back(ROPItem(ROPItemType::PADDING, value));
+}
+
 int ROPChain::len(){
     return items.size();
 }

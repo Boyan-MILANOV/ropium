@@ -4,6 +4,8 @@
 
 
 /* ============= Compiler Task ============ */
+CompilerTask::CompilerTask(Arch* a):arch(a){}
+
 void CompilerTask::add_strategy(StrategyGraph* graph){
     // Fuck this fucking C++ shit, insert in linear time because it's time
     // to sleep and I'm so fucking tired and lower_bound won't compile 
@@ -42,13 +44,19 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
         // Apply strategy rules
         switch(node.type){
             case GadgetType::MOV_CST:
+                // MovCst transitivity
                 new_graph = graph->copy();
-                new_graph->rule_mov_cst_transitivity(node.id); // MovCst transitivity
+                new_graph->rule_mov_cst_transitivity(node.id);
+                add_strategy(new_graph);
+                // MovCst pop
+                new_graph = graph->copy();
+                new_graph->rule_mov_cst_pop(node.id, arch);
                 add_strategy(new_graph);
                 break;
             case GadgetType::MOV_REG:
+                // MovReg transitivity
                 new_graph = graph->copy();
-                new_graph->rule_mov_reg_transitivity(node.id); // MovReg transitivity
+                new_graph->rule_mov_reg_transitivity(node.id);
                 add_strategy(new_graph);
                 break;
             default:
@@ -75,7 +83,7 @@ ROPChain* ROPCompiler::compile(string program){
 }
 
 ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions){
-    CompilerTask task;
+    CompilerTask task = CompilerTask(arch);
     for( ILInstruction& instr : instructions ){
         il_to_strategy(task.pending_strategies, instr);
     }

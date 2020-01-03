@@ -290,6 +290,7 @@ public:
     void add_param_edge(node_t from, node_t to);
     // Strategy rules
     void rule_mov_cst_transitivity(node_t n);
+    void rule_mov_cst_pop(node_t n, Arch* arch);
     void rule_mov_reg_transitivity(node_t n);
     // Ordering
     void compute_dfs_strategy();

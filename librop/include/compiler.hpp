@@ -22,7 +22,9 @@ using std::vector;
 
 class CompilerTask{
     void apply_rules_to_graph(StrategyGraph* graph);
+    Arch * arch;
 public:
+    CompilerTask(Arch* arch);
     vector<StrategyGraph*> pending_strategies;
     void add_strategy(StrategyGraph* graph);
     ROPChain* compile(Arch* arch, GadgetDB* db, int nb_tries=100);
