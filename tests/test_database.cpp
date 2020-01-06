@@ -70,7 +70,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x01\x21\xc3", 3), 12)); // add [ecx], esp; ret
             raw.push_back(RawGadget(string("\x21\x49\xf7\xc3", 4), 13)); // and [ecx-9], ecx; ret
 
-            db.fill_from_raw_gadgets(raw, arch);
+            db.analyse_raw_gadgets(raw, arch);
 
             // Test gadget classification
             nb += _assert_db(0, db.get_mov_cst(X86_EAX, 3));

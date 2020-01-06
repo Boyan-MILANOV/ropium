@@ -101,8 +101,7 @@ gadget_t GadgetDB::add(Gadget* gadget, Arch* arch){
     return gadget->id;
 }
 
-int GadgetDB::fill_from_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
-    unordered_map<string, Gadget*> seen;
+int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
     unordered_map<string, Gadget*>::iterator git;
     Gadget* gadget;
     Semantics* semantics;

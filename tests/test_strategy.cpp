@@ -70,7 +70,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x89\xc2\xc3", 3), 7)); // mov edx, eax; ret
             raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 8)); // pop edi; pop esi; pop ecx; ret
 
-            db.fill_from_raw_gadgets(raw, arch);
+            db.analyse_raw_gadgets(raw, arch);
             
             // Test register transitivity
             StrategyGraph sgraph;

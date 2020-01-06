@@ -50,7 +50,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 17)); // pop edi; pop esi; pop ecx; ret
             
 
-            db.fill_from_raw_gadgets(raw, &arch);
+            db.analyse_raw_gadgets(raw, &arch);
 
             // Test basic queries
             ropchain = comp.compile("eax = ecx");
@@ -106,7 +106,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x89\xC8\xC3", 3), 2)); // mov eax, ecx; ret
             raw.push_back(RawGadget(string("\x89\xC3\xC3", 3), 3)); // mov ebx, eax; ret
             raw.push_back(RawGadget(string("\xb9\xad\xde\x00\x00\xc3", 6), 4)); // mov ecx, 0xdead; ret
-            db.fill_from_raw_gadgets(raw, &arch);
+            db.analyse_raw_gadgets(raw, &arch);
 
             // Test mov_reg_transitivity
             ropchain = comp.compile("eax = edi");

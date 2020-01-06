@@ -115,6 +115,8 @@ public:
 
 typedef int op_t;
 class GadgetDB{
+    // Map of raw gadget strings that have already be analysed 
+    unordered_map<string, Gadget*> seen;
 public:
     // Global gadgets lisst (gadgets are owned)
     vector<Gadget*> all;
@@ -133,7 +135,7 @@ public:
     gadget_t add(Gadget* gadget, Arch* arch);
     // Analyse raw gadgets and fill the database accordingly
     // return the number of successfuly analysed gadgets
-    int fill_from_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch);
+    int analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch);
     // Get a gadget by id
     Gadget* get(gadget_t gadget_num);
     
