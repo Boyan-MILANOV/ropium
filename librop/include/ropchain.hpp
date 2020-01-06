@@ -32,6 +32,7 @@ public:
     BranchType branch_type;
     reg_t jmp_reg;
     bool modified_regs[NB_REGS_MAX];
+    bool dereferenced_regs[NB_REGS_MAX];
 
     // Constructor
     Gadget();

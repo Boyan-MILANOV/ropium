@@ -47,7 +47,6 @@ namespace test{
             raw.push_back(RawGadget(string("\x33\x79\xf6\xc3", 4), 14)); // xor edi, [ecx-10]; ret
             raw.push_back(RawGadget(string("\x83\xc9\xff\xc3", 4), 15)); // or ecx, 0xffffffff; ret
             raw.push_back(RawGadget(string("\x21\x49\xf7\xc3", 4), 16)); // and [ecx-9], ecx; ret
-            raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 17)); // pop edi; pop esi; pop ecx; ret
             
 
             db.analyse_raw_gadgets(raw, &arch);
@@ -85,14 +84,11 @@ namespace test{
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             ropchain = comp.compile(" mem(-1) += esp  \t\t\n\t  ");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" edi =   -2");
-            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" eax = 0x12345678  ");
-            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+
 
             return nb;
         }
-        
+
         unsigned int indirect_match(){
             unsigned int nb = 0;
             ArchX86 arch;
@@ -106,6 +102,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x89\xC8\xC3", 3), 2)); // mov eax, ecx; ret
             raw.push_back(RawGadget(string("\x89\xC3\xC3", 3), 3)); // mov ebx, eax; ret
             raw.push_back(RawGadget(string("\xb9\xad\xde\x00\x00\xc3", 6), 4)); // mov ecx, 0xdead; ret
+            raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 17)); // pop edi; pop esi; pop ecx; ret
             db.analyse_raw_gadgets(raw, &arch);
 
             // Test mov_reg_transitivity
@@ -118,6 +115,12 @@ namespace test{
             ropchain = comp.compile("eax = 0xdead");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             ropchain = comp.compile("ebx = 0xdead");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            
+            // Test mov_cst pop
+            ropchain = comp.compile(" edi =   -2");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" eax = 0x12345678  ");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
 
             return nb;
