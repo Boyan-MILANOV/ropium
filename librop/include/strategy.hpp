@@ -283,7 +283,7 @@ public:
     void compute_dfs_params();
 
     // Gadget selection
-    bool select_gadgets(GadgetDB& db, node_t dfs_idx=-1);
+    bool select_gadgets(GadgetDB& db, Constraint* constraint=nullptr, Arch* arch=nullptr, node_t dfs_idx=-1);
     ROPChain* get_ropchain(Arch* arch, Constraint* constraint=nullptr);
     
     // Copy

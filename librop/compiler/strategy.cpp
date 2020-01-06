@@ -581,12 +581,18 @@ bool StrategyGraph::_check_assigned_gadget_constraints(Node& node){
  parameters and queries the database to find a matching gadget on each node of the
  strategy graph.  
 */
-bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
+bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* arch, node_t dfs_idx){
+    // Check if constraint is specified with an architecture
+    if( constraint && !arch){
+        throw runtime_exception("StrategyGraph::select_gadget(): should NEVER be called with a non-NULL constraint and a NULL arch");
+    }
+
+    // If root call
     if( dfs_idx == -1 ){
         compute_dfs_params();
         compute_dfs_strategy();
         params_ctx = VarContext(); // New context for params
-        has_gadget_selection = select_gadgets(db, 0);
+        has_gadget_selection = select_gadgets(db, constraint, arch, 0);
         return has_gadget_selection;
     }
     
@@ -602,7 +608,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
     if( node.is_disabled()){
         _resolve_all_params(dfs_idx);
         // Continue to select from next node
-        if( select_gadgets(db, dfs_idx+1) )
+        if( select_gadgets(db, constraint, arch, dfs_idx+1) )
                 return true;
     }
     
@@ -625,7 +631,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
             // on regular parameters such as offsets, etc)
             _resolve_all_params(node.id);
 
-            // Check strategy constraints
+            // Check strategy constraints 
             if( !_check_strategy_constraints(node)){
                 continue;
             }
@@ -633,12 +639,12 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
             // 2.b Try all possible gadgets
             for( Gadget* gadget : *(pos.second) ){
                 node.assign_gadget(gadget);
-                // Check strategy constraints
-                if( !_check_assigned_gadget_constraints(node)){
+                // Check assigned gadget constraints and global constraint
+                if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch))){
                     continue;
                 }
                 // 3. Recursive call on next node 
-                if( select_gadgets(db, dfs_idx+1)){
+                if( select_gadgets(db, constraint, arch, dfs_idx+1)){
                     delete possible; possible = nullptr;
                     return true;
                 }
@@ -651,12 +657,12 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
         // 2. Try all possible gadgets (or a subset)
         for( Gadget* gadget : gadgets ){
             node.assign_gadget(gadget);
-            // Check strategy constraints
-            if( !_check_strategy_constraints(node)){
+            // Check assigned gadget constraints and global constraint
+            if( !_check_strategy_constraints(node) || (constraint && !constraint->check(gadget, arch))){
                 continue;
             }
             // 3. Recursive call on next node
-            if( select_gadgets(db, dfs_idx+1) )
+            if( select_gadgets(db, constraint, arch, dfs_idx+1) )
                 return true;
         }
     }
