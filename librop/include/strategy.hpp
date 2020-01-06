@@ -228,32 +228,14 @@ public:
     // Gadget paddings
     vector<ROPPadding> special_paddings;
 
-    Node(int i, GadgetType t):id(i), type(t), depth(-1){};
-    int nb_params(){
-        switch( type ){
-            case GadgetType::MOV_REG: return NB_PARAM_MOVREG;
-            case GadgetType::MOV_CST: return NB_PARAM_MOVCST;
-            case GadgetType::AMOV_CST: return NB_PARAM_AMOVCST;
-            case GadgetType::AMOV_REG: return NB_PARAM_AMOVREG;
-            case GadgetType::LOAD: return NB_PARAM_LOAD;
-            case GadgetType::ALOAD: return NB_PARAM_ALOAD;
-            case GadgetType::STORE: return NB_PARAM_STORE;
-            case GadgetType::ASTORE: return NB_PARAM_ASTORE;
-            default: throw runtime_exception("Unsupported gadget type in Node::nb_params()");
-        }
-    }
-
-    bool has_free_param(){
-        for( int p = 0; p < nb_params(); p++){
-            if( params[p].is_free() )
-                return true;
-        }
-        return false;
-    }
+    Node(int i, GadgetType t);
+    int nb_params();
+    bool has_free_param();
+    bool is_disabled();
+    int get_param_num_gadget_sp_inc();
+    int get_param_num_gadget_addr();
+    void assign_gadget(Gadget* gadget);
     
-    bool is_disabled(){
-        return id == -1;
-    }
 };
 ostream& operator<<(ostream& os, Node& node);
 

@@ -3,8 +3,84 @@
 #include "exception.hpp"
 #include <algorithm>
 
-StrategyGraph::StrategyGraph(): has_gadget_selection(false), _depth(-1){};
 
+/* ===============  Nodes ============== */
+
+Node::Node(int i, GadgetType t):id(i), type(t), depth(-1){};
+
+int Node::nb_params(){
+    switch( type ){
+        case GadgetType::MOV_REG: return NB_PARAM_MOVREG;
+        case GadgetType::MOV_CST: return NB_PARAM_MOVCST;
+        case GadgetType::AMOV_CST: return NB_PARAM_AMOVCST;
+        case GadgetType::AMOV_REG: return NB_PARAM_AMOVREG;
+        case GadgetType::LOAD: return NB_PARAM_LOAD;
+        case GadgetType::ALOAD: return NB_PARAM_ALOAD;
+        case GadgetType::STORE: return NB_PARAM_STORE;
+        case GadgetType::ASTORE: return NB_PARAM_ASTORE;
+        default: throw runtime_exception("Unsupported gadget type in Node::nb_params()");
+    }
+}
+
+bool Node::has_free_param(){
+    for( int p = 0; p < nb_params(); p++){
+        if( params[p].is_free() )
+            return true;
+    }
+    return false;
+}
+
+bool Node::is_disabled(){
+    return id == -1;
+}
+
+int Node::get_param_num_gadget_sp_inc(){
+    switch( type ){
+        case GadgetType::MOV_REG: return PARAM_MOVREG_GADGET_SP_INC;
+        case GadgetType::AMOV_REG: return PARAM_AMOVREG_GADGET_SP_INC;
+        case GadgetType::MOV_CST: return PARAM_MOVCST_GADGET_SP_INC;
+        case GadgetType::AMOV_CST: return PARAM_AMOVCST_GADGET_SP_INC;
+        case GadgetType::LOAD: return PARAM_LOAD_GADGET_SP_INC;
+        case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_SP_INC;
+        case GadgetType::STORE: return PARAM_STORE_GADGET_SP_INC;
+        case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_SP_INC;
+        default:
+            throw runtime_exception("Node::get_param_num_sp_inc(): got unsupported gadget type");
+    }
+}
+
+int Node::get_param_num_gadget_addr(){
+    switch( type ){
+        case GadgetType::MOV_REG: return PARAM_MOVREG_GADGET_ADDR;
+        case GadgetType::AMOV_REG: return PARAM_AMOVREG_GADGET_ADDR;
+        case GadgetType::MOV_CST: return PARAM_MOVCST_GADGET_ADDR;
+        case GadgetType::AMOV_CST: return PARAM_AMOVCST_GADGET_ADDR;
+        case GadgetType::LOAD: return PARAM_LOAD_GADGET_ADDR;
+        case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_ADDR;
+        case GadgetType::STORE: return PARAM_STORE_GADGET_ADDR;
+        case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_ADDR;
+        default:
+            throw runtime_exception("Node::get_param_num_sp_inc(): got unsupported gadget type");
+    }
+}
+
+bool _get_valid_gadget_address(Gadget* gadget){
+    return gadget->addresses[0]; // TODO: proper implementation with BadBytes constraint
+}
+
+void Node::assign_gadget(Gadget* gadget){
+    addr_t addr = _get_valid_gadget_address(gadget);
+    affected_gadget = gadget;
+    // Set gadget parameters depending on type
+    params[get_param_num_gadget_addr()].value = addr;
+    params[get_param_num_gadget_sp_inc()].value = gadget->sp_inc;
+}
+
+
+/* ===============  Strategy Graphs ============== */
+/* =============================================== */
+
+StrategyGraph::StrategyGraph(): has_gadget_selection(false), _depth(-1){};
 
 /* =========== Basic manips on edges/nodes =========== */
 node_t StrategyGraph::new_node(GadgetType t){
@@ -490,7 +566,6 @@ bool StrategyGraph::_check_node_constraints(Node& node){
     return true;
 }
 
-
 /* This function tries to find a gadget selection for a strategy graph.
  It iteratively (the order is the one of the DFS on parameter dependencies) resolves
  parameters and queries the database to find a matching gadget on each node of the
@@ -547,7 +622,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
 
             // 2.b Try all possible gadgets
             for( Gadget* gadget : *(pos.second) ){
-                node.affected_gadget = gadget;
+                node.assign_gadget(gadget);
                 // std::cout << "DEBUG, selected " << gadget->asm_str << std::endl;
                 // 3. Recursive call on next node 
                 if( select_gadgets(db, dfs_idx+1)){
@@ -562,7 +637,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
         const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
         // 2. Try all possible gadgets (or a subset)
         for( Gadget* gadget : gadgets ){
-            node.affected_gadget = gadget;
+            node.assign_gadget(gadget);
             // 3. Recursive call on next node
             if( select_gadgets(db, dfs_idx+1) )
                 return true;
@@ -589,7 +664,7 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch){
     ROPChain* ropchain = new ROPChain(arch);
     for( rit = dfs_strategy.rbegin(); rit != dfs_strategy.rend(); rit++ ){
         // Add gadget
-        ropchain->add_gadget(nodes[*rit].affected_gadget->addresses[0], nodes[*rit].affected_gadget);
+        ropchain->add_gadget(nodes[*rit].params[nodes[*rit].get_param_num_gadget_addr()].value, nodes[*rit].affected_gadget);
         // Add padding after gadget
         if( !nodes[*rit].special_paddings.empty()){
             padding = nodes[*rit].special_paddings[0];
