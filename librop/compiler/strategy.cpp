@@ -232,6 +232,21 @@ void StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     node1.special_paddings.back().value = src_cst;
     node1.special_paddings.back().value.name = new_name("padding_value"); // Get a new name for the value parameter
 
+    // Add a constraint: the offset of the pop must not be too big (max 160)
+    node1.constraints.push_back(
+        [](Node* node, StrategyGraph* graph){
+            return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < 160 &&
+                   node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value >= 0;
+        }
+    );
+    
+    // Add a constraint: the offset of the pop must not be bigger than the sp inc
+    node1.constraints.push_back(
+        [](Node* node, StrategyGraph* graph){
+            return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < node->affected_gadget->sp_inc;
+        }
+    );
+
     // Redirect the different params and edges
     // Leave incoming args to the constant (do nothing)
     // Any arc outgoing from node:dst_reg now goes out from node1:dst_reg
