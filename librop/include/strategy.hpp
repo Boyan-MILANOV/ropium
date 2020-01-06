@@ -3,6 +3,7 @@
 
 #include "database.hpp"
 #include "expression.hpp"
+#include "constraint.hpp"
 #include <vector>
 #include <string>
 #include <array>
@@ -224,7 +225,9 @@ public:
     Param params[MAX_PARAMS];
     Gadget* affected_gadget;
     // Constraint
-    vector<constraint_callback_t> constraints;
+    vector<constraint_callback_t> strategy_constraints;
+    vector<constraint_callback_t> assigned_gadget_constraints;
+
     // Gadget paddings
     vector<ROPPadding> special_paddings;
 
@@ -250,7 +253,8 @@ private:
     void _resolve_all_params(node_t n);
     const vector<Gadget*>& _get_matching_gadgets(GadgetDB& db, node_t node);
     PossibleGadgets* _get_possible_gadgets(GadgetDB& db, node_t n);
-    bool _check_node_constraints(Node& node);
+    bool _check_strategy_constraints(Node& node);
+    bool _check_assigned_gadget_constraints(Node& node);
     bool has_gadget_selection;
     VarContext params_ctx;
     int _depth;
@@ -280,7 +284,7 @@ public:
 
     // Gadget selection
     bool select_gadgets(GadgetDB& db, node_t dfs_idx=-1);
-    ROPChain* get_ropchain(Arch* arch);
+    ROPChain* get_ropchain(Arch* arch, Constraint* constraint=nullptr);
     
     // Copy
     StrategyGraph* copy();

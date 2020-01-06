@@ -309,7 +309,7 @@ void StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     node1.special_paddings.back().value.name = new_name("padding_value"); // Get a new name for the value parameter
 
     // Add a constraint: the offset of the pop must not be too big (max 160)
-    node1.constraints.push_back(
+    node1.strategy_constraints.push_back(
         [](Node* node, StrategyGraph* graph){
             return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < 160 &&
                    node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value >= 0;
@@ -317,7 +317,7 @@ void StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     );
     
     // Add a constraint: the offset of the pop must not be bigger than the sp inc
-    node1.constraints.push_back(
+    node1.assigned_gadget_constraints.push_back(
         [](Node* node, StrategyGraph* graph){
             return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < node->affected_gadget->sp_inc;
         }
@@ -558,8 +558,18 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
     }
 }
 
-bool StrategyGraph::_check_node_constraints(Node& node){
-    for( constraint_callback_t constr : node.constraints ){
+// Must be checked after parameter resolution
+bool StrategyGraph::_check_strategy_constraints(Node& node){
+    for( constraint_callback_t constr : node.strategy_constraints ){
+        if( ! constr(&node, this))
+            return false;
+    }
+    return true;
+}
+
+// Must be checked after gadget assignment
+bool StrategyGraph::_check_assigned_gadget_constraints(Node& node){
+    for( constraint_callback_t constr : node.assigned_gadget_constraints ){
         if( ! constr(&node, this))
             return false;
     }
@@ -615,15 +625,18 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
             // on regular parameters such as offsets, etc)
             _resolve_all_params(node.id);
 
-            // Check node constraints
-            if( !_check_node_constraints(node)){
+            // Check strategy constraints
+            if( !_check_strategy_constraints(node)){
                 continue;
             }
 
             // 2.b Try all possible gadgets
             for( Gadget* gadget : *(pos.second) ){
                 node.assign_gadget(gadget);
-                // std::cout << "DEBUG, selected " << gadget->asm_str << std::endl;
+                // Check strategy constraints
+                if( !_check_assigned_gadget_constraints(node)){
+                    continue;
+                }
                 // 3. Recursive call on next node 
                 if( select_gadgets(db, dfs_idx+1)){
                     delete possible; possible = nullptr;
@@ -638,6 +651,10 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
         // 2. Try all possible gadgets (or a subset)
         for( Gadget* gadget : gadgets ){
             node.assign_gadget(gadget);
+            // Check strategy constraints
+            if( !_check_strategy_constraints(node)){
+                continue;
+            }
             // 3. Recursive call on next node
             if( select_gadgets(db, dfs_idx+1) )
                 return true;
@@ -650,9 +667,9 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, node_t dfs_idx){
    ==> If no valid selection has been computed for the graph, it 
        returns a NULL pointer
 */
-ROPChain* StrategyGraph::get_ropchain(Arch* arch){
+ROPChain* StrategyGraph::get_ropchain(Arch* arch, Constraint* constraint){
     vector<node_t>::reverse_iterator rit;
-    cst_t default_padding = cst_sign_trunc(arch->bits, -1);
+    cst_t default_padding;
     ROPPadding padding;
     int padding_num = -1;
 
@@ -660,6 +677,9 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch){
     if( !has_gadget_selection ){
         return nullptr;
     }
+
+    // Get default padding (validate against bad_bytes if constraint specified)
+    default_padding = constraint ? constraint->bad_bytes.get_valid_padding(arch->octets) : cst_sign_trunc(arch->bits, -1);
 
     ROPChain* ropchain = new ROPChain(arch);
     for( rit = dfs_strategy.rbegin(); rit != dfs_strategy.rend(); rit++ ){
@@ -683,7 +703,7 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch){
                     // Next special padding
                     padding = nodes[*rit].special_paddings[++padding_num];
                 }                
-            } 
+            }
             // Else default padding
             else{
                 ropchain->add_padding(default_padding);
