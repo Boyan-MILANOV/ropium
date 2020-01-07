@@ -122,13 +122,15 @@ public:
 #define PARAM_MOVREG_SRC_REG 1
 #define PARAM_MOVREG_GADGET_ADDR 2
 #define PARAM_MOVREG_GADGET_SP_INC 3
-#define NB_PARAM_MOVREG 4
+#define PARAM_MOVREG_GADGET_JMP_REG 4
+#define NB_PARAM_MOVREG 5
 
 #define PARAM_MOVCST_DST_REG 0
 #define PARAM_MOVCST_SRC_CST 1
 #define PARAM_MOVCST_GADGET_ADDR 2
 #define PARAM_MOVCST_GADGET_SP_INC 3
-#define NB_PARAM_MOVCST 4
+#define PARAM_MOVCST_GADGET_JMP_REG 4
+#define NB_PARAM_MOVCST 5
 
 #define PARAM_AMOVCST_DST_REG 0
 #define PARAM_AMOVCST_SRC_REG 1
@@ -136,7 +138,8 @@ public:
 #define PARAM_AMOVCST_SRC_CST 3
 #define PARAM_AMOVCST_GADGET_ADDR 4
 #define PARAM_AMOVCST_GADGET_SP_INC 5
-#define NB_PARAM_AMOVCST 6
+#define PARAM_AMOVCST_GADGET_JMP_REG 6
+#define NB_PARAM_AMOVCST 7
 
 #define PARAM_AMOVREG_DST_REG 0
 #define PARAM_AMOVREG_SRC_REG1 1
@@ -144,14 +147,16 @@ public:
 #define PARAM_AMOVREG_SRC_REG2 3
 #define PARAM_AMOVREG_GADGET_ADDR 4
 #define PARAM_AMOVREG_GADGET_SP_INC 5
-#define NB_PARAM_AMOVREG 6
+#define PARAM_AMOVREG_GADGET_JMP_REG 6
+#define NB_PARAM_AMOVREG 7
 
 #define PARAM_LOAD_DST_REG 0
 #define PARAM_LOAD_SRC_ADDR_REG 1
 #define PARAM_LOAD_SRC_ADDR_OFFSET 2
 #define PARAM_LOAD_GADGET_ADDR 3
 #define PARAM_LOAD_GADGET_SP_INC 4
-#define NB_PARAM_LOAD 5
+#define PARAM_LOAD_GADGET_JMP_REG 5
+#define NB_PARAM_LOAD 6
 
 #define PARAM_ALOAD_DST_REG 0
 #define PARAM_ALOAD_OP 1
@@ -159,33 +164,38 @@ public:
 #define PARAM_ALOAD_SRC_ADDR_OFFSET 3
 #define PARAM_ALOAD_GADGET_ADDR 4
 #define PARAM_ALOAD_GADGET_SP_INC 5
-#define NB_PARAM_ALOAD 6
+#define PARAM_ALOAD_GADGET_JMP_REG 6
+#define NB_PARAM_ALOAD 7
 
 #define PARAM_LOADCST_DST_REG 0
 #define PARAM_LOADCST_SRC_ADDR_OFFSET 1
 #define PARAM_LOADCST_GADGET_ADDR 2
 #define PARAM_LOADCST_GADGET_SP_INC 3
-#define NB_PARAM_LOADCST 4
+#define PARAM_LOADCST_GADGET_JMP_REG 4
+#define NB_PARAM_LOADCST 5
 
 #define PARAM_ALOADCST_DST_REG 0
 #define PARAM_ALOADCST_OP 1
 #define PARAM_ALOADCST_SRC_ADDR_OFFSET 2
 #define PARAM_ALOADCST_GADGET_ADDR 3
 #define PARAM_ALOADCST_GADGET_SP_INC 4
-#define NB_PARAM_ALOADCST 5
+#define PARAM_ALOADCST_GADGET_JMP_REG 5
+#define NB_PARAM_ALOADCST 6
 
 #define PARAM_STORE_DST_ADDR_REG 0
 #define PARAM_STORE_DST_ADDR_OFFSET 1
 #define PARAM_STORE_SRC_REG 2
 #define PARAM_STORE_GADGET_ADDR 3
 #define PARAM_STORE_GADGET_SP_INC 4
-#define NB_PARAM_STORE 5
+#define PARAM_STORE_GADGET_JMP_REG 5
+#define NB_PARAM_STORE 6
 
 #define PARAM_CSTSTORE_DST_ADDR_OFFSET 0
 #define PARAM_CSTSTORE_SRC_REG 1
 #define PARAM_CSTSTORE_GADGET_ADDR 2
 #define PARAM_CSTSTORE_GADGET_SP_INC 3
-#define NB_PARAM_CSTSTORE 4
+#define PARAM_CSTSTORE_GADGET_JMP_REG 4
+#define NB_PARAM_CSTSTORE 5
 
 #define PARAM_ASTORE_DST_ADDR_REG 0
 #define PARAM_ASTORE_DST_ADDR_OFFSET 1
@@ -193,14 +203,16 @@ public:
 #define PARAM_ASTORE_SRC_REG 3
 #define PARAM_ASTORE_GADGET_ADDR 4
 #define PARAM_ASTORE_GADGET_SP_INC 5
-#define NB_PARAM_ASTORE 6
+#define PARAM_ASTORE_GADGET_JMP_REG 6
+#define NB_PARAM_ASTORE 7
 
 #define PARAM_CSTASTORE_DST_ADDR_OFFSET 0
 #define PARAM_CSTASTORE_OP 1
 #define PARAM_CSTASTORE_SRC_REG 2
 #define PARAM_CSTASTORE_GADGET_ADDR 3
 #define PARAM_CSTASTORE_GADGET_SP_INC 4
-#define NB_PARAM_CSTASTORE 5
+#define PARAM_CSTASTORE_GADGET_JMP_REG 5
+#define NB_PARAM_CSTASTORE 6
 
 typedef struct {
     Param offset;
@@ -213,6 +225,10 @@ class Node;
 class StrategyGraph;
 typedef bool (*constraint_callback_t)(Node* node, StrategyGraph* graph);
 
+// Commonly used node constraints
+bool constraint_branch_type(Node* node, StrategyGraph* graph);
+
+// Node class
 class Node{
 public:
     int depth;
@@ -227,6 +243,7 @@ public:
     // Constraint
     vector<constraint_callback_t> strategy_constraints;
     vector<constraint_callback_t> assigned_gadget_constraints;
+    BranchType branch_type;
 
     // Gadget paddings
     vector<ROPPadding> special_paddings;
@@ -237,6 +254,7 @@ public:
     bool is_disabled();
     int get_param_num_gadget_sp_inc();
     int get_param_num_gadget_addr();
+    int get_param_num_gadget_jmp_reg();
     void assign_gadget(Gadget* gadget);
     
 };

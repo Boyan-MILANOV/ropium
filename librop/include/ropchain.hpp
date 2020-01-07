@@ -14,7 +14,8 @@ using std::string;
 enum class BranchType{
     RET,
     JMP,
-    NONE
+    ANY,
+    NONE,
 };
 
 class Gadget{

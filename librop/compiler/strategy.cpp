@@ -6,7 +6,15 @@
 
 /* ===============  Nodes ============== */
 
-Node::Node(int i, GadgetType t):id(i), type(t), depth(-1){};
+bool constraint_branch_type(Node* node, StrategyGraph* graph){
+    return node->affected_gadget->branch_type == node->branch_type ||
+           node->branch_type == BranchType::ANY;
+}
+
+Node::Node(int i, GadgetType t):id(i), type(t), depth(-1), branch_type(BranchType::ANY){
+    // Add constraints that must always be verified
+    assigned_gadget_constraints.push_back(constraint_branch_type);
+};
 
 int Node::nb_params(){
     switch( type ){
@@ -45,7 +53,7 @@ int Node::get_param_num_gadget_sp_inc(){
         case GadgetType::STORE: return PARAM_STORE_GADGET_SP_INC;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_SP_INC;
         default:
-            throw runtime_exception("Node::get_param_num_sp_inc(): got unsupported gadget type");
+            throw runtime_exception("Node::get_param_num_gadget_sp_inc(): got unsupported gadget type");
     }
 }
 
@@ -60,7 +68,22 @@ int Node::get_param_num_gadget_addr(){
         case GadgetType::STORE: return PARAM_STORE_GADGET_ADDR;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_ADDR;
         default:
-            throw runtime_exception("Node::get_param_num_sp_inc(): got unsupported gadget type");
+            throw runtime_exception("Node::get_param_num_gadget_addr(): got unsupported gadget type");
+    }
+}
+
+int Node::get_param_num_gadget_jmp_reg(){
+    switch( type ){
+        case GadgetType::MOV_REG: return PARAM_MOVREG_GADGET_JMP_REG;
+        case GadgetType::AMOV_REG: return PARAM_AMOVREG_GADGET_JMP_REG;
+        case GadgetType::MOV_CST: return PARAM_MOVCST_GADGET_JMP_REG;
+        case GadgetType::AMOV_CST: return PARAM_AMOVCST_GADGET_JMP_REG;
+        case GadgetType::LOAD: return PARAM_LOAD_GADGET_JMP_REG;
+        case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_JMP_REG;
+        case GadgetType::STORE: return PARAM_STORE_GADGET_JMP_REG;
+        case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_JMP_REG;
+        default:
+            throw runtime_exception("Node::get_param_num_gadget_jmp_reg(): got unsupported gadget type");
     }
 }
 
@@ -74,6 +97,7 @@ void Node::assign_gadget(Gadget* gadget){
     // Set gadget parameters depending on type
     params[get_param_num_gadget_addr()].value = addr;
     params[get_param_num_gadget_sp_inc()].value = gadget->sp_inc;
+    params[get_param_num_gadget_jmp_reg()].value = gadget->jmp_reg;
 }
 
 
@@ -215,6 +239,9 @@ void StrategyGraph::rule_mov_reg_transitivity(node_t n){
     node2.params[PARAM_MOVREG_SRC_REG].make_reg(0, false); // node2 src is R1
     node2.params[PARAM_MOVREG_DST_REG] = node.params[PARAM_MOVREG_DST_REG];
     
+    // Node1 must end with a ret
+    node1.branch_type = BranchType::RET;
+    
     // Add new edges
     add_strategy_edge(node1.id, node2.id);
     add_param_edge(node1.id, node2.id);
@@ -259,6 +286,9 @@ void StrategyGraph::rule_mov_cst_transitivity(node_t n){
     node1.params[PARAM_MOVCST_DST_REG].make_reg(node2.id, PARAM_MOVREG_SRC_REG); // node1 dst is R1, depends on R1 in node2
     node2.params[PARAM_MOVREG_SRC_REG].make_reg(0, false); // node2 src is R1
     node2.params[PARAM_MOVREG_DST_REG] = node.params[PARAM_MOVREG_DST_REG];
+    
+    // Node1 must end with a ret
+    node1.branch_type = BranchType::RET;
     
     // Add new edges
     add_strategy_edge(node1.id, node2.id);
