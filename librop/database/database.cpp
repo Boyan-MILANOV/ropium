@@ -155,12 +155,14 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
                 gadget->max_sp_inc = irblock->max_sp_inc;
             }
             e = semantics->regs->get(arch->sp());
-            if( e->is_binop(Op::ADD) && e->args[0]->is_cst() ){
+            if( e->is_binop(Op::ADD) && e->args[0]->is_cst() && e->args[1]->is_reg(arch->sp())){
                 if( e->args[0]->cst() % arch->octets != 0 ){
                     std::cout << "DEBUG ERROR got SP INC Not multiple of arch size: " << irblock->name << std::endl;
                     delete gadget; continue;
                 }
                 gadget->sp_inc = e->args[0]->cst();
+            }else if( e->is_reg(arch->sp()) ){
+                gadget->sp_inc = 0;
             }
             
             // Get branch type

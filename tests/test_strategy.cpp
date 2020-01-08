@@ -69,7 +69,9 @@ namespace test{
             raw.push_back(RawGadget(string("\xb8\x05\x00\x00\x00\xc3", 6), 6)); // mov eax, 5; ret
             raw.push_back(RawGadget(string("\x89\xc2\xc3", 3), 7)); // mov edx, eax; ret
             raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 8)); // pop edi; pop esi; pop ecx; ret
-
+            
+            raw.push_back(RawGadget(string("\x89\xF5\xFF\xE0", 4), 9)); // mov ebp, esi; jmp eax
+            raw.push_back(RawGadget(string("\xB8\x09\x00\x00\x00\xC3", 6), 10)); // mov eax, 9; ret
             db.analyse_raw_gadgets(raw, arch);
             
             // Test register transitivity
@@ -129,6 +131,20 @@ namespace test{
             graph4.rule_mov_cst_pop(n1, arch);
             graph4.select_gadgets(db);
             ropchain = graph4.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+
+            // Test generic adjust jmp
+            StrategyGraph graph5;
+            n1 = graph5.new_node(GadgetType::MOV_REG);
+            Node& node1d = graph5.nodes[n1];
+            node1d.params[PARAM_MOVREG_SRC_REG].make_reg(X86_ESI);
+            node1d.params[PARAM_MOVREG_DST_REG].make_reg(X86_EBP);
+            node1d.branch_type = BranchType::RET; // So the rule applies
+            // Apply strat
+            graph5.rule_generic_adjust_jmp(n1, arch);
+            graph5.select_gadgets(db);
+            ropchain = graph5.get_ropchain(arch);
+            std::cout << *ropchain << std::endl;
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
             delete arch;

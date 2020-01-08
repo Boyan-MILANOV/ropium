@@ -11,9 +11,9 @@ bool constraint_branch_type(Node* node, StrategyGraph* graph){
            node->branch_type == BranchType::ANY;
 }
 
-Node::Node(int i, GadgetType t):id(i), type(t), depth(-1), branch_type(BranchType::ANY){
+Node::Node(int i, GadgetType t):id(i), type(t), depth(-1), branch_type(BranchType::ANY), indirect(false){
     // Add constraints that must always be verified
-    assigned_gadget_constraints.push_back(constraint_branch_type);
+    assigned_gadget_constraints.push_back(constraint_branch_type); // Matching branch type
 };
 
 int Node::nb_params(){
@@ -42,6 +42,10 @@ bool Node::is_disabled(){
     return id == -1;
 }
 
+bool Node::is_indirect(){
+    return indirect;
+}
+
 int Node::get_param_num_gadget_sp_inc(){
     switch( type ){
         case GadgetType::MOV_REG: return PARAM_MOVREG_GADGET_SP_INC;
@@ -52,6 +56,21 @@ int Node::get_param_num_gadget_sp_inc(){
         case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_SP_INC;
         case GadgetType::STORE: return PARAM_STORE_GADGET_SP_INC;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_SP_INC;
+        default:
+            throw runtime_exception("Node::get_param_num_gadget_sp_inc(): got unsupported gadget type");
+    }
+}
+
+int Node::get_param_num_gadget_sp_delta(){
+    switch( type ){
+        case GadgetType::MOV_REG: return PARAM_MOVREG_GADGET_SP_DELTA;
+        case GadgetType::AMOV_REG: return PARAM_AMOVREG_GADGET_SP_DELTA;
+        case GadgetType::MOV_CST: return PARAM_MOVCST_GADGET_SP_DELTA;
+        case GadgetType::AMOV_CST: return PARAM_AMOVCST_GADGET_SP_DELTA;
+        case GadgetType::LOAD: return PARAM_LOAD_GADGET_SP_DELTA;
+        case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_SP_DELTA;
+        case GadgetType::STORE: return PARAM_STORE_GADGET_SP_DELTA;
+        case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_SP_DELTA;
         default:
             throw runtime_exception("Node::get_param_num_gadget_sp_inc(): got unsupported gadget type");
     }
@@ -87,7 +106,7 @@ int Node::get_param_num_gadget_jmp_reg(){
     }
 }
 
-bool _get_valid_gadget_address(Gadget* gadget){
+addr_t _get_valid_gadget_address(Gadget* gadget){
     return gadget->addresses[0]; // TODO: proper implementation with BadBytes constraint
 }
 
@@ -98,6 +117,7 @@ void Node::assign_gadget(Gadget* gadget){
     params[get_param_num_gadget_addr()].value = addr;
     params[get_param_num_gadget_sp_inc()].value = gadget->sp_inc;
     params[get_param_num_gadget_jmp_reg()].value = gadget->jmp_reg;
+    params[get_param_num_gadget_sp_delta()].value = gadget->max_sp_inc - gadget->sp_inc;
 }
 
 
@@ -159,10 +179,12 @@ void StrategyGraph::redirect_incoming_strategy_edges(node_t curr_node, node_t ne
         if( std::count(prev.strategy_edges.out.begin(), prev.strategy_edges.out.end(), curr_node) > 0 ){
             // Erase previous outgoing edges to curr
             prev.strategy_edges.out.erase(std::remove(prev.strategy_edges.out.begin(), prev.strategy_edges.out.end(), curr_node), prev.strategy_edges.out.end());
-            // Add new outgoing to new_node
-            prev.strategy_edges.out.push_back(new_node);
-            // Add new incoming in new_node
-            newn.strategy_edges.in.push_back(prev.id);
+            if( new_node != prev.id ){ // If new node depends on curr_node, don't redirect it to itself
+                // Add new outgoing to new_node
+                prev.strategy_edges.out.push_back(new_node);
+                // Add new incoming in new_node
+                newn.strategy_edges.in.push_back(prev.id);
+            }
         }
     }
 }
@@ -195,10 +217,12 @@ void StrategyGraph::redirect_outgoing_strategy_edges(node_t curr_node, node_t ne
         if( std::count(next.strategy_edges.in.begin(), next.strategy_edges.in.end(), curr_node) > 0 ){
             // Erase next incoming edges from curr
             next.strategy_edges.in.erase(std::remove(next.strategy_edges.in.begin(), next.strategy_edges.in.end(), curr_node), next.strategy_edges.in.end());
-            // Add new incoming from new_node
-            next.strategy_edges.in.push_back(new_node);
-            // Add new outgoing in new_node
-            newn.strategy_edges.out.push_back(next.id);
+            if( new_node != next.id ){ // If new node depends on curr_node, don't redirect it to itself
+                // Add new incoming from new_node
+                next.strategy_edges.in.push_back(new_node);
+                // Add new outgoing in new_node
+                newn.strategy_edges.out.push_back(next.id);
+            }
         }
     }
 }
@@ -220,15 +244,16 @@ void StrategyGraph::add_param_edge(node_t from, node_t to){
  * MovReg R1, src_reg
  * MovReg dst_reg, R1 
  * ======================= */
-void StrategyGraph::rule_mov_reg_transitivity(node_t n){
+bool StrategyGraph::rule_mov_reg_transitivity(node_t n){
     // Get/Create nodes
     node_t n1 = new_node(GadgetType::MOV_REG);
     node_t n2 = new_node(GadgetType::MOV_REG);
     Node& node = nodes[n];
     Node& node1 = nodes[n1];
     Node& node2 = nodes[n2];
+    
     if( node.type != GadgetType::MOV_REG ){
-        throw runtime_exception("Calling MovReg rule on non-MovReg node!");
+        return false;
     }
 
     // Modify parameters
@@ -267,15 +292,16 @@ void StrategyGraph::rule_mov_reg_transitivity(node_t n){
  * MovReg R1, src_cst
  * MovReg dst_reg, R1 
  * ======================= */
-void StrategyGraph::rule_mov_cst_transitivity(node_t n){
+bool StrategyGraph::rule_mov_cst_transitivity(node_t n){
     // Get/Create nodes
     node_t n1 = new_node(GadgetType::MOV_CST);
     node_t n2 = new_node(GadgetType::MOV_REG);
     Node& node = nodes[n];
     Node& node1 = nodes[n1];
     Node& node2 = nodes[n2];
+
     if( node.type != GadgetType::MOV_CST ){
-        throw runtime_exception("Calling MovCst rule on non-MovCst node!");
+        return false;
     }
 
     // Modify parameters
@@ -314,13 +340,14 @@ void StrategyGraph::rule_mov_cst_transitivity(node_t n){
 + * Load dst_reg, mem(SP + off)
 + * padding(off, src_cst) 
 + * ======================= */
-void StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
+bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     // Get/Create nodes
     node_t n1 = new_node(GadgetType::LOAD);
     Node& node = nodes[n];
     Node& node1 = nodes[n1];
+
     if( node.type != GadgetType::MOV_CST ){
-        throw runtime_exception("Calling MovCst rule on non-MovCst node!");
+        return false;
     }
 
     // Modify parameters
@@ -364,13 +391,95 @@ void StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
 
     // Disable node
     disable_node(node.id);
+    
+    return true;
+}
+
+/* <Any type>; ret
+ * ====================
+ * R1 <- @(next gadget)
+ * <Any type>; jmp R1; 
+ */
+bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
+    // Get/Create nodes
+    node_t n1 = new_node(GadgetType::MOV_CST); // Node to adjust the jmp reg
+    node_t n_ret = new_node(GadgetType::LOAD); // Node of the 'adjust gadget' (ret N basically)
+    Node& node = nodes[n];
+    Node& node1 = nodes[n1];
+    Node& node_ret = nodes[n_ret];
+
+    // Only apply on "RET" nodes
+    if( node.branch_type != BranchType::RET )
+        return false;
+        
+    // Change return type to JMP in node
+    node.branch_type = BranchType::JMP;
+    
+    // Set the 'adjust gadget' node. It must make the PC that the next value one the
+    // stack after the 'jmp' gadget is executed
+    node_ret.params[PARAM_LOAD_DST_REG].make_reg(arch->pc()); // Dest reg is PC
+    node_ret.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(arch->sp()); // addr reg is SP (pop from the stack)
+    node_ret.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst( n, node.get_param_num_gadget_sp_delta(), nullptr, new_name("adjust_jmp_offset"));
+    add_param_edge(node_ret.id, node.id);
+    node_ret.indirect = true; // This node is 'indirect' (gadget not added explicitely on the stack)
+
+    // Set the 'pre-jmp' gadget. It sets the jmp reg to the address of the 'adjust gadget'.
+    // Dest reg of node1 is the jmp reg of node
+    node1.params[PARAM_MOVCST_DST_REG].make_reg(n, node.get_param_num_gadget_jmp_reg());
+    // Src cst of node1 is the address of the adjust gadget
+    node1.params[PARAM_MOVCST_SRC_CST].make_cst(node_ret.id, node_ret.get_param_num_gadget_addr(), nullptr, new_name("adjust_jmp_addr"));
+    add_param_edge(node1.id, node.id);
+    add_param_edge(node1.id, node_ret.id);
+
+    // Redirect strategy edges
+    redirect_incoming_strategy_edges(node.id, node1.id);
+    add_strategy_edge(node1.id, node.id); // Add after so it's not redirected ;)
+    
+    // Add callback that checks that the jmp reg is not implied in the operation
+    // for example if the gadget is mov eax,ebx; jmp ebx; and we adjust ebx then
+    // the semantics are corrupted because ebx's value will be overwritten with 
+    // the address of the 'adjust-gadget'
+    node.assigned_gadget_constraints.push_back(
+        [](Node* node, StrategyGraph* graph){
+            switch( node->type ){
+                case GadgetType::MOV_CST:
+                    return node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_MOVCST_DST_REG].value;
+                case GadgetType::MOV_REG:
+                    return  node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_MOVREG_DST_REG].value && 
+                            node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_MOVREG_SRC_REG].value;
+                case GadgetType::AMOV_CST:
+                    return  node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_AMOVCST_DST_REG].value && 
+                            node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_AMOVCST_SRC_REG].value;
+                case GadgetType::AMOV_REG:
+                    return  node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_AMOVREG_DST_REG].value && 
+                            node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_AMOVREG_SRC_REG1].value &&
+                            node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_AMOVREG_SRC_REG2].value;
+                case GadgetType::LOAD:
+                    return  node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_LOAD_DST_REG].value && 
+                            node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_LOAD_SRC_ADDR_REG].value;
+                case GadgetType::ALOAD:
+                    return  node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_ALOAD_DST_REG].value && 
+                            node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_ALOAD_SRC_ADDR_REG].value;
+                case GadgetType::STORE:
+                    return  node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_STORE_SRC_REG].value && 
+                            node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_STORE_DST_ADDR_REG].value;
+                case GadgetType::ASTORE:
+                    return  node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_ASTORE_SRC_REG].value && 
+                            node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_ASTORE_DST_ADDR_REG].value;
+                default:
+                    throw runtime_exception("rule_generic_adjust_jmp(): constraint callback got unsupported GadgetType! ");
+            }
+        }
+    );
+    
+    return true;
 }
 
 
 /* ===============  Ordering ============== */
 void StrategyGraph::_dfs_strategy_explore(vector<node_t>& marked, node_t n){
-    if( nodes[n].is_disabled() || std::count(dfs_strategy.begin(), dfs_strategy.end(), n))
-        return; // Ignore invalid/removed nodes
+    if( nodes[n].is_disabled() || nodes[n].is_indirect() || std::count(dfs_strategy.begin(), dfs_strategy.end(), n))
+        return; // Ignore disabled or indirect nodes
     if( std::count(marked.begin(), marked.end(), n) != 0 ){
         throw runtime_exception("StrategyGraph: strategy DFS: unexpected cycle detected!");
     }else{
@@ -410,6 +519,7 @@ void StrategyGraph::_dfs_params_explore(vector<node_t>& marked, node_t n){
     for( node_t n2 : nodes[n].param_edges.out ){
         _dfs_params_explore(marked, n2);
     }
+    marked.pop_back(); // Unmark the node for the current exploration
     dfs_params.push_back(n);
 }
 
@@ -433,7 +543,12 @@ void StrategyGraph::_resolve_param(Param& param){
         if( param.type == ParamType::REG ){
             param.value = nodes[param.dep_node].params[param.dep_param_type].value;
         }else if( param.type == ParamType::CST){
-            param.value = param.expr->concretize(&params_ctx);
+            if( param.expr == nullptr ){
+                // If not expr, just take the value of the other param
+                param.value = nodes[param.dep_node].params[param.dep_param_type].value;
+            }else{
+                param.value = param.expr->concretize(&params_ctx);
+            }
         }else{
             throw runtime_exception("_resolve_param(): got unsupported param type");
         }
@@ -611,11 +726,13 @@ bool StrategyGraph::_check_assigned_gadget_constraints(Node& node){
  parameters and queries the database to find a matching gadget on each node of the
  strategy graph.  
 */
-bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* arch, node_t dfs_idx){
+bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* arch, int dfs_idx){
     // Check if constraint is specified with an architecture
     if( constraint && !arch){
         throw runtime_exception("StrategyGraph::select_gadget(): should NEVER be called with a non-NULL constraint and a NULL arch");
     }
+
+    // Otherwise do proper gadget selection : 
 
     // If root call
     if( dfs_idx == -1 ){
@@ -636,14 +753,12 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
     // If the node is a disabled node, juste resolve the parameters
     // and continue the selection 
     if( node.is_disabled()){
-        _resolve_all_params(dfs_idx);
+        _resolve_all_params(node.id);
         // Continue to select from next node
         if( select_gadgets(db, constraint, arch, dfs_idx+1) )
                 return true;
     }
     
-    // Otherwise do proper gadget selection : 
-
     // 1. Try all possibilities for parameters
     if( node.has_free_param() ){
         // Get possible gadgets
@@ -669,6 +784,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
             // 2.b Try all possible gadgets
             for( Gadget* gadget : *(pos.second) ){
                 node.assign_gadget(gadget);
+
                 // Check assigned gadget constraints and global constraint
                 if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch))){
                     continue;
@@ -684,6 +800,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
     }else{
         // Get matching gadgets
         const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
+        
         // 2. Try all possible gadgets (or a subset)
         for( Gadget* gadget : gadgets ){
             node.assign_gadget(gadget);
@@ -692,8 +809,9 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
                 continue;
             }
             // 3. Recursive call on next node
-            if( select_gadgets(db, constraint, arch, dfs_idx+1) )
+            if( select_gadgets(db, constraint, arch, dfs_idx+1) ){
                 return true;
+            }
         }
     }
     return false;
@@ -773,6 +891,7 @@ ostream& operator<<(ostream& os, Param& param){
 
 ostream& operator<<(ostream& os, Node& node){
     os << "Node " << std::dec << node.id << ":";
+    os << "\n\tBranch type:  " << (int)node.branch_type;
     os << "\n\tIncoming strategy edges: ";
     for( node_t n : node.strategy_edges.in )
         os << n << "  ";

@@ -116,21 +116,23 @@ public:
    WARNING: their values have to match the place they have in the tuple
    when the gadgets are addded in the database !
 */
-#define MAX_PARAMS 7
+#define MAX_PARAMS 8
 
 #define PARAM_MOVREG_DST_REG 0
 #define PARAM_MOVREG_SRC_REG 1
 #define PARAM_MOVREG_GADGET_ADDR 2
 #define PARAM_MOVREG_GADGET_SP_INC 3
 #define PARAM_MOVREG_GADGET_JMP_REG 4
-#define NB_PARAM_MOVREG 5
+#define PARAM_MOVREG_GADGET_SP_DELTA 5
+#define NB_PARAM_MOVREG 6
 
 #define PARAM_MOVCST_DST_REG 0
 #define PARAM_MOVCST_SRC_CST 1
 #define PARAM_MOVCST_GADGET_ADDR 2
 #define PARAM_MOVCST_GADGET_SP_INC 3
 #define PARAM_MOVCST_GADGET_JMP_REG 4
-#define NB_PARAM_MOVCST 5
+#define PARAM_MOVCST_GADGET_SP_DELTA 5
+#define NB_PARAM_MOVCST 6
 
 #define PARAM_AMOVCST_DST_REG 0
 #define PARAM_AMOVCST_SRC_REG 1
@@ -139,7 +141,8 @@ public:
 #define PARAM_AMOVCST_GADGET_ADDR 4
 #define PARAM_AMOVCST_GADGET_SP_INC 5
 #define PARAM_AMOVCST_GADGET_JMP_REG 6
-#define NB_PARAM_AMOVCST 7
+#define PARAM_AMOVCST_GADGET_SP_DELTA 7
+#define NB_PARAM_AMOVCST 8
 
 #define PARAM_AMOVREG_DST_REG 0
 #define PARAM_AMOVREG_SRC_REG1 1
@@ -148,7 +151,8 @@ public:
 #define PARAM_AMOVREG_GADGET_ADDR 4
 #define PARAM_AMOVREG_GADGET_SP_INC 5
 #define PARAM_AMOVREG_GADGET_JMP_REG 6
-#define NB_PARAM_AMOVREG 7
+#define PARAM_AMOVREG_GADGET_SP_DELTA 7
+#define NB_PARAM_AMOVREG 8
 
 #define PARAM_LOAD_DST_REG 0
 #define PARAM_LOAD_SRC_ADDR_REG 1
@@ -156,7 +160,8 @@ public:
 #define PARAM_LOAD_GADGET_ADDR 3
 #define PARAM_LOAD_GADGET_SP_INC 4
 #define PARAM_LOAD_GADGET_JMP_REG 5
-#define NB_PARAM_LOAD 6
+#define PARAM_LOAD_GADGET_SP_DELTA 6
+#define NB_PARAM_LOAD 7
 
 #define PARAM_ALOAD_DST_REG 0
 #define PARAM_ALOAD_OP 1
@@ -165,14 +170,16 @@ public:
 #define PARAM_ALOAD_GADGET_ADDR 4
 #define PARAM_ALOAD_GADGET_SP_INC 5
 #define PARAM_ALOAD_GADGET_JMP_REG 6
-#define NB_PARAM_ALOAD 7
+#define PARAM_ALOAD_GADGET_SP_DELTA 7
+#define NB_PARAM_ALOAD 8
 
 #define PARAM_LOADCST_DST_REG 0
 #define PARAM_LOADCST_SRC_ADDR_OFFSET 1
 #define PARAM_LOADCST_GADGET_ADDR 2
 #define PARAM_LOADCST_GADGET_SP_INC 3
 #define PARAM_LOADCST_GADGET_JMP_REG 4
-#define NB_PARAM_LOADCST 5
+#define PARAM_LOADCST_GADGET_SP_DELTA 5
+#define NB_PARAM_LOADCST 6
 
 #define PARAM_ALOADCST_DST_REG 0
 #define PARAM_ALOADCST_OP 1
@@ -180,7 +187,8 @@ public:
 #define PARAM_ALOADCST_GADGET_ADDR 3
 #define PARAM_ALOADCST_GADGET_SP_INC 4
 #define PARAM_ALOADCST_GADGET_JMP_REG 5
-#define NB_PARAM_ALOADCST 6
+#define PARAM_ALOADCST_GADGET_SP_DELTA 6
+#define NB_PARAM_ALOADCST 7
 
 #define PARAM_STORE_DST_ADDR_REG 0
 #define PARAM_STORE_DST_ADDR_OFFSET 1
@@ -188,14 +196,16 @@ public:
 #define PARAM_STORE_GADGET_ADDR 3
 #define PARAM_STORE_GADGET_SP_INC 4
 #define PARAM_STORE_GADGET_JMP_REG 5
-#define NB_PARAM_STORE 6
+#define PARAM_STORE_GADGET_SP_DELTA 6
+#define NB_PARAM_STORE 7
 
 #define PARAM_CSTSTORE_DST_ADDR_OFFSET 0
 #define PARAM_CSTSTORE_SRC_REG 1
 #define PARAM_CSTSTORE_GADGET_ADDR 2
 #define PARAM_CSTSTORE_GADGET_SP_INC 3
 #define PARAM_CSTSTORE_GADGET_JMP_REG 4
-#define NB_PARAM_CSTSTORE 5
+#define PARAM_CSTSTORE_GADGET_SP_DELTA 5
+#define NB_PARAM_CSTSTORE 6
 
 #define PARAM_ASTORE_DST_ADDR_REG 0
 #define PARAM_ASTORE_DST_ADDR_OFFSET 1
@@ -204,7 +214,8 @@ public:
 #define PARAM_ASTORE_GADGET_ADDR 4
 #define PARAM_ASTORE_GADGET_SP_INC 5
 #define PARAM_ASTORE_GADGET_JMP_REG 6
-#define NB_PARAM_ASTORE 7
+#define PARAM_ASTORE_GADGET_SP_DELTA 7
+#define NB_PARAM_ASTORE 8
 
 #define PARAM_CSTASTORE_DST_ADDR_OFFSET 0
 #define PARAM_CSTASTORE_OP 1
@@ -212,7 +223,9 @@ public:
 #define PARAM_CSTASTORE_GADGET_ADDR 3
 #define PARAM_CSTASTORE_GADGET_SP_INC 4
 #define PARAM_CSTASTORE_GADGET_JMP_REG 5
-#define NB_PARAM_CSTASTORE 6
+#define PARAM_CSTASTORE_GADGET_SP_DELTA 6
+#define NB_PARAM_CSTASTORE 7
+
 
 typedef struct {
     Param offset;
@@ -234,6 +247,9 @@ public:
     int depth;
     // Fixed
     int id;
+    bool indirect; // Means that the node must have a gadget assigned
+                   // but the gaget is not added explicitely in the ROPChain
+                   // (it is used for adjust_reg strategy for example)
     GadgetType type;
     EdgeSet strategy_edges;
     EdgeSet param_edges;
@@ -252,9 +268,11 @@ public:
     int nb_params();
     bool has_free_param();
     bool is_disabled();
+    bool is_indirect();
     int get_param_num_gadget_sp_inc();
     int get_param_num_gadget_addr();
     int get_param_num_gadget_jmp_reg();
+    int get_param_num_gadget_sp_delta();
     void assign_gadget(Gadget* gadget);
     
 };
@@ -293,9 +311,10 @@ public:
     void add_strategy_edge(node_t from, node_t to);
     void add_param_edge(node_t from, node_t to);
     // Strategy rules
-    void rule_mov_cst_transitivity(node_t n);
-    void rule_mov_cst_pop(node_t n, Arch* arch);
-    void rule_mov_reg_transitivity(node_t n);
+    bool rule_mov_cst_transitivity(node_t n);
+    bool rule_mov_cst_pop(node_t n, Arch* arch);
+    bool rule_mov_reg_transitivity(node_t n);
+    bool rule_generic_adjust_jmp(node_t n, Arch* arch);
     // Ordering
     void compute_dfs_strategy();
     void compute_dfs_params();

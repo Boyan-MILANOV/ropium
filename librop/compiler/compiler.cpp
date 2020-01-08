@@ -42,26 +42,22 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
         if( node.id == -1 )
             continue; // Skip invalid/removed nodes
         // Apply strategy rules
-        switch(node.type){
-            case GadgetType::MOV_CST:
-                // MovCst transitivity
-                new_graph = graph->copy();
-                new_graph->rule_mov_cst_transitivity(node.id);
-                add_strategy(new_graph);
-                // MovCst pop
-                new_graph = graph->copy();
-                new_graph->rule_mov_cst_pop(node.id, arch);
-                add_strategy(new_graph);
-                break;
-            case GadgetType::MOV_REG:
-                // MovReg transitivity
-                new_graph = graph->copy();
-                new_graph->rule_mov_reg_transitivity(node.id);
-                add_strategy(new_graph);
-                break;
-            default:
-                break;
-        }
+        // MovCst transitivity
+        new_graph = graph->copy();
+        if( new_graph->rule_mov_cst_transitivity(node.id))
+            add_strategy(new_graph);
+        // MovCst pop
+        new_graph = graph->copy();
+        if( new_graph->rule_mov_cst_pop(node.id, arch))
+            add_strategy(new_graph);
+        // MovReg transitivity
+        new_graph = graph->copy();
+        if( new_graph->rule_mov_reg_transitivity(node.id))
+            add_strategy(new_graph);
+        // Generic adjust_jmp
+        new_graph = graph->copy();
+        if( new_graph->rule_generic_adjust_jmp(node.id, arch))
+            add_strategy(new_graph);
     }
 }
 
