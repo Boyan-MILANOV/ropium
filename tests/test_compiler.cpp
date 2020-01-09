@@ -102,7 +102,10 @@ namespace test{
             raw.push_back(RawGadget(string("\x89\xC8\xC3", 3), 2)); // mov eax, ecx; ret
             raw.push_back(RawGadget(string("\x89\xC3\xC3", 3), 3)); // mov ebx, eax; ret
             raw.push_back(RawGadget(string("\xb9\xad\xde\x00\x00\xc3", 6), 4)); // mov ecx, 0xdead; ret
-            raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 17)); // pop edi; pop esi; pop ecx; ret
+            raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 5)); // pop edi; pop esi; pop ecx; ret
+            raw.push_back(RawGadget(string("\x89\xE8\xFF\xE6", 4), 6)); // mov eax, ebp; jmp esi
+            raw.push_back(RawGadget(string("\x89\xF1\xFF\xE0", 4), 7)); // mov ecx, esi; jmp eax
+
             db.analyse_raw_gadgets(raw, &arch);
 
             // Test mov_reg_transitivity
@@ -121,6 +124,12 @@ namespace test{
             ropchain = comp.compile(" edi =   -2");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             ropchain = comp.compile(" eax = 0x12345678  ");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            
+            // Test generic adjust jmp
+            ropchain = comp.compile(" ebx =  ebp");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" eax =  esi");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
 
             return nb;

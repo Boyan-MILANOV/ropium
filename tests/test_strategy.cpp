@@ -72,6 +72,8 @@ namespace test{
             
             raw.push_back(RawGadget(string("\x89\xF5\xFF\xE0", 4), 9)); // mov ebp, esi; jmp eax
             raw.push_back(RawGadget(string("\xB8\x09\x00\x00\x00\xC3", 6), 10)); // mov eax, 9; ret
+            raw.push_back(RawGadget(string("\x8B\x4F\x04\xFF\xE0", 5), 11)); // mov ecx, [edi+4]; jmp eax
+            
             db.analyse_raw_gadgets(raw, arch);
             
             // Test register transitivity
@@ -144,12 +146,27 @@ namespace test{
             graph5.rule_generic_adjust_jmp(n1, arch);
             graph5.select_gadgets(db);
             ropchain = graph5.get_ropchain(arch);
-            std::cout << *ropchain << std::endl;
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+            
+            
+            StrategyGraph graph6;
+            n1 = graph6.new_node(GadgetType::LOAD);
+            Node& node1e = graph6.nodes[n1];
+            node1e.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(X86_EDI);
+            node1e.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(4, "cstlalal");
+            node1e.params[PARAM_LOAD_DST_REG].make_reg(X86_ECX);
+            node1e.branch_type = BranchType::ANY; // So the rule applies
+            // Apply strat
+            graph6.rule_generic_adjust_jmp(n1, arch);
+            graph6.select_gadgets(db);
+            ropchain = graph6.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+            
 
             delete arch;
             return nb;
         }
+        
     }
 }
 

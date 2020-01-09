@@ -7,13 +7,15 @@
 /* ===============  Nodes ============== */
 
 bool constraint_branch_type(Node* node, StrategyGraph* graph){
-    return node->affected_gadget->branch_type == node->branch_type ||
-           node->branch_type == BranchType::ANY;
+    return (node->affected_gadget->branch_type == node->branch_type) ||
+           (node->branch_type == BranchType::ANY);
 }
 
 Node::Node(int i, GadgetType t):id(i), type(t), depth(-1), branch_type(BranchType::ANY), indirect(false){
     // Add constraints that must always be verified
     assigned_gadget_constraints.push_back(constraint_branch_type); // Matching branch type
+    if( type == GadgetType::NOP )
+        throw runtime_exception("aaaaaa DEBUGME ");
 };
 
 int Node::nb_params(){
@@ -245,16 +247,17 @@ void StrategyGraph::add_param_edge(node_t from, node_t to){
  * MovReg dst_reg, R1 
  * ======================= */
 bool StrategyGraph::rule_mov_reg_transitivity(node_t n){
+    
+    if( nodes[n].type != GadgetType::MOV_REG ){
+        return false;
+    }
+    
     // Get/Create nodes
     node_t n1 = new_node(GadgetType::MOV_REG);
     node_t n2 = new_node(GadgetType::MOV_REG);
     Node& node = nodes[n];
     Node& node1 = nodes[n1];
     Node& node2 = nodes[n2];
-    
-    if( node.type != GadgetType::MOV_REG ){
-        return false;
-    }
 
     // Modify parameters
     Param& dst_reg = node.params[PARAM_MOVREG_DST_REG];
@@ -293,16 +296,17 @@ bool StrategyGraph::rule_mov_reg_transitivity(node_t n){
  * MovReg dst_reg, R1 
  * ======================= */
 bool StrategyGraph::rule_mov_cst_transitivity(node_t n){
+    
+    if( nodes[n].type != GadgetType::MOV_CST ){
+        return false;
+    }
+    
     // Get/Create nodes
     node_t n1 = new_node(GadgetType::MOV_CST);
     node_t n2 = new_node(GadgetType::MOV_REG);
     Node& node = nodes[n];
     Node& node1 = nodes[n1];
     Node& node2 = nodes[n2];
-
-    if( node.type != GadgetType::MOV_CST ){
-        return false;
-    }
 
     // Modify parameters
     Param& dst_reg = node.params[PARAM_MOVCST_DST_REG];
@@ -341,14 +345,15 @@ bool StrategyGraph::rule_mov_cst_transitivity(node_t n){
 + * padding(off, src_cst) 
 + * ======================= */
 bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
+    
+    if( nodes[n].type != GadgetType::MOV_CST ){
+        return false;
+    }
+    
     // Get/Create nodes
     node_t n1 = new_node(GadgetType::LOAD);
     Node& node = nodes[n];
     Node& node1 = nodes[n1];
-
-    if( node.type != GadgetType::MOV_CST ){
-        return false;
-    }
 
     // Modify parameters
     Param& dst_reg = node.params[PARAM_MOVCST_DST_REG];
@@ -401,16 +406,18 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
  * <Any type>; jmp R1; 
  */
 bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
+    // Only apply on "RET" nodes (and "ANY" by extension)
+    if( nodes[n].branch_type != BranchType::RET &&
+        nodes[n].branch_type != BranchType::ANY ){
+        return false;
+    }
+    
     // Get/Create nodes
     node_t n1 = new_node(GadgetType::MOV_CST); // Node to adjust the jmp reg
     node_t n_ret = new_node(GadgetType::LOAD); // Node of the 'adjust gadget' (ret N basically)
     Node& node = nodes[n];
     Node& node1 = nodes[n1];
     Node& node_ret = nodes[n_ret];
-
-    // Only apply on "RET" nodes
-    if( node.branch_type != BranchType::RET )
-        return false;
         
     // Change return type to JMP in node
     node.branch_type = BranchType::JMP;
@@ -748,15 +755,18 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
         return true;
     }
     
-    Node& node = nodes[dfs_params[dfs_idx]];
+    node_t n = dfs_params[dfs_idx];
+    Node& node = nodes[n];
     
     // If the node is a disabled node, juste resolve the parameters
     // and continue the selection 
     if( node.is_disabled()){
-        _resolve_all_params(node.id);
+        _resolve_all_params(n);
         // Continue to select from next node
         if( select_gadgets(db, constraint, arch, dfs_idx+1) )
                 return true;
+        else
+                return false;
     }
     
     // 1. Try all possibilities for parameters
@@ -798,19 +808,24 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
         }
         delete possible; possible = nullptr;
     }else{
-        // Get matching gadgets
-        const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
-        
-        // 2. Try all possible gadgets (or a subset)
-        for( Gadget* gadget : gadgets ){
-            node.assign_gadget(gadget);
-            // Check assigned gadget constraints and global constraint
-            if( !_check_strategy_constraints(node) || (constraint && !constraint->check(gadget, arch))){
-                continue;
-            }
-            // 3. Recursive call on next node
-            if( select_gadgets(db, constraint, arch, dfs_idx+1) ){
-                return true;
+
+        // Check strategy constraints 
+        if( _check_strategy_constraints(node)){
+            
+            // Get matching gadgets
+            const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
+            
+            // 2. Try all possible gadgets (or a subset)
+            for( Gadget* gadget : gadgets ){
+                node.assign_gadget(gadget);
+                // Check assigned gadget constraints and global constraint
+                if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch))){
+                    continue;
+                }
+                // 3. Recursive call on next node
+                if( select_gadgets(db, constraint, arch, dfs_idx+1) ){
+                    return true;
+                }
             }
         }
     }
@@ -891,6 +906,7 @@ ostream& operator<<(ostream& os, Param& param){
 
 ostream& operator<<(ostream& os, Node& node){
     os << "Node " << std::dec << node.id << ":";
+    os << "\n\tGadget type:  " << (int)node.type;
     os << "\n\tBranch type:  " << (int)node.branch_type;
     os << "\n\tIncoming strategy edges: ";
     for( node_t n : node.strategy_edges.in )
