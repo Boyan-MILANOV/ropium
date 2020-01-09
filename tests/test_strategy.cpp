@@ -89,7 +89,7 @@ namespace test{
             sgraph.add_strategy_edge(n1, n2);
             sgraph.add_param_edge(n1, n2);
             // Apply strat
-            sgraph.rule_mov_reg_transitivity(n2);
+            sgraph.rule_generic_transitivity(n2);
             sgraph.select_gadgets(db);
             ropchain = sgraph.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
@@ -118,12 +118,12 @@ namespace test{
             node1b.params[PARAM_MOVCST_SRC_CST].make_cst(5, "cst_1");
             node1b.params[PARAM_MOVCST_DST_REG].make_reg(X86_EDX);
             // Apply strat
-            graph3.rule_mov_cst_transitivity(n1);
+            graph3.rule_generic_transitivity(n1);
             graph3.select_gadgets(db);
             ropchain = graph3.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
             
-            // Test MovCst transitivity
+            // Test MovCst pop
             StrategyGraph graph4;
             n1 = graph4.new_node(GadgetType::MOV_CST);
             Node& node1c = graph4.nodes[n1];
@@ -149,19 +149,20 @@ namespace test{
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
             
             
+            
+            
             StrategyGraph graph6;
             n1 = graph6.new_node(GadgetType::LOAD);
             Node& node1e = graph6.nodes[n1];
             node1e.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(X86_EDI);
             node1e.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(4, "cstlalal");
             node1e.params[PARAM_LOAD_DST_REG].make_reg(X86_ECX);
-            node1e.branch_type = BranchType::ANY; // So the rule applies
+            node1e.branch_type = BranchType::RET; // So the rule applies
             // Apply strat
             graph6.rule_generic_adjust_jmp(n1, arch);
             graph6.select_gadgets(db);
             ropchain = graph6.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
-            
 
             delete arch;
             return nb;

@@ -14,8 +14,6 @@ bool constraint_branch_type(Node* node, StrategyGraph* graph){
 Node::Node(int i, GadgetType t):id(i), type(t), depth(-1), branch_type(BranchType::ANY), indirect(false){
     // Add constraints that must always be verified
     assigned_gadget_constraints.push_back(constraint_branch_type); // Matching branch type
-    if( type == GadgetType::NOP )
-        throw runtime_exception("aaaaaa DEBUGME ");
 };
 
 int Node::nb_params(){
@@ -105,6 +103,19 @@ int Node::get_param_num_gadget_jmp_reg(){
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_JMP_REG;
         default:
             throw runtime_exception("Node::get_param_num_gadget_jmp_reg(): got unsupported gadget type");
+    }
+}
+
+int Node::get_param_num_dst_reg(){
+    switch( type ){
+        case GadgetType::MOV_REG: return PARAM_MOVREG_DST_REG;
+        case GadgetType::AMOV_REG: return PARAM_AMOVREG_DST_REG;
+        case GadgetType::MOV_CST: return PARAM_MOVCST_DST_REG;
+        case GadgetType::AMOV_CST: return PARAM_AMOVCST_DST_REG;
+        case GadgetType::LOAD: return PARAM_LOAD_DST_REG;
+        case GadgetType::ALOAD: return PARAM_ALOAD_DST_REG;
+        default:
+            throw runtime_exception("Node::get_param_num_dst_reg(): got unsupported gadget type");
     }
 }
 
@@ -287,6 +298,8 @@ bool StrategyGraph::rule_mov_reg_transitivity(node_t n){
     
     // Disable node
     disable_node(node.id);
+    
+    return true;
 }
 
 
@@ -337,6 +350,70 @@ bool StrategyGraph::rule_mov_cst_transitivity(node_t n){
     
     // Disable node
     disable_node(node.id);
+    
+    return true;
+}
+
+/* MovCst dst_reg, src_cst
+ * =======================
+ * MovReg R1, src_cst
+ * MovReg dst_reg, R1 
+ * ======================= */
+bool StrategyGraph::rule_generic_transitivity(node_t n){
+    
+    int i = 0;
+
+    if( nodes[n].type != GadgetType::MOV_CST &&
+        nodes[n].type != GadgetType::MOV_REG && 
+        nodes[n].type != GadgetType::AMOV_CST && 
+        nodes[n].type != GadgetType::AMOV_REG &&
+        nodes[n].type != GadgetType::LOAD &&
+        nodes[n].type != GadgetType::ALOAD ){
+        return false;
+    }
+    
+    // Get/Create nodes
+    node_t n1 = new_node(nodes[n].type);
+    node_t n2 = new_node(GadgetType::MOV_REG);
+    Node& node = nodes[n];
+    Node& node1 = nodes[n1];
+    Node& node2 = nodes[n2];
+    
+    
+    node1 = node; // Copy node to node1
+    node1.id = n1; // But keep id
+    // Modify dst_reg
+    node1.params[node1.get_param_num_dst_reg()].make_reg(node2.id, PARAM_MOVREG_SRC_REG);
+    
+    // Set node2 with the reg transitivity gadget
+    node2.params[PARAM_MOVREG_SRC_REG].make_reg(-1, false); // free reg
+    node2.params[PARAM_MOVREG_DST_REG] = node.params[node.get_param_num_dst_reg()]; // Same dst reg as initial query in node
+    
+    // Node1 must end with a ret
+    node1.branch_type = BranchType::RET;
+    // Node2 same as node
+    node2.branch_type = node.branch_type;
+
+    // Add new edges
+    add_strategy_edge(node1.id, node2.id);
+    add_param_edge(node1.id, node2.id);
+
+    // Redirect input params arcs from node to node1
+    for( i = 0; i < MAX_PARAMS; i++){
+        redirect_incoming_param_edges(node.id, i, node1.id, i);
+    }
+
+    // Redirect outgoing dst_reg arcs
+    redirect_outgoing_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node.get_param_num_dst_reg());
+
+    // Redirect strategy edges
+    redirect_incoming_strategy_edges(node.id, node1.id);
+    redirect_outgoing_strategy_edges(node.id, node2.id);
+    
+    // Disable previous node
+    disable_node(node.id);
+    
+    return true;
 }
 
 /* MovCst dst_reg, src_cst

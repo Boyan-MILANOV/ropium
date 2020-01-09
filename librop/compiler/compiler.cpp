@@ -42,17 +42,13 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
         if( node.is_disabled() || node.is_indirect() )
             continue; // Skip invalid/removed nodes
         // Apply strategy rules
-        // MovCst transitivity
+        // Generic transitivity
         new_graph = graph->copy();
-        if( new_graph->rule_mov_cst_transitivity(node.id))
+        if( new_graph->rule_generic_transitivity(node.id))
             add_strategy(new_graph);
         // MovCst pop
         new_graph = graph->copy();
         if( new_graph->rule_mov_cst_pop(node.id, arch))
-            add_strategy(new_graph);
-        // MovReg transitivity
-        new_graph = graph->copy();
-        if( new_graph->rule_mov_reg_transitivity(node.id))
             add_strategy(new_graph);
         // Generic adjust_jmp
         new_graph = graph->copy();

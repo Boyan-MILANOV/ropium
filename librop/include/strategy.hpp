@@ -273,6 +273,7 @@ public:
     int get_param_num_gadget_addr();
     int get_param_num_gadget_jmp_reg();
     int get_param_num_gadget_sp_delta();
+    int get_param_num_dst_reg();
     void assign_gadget(Gadget* gadget);
     
 };
@@ -315,6 +316,7 @@ public:
     bool rule_mov_cst_transitivity(node_t n);
     bool rule_mov_cst_pop(node_t n, Arch* arch);
     bool rule_mov_reg_transitivity(node_t n);
+    bool rule_generic_transitivity(node_t n);
     bool rule_generic_adjust_jmp(node_t n, Arch* arch);
     // Ordering
     void compute_dfs_strategy();
