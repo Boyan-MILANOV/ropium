@@ -164,7 +164,7 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
             }else if( e->is_reg(arch->sp()) ){
                 gadget->sp_inc = 0;
             }
-            
+
             // Get branch type
             e = semantics->regs->get(arch->pc());
             if( e->is_var() ){

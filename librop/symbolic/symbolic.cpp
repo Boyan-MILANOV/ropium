@@ -298,16 +298,20 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
             sp = simp->simplify(sp);
             cst_t sp_inc = 0xffffffff;
             if( sp->is_binop(Op::ADD) && sp->args[0]->is_cst() &&
-                sp->args[0]->cst()%8 == 0 ){
+                sp->args[0]->cst() % arch->octets == 0 && sp->args[1]->is_reg(arch->sp())){
                 // sp = sp0 + cst
                 sp_inc = sp->args[0]->cst();
             }else if( sp->is_binop(Op::ADD) && sp->args[0]->is_unop(Op::NEG) &&
-                      sp->args[0]->args[0]->is_cst() && sp->args[0]->args[0]->cst()%8 == 0){
+                      sp->args[0]->args[0]->is_cst() && sp->args[0]->args[0]->cst() % arch->octets == 0 &&
+                      sp->args[1]->is_reg(arch->sp())){
                 // sp = sp0 - cst
                 sp_inc = -1*sp->args[0]->args[0]->cst();
             }else if( sp->is_var() && arch->reg_num(sp->name()) == arch->sp()){
                 // sp = sp0
                 sp_inc = 0;
+            }else{
+                // sp is unknown
+                block->known_max_sp_inc = false;
             }
             // Assign max sp inc
             if( sp_inc != 0xffffffff && block->known_max_sp_inc){
