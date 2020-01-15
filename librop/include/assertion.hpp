@@ -10,12 +10,14 @@ class ValidPointers{
 public:
     void add_valid_pointer(int reg);
     bool is_valid_pointer(int reg);
+    void clear();
 };
 
 
 class Assertion{
 public:
     ValidPointers valid_pointers;
+    void clear();
 };
 
 #endif

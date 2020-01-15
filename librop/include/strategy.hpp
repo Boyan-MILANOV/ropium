@@ -4,6 +4,7 @@
 #include "database.hpp"
 #include "expression.hpp"
 #include "constraint.hpp"
+#include "assertion.hpp"
 #include <vector>
 #include <string>
 #include <array>
@@ -233,6 +234,24 @@ typedef struct {
 } ROPPadding;
 
 
+class Node;
+
+class NodeValidPointers{
+    vector<param_t> _params;
+public:
+    void add_valid_pointer(param_t param);
+    void to_assertion(Node& node, Assertion* assertion);
+    void clear();
+};
+
+class NodeAssertion{
+public:
+    NodeValidPointers valid_pointers;
+    void to_assertion(Node& node, Assertion* a);
+    void clear();
+};
+
+
 // Callback for custom constraints called to filter gadgets on each node
 class Node;
 class StrategyGraph;
@@ -264,6 +283,10 @@ public:
     // Gadget paddings
     vector<ROPPadding> special_paddings;
 
+    // Assertions
+    NodeAssertion node_assertion;
+    Assertion assertion;
+
     Node(int i, GadgetType t);
     int nb_params();
     bool has_free_param();
@@ -275,7 +298,7 @@ public:
     int get_param_num_gadget_sp_delta();
     int get_param_num_dst_reg();
     void assign_gadget(Gadget* gadget);
-    
+    void apply_assertion();
 };
 ostream& operator<<(ostream& os, Node& node);
 

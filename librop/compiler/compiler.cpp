@@ -157,6 +157,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node.params[PARAM_LOAD_DST_REG].make_reg(instr.args[PARAM_LOAD_DST_REG]);
         node.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(instr.args[PARAM_LOAD_SRC_ADDR_REG]);
         node.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(instr.args[PARAM_LOAD_SRC_ADDR_OFFSET], graph->new_name("offset"));
+        node.node_assertion.valid_pointers.add_valid_pointer(PARAM_LOAD_SRC_ADDR_REG);
         graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::ALOAD ){
         // ALOAD
@@ -167,6 +168,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node.params[PARAM_ALOAD_OP].make_op((Op)instr.args[PARAM_ALOAD_OP]);
         node.params[PARAM_ALOAD_SRC_ADDR_REG].make_reg(instr.args[PARAM_ALOAD_SRC_ADDR_REG]);
         node.params[PARAM_ALOAD_SRC_ADDR_OFFSET].make_cst(instr.args[PARAM_ALOAD_SRC_ADDR_OFFSET], graph->new_name("offset"));
+        node.node_assertion.valid_pointers.add_valid_pointer(PARAM_ALOAD_SRC_ADDR_REG);
         graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::LOAD_CST ){
         // LOAD_CST
@@ -180,6 +182,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node1.params[PARAM_LOAD_DST_REG].make_reg(instr.args[PARAM_LOADCST_DST_REG]);
         node1.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(-1, false); // Free
         node1.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
+        node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_LOAD_SRC_ADDR_REG);
         
         node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_LOAD_SRC_ADDR_REG); // node2 X is same as addr reg in node1
         node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_LOAD_SRC_ADDR_OFFSET, 
@@ -203,7 +206,8 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node1.params[PARAM_ALOAD_OP].make_op((Op)instr.args[PARAM_ALOADCST_OP]);
         node1.params[PARAM_ALOAD_SRC_ADDR_REG].make_reg(-1, false); // Free
         node1.params[PARAM_ALOAD_SRC_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
-        
+        node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_ALOAD_SRC_ADDR_REG);
+
         node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_ALOAD_SRC_ADDR_REG); // node2 X is same as addr reg in node1
         node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_ALOAD_SRC_ADDR_OFFSET, 
             instr.args[PARAM_ALOADCST_SRC_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_ALOAD_SRC_ADDR_OFFSET].name)
@@ -221,6 +225,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node.params[PARAM_STORE_DST_ADDR_REG].make_reg(instr.args[PARAM_STORE_DST_ADDR_REG]);
         node.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(instr.args[PARAM_STORE_DST_ADDR_OFFSET], graph->new_name("offset"));
         node.params[PARAM_STORE_SRC_REG].make_reg(instr.args[PARAM_STORE_SRC_REG]);
+        node.node_assertion.valid_pointers.add_valid_pointer(PARAM_STORE_DST_ADDR_REG);
         graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::CST_STORE ){
         // CST_STORE
@@ -241,6 +246,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
                 return n->params[PARAM_STORE_DST_ADDR_REG].value != n->params[PARAM_STORE_SRC_REG].value;
             }
         );
+        node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_STORE_DST_ADDR_REG);
         
         node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
         node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_STORE_DST_ADDR_OFFSET, 
@@ -260,7 +266,10 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node.params[PARAM_ASTORE_DST_ADDR_OFFSET].make_cst(instr.args[PARAM_ASTORE_DST_ADDR_OFFSET], graph->new_name("offset"));
         node.params[PARAM_ASTORE_OP].make_op((Op)instr.args[PARAM_ASTORE_OP]);
         node.params[PARAM_ASTORE_SRC_REG].make_reg(instr.args[PARAM_ASTORE_SRC_REG]);
+        node.node_assertion.valid_pointers.add_valid_pointer(PARAM_ASTORE_DST_ADDR_REG);
+        
         graphs.push_back(graph);
+        
     }else if( instr.type == ILInstructionType::CST_ASTORE ){
         // CST_ASTORE
         graph = new StrategyGraph();
@@ -274,14 +283,14 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node1.params[PARAM_ASTORE_OP].make_op((Op)instr.args[PARAM_CSTASTORE_OP]);
         node1.params[PARAM_ASTORE_DST_ADDR_REG].make_reg(-1, false); // Free
         node1.params[PARAM_ASTORE_DST_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
-                node1.strategy_constraints.push_back(
+        node1.strategy_constraints.push_back(
             // Can not adjust the addr_reg if it is the same as the reg that must be written
             // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
             [](Node* n, StrategyGraph* g)->bool{
                 return n->params[PARAM_ASTORE_DST_ADDR_REG].value != n->params[PARAM_ASTORE_SRC_REG].value;
             }
         );
-
+        node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_ASTORE_DST_ADDR_REG);
         
         node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_ASTORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
         node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_ASTORE_DST_ADDR_OFFSET, 

@@ -3,6 +3,30 @@
 #include "exception.hpp"
 #include <algorithm>
 
+/* ===============  Node Assertions ============== */
+
+void NodeValidPointers::add_valid_pointer(param_t p){
+    _params.push_back(p);
+}
+
+void NodeValidPointers::to_assertion(Node& node, Assertion* assertion){
+    for( auto p : _params ){
+        assertion->valid_pointers.add_valid_pointer(node.params[p].value);
+    }
+}
+
+void NodeValidPointers::clear(){
+    _params.clear();
+}
+
+
+void NodeAssertion::clear(){
+    valid_pointers.clear();
+}
+
+void NodeAssertion::to_assertion(Node& node, Assertion * a){
+    valid_pointers.to_assertion(node, a);
+}
 
 /* ===============  Nodes ============== */
 
@@ -133,6 +157,10 @@ void Node::assign_gadget(Gadget* gadget){
     params[get_param_num_gadget_sp_delta()].value = gadget->max_sp_inc - gadget->sp_inc;
 }
 
+void Node::apply_assertion(){
+    assertion.clear();
+    node_assertion.to_assertion(*this, &assertion);
+}
 
 /* ===============  Strategy Graphs ============== */
 /* =============================================== */
@@ -868,12 +896,15 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
                 continue;
             }
 
+            // Prepare assertion for current parameter choice
+            node.apply_assertion();
+
             // 2.b Try all possible gadgets
             for( Gadget* gadget : *(pos.second) ){
                 node.assign_gadget(gadget);
 
                 // Check assigned gadget constraints and global constraint
-                if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch))){
+                if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
                     continue;
                 }
                 // 3. Recursive call on next node 
@@ -895,8 +926,11 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
             // 2. Try all possible gadgets (or a subset)
             for( Gadget* gadget : gadgets ){
                 node.assign_gadget(gadget);
+                // Prepare assertion for current parameter choice
+                node.apply_assertion();
+                
                 // Check assigned gadget constraints and global constraint
-                if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch))){
+                if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
                     continue;
                 }
                 // 3. Recursive call on next node
