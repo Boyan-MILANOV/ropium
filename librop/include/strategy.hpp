@@ -20,7 +20,8 @@ typedef int param_t;
 enum class ParamType{
     CST,
     REG,
-    OP
+    OP,
+    NONE
 };
 
 class Param{
@@ -35,7 +36,7 @@ public:
     Expr expr; // For constants only
     bool is_fixed;
 
-    Param():name(""), value(-1), dep_param_type(-1), dep_node(-1), expr(nullptr), is_fixed(true){};
+    Param():type(ParamType::NONE), name(""), value(-1), dep_param_type(-1), dep_node(-1), expr(nullptr), is_fixed(true){};
     
     // Fixed or free register
     void make_reg(int reg, bool fixed=true){

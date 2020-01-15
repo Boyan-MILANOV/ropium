@@ -62,7 +62,7 @@ public:
     cst_t value; // If cst or padding
     string msg;
     
-    ROPItem(addr_t a, Gadget* g, string m=""):type(ROPItemType::GADGET), addr(a), gadget(g), msg(m){};
+    ROPItem(addr_t a, Gadget* g, string m=""):type(ROPItemType::GADGET), addr(a), value(-1), gadget(g), msg(m){};
     ROPItem(ROPItemType t, cst_t v, string m=""):type(t), value(v), msg(m){};
 };
 

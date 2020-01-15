@@ -470,7 +470,7 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     // Offset is the offset at which we pop the constant
     node1.special_paddings.back().offset.make_cst(n1, PARAM_LOAD_SRC_ADDR_OFFSET, exprvar(arch->bits, node1.params[PARAM_LOAD_SRC_ADDR_OFFSET].name), new_name("padding_offset"));
     // Padding value is just the constant
-    node1.special_paddings.back().value = src_cst;
+    node1.special_paddings.back().value = node.params[PARAM_MOVCST_SRC_CST];
     node1.special_paddings.back().value.name = new_name("padding_value"); // Get a new name for the value parameter
 
     // Add a constraint: the offset of the pop must not be too big (max 160)
