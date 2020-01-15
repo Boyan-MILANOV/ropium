@@ -303,8 +303,6 @@ bool StrategyGraph::rule_mov_reg_transitivity(node_t n){
     Node& node2 = nodes[n2];
 
     // Modify parameters
-    Param& dst_reg = node.params[PARAM_MOVREG_DST_REG];
-    Param& src_reg = node.params[PARAM_MOVREG_SRC_REG];
     node1.params[PARAM_MOVREG_SRC_REG] = node.params[PARAM_MOVREG_SRC_REG];
     node1.params[PARAM_MOVREG_DST_REG].make_reg(node2.id, PARAM_MOVREG_SRC_REG); // node1 dst is R1, depends on R1 in node2
     node2.params[PARAM_MOVREG_SRC_REG].make_reg(0, false); // node2 src is R1
@@ -354,8 +352,6 @@ bool StrategyGraph::rule_mov_cst_transitivity(node_t n){
     Node& node2 = nodes[n2];
 
     // Modify parameters
-    Param& dst_reg = node.params[PARAM_MOVCST_DST_REG];
-    Param& src_cst = node.params[PARAM_MOVCST_SRC_CST];
     node1.params[PARAM_MOVCST_SRC_CST] = node.params[PARAM_MOVCST_SRC_CST];
     node1.params[PARAM_MOVCST_SRC_CST].name = new_name("cst"); // copy the constant but change the name 
     node1.params[PARAM_MOVCST_DST_REG].make_reg(node2.id, PARAM_MOVREG_SRC_REG); // node1 dst is R1, depends on R1 in node2
@@ -465,8 +461,6 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     Node& node1 = nodes[n1];
 
     // Modify parameters
-    Param& dst_reg = node.params[PARAM_MOVCST_DST_REG];
-    Param& src_cst = node.params[PARAM_MOVCST_SRC_CST];
     node1.params[PARAM_LOAD_DST_REG] = node.params[PARAM_MOVCST_DST_REG];
     node1.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(arch->sp());
     node1.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(-1, new_name("stack_offset"), false); // Free offset

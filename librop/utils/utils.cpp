@@ -92,7 +92,6 @@ bool ropgadget_to_file(string out, string bin){
         string result;
         std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.str().c_str(), "r"), pclose);
         string addr_str, raw_str;
-        size_t index;
         stringstream ss;
         vector<string> splited;
         

@@ -20,7 +20,6 @@ void CompilerTask::add_strategy(StrategyGraph* graph){
 ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, Constraint* constraint, int nb_tries){
     int n = 0;
     StrategyGraph* graph;
-    ROPChain * ropchain;
     while( n++ < nb_tries && !pending_strategies.empty()){
         graph = pending_strategies.back();
         pending_strategies.pop_back();

@@ -26,7 +26,6 @@ bool _parse_end(string& str, int& idx){
 bool _parse_il_cst(Arch& arch, vector<cst_t>& args, string& str, int& idx){
     string s;
     int i;
-    bool found = false;
     int base = 10;
     ucst_t cst;
     cst_t mult;

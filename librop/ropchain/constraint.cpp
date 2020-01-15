@@ -38,7 +38,7 @@ bool BadBytes::is_valid_address(addr_t addr, int arch_bytes){
     for( int i = 0; i < arch_bytes; i++){
         if( ! is_valid_byte(addr & 0xff))
             return false;
-        addr >> 8;
+        addr >>= 8;
     }
     return true;
 }

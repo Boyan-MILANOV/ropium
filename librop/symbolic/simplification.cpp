@@ -99,7 +99,6 @@ ExprSimplifier* NewDefaultExprSimplifier(){
    ================================================= */
 /* Constant folding */
 Expr es_constant_folding(Expr e){
-    bool was_tainted;
     Expr res = nullptr;
     cst_t _concrete, high, low;
     ucst_t mask;
