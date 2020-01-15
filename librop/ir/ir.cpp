@@ -456,6 +456,7 @@ IRBlock::IRBlock(string n, addr_t start, addr_t end): name(n), ir_size(0),
             _nb_instr(0), _nb_instr_ir(0), known_max_sp_inc(false){
     branch_target[0] = 0;
     branch_target[1] = 0;
+    memset(dereferenced_regs, false, sizeof(dereferenced_regs)); 
 }
 
 void IRBlock::add_instr(IRBasicBlockId bblock, IRInstruction instr){

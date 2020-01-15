@@ -147,13 +147,19 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
             gadget->nb_instr = irblock->_nb_instr;
             gadget->nb_instr_ir = irblock->_nb_instr_ir;
 
+            // Set dereferenced regs
+            for( int i = 0; i < NB_REGS_MAX; i++){
+                gadget->dereferenced_regs[i] = irblock->dereferenced_regs[i];
+            }
+
             // Get sp increment
             if( !irblock->known_max_sp_inc ){
-                std::cout << "DEBUG ERROR UNKNOWN MAX SP INC " << std::endl;
+                std::cout << "DEBUG ERROR UNKNOWN MAX SP INC " << std::endl; // Might clobber our ropchain
                 delete gadget; continue;
             }else{
                 gadget->max_sp_inc = irblock->max_sp_inc;
             }
+
             e = semantics->regs->get(arch->sp());
             if( e->is_binop(Op::ADD) && e->args[0]->is_cst() && e->args[1]->is_reg(arch->sp())){
                 if( e->args[0]->cst() % arch->octets != 0 ){
@@ -161,6 +167,11 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
                     delete gadget; continue;
                 }
                 gadget->sp_inc = e->args[0]->cst();
+            }else if( e->is_binop(Op::ADD) && e->args[0]->is_unop(Op::NEG) &&
+                      e->args[0]->args[0]->is_cst() && e->args[0]->args[0]->cst() % arch->octets == 0 &&
+                      e->args[1]->is_reg(arch->sp())){
+                // sp = sp0 - cst
+                gadget->sp_inc = -1*e->args[0]->args[0]->cst();
             }else if( e->is_reg(arch->sp()) ){
                 gadget->sp_inc = 0;
             }

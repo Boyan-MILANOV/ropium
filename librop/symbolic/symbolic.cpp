@@ -113,6 +113,28 @@ Expr _get_operand(IROperand& arg, IRContext* irctx, vector<Expr>& tmp_vars){
     }
 }
 
+void _update_dereferenced_regs(bool* deref, Expr e){
+    switch( e->type ){
+        case ExprType::CST:
+        case ExprType::MEM:
+        case ExprType::UNKNOWN:
+            return;
+        case ExprType::VAR:
+            deref[e->reg()] = true;
+            break;
+        case ExprType::UNOP:
+            _update_dereferenced_regs(deref, e->args[0]);
+            break;
+        case ExprType::BINOP:
+        case ExprType::CONCAT:
+        case ExprType::EXTRACT:
+            _update_dereferenced_regs(deref, e->args[0]);
+            _update_dereferenced_regs(deref, e->args[1]);
+            break;
+        default:
+            break;
+    }
+}
 
 #define DELETE_ALL_OBJECTS() delete regs; delete mem; delete simp;
 Semantics* SymbolicEngine::execute_block(IRBlock* block){
@@ -224,8 +246,12 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
                 dst = _get_operand(instr->dst, regs, tmp_vars);
                 /* THEN execute the store */
                 mem->write(dst, src1);
+                /* Record regs that have been dereferenced (in the address)*/
+                _update_dereferenced_regs(block->dereferenced_regs, dst);
             }else if( instr->op == IROperation::LDM){
                 /* Load memory */  
+                /* Record regs that have been dereferenced (in the address)*/
+                _update_dereferenced_regs(block->dereferenced_regs, src1);
                 // Affect lvalue
                 rvalue = mem->read(src1, (instr->dst.high-instr->dst.low+1)/8);
                 if( instr->dst.is_tmp()){

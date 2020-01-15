@@ -3,6 +3,7 @@
 
 #include "ropchain.hpp"
 #include "arch.hpp"
+#include "assertion.hpp"
 #include <algorithm>
 
 class BadBytes{
@@ -35,7 +36,7 @@ public:
     void enable_unsafe();
     void add_safe_reg(int reg_num);
     void clear();
-    bool check(Gadget* gadget, int arch_nb_regs);
+    bool check(Gadget* gadget, int arch_nb_regs, Assertion* assertion=nullptr);
 };
 
 class Constraint{
@@ -45,7 +46,7 @@ public:
     MemSafety mem_safety;
 
     void clear();
-    bool check(Gadget* gadget, Arch* arch);
+    bool check(Gadget* gadget, Arch* arch, Assertion* assertion = nullptr);
 };
 
 #endif

@@ -93,11 +93,12 @@ void MemSafety::clear(){
     memset(_safe_reg_pointers, false, sizeof(_safe_reg_pointers));
 }
 
-bool MemSafety::check(Gadget* gadget, int arch_nb_regs){
+bool MemSafety::check(Gadget* gadget, int arch_nb_regs, Assertion* assertion){
     if( !_force_safe)
         return true;
     for( int i = 0; i < arch_nb_regs; i++){
-        if( !_safe_reg_pointers[i] && gadget->dereferenced_regs[i] )
+        if( !_safe_reg_pointers[i] && gadget->dereferenced_regs[i] && 
+        (assertion == nullptr || !assertion->valid_pointers.is_valid_pointer(i)))
             return false;
     }
     return true;
@@ -111,8 +112,8 @@ void Constraint::clear(){
     mem_safety.clear();
 }
 
-bool Constraint::check(Gadget* gadget, Arch* arch){
+bool Constraint::check(Gadget* gadget, Arch* arch, Assertion* assertion){
     return  bad_bytes.check(gadget, arch->octets) &&
             keep_regs.check(gadget) &&
-            mem_safety.check(gadget, arch->nb_regs);
+            mem_safety.check(gadget, arch->nb_regs, assertion);
 }

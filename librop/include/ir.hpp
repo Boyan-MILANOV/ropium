@@ -227,7 +227,8 @@ public:
     unsigned int raw_size;
     cst_t max_sp_inc;
     bool known_max_sp_inc;
-    
+    bool dereferenced_regs[128];
+
     addr_t branch_target[2]; // [0]: target when condition expression is 0
                              // [1]: target when condition expression is != 0
     IRBlock(string name, addr_t start=0, addr_t end=0);

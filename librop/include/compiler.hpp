@@ -9,7 +9,7 @@ using std::vector;
 
 /* CompilerTask
    ============
-   
+
    A compiler task is basically a set of StrategyGraph. For each graph,
    it tries to find a valid gadget selection. 
 
@@ -44,6 +44,7 @@ public:
 class ROPCompiler{
     Arch* arch;
     GadgetDB* db;
+    
     ROPChain* process(vector<ILInstruction>& instructions);
     vector<ILInstruction> parse(string program);
     void il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr);
