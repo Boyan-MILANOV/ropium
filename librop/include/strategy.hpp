@@ -297,7 +297,7 @@ public:
     int get_param_num_gadget_jmp_reg();
     int get_param_num_gadget_sp_delta();
     int get_param_num_dst_reg();
-    void assign_gadget(Gadget* gadget);
+    void assign_gadget(Gadget* gadget, Arch* arch=nullptr, Constraint* constraint=nullptr);
     void apply_assertion();
 };
 ostream& operator<<(ostream& os, Node& node);

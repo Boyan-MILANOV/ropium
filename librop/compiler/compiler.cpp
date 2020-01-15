@@ -17,15 +17,15 @@ void CompilerTask::add_strategy(StrategyGraph* graph){
     pending_strategies.insert(g, graph);
 }
 
-ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, int nb_tries){
+ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, Constraint* constraint, int nb_tries){
     int n = 0;
     StrategyGraph* graph;
     ROPChain * ropchain;
     while( n++ < nb_tries && !pending_strategies.empty()){
         graph = pending_strategies.back();
         pending_strategies.pop_back();
-        if( graph->select_gadgets(*db) )
-            return graph->get_ropchain(arch);
+        if( graph->select_gadgets(*db, constraint, arch) )
+            return graph->get_ropchain(arch, constraint);
         // Apply strategy rules to the graph to get new candidate strategies
         apply_rules_to_graph(graph);
         delete graph; graph = nullptr;
@@ -69,17 +69,24 @@ CompilerTask::~CompilerTask(){
 /* ============= ROPCompiler ============= */
 ROPCompiler::ROPCompiler(Arch* a, GadgetDB *d):arch(a), db(d){}
 
-ROPChain* ROPCompiler::compile(string program){
+ROPChain* ROPCompiler::compile(string program, Constraint* constraint){
+    
     vector<ILInstruction> instr = parse(program); // This raises il_exception if malformed program
-    return process(instr);
+    
+    // Add some general assertions
+    if( constraint ){
+        constraint->mem_safety.add_safe_reg(arch->sp()); // Stack pointer is always safe for RW
+    }
+    
+    return process(instr, constraint);
 }
 
-ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions){
+ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions, Constraint* constraint){
     CompilerTask task = CompilerTask(arch);
     for( ILInstruction& instr : instructions ){
         il_to_strategy(task.pending_strategies, instr);
     }
-    return task.compile(arch, db);
+    return task.compile(arch, db, constraint);
 }
 
 bool _is_empty_line(string& s){

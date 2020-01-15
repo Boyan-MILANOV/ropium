@@ -1,5 +1,6 @@
 #include "constraint.hpp"
 #include <cstring>
+#include <iostream> // DEBUG
 
 /* =============== Bad Bytes ================= */
 
@@ -97,9 +98,11 @@ bool MemSafety::check(Gadget* gadget, int arch_nb_regs, Assertion* assertion){
     if( !_force_safe)
         return true;
     for( int i = 0; i < arch_nb_regs; i++){
-        if( !_safe_reg_pointers[i] && gadget->dereferenced_regs[i] && 
-        (assertion == nullptr || !assertion->valid_pointers.is_valid_pointer(i)))
-            return false;
+        if( gadget->dereferenced_regs[i] ){ 
+            if( !_safe_reg_pointers[i] &&
+            (assertion == nullptr || !assertion->valid_pointers.is_valid_pointer(i)))
+                return false;
+        }
     }
     return true;
 }
@@ -113,6 +116,7 @@ void Constraint::clear(){
 }
 
 bool Constraint::check(Gadget* gadget, Arch* arch, Assertion* assertion){
+    std::cout << "DEBUG CONSTRAINT CHECKING " << gadget->asm_str << std::endl;
     return  bad_bytes.check(gadget, arch->octets) &&
             keep_regs.check(gadget) &&
             mem_safety.check(gadget, arch->nb_regs, assertion);

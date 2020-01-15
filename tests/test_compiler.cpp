@@ -28,7 +28,7 @@ namespace test{
             GadgetDB db;
             ROPCompiler comp = ROPCompiler(&arch, &db);
             ROPChain* ropchain;
-            
+
             // Available gadgets
             vector<RawGadget> raw;
             raw.push_back(RawGadget(string("\x89\xf9\xbb\x01\x00\x00\x00\xc3", 8), 1)); // mov ecx, edi; mov ebx, 1; ret
@@ -95,7 +95,9 @@ namespace test{
             GadgetDB db;
             ROPCompiler comp = ROPCompiler(&arch, &db);
             ROPChain* ropchain;
-            
+            Constraint constr;
+            constr.bad_bytes.add_bad_byte(0xff);
+
             // Available gadgets
             vector<RawGadget> raw;
             raw.push_back(RawGadget(string("\x89\xf9\xbb\x01\x00\x00\x00\xc3", 8), 1)); // mov ecx, edi; mov ebx, 1; ret

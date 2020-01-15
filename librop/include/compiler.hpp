@@ -27,7 +27,7 @@ public:
     CompilerTask(Arch* arch);
     vector<StrategyGraph*> pending_strategies;
     void add_strategy(StrategyGraph* graph);
-    ROPChain* compile(Arch* arch, GadgetDB* db, int nb_tries=100);
+    ROPChain* compile(Arch* arch, GadgetDB* db, Constraint* constraint=nullptr, int nb_tries=100);
     ~CompilerTask();
 };
 
@@ -45,12 +45,12 @@ class ROPCompiler{
     Arch* arch;
     GadgetDB* db;
     
-    ROPChain* process(vector<ILInstruction>& instructions);
+    ROPChain* process(vector<ILInstruction>& instructions, Constraint* constraint=nullptr);
     vector<ILInstruction> parse(string program);
     void il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr);
 public:
     ROPCompiler( Arch* arch, GadgetDB* db);
-    ROPChain* compile(string program);
+    ROPChain* compile(string program, Constraint* constraint=nullptr);
 };
 
 #endif
