@@ -29,7 +29,7 @@ static PyObject* ROPium_load(PyObject* self, PyObject* args){
             return PyErr_Format(PyExc_RuntimeError, "Couldn't analyse binary with ROPgadget");
         }
         raw = raw_gadgets_from_file(gadget_file);
-        as_ropium_object(self).gadget_db->analyse_raw_gadgets(*raw, as_ropium_object(self).arch); // DEBUG 
+        as_ropium_object(self).gadget_db->analyse_raw_gadgets(*raw, as_ropium_object(self).arch);
         delete raw; raw = nullptr; 
         remove(gadget_file.c_str());
     }catch(runtime_exception& e){
@@ -49,7 +49,6 @@ static PyObject* ROPium_compile(PyObject* self, PyObject* args){
     }
 
     try{
-        // TODO Set proper constraint
         // TODO Return proper ropchain
         ropchain = as_ropium_object(self).compiler->compile( string(query, query_len), as_ropium_object(self).constraint); 
         if( ropchain ){
@@ -72,9 +71,67 @@ static PyMethodDef ROPium_methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
+// Get/Set Attributes
+static PyObject* ROPium_get_bad_bytes(PyObject* self, void* closure){
+    PyObject* list;
+    
+    list = PyList_New(0);
+    if( list == NULL ){
+        return PyErr_Format(PyExc_RuntimeError, "%s", "Failed to create new python list");
+    }
+    // Add bad bytes to list
+    for (int i = 0; i < 0x100; i++){
+        if( !as_ropium_object(self).constraint->bad_bytes.is_valid_byte(i) ){
+            if( PyList_Append(list, PyLong_FromLong(i)) == -1){
+                return PyErr_Format(PyExc_RuntimeError, "%s", "Failed to add bad byte to python list");
+            }
+        }
+    }
+    return list;
+}
+
+static int ROPium_set_bad_bytes(PyObject* self, PyObject* list, void* closure){
+    PyObject *item;
+    Py_ssize_t size;
+
+    if( ! PyList_Check(list)){
+        
+    }
+
+    size = PyList_Size(list);
+    
+    // Clear previous bad bytes
+    as_ropium_object(self).constraint->bad_bytes.clear();
+    
+    // Add new bad bytes
+    for( int i = 0; i < size; i++){
+        item = PyList_GetItem(list, i);
+        if( item == NULL ){
+            PyErr_SetString(PyExc_RuntimeError, "Error getting item in supplied list");
+            return -1;
+        }
+        if( ! PyLong_Check(item) || PyLong_AsUnsignedLong(item) > 0xff ){
+            PyErr_SetString(PyExc_ValueError, "Bad bytes list has incorrect element(s)");
+            return -1;
+        }
+        // Add bad byte
+        as_ropium_object(self).constraint->bad_bytes.add_bad_byte(PyLong_AsUnsignedLong(item));
+    }
+
+    return 0;
+}
+
+static PyGetSetDef ROPium_getset[] = {
+    {"bad_bytes", ROPium_get_bad_bytes, ROPium_set_bad_bytes, "Bad bytes that must not occur in the ropchains", NULL},
+    {NULL}
+};
+
+
 static PyMemberDef ROPium_members[] = {
     {NULL}
 };
+
+
 
 /* Type description for python Expr objects */
 PyTypeObject ROPium_Type = {
@@ -105,9 +162,9 @@ PyTypeObject ROPium_Type = {
     0,                                        /* tp_weaklistoffset */
     0,                                        /* tp_iter */
     0,                                        /* tp_iternext */
-    ROPium_methods,                   /* tp_methods */
-    ROPium_members,                   /* tp_members */
-    0,                                        /* tp_getset */
+    ROPium_methods,                           /* tp_methods */
+    ROPium_members,                           /* tp_members */
+    ROPium_getset,                            /* tp_getset */
     0,                                        /* tp_base */
     0,                                        /* tp_dict */
     0,                                        /* tp_descr_get */

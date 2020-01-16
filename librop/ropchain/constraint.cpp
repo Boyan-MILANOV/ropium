@@ -1,6 +1,5 @@
 #include "constraint.hpp"
 #include <cstring>
-#include <iostream> // DEBUG
 
 /* =============== Bad Bytes ================= */
 
@@ -13,7 +12,7 @@ void BadBytes::clear(){
 }
 
 bool BadBytes::is_valid_byte(unsigned char byte){
-    return std::count(_bad_bytes.begin(), _bad_bytes.end(), byte) == 0;
+    return (std::find(_bad_bytes.begin(), _bad_bytes.end(), byte) == _bad_bytes.end());
 }
 
 unsigned char BadBytes::get_valid_byte(){
@@ -36,24 +35,29 @@ addr_t BadBytes::get_valid_padding(int nb_bytes){
 
 bool BadBytes::is_valid_address(addr_t addr, int arch_bytes){
     for( int i = 0; i < arch_bytes; i++){
-        if( ! is_valid_byte(addr & 0xff))
+        if( ! is_valid_byte(addr & 0xff)){
             return false;
+        }
         addr >>= 8;
     }
     return true;
 }
 
 addr_t BadBytes::get_valid_address(Gadget* gadget, int arch_bytes){
-    for( addr_t addr : gadget->addresses )
-        if( is_valid_address(addr, arch_bytes) )
+    for( addr_t addr : gadget->addresses ){
+        if( is_valid_address(addr, arch_bytes) ){
             return addr;
+        }
+    }
     throw runtime_exception("BadBytes::get_valid_address(): all addresses are invalid!");
 }
 
 bool BadBytes::check(Gadget* gadget, int arch_bytes){
-    for( addr_t addr : gadget->addresses )
-        if( is_valid_address(addr, arch_bytes) )
+    for( addr_t addr : gadget->addresses ){
+        if( is_valid_address(addr, arch_bytes) ){
             return true;
+        }
+    }
     return false;
 }
 

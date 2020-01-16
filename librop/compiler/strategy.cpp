@@ -145,7 +145,7 @@ int Node::get_param_num_dst_reg(){
 
 addr_t _get_valid_gadget_address(Gadget* gadget, Arch* arch, Constraint* constraint){
     for( addr_t addr : gadget->addresses){
-        if( !constraint || constraint->bad_bytes.check(gadget, arch->octets))
+        if( !constraint || constraint->bad_bytes.is_valid_address(addr, arch->octets))
             return addr;
     }
     throw runtime_exception("Fatal error: couldn't get valid gadget address. This should not happen ! ");
