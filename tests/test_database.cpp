@@ -37,6 +37,7 @@ namespace test{
             db.add(make_tuple(1,4456), g2);
             nb += _assert(db.get(make_tuple(1,4456))[0] == g2, "BaseDB, failed to add then get gadget");
 
+            delete g1; delete g2;
             return nb; 
         }
         

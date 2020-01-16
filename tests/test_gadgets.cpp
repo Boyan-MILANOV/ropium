@@ -19,13 +19,13 @@ namespace test{
             }
             return 1; 
         }
-        
+
         unsigned int basic(){
             unsigned int nb = 0;
             Arch* arch = new ArchX86();
-            
+
             ropgadget_to_file("/tmp/gadgets.ropg", "/usr/bin/nmap");
-            
+
             vector<RawGadget>* raw = raw_gadgets_from_file("/tmp/gadgets.ropg");
 
             delete raw;

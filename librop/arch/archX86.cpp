@@ -4248,9 +4248,10 @@ inline void x86_ret_d(CPUMode mode, cs_insn* instr, addr_t addr, IRBlock* block,
     /* If source operand adjust sp */
     if( instr->detail->x86.op_count != 0 ){
         op0 = x86_arg_translate(mode, addr, &(instr->detail->x86.operands[0]), block, bblkid, tmp_var_count, true);
-        block->add_instr(bblkid, ir_add(sp, sp, op0, addr));
+        // Set sp adjustment size according to sp size and add it to sp
+        block->add_instr(bblkid, ir_add(sp, sp, x86_arg_extract(op0, sp.size-1, 0), addr));
     }
-    
+
     block->add_instr(bblkid, ir_jcc(ir_cst(1, pc.size-1, 0), tmp0, ir_none(), addr));
     
     return;

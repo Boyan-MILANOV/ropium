@@ -1,4 +1,5 @@
 #include "python_bindings.hpp"
+#include <cstdio>
 
 /* -------------------------------------
  *          ROPium object
@@ -7,10 +8,38 @@
 static void ROPium_dealloc(PyObject* self){
     delete ((ROPium_Object*)self)->compiler;  ((ROPium_Object*)self)->compiler = nullptr;
     delete ((ROPium_Object*)self)->arch;  ((ROPium_Object*)self)->arch = nullptr;
+    delete ((ROPium_Object*)self)->gadget_db;  ((ROPium_Object*)self)->gadget_db = nullptr;
     Py_TYPE(self)->tp_free((PyObject *)self);
 };
 
+static PyObject* ROPium_load(PyObject* self, PyObject* args){
+    const char* filename;
+    int filename_len;
+    string gadget_file = string(".raw_gadgets.ropium");
+    vector<RawGadget>* raw = nullptr;
+
+    if( ! PyArg_ParseTuple(args, "s#", &filename, &filename_len) ){
+        return NULL;
+    }
+
+    try{
+        // Try to load binary and get gadgets using ROPgadget for now
+        if( ! ropgadget_to_file(gadget_file, filename)){
+            return PyErr_Format(PyExc_RuntimeError, "Couldn't analyse binary with ROPgadget");
+        }
+        raw = raw_gadgets_from_file(gadget_file);
+        as_ropium_object(self).gadget_db->analyse_raw_gadgets(*raw, as_ropium_object(self).arch); // DEBUG 
+        delete raw; raw = nullptr; 
+        remove(gadget_file.c_str());
+    }catch(runtime_exception& e){
+        return PyErr_Format(PyExc_RuntimeError, "%s", e.what());
+    }
+
+    Py_RETURN_NONE;
+};
+
 static PyMethodDef ROPium_methods[] = {
+    {"load", (PyCFunction)ROPium_load, METH_VARARGS, "Load and analyse gadgets from a binary"},
     {NULL, NULL, 0, NULL}
 };
 
@@ -81,12 +110,14 @@ PyObject* ropium_ROPium(PyObject* self, PyObject* args){
         if( object != nullptr ){
             // Set architecture
             switch ( (ArchType)arch){
-                case ArchType::X86: object->arch = new ArchX86(); break;
-                case ArchType::X64: object->arch = new ArchX64(); break;
+                case ArchType::X86: as_ropium_object(object).arch = new ArchX86(); break;
+                case ArchType::X64: as_ropium_object(object).arch = new ArchX64(); break;
                 default: return PyErr_Format(PyExc_ValueError, "This architecture isn't supported yet");
             }
+            // Set gadget db
+            as_ropium_object(object).gadget_db = new GadgetDB();
             // Set compiler
-            object->compiler = new ROPCompiler(object->arch, &(object->gadget_db));
+            as_ropium_object(object).compiler = new ROPCompiler(object->arch, (object->gadget_db));
         }
     }catch(runtime_exception& e){
         return PyErr_Format(PyExc_RuntimeError, "%s", e.what());

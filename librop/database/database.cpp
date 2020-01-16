@@ -124,7 +124,7 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
                     throw runtime_exception("disassembler returned null block");
                 }
             }catch(std::exception& e){
-                std::cout << "DEBUG COULDN'T LIFT GADGET: " << e.what() << std::endl;
+                // std::cout << "DEBUG COULDN'T LIFT GADGET: " << e.what() << std::endl;
                     delete gadget; continue;
             }
             
@@ -134,8 +134,7 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
                     throw symbolic_exception("symbolic engine returned null semantics");
                 }
             }catch(symbolic_exception& e){
-                std::cout << "DEBUG ERROR WHILE EXECUTING GADGET: " << 
-                             irblock->name << " --> " << e.what() << std::endl;
+                //std::cout << "DEBUG ERROR WHILE EXECUTING GADGET: " << irblock->name << " --> " << e.what() << std::endl;
                     delete gadget; continue;
                     delete irblock; irblock = nullptr;
             }
@@ -154,7 +153,7 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
 
             // Get sp increment
             if( !irblock->known_max_sp_inc ){
-                std::cout << "DEBUG ERROR UNKNOWN MAX SP INC " << std::endl; // Might clobber our ropchain
+                // std::cout << "DEBUG ERROR UNKNOWN MAX SP INC " << irblock->name << std::endl; // Might clobber our ropchain
                 delete gadget; continue;
             }else{
                 gadget->max_sp_inc = irblock->max_sp_inc;
@@ -163,7 +162,7 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
             e = semantics->regs->get(arch->sp());
             if( e->is_binop(Op::ADD) && e->args[0]->is_cst() && e->args[1]->is_reg(arch->sp())){
                 if( e->args[0]->cst() % arch->octets != 0 ){
-                    std::cout << "DEBUG ERROR got SP INC Not multiple of arch size: " << irblock->name << std::endl;
+                    // std::cout << "DEBUG ERROR got SP INC Not multiple of arch size: " << irblock->name << std::endl;
                     delete gadget; continue;
                 }
                 gadget->sp_inc = e->args[0]->cst();
@@ -191,11 +190,11 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
                           arch->reg_num(e->args[0]->args[1]->name()) == arch->sp()){
                     gadget->branch_type = BranchType::RET;
                 }else{
-                    std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE: " << irblock->name << std::endl;
+                    // std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE: " << irblock->name << std::endl;
                     delete gadget; continue;
                 }
             }else{
-                std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE: " << irblock->name << std::endl;
+                // std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE: " << irblock->name << std::endl;
                 delete gadget; continue;
             }
 
@@ -210,7 +209,7 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
                     gadget->modified_regs[r] = true;
                 }
             }
-            
+
             // Delete irblock (we don't need it anymore, only semantics)
             delete irblock; irblock = nullptr;
 

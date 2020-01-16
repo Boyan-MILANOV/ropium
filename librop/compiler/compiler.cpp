@@ -20,22 +20,26 @@ void CompilerTask::add_strategy(StrategyGraph* graph){
 ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, Constraint* constraint, int nb_tries){
     int n = 0;
     StrategyGraph* graph;
-    while( n++ < nb_tries && !pending_strategies.empty()){
+    ROPChain* res = nullptr;
+    while( n++ < nb_tries && !pending_strategies.empty() && !res){
         graph = pending_strategies.back();
         pending_strategies.pop_back();
-        if( graph->select_gadgets(*db, constraint, arch) )
-            return graph->get_ropchain(arch, constraint);
-        // Apply strategy rules to the graph to get new candidate strategies
-        apply_rules_to_graph(graph);
+        if( graph->select_gadgets(*db, constraint, arch) ){
+            res = graph->get_ropchain(arch, constraint);
+        }else{
+            // Apply strategy rules to the graph to get new candidate strategies
+            apply_rules_to_graph(graph);
+        }
         delete graph; graph = nullptr;
     }
-    return nullptr;
+    return res;
 }
 
 
 void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
     StrategyGraph* new_graph;
     vector<StrategyGraph*> new_list;
+
     // Iterate through all nodes of the graph
     for( Node& node : graph->nodes ){
         if( node.is_disabled() || node.is_indirect() )
@@ -43,16 +47,22 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
         // Apply strategy rules
         // Generic transitivity
         new_graph = graph->copy();
-        if( new_graph->rule_generic_transitivity(node.id))
+        if( new_graph->rule_generic_transitivity(node.id)){
             add_strategy(new_graph);
+            new_graph = graph->copy();
+        }
         // MovCst pop
-        new_graph = graph->copy();
-        if( new_graph->rule_mov_cst_pop(node.id, arch))
+        if( new_graph->rule_mov_cst_pop(node.id, arch)){
             add_strategy(new_graph);
+            new_graph = graph->copy();
+        }
         // Generic adjust_jmp
-        new_graph = graph->copy();
-        if( new_graph->rule_generic_adjust_jmp(node.id, arch))
+        if( new_graph->rule_generic_adjust_jmp(node.id, arch)){
             add_strategy(new_graph);
+            // Put new_graph = graph->copy() when adding more strategies
+        }else{
+            delete new_graph; new_graph = nullptr;
+        }
     }
 }
 

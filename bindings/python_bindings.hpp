@@ -27,7 +27,7 @@ void init_arch(PyObject* module);
 typedef struct{
     PyObject_HEAD
     Arch* arch;
-    GadgetDB gadget_db;
+    GadgetDB* gadget_db;
     ROPCompiler* compiler;
 } ROPium_Object;
 PyObject* get_ROPium_Type();

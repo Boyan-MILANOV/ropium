@@ -169,7 +169,7 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
             if( iroperation_is_assignment(instr->op)){
                 /* Build rvalue */
                 switch( instr->op ){
-                    case IROperation::ADD: 
+                    case IROperation::ADD:
                         rvalue = src1 + src2;
                         break;
                     case IROperation::SUB:
