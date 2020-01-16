@@ -116,7 +116,6 @@ void Constraint::clear(){
 }
 
 bool Constraint::check(Gadget* gadget, Arch* arch, Assertion* assertion){
-    std::cout << "DEBUG CONSTRAINT CHECKING " << gadget->asm_str << std::endl;
     return  bad_bytes.check(gadget, arch->octets) &&
             keep_regs.check(gadget) &&
             mem_safety.check(gadget, arch->nb_regs, assertion);

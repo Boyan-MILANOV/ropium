@@ -29,6 +29,7 @@ typedef struct{
     Arch* arch;
     GadgetDB* gadget_db;
     ROPCompiler* compiler;
+    Constraint* constraint;
 } ROPium_Object;
 PyObject* get_ROPium_Type();
 PyObject* ropium_ROPium(PyObject* self, PyObject* args);

@@ -63,7 +63,7 @@ public:
     string msg;
     
     ROPItem(addr_t a, Gadget* g, string m=""):type(ROPItemType::GADGET), addr(a), value(-1), gadget(g), msg(m){};
-    ROPItem(ROPItemType t, cst_t v, string m=""):type(t), value(v), msg(m){};
+    ROPItem(ROPItemType t, cst_t v, string m=""):type(t), value(v), msg(m), addr(0), gadget(nullptr){};
 };
 
 class ROPChain{

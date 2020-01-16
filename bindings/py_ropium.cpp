@@ -9,6 +9,7 @@ static void ROPium_dealloc(PyObject* self){
     delete ((ROPium_Object*)self)->compiler;  ((ROPium_Object*)self)->compiler = nullptr;
     delete ((ROPium_Object*)self)->arch;  ((ROPium_Object*)self)->arch = nullptr;
     delete ((ROPium_Object*)self)->gadget_db;  ((ROPium_Object*)self)->gadget_db = nullptr;
+    delete ((ROPium_Object*)self)->constraint;  ((ROPium_Object*)self)->constraint = nullptr;
     Py_TYPE(self)->tp_free((PyObject *)self);
 };
 
@@ -50,7 +51,7 @@ static PyObject* ROPium_compile(PyObject* self, PyObject* args){
     try{
         // TODO Set proper constraint
         // TODO Return proper ropchain
-        ropchain = as_ropium_object(self).compiler->compile( string(query, query_len), nullptr); 
+        ropchain = as_ropium_object(self).compiler->compile( string(query, query_len), as_ropium_object(self).constraint); 
         if( ropchain ){
             std::cout << "Found:" <<  std::endl << *ropchain << std::endl;
         }else{
@@ -136,6 +137,8 @@ PyObject* ropium_ROPium(PyObject* self, PyObject* args){
         PyType_Ready(&ROPium_Type);
         object = PyObject_New(ROPium_Object, &ROPium_Type);
         if( object != nullptr ){
+            // Set constraint
+            object->constraint = new Constraint();
             // Set architecture
             switch ( (ArchType)arch){
                 case ArchType::X86: as_ropium_object(object).arch = new ArchX86(); break;
