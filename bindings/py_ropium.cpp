@@ -95,7 +95,8 @@ static int ROPium_set_bad_bytes(PyObject* self, PyObject* list, void* closure){
     Py_ssize_t size;
 
     if( ! PyList_Check(list)){
-        
+        PyErr_SetString(PyExc_RuntimeError, "Expected a list of integers");
+        return -1;
     }
 
     size = PyList_Size(list);
@@ -121,8 +122,33 @@ static int ROPium_set_bad_bytes(PyObject* self, PyObject* list, void* closure){
     return 0;
 }
 
+static PyObject* ROPium_get_safe_mem(PyObject* self, void* closure){
+    
+    if( as_ropium_object(self).constraint->mem_safety.is_enforced())
+        Py_RETURN_TRUE;
+    else
+        Py_RETURN_FALSE;
+}
+
+static int ROPium_set_safe_mem(PyObject* self, PyObject* val, void* closure){
+
+    if( ! PyBool_Check(val)){
+        PyErr_SetString(PyExc_RuntimeError, "Excepted a boolean value");
+        return -1;
+    }
+    
+    if( val == Py_True ){
+        as_ropium_object(self).constraint->mem_safety.force_safe();
+    }else{
+        as_ropium_object(self).constraint->mem_safety.enable_unsafe();
+    }
+
+    return 0;
+}
+
 static PyGetSetDef ROPium_getset[] = {
     {"bad_bytes", ROPium_get_bad_bytes, ROPium_set_bad_bytes, "Bad bytes that must not occur in the ropchains", NULL},
+    {"safe_mem", ROPium_get_safe_mem, ROPium_set_safe_mem, "Indicates whether ropchains can contain gadgets that perform potentially unsafe register dereferencing", NULL},
     {NULL}
 };
 

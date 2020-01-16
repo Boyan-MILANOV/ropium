@@ -93,6 +93,10 @@ void MemSafety::add_safe_reg(int reg_num){
     _safe_reg_pointers[reg_num] = true;
 }
 
+bool MemSafety::is_enforced(){
+    return _force_safe;
+}
+
 void MemSafety::clear(){
     _force_safe = true;
     memset(_safe_reg_pointers, false, sizeof(_safe_reg_pointers));

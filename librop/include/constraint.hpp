@@ -34,6 +34,7 @@ public:
     MemSafety();
     void force_safe();
     void enable_unsafe();
+    bool is_enforced();
     void add_safe_reg(int reg_num);
     void clear();
     bool check(Gadget* gadget, int arch_nb_regs, Assertion* assertion=nullptr);
