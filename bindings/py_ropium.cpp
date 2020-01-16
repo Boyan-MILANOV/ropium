@@ -38,8 +38,36 @@ static PyObject* ROPium_load(PyObject* self, PyObject* args){
     Py_RETURN_NONE;
 };
 
+static PyObject* ROPium_compile(PyObject* self, PyObject* args){
+    const char* query;
+    int query_len;
+    ROPChain* ropchain;
+
+    if( ! PyArg_ParseTuple(args, "s#", &query, &query_len) ){
+        return NULL;
+    }
+
+    try{
+        // TODO Set proper constraint
+        // TODO Return proper ropchain
+        ropchain = as_ropium_object(self).compiler->compile( string(query, query_len), nullptr); 
+        if( ropchain ){
+            std::cout << "Found:" <<  std::endl << *ropchain << std::endl;
+        }else{
+            std::cout << "No ropchain found" << std::endl; 
+        }
+    }catch(il_exception& e){
+        return PyErr_Format(PyExc_ValueError, "%s", e.what());
+    }catch(runtime_exception& e){
+        return PyErr_Format(PyExc_RuntimeError, "%s", e.what());
+    }
+
+    Py_RETURN_NONE;
+};
+
 static PyMethodDef ROPium_methods[] = {
     {"load", (PyCFunction)ROPium_load, METH_VARARGS, "Load and analyse gadgets from a binary"},
+    {"compile", (PyCFunction)ROPium_compile, METH_VARARGS, "Compile a semantic query into a ropchain"},
     {NULL, NULL, 0, NULL}
 };
 
