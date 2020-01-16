@@ -2,8 +2,9 @@ CC = gcc
 CXX = g++
 
 OUTDIR = ./bin
-LIB_FILE = libropgenerator.so
-BINDINGS_FILE = ropgenerator.so
+LIB_FILE = libropium.so
+LIB_HEADER_FILE = ropium.hpp
+BINDINGS_FILE = ropium.so
 
 ## Basic default flags 
 CFLAGS ?=
@@ -37,11 +38,12 @@ else
 	BINDINGS_RULE = 
 endif
 
+SRCDIR=./libropium
+
 ## Final C++ flags
-CXXFLAGS += -std=c++11 -fpermissive -fPIC -I librop/include -I librop/dependencies/murmur3 -Wno-write-strings -Wno-sign-compare -Wno-reorder
+CXXFLAGS += -std=c++11 -fpermissive -fPIC -I $(SRCDIR)/include -I $(SRCDIR)/dependencies/murmur3 -Wno-write-strings -Wno-sign-compare -Wno-reorder
 
 # Source files
-SRCDIR=./librop
 SRCS=$(wildcard $(SRCDIR)/symbolic/*.cpp)
 SRCS+=$(wildcard $(SRCDIR)/ir/*.cpp)
 SRCS+=$(wildcard $(SRCDIR)/arch/*.cpp)
@@ -55,18 +57,18 @@ TESTDIR = ./tests
 TESTSRCS = $(wildcard $(TESTDIR)/*.cpp)
 TESTOBJS = $(TESTSRCS:.cpp=.o)
 
-DEPDIR = ./librop/dependencies
+DEPDIR = $(SRCDIR)/dependencies
 DEPSRCS = $(DEPDIR)/murmur3/murmur3.c 
 DEPOBJS = $(DEPSRCS:.c=.o)
 
-INCLUDEDIR = ./librop/include
+INCLUDEDIR = $(SRCDIR)/include
 
 # Compile lib and tests 
 all: lib tests $(BINDINGS_RULE)
 
 # librop
 lib: $(OBJS) $(DEPOBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(OUTDIR)/libropgenerator.so -shared $(OBJS) $(DEPOBJS) $(LDLIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(OUTDIR)/$(LIB_FILE) -shared $(OBJS) $(DEPOBJS) $(LDLIBS)
 
 # unit tests
 tests: $(TESTOBJS) $(OBJS) $(DEPOBJS)
@@ -74,7 +76,7 @@ tests: $(TESTOBJS) $(OBJS) $(DEPOBJS)
 
 # bindings
 bindings: $(BINDINGS_OBJS) $(OBJS) $(DEPOBJS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(OUTDIR)/ropium.so -shared $(BINDINGS_OBJS) $(OBJS) $(DEPOBJS) $(LDLIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o $(OUTDIR)/$(BINDINGS_FILE) -shared $(BINDINGS_OBJS) $(OBJS) $(DEPOBJS) $(LDLIBS)
 
 # generic
 %.o : %.cpp
@@ -89,32 +91,37 @@ ifeq ($(PREFIX),)
     PREFIX = /usr
 endif
 
+INSTALL_MESSAGE_RULE=
 # Check if lib and binding files exist
-ifneq (,$(wildcard ./bin/libropium.so))
+ifneq (,$(wildcard ./bin/$(LIB_FILE)))
     INSTALL_LIB_RULE=install_lib
+	INSTALL_MESSAGE_RULE=print_install_message
 else
 	INSTALL_LIB_RULE=
 endif
-ifneq (,$(wildcard ./bin/ropium.so)) 
+ifneq (,$(wildcard ./bin/$(BINDINGS_FILE))) 
     INSTALL_BINDINGS_RULE=install_bindings
     PYTHONDIR=$(shell python3 -m site --user-site)/
+	INSTALL_MESSAGE_RULE=print_install_message
 else
 	INSTALL_BINDINGS_RULE=
 endif
 
 # make install command
-install: $(INSTALL_BINDINGS_RULE)
-	@echo "ROPium was successfully installed."
+install: $(INSTALL_LIB_RULE) $(INSTALL_BINDINGS_RULE) $(INSTALL_MESSAGE_RULE)
 
 install_lib:
 	install -d $(DESTDIR)$(PREFIX)/lib/
-	install -D $(OUTDIR)/libropium.so $(DESTDIR)$(PREFIX)/lib/
+	install -D $(OUTDIR)/$(LIB_FILE) $(DESTDIR)$(PREFIX)/lib/
 	install -d $(DESTDIR)$(PREFIX)/include/
-	install -D $(INCLUDEDIR)/ropium.hpp $(DESTDIR)$(PREFIX)/include/
+	install -D $(INCLUDEDIR)/$(LIB_HEADER_FILE) $(DESTDIR)$(PREFIX)/include/
 
 install_bindings:
 	install -d $(PYTHONDIR)
-	install -D $(OUTDIR)/ropium.so $(PYTHONDIR)
+	install -D $(OUTDIR)/$(BINDINGS_FILE) $(PYTHONDIR)
+
+print_install_message:
+	@echo "\nROPium was successfully installed."
 
 # make test command
 test:
