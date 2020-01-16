@@ -71,6 +71,14 @@ void KeepRegs::clear(){
     _keep.clear();
 }
 
+vector<int>& KeepRegs::regs_to_keep(){
+    return _keep;
+}
+
+bool KeepRegs::is_kept(int reg_num){
+    return (std::find(_keep.begin(), _keep.end(), reg_num) != _keep.end());
+}
+
 bool KeepRegs::check(Gadget* gadget){
     for( int reg : _keep ){
         if( gadget->modified_regs[reg])

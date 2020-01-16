@@ -146,8 +146,68 @@ static int ROPium_set_safe_mem(PyObject* self, PyObject* val, void* closure){
     return 0;
 }
 
+static PyObject* ROPium_get_keep_regs(PyObject* self, void* closure){
+    PyObject* list;
+    
+    list = PyList_New(0);
+    if( list == NULL ){
+        return PyErr_Format(PyExc_RuntimeError, "%s", "Failed to create new python list");
+    }
+    // Add bad bytes to list
+    for (int i = 0; i < as_ropium_object(self).arch->nb_regs; i++){
+        if( as_ropium_object(self).constraint->keep_regs.is_kept(i) ){
+            if( PyList_Append(list, PyUnicode_FromString( as_ropium_object(self).arch->reg_name(i).c_str())) == -1){
+                return PyErr_Format(PyExc_RuntimeError, "%s", "Failed to add register name to python list");
+            }
+        }
+    }
+    return list;
+}
+
+static int ROPium_set_keep_regs(PyObject* self, PyObject* list, void* closure){
+    PyObject *item;
+    Py_ssize_t size;
+    string name;
+    int reg_num;
+
+    if( ! PyList_Check(list)){
+        PyErr_SetString(PyExc_RuntimeError, "Expected a list of str");
+        return -1;
+    }
+
+    size = PyList_Size(list);
+    
+    // Clear previous regs
+    as_ropium_object(self).constraint->keep_regs.clear();
+
+    // Add new regs
+    for( int i = 0; i < size; i++){
+        item = PyList_GetItem(list, i);
+        if( item == NULL ){
+            PyErr_SetString(PyExc_RuntimeError, "Error getting item in supplied list");
+            return -1;
+        }
+        if( ! PyUnicode_Check(item) ){
+            PyErr_SetString(PyExc_ValueError, "Registers must be specified as strings: 'eax', 'ebx', ...");
+            return -1;
+        }
+        name = string((char*)PyUnicode_DATA(item));
+        try{
+            reg_num = as_ropium_object(self).arch->reg_num(name);
+        }catch(runtime_exception& e){
+            PyErr_Format(PyExc_ValueError, "Invalid register: %s", name.c_str());
+            return -1;
+        }
+        // Add keep reg
+        as_ropium_object(self).constraint->keep_regs.add_keep_reg(reg_num);
+    }
+
+    return 0;
+}
+
 static PyGetSetDef ROPium_getset[] = {
     {"bad_bytes", ROPium_get_bad_bytes, ROPium_set_bad_bytes, "Bad bytes that must not occur in the ropchains", NULL},
+    {"keep_regs", ROPium_get_keep_regs, ROPium_set_keep_regs, "Registers that should not be clobbered by the ropchains", NULL},
     {"safe_mem", ROPium_get_safe_mem, ROPium_set_safe_mem, "Indicates whether ropchains can contain gadgets that perform potentially unsafe register dereferencing", NULL},
     {NULL}
 };

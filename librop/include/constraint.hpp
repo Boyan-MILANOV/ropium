@@ -23,6 +23,8 @@ class KeepRegs{
     vector<int> _keep;
 public:
     void add_keep_reg(int reg_num);
+    vector<int>& regs_to_keep();
+    bool is_kept(int reg_num);
     void clear();
     bool check(Gadget* gadget);
 };
