@@ -234,6 +234,15 @@ typedef struct {
     Param value;
 } ROPPadding;
 
+class RegDataLink {
+public:
+    param_t src_param;
+    node_t dst_node;
+    param_t dst_param;
+    RegDataLink( param_t srcp, node_t dstn, param_t dstp): src_param(srcp),
+        dst_node(dstn), dst_param(dstp){};
+};
+
 
 class Node;
 
@@ -273,6 +282,7 @@ public:
     GadgetType type;
     EdgeSet strategy_edges;
     EdgeSet param_edges;
+    EdgeSet interference_edges;
     // Dynamic
     Param params[MAX_PARAMS];
     Gadget* affected_gadget;
@@ -280,13 +290,13 @@ public:
     vector<constraint_callback_t> strategy_constraints;
     vector<constraint_callback_t> assigned_gadget_constraints;
     BranchType branch_type;
-
     // Gadget paddings
     vector<ROPPadding> special_paddings;
-
     // Assertions
     NodeAssertion node_assertion;
     Assertion assertion;
+    // Data links 
+    vector<RegDataLink> reg_data_links;
 
     Node(int i, GadgetType t);
     int nb_params();
@@ -300,9 +310,17 @@ public:
     int get_param_num_dst_reg();
     void assign_gadget(Gadget* gadget, Arch* arch=nullptr, Constraint* constraint=nullptr);
     void apply_assertion();
+    bool modifies_reg(int reg_num);
 };
 ostream& operator<<(ostream& os, Node& node);
 
+class InterferencePoint {
+public:
+    node_t interfering_node;
+    node_t start_node;
+    node_t end_node;
+    InterferencePoint(node_t i, node_t s, node_t e):interfering_node(i), start_node(s), end_node(e){};
+};
 
 /* Strategy graph */
 class StrategyGraph{
@@ -310,20 +328,24 @@ private:
     UniqueNameGenerator name_generator;
     void _dfs_strategy_explore(vector<node_t>& marked, node_t n);
     void _dfs_params_explore(vector<node_t>& marked, node_t n);
+    bool _dfs_scheduling_explore(vector<node_t>& marked, node_t n);
     void _resolve_param(Param& param);
     void _resolve_all_params(node_t n);
     const vector<Gadget*>& _get_matching_gadgets(GadgetDB& db, node_t node);
     PossibleGadgets* _get_possible_gadgets(GadgetDB& db, node_t n);
     bool _check_strategy_constraints(Node& node);
     bool _check_assigned_gadget_constraints(Node& node);
+    bool _do_scheduling(int interference_idx=0);
     
     bool has_gadget_selection;
     VarContext params_ctx;
     int _depth;
+    vector<InterferencePoint> interference_points;
 public:
     vector<Node> nodes;
     vector<node_t> dfs_strategy;
     vector<node_t> dfs_params;
+    vector<node_t> dfs_scheduling;
 
     StrategyGraph();
     // Create new nodes/edges
@@ -336,20 +358,25 @@ public:
     void redirect_outgoing_strategy_edges(node_t curr_node, node_t new_node);
     void add_strategy_edge(node_t from, node_t to);
     void add_param_edge(node_t from, node_t to);
+    void add_interference_edge(node_t from, node_t to);
+    void clear_interference_edges(node_t n);
     // Strategy rules
-    bool rule_mov_cst_transitivity(node_t n);
     bool rule_mov_cst_pop(node_t n, Arch* arch);
-    bool rule_mov_reg_transitivity(node_t n);
     bool rule_generic_transitivity(node_t n);
     bool rule_generic_adjust_jmp(node_t n, Arch* arch);
     // Ordering
     void compute_dfs_strategy();
     void compute_dfs_params();
+    bool compute_dfs_scheduling();
 
     // Gadget selection
     bool select_gadgets(GadgetDB& db, Constraint* constraint=nullptr, Arch* arch=nullptr, node_t dfs_idx=-1);
     ROPChain* get_ropchain(Arch* arch, Constraint* constraint=nullptr);
-    
+
+    // Scheduling
+    void compute_interference_points();
+    bool schedule_gadgets();
+
     // Copy
     StrategyGraph* copy();
 };

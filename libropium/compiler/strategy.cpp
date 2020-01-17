@@ -143,6 +143,20 @@ int Node::get_param_num_dst_reg(){
     }
 }
 
+bool Node::modifies_reg(int reg_num){
+    switch( type ){
+        case GadgetType::MOV_REG:
+        case GadgetType::AMOV_REG:
+        case GadgetType::MOV_CST:
+        case GadgetType::AMOV_CST:
+        case GadgetType::LOAD:
+        case GadgetType::ALOAD:
+            return params[get_param_num_dst_reg()].value == reg_num;
+        default:
+            return false;
+    }
+}
+
 addr_t _get_valid_gadget_address(Gadget* gadget, Arch* arch, Constraint* constraint){
     for( addr_t addr : gadget->addresses){
         if( !constraint || constraint->bad_bytes.is_valid_address(addr, arch->octets))
@@ -212,6 +226,13 @@ void StrategyGraph::redirect_incoming_param_edges(node_t curr_node, param_t curr
             // Add new incoming edge to new node
             newn.param_edges.in.push_back(prev.id);
         }
+        // Redirect data links
+        for( RegDataLink& link : prev.reg_data_links ){
+            if( link.dst_node == curr_node && link.dst_param == curr_param_type ){
+                link.dst_node = new_node;
+                link.dst_param = new_param_type;
+            }
+        }
     }
 }
 
@@ -251,6 +272,12 @@ void StrategyGraph::redirect_outgoing_param_edges(node_t curr_node, param_t curr
         // And replace it
         next.param_edges.in.push_back(new_node);
     }
+    // Add data links in new node if any have to be redirected
+    for( RegDataLink& link : curr.reg_data_links ){
+        if( link.src_param == curr_param_type ){
+            newn.reg_data_links.push_back(RegDataLink(new_param_type, link.dst_node, link.dst_param));
+        }
+    }
 }
 
 void StrategyGraph::redirect_outgoing_strategy_edges(node_t curr_node, node_t new_node){
@@ -282,109 +309,21 @@ void StrategyGraph::add_param_edge(node_t from, node_t to){
     nodes[to].param_edges.in.push_back(from);
 }
 
+void StrategyGraph::add_interference_edge(node_t from, node_t to){
+    nodes[from].interference_edges.out.push_back(to);
+    // We don't add an incoming edge in 'to' for interference edges
+    // because they are not used
+}
+void StrategyGraph::clear_interference_edges(node_t n){
+    nodes[n].interference_edges.out.clear();
+}
+
 /* =============== Strategy Rules ============== */
 
-/* MovReg dst_reg, src_reg
+
+/* MovXXX dst_reg, src_xxx
  * =======================
- * MovReg R1, src_reg
- * MovReg dst_reg, R1 
- * ======================= */
-bool StrategyGraph::rule_mov_reg_transitivity(node_t n){
-    
-    if( nodes[n].type != GadgetType::MOV_REG ){
-        return false;
-    }
-    
-    // Get/Create nodes
-    node_t n1 = new_node(GadgetType::MOV_REG);
-    node_t n2 = new_node(GadgetType::MOV_REG);
-    Node& node = nodes[n];
-    Node& node1 = nodes[n1];
-    Node& node2 = nodes[n2];
-
-    // Modify parameters
-    node1.params[PARAM_MOVREG_SRC_REG] = node.params[PARAM_MOVREG_SRC_REG];
-    node1.params[PARAM_MOVREG_DST_REG].make_reg(node2.id, PARAM_MOVREG_SRC_REG); // node1 dst is R1, depends on R1 in node2
-    node2.params[PARAM_MOVREG_SRC_REG].make_reg(0, false); // node2 src is R1
-    node2.params[PARAM_MOVREG_DST_REG] = node.params[PARAM_MOVREG_DST_REG];
-    
-    // Node1 must end with a ret
-    node1.branch_type = BranchType::RET;
-    
-    // Add new edges
-    add_strategy_edge(node1.id, node2.id);
-    add_param_edge(node1.id, node2.id);
-
-    // Redirect the different params and edges
-    // Any arc incoming to node:src_reg goes to node1:src_reg
-    redirect_incoming_param_edges(node.id, PARAM_MOVREG_SRC_REG, node1.id, PARAM_MOVREG_SRC_REG);
-
-    // Any arc outgoing from node:dst_reg now goes out from node2:dst_reg
-    redirect_outgoing_param_edges(node.id, PARAM_MOVREG_DST_REG, node2.id, PARAM_MOVREG_DST_REG);
-    
-    // Redirect strategy edges
-    redirect_incoming_strategy_edges(node.id, node1.id);
-    redirect_outgoing_strategy_edges(node.id, node2.id);
-    
-    // Disable node
-    disable_node(node.id);
-    
-    return true;
-}
-
-
-/* MovCst dst_reg, src_cst
- * =======================
- * MovReg R1, src_cst
- * MovReg dst_reg, R1 
- * ======================= */
-bool StrategyGraph::rule_mov_cst_transitivity(node_t n){
-    
-    if( nodes[n].type != GadgetType::MOV_CST ){
-        return false;
-    }
-    
-    // Get/Create nodes
-    node_t n1 = new_node(GadgetType::MOV_CST);
-    node_t n2 = new_node(GadgetType::MOV_REG);
-    Node& node = nodes[n];
-    Node& node1 = nodes[n1];
-    Node& node2 = nodes[n2];
-
-    // Modify parameters
-    node1.params[PARAM_MOVCST_SRC_CST] = node.params[PARAM_MOVCST_SRC_CST];
-    node1.params[PARAM_MOVCST_SRC_CST].name = new_name("cst"); // copy the constant but change the name 
-    node1.params[PARAM_MOVCST_DST_REG].make_reg(node2.id, PARAM_MOVREG_SRC_REG); // node1 dst is R1, depends on R1 in node2
-    node2.params[PARAM_MOVREG_SRC_REG].make_reg(0, false); // node2 src is R1
-    node2.params[PARAM_MOVREG_DST_REG] = node.params[PARAM_MOVREG_DST_REG];
-    
-    // Node1 must end with a ret
-    node1.branch_type = BranchType::RET;
-    
-    // Add new edges
-    add_strategy_edge(node1.id, node2.id);
-    add_param_edge(node1.id, node2.id);
-
-    // Redirect the different params and edges
-    // Any arc incoming to node:src_cst goes to node1:src_cst
-    redirect_incoming_param_edges(node.id, PARAM_MOVCST_SRC_CST, node1.id, PARAM_MOVCST_SRC_CST);
-
-    // Any arc outgoing from node:dst_reg now goes out from node2:dst_reg
-    redirect_outgoing_param_edges(node.id, PARAM_MOVCST_DST_REG, node2.id, PARAM_MOVCST_DST_REG);
-    
-    // Redirect strategy edges
-    redirect_incoming_strategy_edges(node.id, node1.id);
-    redirect_outgoing_strategy_edges(node.id, node2.id);
-    
-    // Disable node
-    disable_node(node.id);
-    
-    return true;
-}
-
-/* MovCst dst_reg, src_cst
- * =======================
- * MovReg R1, src_cst
+ * MovReg R1, src_xxx
  * MovReg dst_reg, R1 
  * ======================= */
 bool StrategyGraph::rule_generic_transitivity(node_t n){
@@ -417,6 +356,9 @@ bool StrategyGraph::rule_generic_transitivity(node_t n){
     node2.params[PARAM_MOVREG_SRC_REG].make_reg(-1, false); // free reg
     node2.params[PARAM_MOVREG_DST_REG] = node.params[node.get_param_num_dst_reg()]; // Same dst reg as initial query in node
     
+    // Add data link between node 1 and 2 for the transitive reg
+    node1.reg_data_links.push_back(RegDataLink(node1.get_param_num_dst_reg(), node2.id, PARAM_MOVREG_SRC_REG));
+
     // Node1 must end with a ret
     node1.branch_type = BranchType::RET;
     // Node2 same as node
@@ -525,7 +467,7 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
     // Change return type to JMP in node
     node.branch_type = BranchType::JMP;
     
-    // Set the 'adjust gadget' node. It must make the PC that the next value one the
+    // Set the 'adjust gadget' node. It must adjust the PC that the next value on the
     // stack after the 'jmp' gadget is executed
     node_ret.params[PARAM_LOAD_DST_REG].make_reg(arch->pc()); // Dest reg is PC
     node_ret.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(arch->sp()); // addr reg is SP (pop from the stack)
@@ -540,6 +482,9 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
     node1.params[PARAM_MOVCST_SRC_CST].make_cst(node_ret.id, node_ret.get_param_num_gadget_addr(), nullptr, new_name("adjust_jmp_addr"));
     add_param_edge(node1.id, node.id);
     add_param_edge(node1.id, node_ret.id);
+    // Add data link between node1 and node (the jmp reg must NOT be clobbered after it was set to 
+    // point to the adjust gadget
+    node1.reg_data_links.push_back(RegDataLink(PARAM_MOVCST_DST_REG,  node.id, node.get_param_num_gadget_jmp_reg()));
 
     // Redirect strategy edges
     redirect_incoming_strategy_edges(node.id, node1.id);
@@ -581,10 +526,9 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
             }
         }
     );
-    
+
     return true;
 }
-
 
 /* ===============  Ordering ============== */
 void StrategyGraph::_dfs_strategy_explore(vector<node_t>& marked, node_t n){
@@ -642,6 +586,43 @@ void StrategyGraph::compute_dfs_params(){
         else
             _dfs_params_explore(marked, node.id);
     }
+}
+
+// Returns false <=> the graph contains a cycle
+bool StrategyGraph::_dfs_scheduling_explore(vector<node_t>& marked, node_t n){
+    if( nodes[n].is_disabled() || nodes[n].is_indirect() || std::count(dfs_scheduling.begin(), dfs_scheduling.end(), n))
+        return true; // Ignore disabled or indirect nodes or already visited ones
+    if( std::count(marked.begin(), marked.end(), n) != 0 ){
+        // Cycle detected !
+        return false;
+    }else{
+        marked.push_back(n);
+    }
+    for( node_t n2 : nodes[n].strategy_edges.out ){
+        if( ! _dfs_scheduling_explore(marked, n2))
+            return false;
+    }
+    for( node_t n2 : nodes[n].interference_edges.out){
+        if( ! _dfs_scheduling_explore(marked, n2))
+            return false;
+    }
+    dfs_scheduling.push_back(n);
+    return true;
+}
+
+bool StrategyGraph::compute_dfs_scheduling(){
+    vector<node_t> marked;
+    dfs_scheduling.clear();
+    for( Node& node : nodes ){
+        if( node.is_disabled() || node.is_indirect() || 
+                (std::count(marked.begin(), marked.end(), node.id) != 0)){
+            continue;
+        }else{
+            if( ! _dfs_scheduling_explore(marked, node.id) )
+                return false; // Cycle detected
+        }
+    }
+    return true;
 }
 
 /* =============== Gadget Selection ============== */
@@ -854,8 +835,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
     }
     
     if( dfs_idx >= dfs_params.size()){
-        // DEBUG TODO 4. If last node, try to schedule gadgets :)
-        return true;
+        return schedule_gadgets();
     }
     
     node_t n = dfs_params[dfs_idx];
@@ -941,6 +921,74 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
     return false;
 }
 
+/* ==================== Scheduling ======================= */
+void StrategyGraph::compute_interference_points(){
+    cst_t link_value;
+    // Clear previous points if any
+    interference_points.clear();
+    
+    // 1. Compute interfering points for regs 
+    for( Node& node : nodes ){
+        if( node.is_disabled() || node.is_indirect() )
+            continue;
+        for( RegDataLink& link : node.reg_data_links ){
+            link_value = node.params[link.src_param].value;
+            // Check if this link is modified by another node
+            for( Node& other : nodes ){
+                if( other.is_disabled() || other.is_indirect() )
+                    continue;
+                // Add interfering point
+                if( other.id != link.dst_node && other.id != node.id && other.modifies_reg(link_value) ){
+                    interference_points.push_back(InterferencePoint(other.id, node.id, link.dst_node));
+                }
+            }
+        }
+    }
+}
+
+
+bool StrategyGraph::_do_scheduling(int interference_idx){
+    bool success = false;
+    if( interference_idx == interference_points.size() ){
+        // All choices where made for interference edges, try to schedule
+        return compute_dfs_scheduling();
+    }else{
+        // Need to make a choice
+        InterferencePoint& inter = interference_points[interference_idx];
+        // Choice 1, put it BEFORE
+        add_interference_edge(inter.interfering_node, inter.start_node);
+        add_interference_edge(inter.interfering_node, inter.end_node);
+        if( _do_scheduling(interference_idx+1) ){
+            success = true;
+        }
+        clear_interference_edges(inter.interfering_node);
+        if( success )
+            return true;
+        // Choice 2, put if AFTER
+        add_interference_edge(inter.start_node, inter.interfering_node);
+        add_interference_edge( inter.end_node, inter.interfering_node);
+        if( _do_scheduling( interference_idx+1 ) ){
+            success = true;
+        }
+        clear_interference_edges(inter.interfering_node);
+        return success;
+    }
+}
+
+bool StrategyGraph::schedule_gadgets(){
+    bool success = false;
+    // Compute inteference points
+    compute_interference_points();
+    // Go through all interference points and try both possibilities
+    // (interfering gadget goes BEFORE or AFTER both linked nodes)
+    success = _do_scheduling();
+    // Clean-up
+    interference_points.clear();
+    // Return
+    return success;
+}
+
+
 /* Function that builds a ROPChain from a valid gadget selection
    ==> If no valid selection has been computed for the graph, it 
        returns a NULL pointer
@@ -960,7 +1008,7 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch, Constraint* constraint){
     default_padding = constraint ? constraint->bad_bytes.get_valid_padding(arch->octets) : cst_sign_trunc(arch->bits, -1);
 
     ROPChain* ropchain = new ROPChain(arch);
-    for( rit = dfs_strategy.rbegin(); rit != dfs_strategy.rend(); rit++ ){
+    for( rit = dfs_scheduling.rbegin(); rit != dfs_scheduling.rend(); rit++ ){
         // Add gadget
         ropchain->add_gadget(nodes[*rit].params[nodes[*rit].get_param_num_gadget_addr()].value, nodes[*rit].affected_gadget);
         // Add padding after gadget

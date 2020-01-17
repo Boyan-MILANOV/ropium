@@ -47,7 +47,7 @@ namespace test{
             sgraph.add_param_edge(n1, n2);
             //std::cout << sgraph;
             
-            sgraph.rule_mov_reg_transitivity(n1);
+            sgraph.rule_generic_transitivity(n1);
             sgraph.compute_dfs_params();
             sgraph.compute_dfs_strategy();
             //std::cout << sgraph;
