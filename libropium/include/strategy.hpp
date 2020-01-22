@@ -35,8 +35,9 @@ public:
     node_t dep_node;
     Expr expr; // For constants only
     bool is_fixed;
+    bool is_data_link; 
 
-    Param():type(ParamType::NONE), name(""), value(-1), dep_param_type(-1), dep_node(-1), expr(nullptr), is_fixed(true){};
+    Param():type(ParamType::NONE), name(""), value(-1), dep_param_type(-1), dep_node(-1), expr(nullptr), is_fixed(true), is_data_link(false){};
     
     // Fixed or free register
     void make_reg(int reg, bool fixed=true){
@@ -234,16 +235,6 @@ typedef struct {
     Param value;
 } ROPPadding;
 
-class RegDataLink {
-public:
-    param_t src_param;
-    node_t dst_node;
-    param_t dst_param;
-    RegDataLink( param_t srcp, node_t dstn, param_t dstp): src_param(srcp),
-        dst_node(dstn), dst_param(dstp){};
-};
-
-
 class Node;
 
 class NodeValidPointers{
@@ -295,8 +286,6 @@ public:
     // Assertions
     NodeAssertion node_assertion;
     Assertion assertion;
-    // Data links 
-    vector<RegDataLink> reg_data_links;
 
     Node(int i, GadgetType t);
     int nb_params();

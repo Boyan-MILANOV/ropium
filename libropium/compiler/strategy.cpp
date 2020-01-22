@@ -265,13 +265,6 @@ void StrategyGraph::redirect_incoming_param_edges(node_t curr_node, param_t curr
             // Add new incoming edge to new node
             newn.add_incoming_param_edge(prev.id);
         }
-        // Redirect data links
-        for( RegDataLink& link : prev.reg_data_links ){
-            if( link.dst_node == curr_node && link.dst_param == curr_param_type ){
-                link.dst_node = new_node;
-                link.dst_param = new_param_type;
-            }
-        }
     }
 }
 
@@ -308,12 +301,6 @@ void StrategyGraph::redirect_outgoing_param_edges(node_t curr_node, param_t curr
         next.remove_incoming_param_edge(curr_node);
         // And replace it
         next.add_incoming_param_edge(new_node);
-    }
-    // Add data links in new node if any have to be redirected
-    for( RegDataLink& link : curr.reg_data_links ){
-        if( link.src_param == curr_param_type ){
-            newn.reg_data_links.push_back(RegDataLink(new_param_type, link.dst_node, link.dst_param));
-        }
     }
 }
 
@@ -394,7 +381,7 @@ bool StrategyGraph::rule_generic_transitivity(node_t n){
     node2.params[PARAM_MOVREG_DST_REG] = node.params[node.get_param_num_dst_reg()]; // Same dst reg as initial query in node
     
     // Add data link between node 1 and 2 for the transitive reg
-    node1.reg_data_links.push_back(RegDataLink(node1.get_param_num_dst_reg(), node2.id, PARAM_MOVREG_SRC_REG));
+    node1.params[node1.get_param_num_dst_reg()].is_data_link = true;
 
     // Node1 must end with a ret
     node1.branch_type = BranchType::RET;
@@ -521,7 +508,7 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
     add_param_edge(node1.id, node_ret.id);
     // Add data link between node1 and node (the jmp reg must NOT be clobbered after it was set to 
     // point to the adjust gadget
-    node1.reg_data_links.push_back(RegDataLink(PARAM_MOVCST_DST_REG,  node.id, node.get_param_num_gadget_jmp_reg()));
+    node1.params[PARAM_MOVCST_DST_REG].is_data_link = true;
 
     // Redirect strategy edges
     redirect_incoming_strategy_edges(node.id, node1.id);
@@ -965,6 +952,7 @@ void StrategyGraph::compute_interference_points(){
     interference_points.clear();
     
     // 1. Compute interfering points for regs 
+    /* DEBUG
     for( Node& node : nodes ){
         if( node.is_disabled() || node.is_indirect() )
             continue;
@@ -981,6 +969,7 @@ void StrategyGraph::compute_interference_points(){
             }
         }
     }
+    * */
 }
 
 
