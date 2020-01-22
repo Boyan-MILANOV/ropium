@@ -135,6 +135,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node_t n = graph->new_node(GadgetType::MOV_CST);
         Node& node = graph->nodes[n];
         node.params[PARAM_MOVCST_DST_REG].make_reg(instr.args[PARAM_MOVCST_DST_REG]);
+        node.params[PARAM_MOVCST_DST_REG].is_data_link = true;
         node.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_MOVCST_SRC_CST], graph->new_name("cst"));
         graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::MOV_REG ){
@@ -143,6 +144,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node_t n = graph->new_node(GadgetType::MOV_REG);
         Node& node = graph->nodes[n];
         node.params[PARAM_MOVREG_DST_REG].make_reg(instr.args[PARAM_MOVREG_DST_REG]);
+        node.params[PARAM_MOVREG_DST_REG].is_data_link = true;
         node.params[PARAM_MOVREG_SRC_REG].make_reg(instr.args[PARAM_MOVREG_SRC_REG]);
         graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::AMOV_CST){
@@ -151,6 +153,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node_t n = graph->new_node(GadgetType::AMOV_CST);
         Node& node = graph->nodes[n];
         node.params[PARAM_AMOVCST_DST_REG].make_reg(instr.args[PARAM_AMOVCST_DST_REG]);
+        node.params[PARAM_AMOVCST_DST_REG].is_data_link = true;
         node.params[PARAM_AMOVCST_SRC_REG].make_reg(instr.args[PARAM_AMOVCST_SRC_REG]);
         node.params[PARAM_AMOVCST_SRC_OP].make_op((Op)instr.args[PARAM_AMOVCST_SRC_OP]);
         node.params[PARAM_AMOVCST_SRC_CST].make_cst(instr.args[PARAM_AMOVCST_SRC_CST], graph->new_name("cst"));
@@ -161,6 +164,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node_t n = graph->new_node(GadgetType::AMOV_REG);
         Node& node = graph->nodes[n];
         node.params[PARAM_AMOVREG_DST_REG].make_reg(instr.args[PARAM_AMOVREG_DST_REG]);
+        node.params[PARAM_AMOVREG_DST_REG].is_data_link = true;
         node.params[PARAM_AMOVREG_SRC_REG1].make_reg(instr.args[PARAM_AMOVREG_SRC_REG1]);
         node.params[PARAM_AMOVREG_SRC_OP].make_op((Op)instr.args[PARAM_AMOVREG_SRC_OP]);
         node.params[PARAM_AMOVREG_SRC_REG2].make_reg(instr.args[PARAM_AMOVREG_SRC_REG2]);
@@ -171,6 +175,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node_t n = graph->new_node(GadgetType::LOAD);
         Node& node = graph->nodes[n];
         node.params[PARAM_LOAD_DST_REG].make_reg(instr.args[PARAM_LOAD_DST_REG]);
+        node.params[PARAM_LOAD_DST_REG].is_data_link = true;
         node.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(instr.args[PARAM_LOAD_SRC_ADDR_REG]);
         node.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(instr.args[PARAM_LOAD_SRC_ADDR_OFFSET], graph->new_name("offset"));
         node.node_assertion.valid_pointers.add_valid_pointer(PARAM_LOAD_SRC_ADDR_REG);
@@ -181,6 +186,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node_t n = graph->new_node(GadgetType::ALOAD);
         Node& node = graph->nodes[n];
         node.params[PARAM_ALOAD_DST_REG].make_reg(instr.args[PARAM_LOAD_DST_REG]);
+        node.params[PARAM_ALOAD_DST_REG].is_data_link = true;
         node.params[PARAM_ALOAD_OP].make_op((Op)instr.args[PARAM_ALOAD_OP]);
         node.params[PARAM_ALOAD_SRC_ADDR_REG].make_reg(instr.args[PARAM_ALOAD_SRC_ADDR_REG]);
         node.params[PARAM_ALOAD_SRC_ADDR_OFFSET].make_cst(instr.args[PARAM_ALOAD_SRC_ADDR_OFFSET], graph->new_name("offset"));
@@ -193,9 +199,11 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node_t n2 = graph->new_node(GadgetType::MOV_CST);
         Node& node1 = graph->nodes[n1];
         Node& node2 = graph->nodes[n2];
+        node2.branch_type = BranchType::RET;
         // First node is reg <- mem(X + C)
         // Second is X <- src_cst - C 
         node1.params[PARAM_LOAD_DST_REG].make_reg(instr.args[PARAM_LOADCST_DST_REG]);
+        node1.params[PARAM_LOAD_DST_REG].is_data_link = true;
         node1.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(-1, false); // Free
         node1.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
         node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_LOAD_SRC_ADDR_REG);
@@ -216,9 +224,11 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node_t n2 = graph->new_node(GadgetType::MOV_CST);
         Node& node1 = graph->nodes[n1];
         Node& node2 = graph->nodes[n2];
+        node2.branch_type = BranchType::RET;
         // First node is reg Op<- mem(X + C)
         // Second is X <- src_cst - C 
         node1.params[PARAM_ALOAD_DST_REG].make_reg(instr.args[PARAM_ALOADCST_DST_REG]);
+        node1.params[PARAM_ALOAD_DST_REG].is_data_link = true;
         node1.params[PARAM_ALOAD_OP].make_op((Op)instr.args[PARAM_ALOADCST_OP]);
         node1.params[PARAM_ALOAD_SRC_ADDR_REG].make_reg(-1, false); // Free
         node1.params[PARAM_ALOAD_SRC_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
@@ -250,6 +260,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node_t n2 = graph->new_node(GadgetType::MOV_CST);
         Node& node1 = graph->nodes[n1];
         Node& node2 = graph->nodes[n2];
+        node2.branch_type = BranchType::RET;
         // First node is mem(X + C) <- reg
         // Second is X <- src_cst - C 
         node1.params[PARAM_STORE_SRC_REG].make_reg(instr.args[PARAM_CSTSTORE_SRC_REG]);
@@ -293,8 +304,9 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node_t n2 = graph->new_node(GadgetType::MOV_CST);
         Node& node1 = graph->nodes[n1];
         Node& node2 = graph->nodes[n2];
+        node2.branch_type = BranchType::RET;
         // First node is mem(X + C) op<- reg
-        // Second is X <- src_cst - C 
+        // Second is X <- src_cst - C
         node1.params[PARAM_ASTORE_SRC_REG].make_reg(instr.args[PARAM_CSTASTORE_SRC_REG]);
         node1.params[PARAM_ASTORE_OP].make_op((Op)instr.args[PARAM_CSTASTORE_OP]);
         node1.params[PARAM_ASTORE_DST_ADDR_REG].make_reg(-1, false); // Free
@@ -307,15 +319,15 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
             }
         );
         node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_ASTORE_DST_ADDR_REG);
-        
+
         node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_ASTORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
         node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_ASTORE_DST_ADDR_OFFSET, 
             instr.args[PARAM_CSTASTORE_DST_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_ASTORE_DST_ADDR_OFFSET].name)
             , graph->new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
-        
+
         graph->add_param_edge(n2, n1);
         graph->add_strategy_edge(n2, n1);
-        
+
         graphs.push_back(graph);
     }else{
         throw runtime_exception("add_il_instruction_to_strategy(): unsupported ILInstructionType");

@@ -36,9 +36,14 @@ bool constraint_branch_type(Node* node, StrategyGraph* graph){
 }
 
 Node::Node(int i, GadgetType t):id(i), type(t), depth(-1), branch_type(BranchType::ANY), indirect(false){
+    mandatory_following_node = -1;
     // Add constraints that must always be verified
     assigned_gadget_constraints.push_back(constraint_branch_type); // Matching branch type
 };
+
+bool Node::has_mandatory_following_node(){
+    return mandatory_following_node != -1;
+}
 
 int Node::nb_params(){
     switch( type ){
@@ -425,6 +430,9 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     node_t n1 = new_node(GadgetType::LOAD);
     Node& node = nodes[n];
     Node& node1 = nodes[n1];
+    
+    // Node1 must have same return type than node
+    node1.branch_type = node.branch_type;
 
     // Modify parameters
     node1.params[PARAM_LOAD_DST_REG] = node.params[PARAM_MOVCST_DST_REG];
@@ -490,7 +498,11 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
         
     // Change return type to JMP in node
     node.branch_type = BranchType::JMP;
-    
+    // Node MUST be followed by the indirect gadget ;)
+    node.mandatory_following_node = node_ret.id;
+    // Node1 (set the jmp reg) MUST be a RET one
+    node1.branch_type = BranchType::RET;
+
     // Set the 'adjust gadget' node. It must adjust the PC that the next value on the
     // stack after the 'jmp' gadget is executed
     node_ret.params[PARAM_LOAD_DST_REG].make_reg(arch->pc()); // Dest reg is PC
@@ -1043,7 +1055,12 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch, Constraint* constraint){
             padding_num = 0;
         }
 
-        for( int offset = 0; offset < nodes[*rit].affected_gadget->sp_inc - arch->octets; offset += arch->octets){
+        int nb_paddings = nodes[*rit].affected_gadget->sp_inc / arch->octets;
+        if( nodes[*rit].affected_gadget->branch_type == BranchType::RET ){
+            nb_paddings--;
+        }
+
+        for( int offset = 0; offset < nb_paddings*arch->octets; offset += arch->octets){
             // If special padding
             if( padding_num != -1 && padding.offset.value == offset ){
                 ropchain->add_padding(cst_sign_trunc(arch->bits, padding.value.value));

@@ -286,10 +286,13 @@ public:
     // Assertions
     NodeAssertion node_assertion;
     Assertion assertion;
+    // Mandatory Following node
+    node_t mandatory_following_node;
 
     Node(int i, GadgetType t);
     int nb_params();
     bool has_free_param();
+    bool has_mandatory_following_node();
     bool is_disabled();
     bool is_indirect();
     void add_incoming_strategy_edge(node_t src_node);
