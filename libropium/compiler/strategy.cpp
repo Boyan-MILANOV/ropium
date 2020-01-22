@@ -962,8 +962,8 @@ void StrategyGraph::compute_interference_points(){
     cst_t link_value;
     // Clear previous points if any
     interference_points.clear();
-    
-    // 1. Compute interfering points for regs 
+
+    // 1. Compute interfering points for regs
     /* DEBUG
     for( Node& node : nodes ){
         if( node.is_disabled() || node.is_indirect() )
