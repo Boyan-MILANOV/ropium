@@ -279,8 +279,8 @@ public:
     bool indirect; // Means that the node must have a gadget assigned
                    // but the gaget is not added explicitely in the ROPChain
                    // (it is used for adjust_reg strategy for example)
-    GadgetType type;
-    EdgeSet strategy_edges;
+    GadgetType type; // Type of gadget for this node
+    EdgeSet strategy_edges; 
     EdgeSet param_edges;
     EdgeSet interference_edges;
     // Dynamic
@@ -303,6 +303,16 @@ public:
     bool has_free_param();
     bool is_disabled();
     bool is_indirect();
+    void add_incoming_strategy_edge(node_t src_node);
+    void add_incoming_param_edge(node_t src_node);
+    void add_outgoing_strategy_edge(node_t dst_node);
+    void add_outgoing_param_edge(node_t dst_node);
+    
+    void remove_incoming_strategy_edge(node_t src_node);
+    void remove_incoming_param_edge(node_t src_node);
+    void remove_outgoing_strategy_edge(node_t dst_node);
+    void remove_outgoing_param_edge(node_t dst_node);
+
     int get_param_num_gadget_sp_inc();
     int get_param_num_gadget_addr();
     int get_param_num_gadget_jmp_reg();

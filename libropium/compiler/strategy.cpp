@@ -70,6 +70,45 @@ bool Node::is_indirect(){
     return indirect;
 }
 
+void Node::add_incoming_strategy_edge(node_t src_node){
+    if( std::find(strategy_edges.in.begin(), strategy_edges.in.end(), src_node) == strategy_edges.in.end()){
+        strategy_edges.in.push_back(src_node);
+    }
+}
+
+void Node::add_incoming_param_edge(node_t src_node){
+    if( std::find(param_edges.in.begin(), param_edges.in.end(), src_node) == param_edges.in.end()){
+        param_edges.in.push_back(src_node);
+    }
+}
+void Node::add_outgoing_strategy_edge(node_t dst_node){
+    if( std::find(strategy_edges.out.begin(), strategy_edges.out.end(), dst_node) == strategy_edges.out.end()){
+        strategy_edges.out.push_back(dst_node);
+    }
+}
+
+void Node::add_outgoing_param_edge(node_t dst_node){
+    if( std::find(param_edges.out.begin(), param_edges.out.end(), dst_node) == param_edges.out.end()){
+        param_edges.out.push_back(dst_node);
+    }
+}
+
+void Node::remove_incoming_strategy_edge(node_t src_node){
+    strategy_edges.in.erase(std::remove(strategy_edges.in.begin(), strategy_edges.in.end(), src_node), strategy_edges.in.end());
+}
+
+void Node::remove_incoming_param_edge(node_t src_node){
+     param_edges.in.erase(std::remove(param_edges.in.begin(), param_edges.in.end(), src_node), param_edges.in.end());
+}
+
+void Node::remove_outgoing_strategy_edge(node_t dst_node){
+     strategy_edges.out.erase(std::remove(strategy_edges.out.begin(), strategy_edges.out.end(), dst_node), strategy_edges.out.end());
+}
+
+void Node::remove_outgoing_param_edge(node_t dst_node){
+     param_edges.out.erase(std::remove(param_edges.out.begin(), param_edges.out.end(), dst_node), param_edges.out.end());
+}
+            
 int Node::get_param_num_gadget_sp_inc(){
     switch( type ){
         case GadgetType::MOV_REG: return PARAM_MOVREG_GADGET_SP_INC;
@@ -220,11 +259,11 @@ void StrategyGraph::redirect_incoming_param_edges(node_t curr_node, param_t curr
         }
         if( changed ){
             // Remove previous outgoing edge
-            prev.param_edges.out.erase(std::remove(prev.param_edges.out.begin(), prev.param_edges.out.end(), curr_node), prev.param_edges.out.end());
+            prev.remove_outgoing_param_edge(curr_node);
             // Add new outgoing edge
-            prev.param_edges.out.push_back(new_node);
+            prev.add_outgoing_param_edge(new_node);
             // Add new incoming edge to new node
-            newn.param_edges.in.push_back(prev.id);
+            newn.add_incoming_param_edge(prev.id);
         }
         // Redirect data links
         for( RegDataLink& link : prev.reg_data_links ){
@@ -247,9 +286,9 @@ void StrategyGraph::redirect_incoming_strategy_edges(node_t curr_node, node_t ne
             prev.strategy_edges.out.erase(std::remove(prev.strategy_edges.out.begin(), prev.strategy_edges.out.end(), curr_node), prev.strategy_edges.out.end());
             if( new_node != prev.id ){ // If new node depends on curr_node, don't redirect it to itself
                 // Add new outgoing to new_node
-                prev.strategy_edges.out.push_back(new_node);
+                prev.add_outgoing_strategy_edge(new_node);
                 // Add new incoming in new_node
-                newn.strategy_edges.in.push_back(prev.id);
+                newn.add_incoming_strategy_edge(prev.id);
             }
         }
     }
@@ -263,14 +302,12 @@ void StrategyGraph::redirect_outgoing_param_edges(node_t curr_node, param_t curr
     Param& param = curr.params[curr_param_type];
     if( param.is_dependent() ){
         // Add outgoing edge in new node
-        if( std::count(newn.param_edges.out.begin(), newn.param_edges.out.end(), param.dep_node) == 0 ){
-            newn.param_edges.out.push_back(param.dep_node);
-        }
+        newn.add_outgoing_param_edge(param.dep_node);
         // Remove incoming edge from curr in next node
         Node& next = nodes[param.dep_node];
-        next.param_edges.in.erase(std::remove(next.param_edges.in.begin(),next.param_edges.in.end(), curr_node), next.param_edges.in.end());
+        next.remove_incoming_param_edge(curr_node);
         // And replace it
-        next.param_edges.in.push_back(new_node);
+        next.add_incoming_param_edge(new_node);
     }
     // Add data links in new node if any have to be redirected
     for( RegDataLink& link : curr.reg_data_links ){
@@ -291,22 +328,22 @@ void StrategyGraph::redirect_outgoing_strategy_edges(node_t curr_node, node_t ne
             next.strategy_edges.in.erase(std::remove(next.strategy_edges.in.begin(), next.strategy_edges.in.end(), curr_node), next.strategy_edges.in.end());
             if( new_node != next.id ){ // If new node depends on curr_node, don't redirect it to itself
                 // Add new incoming from new_node
-                next.strategy_edges.in.push_back(new_node);
+                next.add_incoming_strategy_edge(new_node);
                 // Add new outgoing in new_node
-                newn.strategy_edges.out.push_back(next.id);
+                newn.add_outgoing_strategy_edge(next.id);
             }
         }
     }
 }
 
 void StrategyGraph::add_strategy_edge(node_t from, node_t to){
-    nodes[from].strategy_edges.out.push_back(to);
-    nodes[to].strategy_edges.in.push_back(from);
+    nodes[from].add_outgoing_strategy_edge(to);
+    nodes[to].add_incoming_strategy_edge(from);
 }
 
 void StrategyGraph::add_param_edge(node_t from, node_t to){
-    nodes[from].param_edges.out.push_back(to);
-    nodes[to].param_edges.in.push_back(from);
+    nodes[from].add_outgoing_param_edge(to);
+    nodes[to].add_incoming_param_edge(from);
 }
 
 void StrategyGraph::add_interference_edge(node_t from, node_t to){
@@ -978,7 +1015,7 @@ bool StrategyGraph::_do_scheduling(int interference_idx){
 bool StrategyGraph::schedule_gadgets(){
     bool success = false;
     // Compute inteference points
-    compute_interference_points();
+    // DEBUG compute_interference_points();
     // Go through all interference points and try both possibilities
     // (interfering gadget goes BEFORE or AFTER both linked nodes)
     success = _do_scheduling();
