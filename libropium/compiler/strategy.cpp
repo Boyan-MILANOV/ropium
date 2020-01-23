@@ -86,7 +86,6 @@ bool Node::has_dst_reg_param(){
 
 bool Node::is_src_param(param_t param){
         switch( type ){
-        // make query
         case GadgetType::MOV_REG:
             return param == PARAM_MOVREG_SRC_REG;
         case GadgetType::MOV_CST:
@@ -107,6 +106,13 @@ bool Node::is_src_param(param_t param){
         default:
             throw runtime_exception(QuickFmt() << "Node::is_src_param(): got unsupported node type " << (int)type >> QuickFmt::to_str);
     }
+}
+
+bool Node::is_generic_param(param_t param){
+    return param == get_param_num_gadget_addr() || 
+           param == get_param_num_gadget_jmp_reg() || 
+           param == get_param_num_gadget_sp_delta() || 
+           param == get_param_num_gadget_sp_inc();
 }
 
 bool Node::is_disabled(){
@@ -363,6 +369,44 @@ void StrategyGraph::redirect_outgoing_strategy_edges(node_t curr_node, node_t ne
                 // Add new outgoing in new_node
                 newn.add_outgoing_strategy_edge(next.id);
             }
+        }
+    }
+}
+
+void StrategyGraph::redirect_generic_param_edges(node_t curr_node, node_t new_node){
+    Node& curr = nodes[curr_node];
+    Node& newn = nodes[new_node];
+    bool changed = false;
+    // INCOMING EDGES
+    for( node_t p : curr.param_edges.in ){
+        Node& prev = nodes[p];
+        // Redirect parameters
+        for( int p = 0; p < prev.nb_params(); p++ ){
+            Param& param = prev.params[p];
+            if( param.is_dependent() && param.dep_node == curr_node && curr.is_generic_param(param.dep_param_type) ){
+                // Change param dep node and type
+                param.dep_node = new_node;
+                changed = true;
+                if( param.dep_param_type == curr.get_param_num_gadget_addr()){
+                    param.dep_param_type = newn.get_param_num_gadget_addr();
+                }else if( param.dep_param_type == curr.get_param_num_gadget_jmp_reg()){
+                    param.dep_param_type = newn.get_param_num_gadget_jmp_reg();
+                }else if( param.dep_param_type == curr.get_param_num_gadget_sp_delta()){
+                    param.dep_param_type = newn.get_param_num_gadget_sp_delta();
+                }else if( param.dep_param_type == curr.get_param_num_gadget_sp_inc()){
+                    param.dep_param_type = newn.get_param_num_gadget_sp_inc();
+                }else{
+                    throw runtime_exception("redirect_generic_param_edges(): got unsuported generic param");
+                }
+            }
+        }
+        if( changed ){
+            // Remove previous outgoing edge
+            prev.remove_outgoing_param_edge(curr_node);
+            // Add new outgoing edge
+            prev.add_outgoing_param_edge(new_node);
+            // Add new incoming edge to new node
+            newn.add_incoming_param_edge(prev.id);
         }
     }
 }

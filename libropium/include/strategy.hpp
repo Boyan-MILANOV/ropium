@@ -308,6 +308,7 @@ public:
     bool is_initial_param(param_t param);
     bool is_final_param(param_t param);
     bool is_src_param(param_t param);
+    bool is_generic_param(param_t param);
 
     int get_param_num_gadget_sp_inc();
     int get_param_num_gadget_addr();
@@ -366,6 +367,7 @@ public:
     void redirect_incoming_strategy_edges(node_t curr_node, node_t new_node);
     void redirect_outgoing_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type);
     void redirect_outgoing_strategy_edges(node_t curr_node, node_t new_node);
+    void redirect_generic_param_edges(node_t curr_node, node_t new_node);
     void add_strategy_edge(node_t from, node_t to);
     void add_param_edge(node_t from, node_t to);
     void add_interference_edge(node_t from, node_t to);
