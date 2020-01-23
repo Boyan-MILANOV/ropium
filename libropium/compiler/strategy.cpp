@@ -913,6 +913,17 @@ bool StrategyGraph::_check_strategy_constraints(Node& node){
     return true;
 }
 
+// Must be checked after parameter resolution (padding resolution more precisely)
+bool StrategyGraph::_check_special_padding_constraints(Node& node, Arch* arch, Constraint* constraint){
+    if( !constraint )
+        return true;
+    for( ROPPadding& padd: node.special_paddings ){
+        if( !constraint->bad_bytes.is_valid_address(padd.value.value, arch->octets))
+            return false;
+    }
+    return true;
+}
+
 // Must be checked after gadget assignment
 bool StrategyGraph::_check_assigned_gadget_constraints(Node& node){
     for( constraint_callback_t constr : node.assigned_gadget_constraints ){
@@ -980,7 +991,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
             _resolve_all_params(node.id);
 
             // Check strategy constraints 
-            if( !_check_strategy_constraints(node)){
+            if( !_check_strategy_constraints(node) || !_check_special_padding_constraints(node, arch, constraint)){
                 continue;
             }
 
@@ -1016,6 +1027,11 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
             for( Gadget* gadget : gadgets ){
                 if( ! node.assign_gadget(gadget, arch, constraint))
                     continue;
+                
+                // Check if paddings have valid values (no bad bytes)
+                if( !_check_special_padding_constraints(node, arch, constraint))
+                    continue;
+
                 // Prepare assertion for current parameter choice
                 node.apply_assertion();
                 

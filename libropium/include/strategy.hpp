@@ -344,6 +344,7 @@ private:
     PossibleGadgets* _get_possible_gadgets(GadgetDB& db, node_t n);
     bool _check_strategy_constraints(Node& node);
     bool _check_assigned_gadget_constraints(Node& node);
+    bool _check_special_padding_constraints(Node& node, Arch* arch, Constraint* constraint=nullptr);
     bool _do_scheduling(int interference_idx=0);
     
     bool has_gadget_selection;
