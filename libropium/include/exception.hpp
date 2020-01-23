@@ -72,6 +72,13 @@ public:
     virtual const char * what () const throw () {return _msg.c_str();}
 };
 
+class strategy_exception: public std::exception {
+    string _msg;
+public:
+    explicit strategy_exception(string msg): _msg(msg){};
+    virtual const char * what () const throw () {return _msg.c_str();}
+};
+
 /* Symbolic Exception */
 class symbolic_exception: public std::exception {
     string _msg;

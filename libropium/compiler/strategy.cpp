@@ -238,17 +238,24 @@ addr_t _get_valid_gadget_address(Gadget* gadget, Arch* arch, Constraint* constra
         if( !constraint || constraint->bad_bytes.is_valid_address(addr, arch->octets))
             return addr;
     }
-    throw runtime_exception("Fatal error: couldn't get valid gadget address. This should not happen ! ");
+    throw strategy_exception("Fatal error: couldn't get valid gadget address. This should not happen ! ");
 }
 
-void Node::assign_gadget(Gadget* gadget, Arch* arch, Constraint* constraint){
-    addr_t addr = _get_valid_gadget_address(gadget, arch, constraint);
+bool Node::assign_gadget(Gadget* gadget, Arch* arch, Constraint* constraint){
+    addr_t addr;
+    try{
+        addr = _get_valid_gadget_address(gadget, arch, constraint);
+    }catch(strategy_exception& e){
+        return false;
+    }
+
     affected_gadget = gadget;
     // Set gadget parameters depending on type
     params[get_param_num_gadget_addr()].value = addr;
     params[get_param_num_gadget_sp_inc()].value = gadget->sp_inc;
     params[get_param_num_gadget_jmp_reg()].value = gadget->jmp_reg;
     params[get_param_num_gadget_sp_delta()].value = gadget->max_sp_inc - gadget->sp_inc;
+    return true;
 }
 
 void Node::apply_assertion(){
@@ -982,7 +989,8 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
 
             // 2.b Try all possible gadgets
             for( Gadget* gadget : *(pos.second) ){
-                node.assign_gadget(gadget, arch, constraint);
+                if( ! node.assign_gadget(gadget, arch, constraint))
+                    continue;
 
                 // Check assigned gadget constraints and global constraint
                 if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
@@ -1006,7 +1014,8 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
             
             // 2. Try all possible gadgets (or a subset)
             for( Gadget* gadget : gadgets ){
-                node.assign_gadget(gadget, arch, constraint);
+                if( ! node.assign_gadget(gadget, arch, constraint))
+                    continue;
                 // Prepare assertion for current parameter choice
                 node.apply_assertion();
                 

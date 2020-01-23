@@ -316,7 +316,7 @@ public:
     int get_param_num_dst_reg();
     bool has_dst_reg_param();
 
-    void assign_gadget(Gadget* gadget, Arch* arch=nullptr, Constraint* constraint=nullptr);
+    bool assign_gadget(Gadget* gadget, Arch* arch=nullptr, Constraint* constraint=nullptr);
     void apply_assertion();
     bool modifies_reg(int reg_num);
 };
