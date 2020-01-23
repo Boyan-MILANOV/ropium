@@ -67,6 +67,48 @@ bool Node::has_free_param(){
     return false;
 }
 
+bool Node::is_final_param(param_t param){
+    return strategy_edges.out.empty() && has_dst_reg_param() && (param == get_param_num_dst_reg());
+}
+
+bool Node::is_initial_param(param_t param){
+    return is_src_param(param);
+}
+
+bool Node::has_dst_reg_param(){
+    return  type == GadgetType::MOV_CST || 
+            type == GadgetType::MOV_REG ||
+            type == GadgetType::AMOV_CST ||
+            type == GadgetType::AMOV_REG ||   
+            type == GadgetType::LOAD ||
+            type == GadgetType::ALOAD; 
+}
+
+bool Node::is_src_param(param_t param){
+        switch( type ){
+        // make query
+        case GadgetType::MOV_REG:
+            return param == PARAM_MOVREG_SRC_REG;
+        case GadgetType::MOV_CST:
+            return false;
+        case GadgetType::AMOV_CST:
+            return param == PARAM_AMOVCST_SRC_REG;
+        case GadgetType::AMOV_REG:
+            return param == PARAM_AMOVREG_SRC_REG1 ||
+                   param == PARAM_AMOVREG_SRC_REG2;
+        case GadgetType::LOAD:
+            return param == PARAM_LOAD_SRC_ADDR_REG;
+        case GadgetType::ALOAD:
+            return param == PARAM_ALOAD_SRC_ADDR_REG;
+        case GadgetType::STORE:
+            return param == PARAM_STORE_SRC_REG;
+        case GadgetType::ASTORE:
+            return param == PARAM_ASTORE_SRC_REG;
+        default:
+            throw runtime_exception(QuickFmt() << "Node::is_src_param(): got unsupported node type " << (int)type >> QuickFmt::to_str);
+    }
+}
+
 bool Node::is_disabled(){
     return id == -1;
 }
@@ -188,17 +230,7 @@ int Node::get_param_num_dst_reg(){
 }
 
 bool Node::modifies_reg(int reg_num){
-    switch( type ){
-        case GadgetType::MOV_REG:
-        case GadgetType::AMOV_REG:
-        case GadgetType::MOV_CST:
-        case GadgetType::AMOV_CST:
-        case GadgetType::LOAD:
-        case GadgetType::ALOAD:
-            return params[get_param_num_dst_reg()].value == reg_num;
-        default:
-            return false;
-    }
+        return (affected_gadget->modified_regs[reg_num]);
 }
 
 addr_t _get_valid_gadget_address(Gadget* gadget, Arch* arch, Constraint* constraint){
@@ -345,6 +377,28 @@ void StrategyGraph::add_interference_edge(node_t from, node_t to){
 }
 void StrategyGraph::clear_interference_edges(node_t n){
     nodes[n].interference_edges.out.clear();
+}
+
+
+bool StrategyGraph::modifies_reg(node_t n, int reg_num, bool check_following_node){
+    bool res = nodes[n].modifies_reg(reg_num);
+    if( check_following_node && nodes[n].mandatory_following_node != -1)
+        return res || modifies_reg(nodes[n].mandatory_following_node, reg_num, true);
+    else
+        return res;
+}
+
+bool StrategyGraph::has_dependent_param(node_t n, param_t param){
+    for( node_t prev : nodes[n].param_edges.in ){
+        for( int p = 0; p < nodes[prev].nb_params(); p++ ){
+            if( nodes[prev].params[p].is_dependent() && 
+                nodes[prev].params[p].dep_node == n && 
+                nodes[prev].params[p].dep_param_type == param ){
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 /* =============== Strategy Rules ============== */
@@ -628,12 +682,14 @@ void StrategyGraph::compute_dfs_params(){
 bool StrategyGraph::_dfs_scheduling_explore(vector<node_t>& marked, node_t n){
     if( nodes[n].is_disabled() || nodes[n].is_indirect() || std::count(dfs_scheduling.begin(), dfs_scheduling.end(), n))
         return true; // Ignore disabled or indirect nodes or already visited ones
+
     if( std::count(marked.begin(), marked.end(), n) != 0 ){
         // Cycle detected !
         return false;
     }else{
         marked.push_back(n);
     }
+
     for( node_t n2 : nodes[n].strategy_edges.out ){
         if( ! _dfs_scheduling_explore(marked, n2))
             return false;
@@ -959,29 +1015,37 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
 
 /* ==================== Scheduling ======================= */
 void StrategyGraph::compute_interference_points(){
-    cst_t link_value;
     // Clear previous points if any
     interference_points.clear();
 
     // 1. Compute interfering points for regs
-    /* DEBUG
     for( Node& node : nodes ){
         if( node.is_disabled() || node.is_indirect() )
             continue;
-        for( RegDataLink& link : node.reg_data_links ){
-            link_value = node.params[link.src_param].value;
+        for( int p = 0; p < node.nb_params(); p++ ){
+            Param& param = node.params[p];
+            if( ! param.is_data_link )
+                continue;
             // Check if this link is modified by another node
             for( Node& other : nodes ){
-                if( other.is_disabled() || other.is_indirect() )
+                // If disabled, indirect, or one part of the data link, ignore
+                if( other.is_disabled() || other.is_indirect() || other.id == param.dep_node || other.id == node.id)
                     continue;
-                // Add interfering point
-                if( other.id != link.dst_node && other.id != node.id && other.modifies_reg(link_value) ){
-                    interference_points.push_back(InterferencePoint(other.id, node.id, link.dst_node));
+                if( modifies_reg(other.id, param.value, true)){ // True to check also mandatory_following_gadgets
+                    // Add interfering point
+                    if( node.is_initial_param(p) && !has_dependent_param(node.id, p)){
+                        // If the param is initial (input in the chain), other has to be after (can never be before)
+                        interference_points.push_back(InterferencePoint(other.id, -1, node.id));
+                    }else if( node.is_final_param(p)){
+                        // If the param is final (an output of the chain), other must be before
+                        interference_points.push_back(InterferencePoint(other.id, node.id, -1));
+                    }else{
+                        interference_points.push_back(InterferencePoint(other.id, node.id, param.dep_node));
+                    }
                 }
             }
         }
     }
-    * */
 }
 
 
@@ -994,21 +1058,39 @@ bool StrategyGraph::_do_scheduling(int interference_idx){
         // Need to make a choice
         InterferencePoint& inter = interference_points[interference_idx];
         // Choice 1, put it BEFORE
-        add_interference_edge(inter.interfering_node, inter.start_node);
-        add_interference_edge(inter.interfering_node, inter.end_node);
-        if( _do_scheduling(interference_idx+1) ){
-            success = true;
+        if( inter.start_node != -1 ){
+            EdgeSet saved_edges = nodes[inter.interfering_node].interference_edges; // Save current edges state
+            add_interference_edge(inter.interfering_node, inter.start_node);
+            if( inter.end_node != -1 ){
+                add_interference_edge(inter.interfering_node, inter.end_node);
+            }
+            if( _do_scheduling(interference_idx+1) ){
+                success = true;
+            }
+            nodes[inter.interfering_node].interference_edges = saved_edges; // Restore edges state
+            if( success )
+                return true;
         }
-        clear_interference_edges(inter.interfering_node);
-        if( success )
-            return true;
-        // Choice 2, put if AFTER
-        add_interference_edge(inter.start_node, inter.interfering_node);
-        add_interference_edge( inter.end_node, inter.interfering_node);
-        if( _do_scheduling( interference_idx+1 ) ){
-            success = true;
+
+        if( inter.end_node != -1 ){
+            EdgeSet saved_start_edges;
+            EdgeSet saved_end_edges = nodes[inter.end_node].interference_edges; // Save current edges state
+            // Choice 2, put if AFTER
+            if( inter.start_node != -1 ){
+                saved_start_edges = nodes[inter.start_node].interference_edges; // Save current edges state
+                add_interference_edge(inter.start_node, inter.interfering_node);
+            }
+            add_interference_edge( inter.end_node, inter.interfering_node);
+            if( _do_scheduling( interference_idx+1 ) ){
+                success = true;
+            }
+            
+            if( inter.start_node != -1 ){
+                nodes[inter.start_node].interference_edges = saved_start_edges; // Restore interference edges
+            }
+            nodes[inter.end_node].interference_edges = saved_end_edges; // Restore interference edges
         }
-        clear_interference_edges(inter.interfering_node);
+        
         return success;
     }
 }
@@ -1016,7 +1098,7 @@ bool StrategyGraph::_do_scheduling(int interference_idx){
 bool StrategyGraph::schedule_gadgets(){
     bool success = false;
     // Compute inteference points
-    // DEBUG compute_interference_points();
+    compute_interference_points();
     // Go through all interference points and try both possibilities
     // (interfering gadget goes BEFORE or AFTER both linked nodes)
     success = _do_scheduling();

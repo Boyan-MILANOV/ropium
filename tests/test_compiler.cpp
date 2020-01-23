@@ -80,10 +80,6 @@ namespace test{
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             ropchain = comp.compile(" ecx = -1");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" mem(0xffffffff) += esp  \t\t\n\t  ");
-            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" mem(-1) += esp  \t\t\n\t  ");
-            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
 
 
             return nb;
@@ -107,6 +103,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 5)); // pop edi; pop esi; pop ecx; ret
             raw.push_back(RawGadget(string("\x89\xE8\xFF\xE6", 4), 6)); // mov eax, ebp; jmp esi
             raw.push_back(RawGadget(string("\x89\xF1\xFF\xE0", 4), 7)); // mov ecx, esi; jmp eax
+            raw.push_back(RawGadget(string("\x5A\x59\xC3", 3), 8)); // pop edx; pop ecx; ret
 
             db.analyse_raw_gadgets(raw, &arch);
 

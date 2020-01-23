@@ -305,15 +305,22 @@ public:
     void remove_outgoing_strategy_edge(node_t dst_node);
     void remove_outgoing_param_edge(node_t dst_node);
 
+    bool is_initial_param(param_t param);
+    bool is_final_param(param_t param);
+    bool is_src_param(param_t param);
+
     int get_param_num_gadget_sp_inc();
     int get_param_num_gadget_addr();
     int get_param_num_gadget_jmp_reg();
     int get_param_num_gadget_sp_delta();
     int get_param_num_dst_reg();
+    bool has_dst_reg_param();
+
     void assign_gadget(Gadget* gadget, Arch* arch=nullptr, Constraint* constraint=nullptr);
     void apply_assertion();
     bool modifies_reg(int reg_num);
 };
+
 ostream& operator<<(ostream& os, Node& node);
 
 class InterferencePoint {
@@ -362,6 +369,7 @@ public:
     void add_param_edge(node_t from, node_t to);
     void add_interference_edge(node_t from, node_t to);
     void clear_interference_edges(node_t n);
+    bool modifies_reg(node_t n, int reg_num, bool check_following_node=false);
     // Strategy rules
     bool rule_mov_cst_pop(node_t n, Arch* arch);
     bool rule_generic_transitivity(node_t n);
@@ -378,6 +386,7 @@ public:
     // Scheduling
     void compute_interference_points();
     bool schedule_gadgets();
+    bool has_dependent_param(node_t node, param_t param);
 
     // Copy
     StrategyGraph* copy();
