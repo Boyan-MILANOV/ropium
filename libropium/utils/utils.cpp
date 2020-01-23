@@ -157,3 +157,21 @@ string value_to_hex_str(int octets, addr_t addr){
     snprintf(res, sizeof(res), format, addr);
     return "0x"+string(res);
 }
+
+void disable_colors(){
+    g_ERROR_COLOR_ANSI = "";
+    g_BOLD_COLOR_ANSI = "";
+    g_SPECIAL_COLOR_ANSI = "";
+    g_PAYLOAD_COLOR_ANSI = "";
+    g_EXPLOIT_DESCRIPTION_ANSI = "";
+    g_END_COLOR_ANSI = "";
+}
+
+void enable_colors(){
+    g_ERROR_COLOR_ANSI = DEFAULT_ERROR_COLOR_ANSI;
+    g_BOLD_COLOR_ANSI = DEFAULT_BOLD_COLOR_ANSI;
+    g_SPECIAL_COLOR_ANSI = DEFAULT_SPECIAL_COLOR_ANSI;
+    g_PAYLOAD_COLOR_ANSI = DEFAULT_PAYLOAD_COLOR_ANSI;
+    g_EXPLOIT_DESCRIPTION_ANSI = DEFAULT_EXPLOIT_DESCRIPTION_ANSI;
+    g_END_COLOR_ANSI = DEFAULT_END_COLOR_ANSI ;    
+}

@@ -78,6 +78,7 @@ public:
     int len();
     void print_pretty(ostream& os, string tab="");
     void print_python(ostream& os, string tab="");
+    void dump_raw(vector<uint8_t>& bytes);
 };
 
 ostream& operator<<(ostream& os, ROPChain& ropchain);

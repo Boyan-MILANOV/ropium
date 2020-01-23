@@ -49,12 +49,9 @@ static PyObject* ROPium_compile(PyObject* self, PyObject* args){
     }
 
     try{
-        // TODO Return proper ropchain
         ropchain = as_ropium_object(self).compiler->compile( string(query, query_len), as_ropium_object(self).constraint); 
         if( ropchain ){
-            std::cout << "Found:" <<  std::endl << *ropchain << std::endl;
-        }else{
-            std::cout << "No ropchain found" << std::endl; 
+            return Pyropchain_FromROPChain(ropchain);
         }
     }catch(il_exception& e){
         return PyErr_Format(PyExc_ValueError, "%s", e.what());

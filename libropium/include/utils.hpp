@@ -144,4 +144,7 @@ string str_bold(string s);
 string str_special(string s);
 
 string value_to_hex_str(int octets, addr_t addr);
+
+void disable_colors();
+void enable_colors();
 #endif
