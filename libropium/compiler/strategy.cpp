@@ -680,7 +680,7 @@ void StrategyGraph::compute_dfs_params(){
 
 // Returns false <=> the graph contains a cycle
 bool StrategyGraph::_dfs_scheduling_explore(vector<node_t>& marked, node_t n){
-    if( nodes[n].is_disabled() || nodes[n].is_indirect() || std::count(dfs_scheduling.begin(), dfs_scheduling.end(), n))
+    if( nodes[n].is_disabled() || std::count(dfs_scheduling.begin(), dfs_scheduling.end(), n))
         return true; // Ignore disabled or indirect nodes or already visited ones
 
     if( std::count(marked.begin(), marked.end(), n) != 0 ){
@@ -689,15 +689,26 @@ bool StrategyGraph::_dfs_scheduling_explore(vector<node_t>& marked, node_t n){
     }else{
         marked.push_back(n);
     }
-
+    
+    
     for( node_t n2 : nodes[n].strategy_edges.out ){
+        if( n2 == nodes[n].mandatory_following_node )
+            continue;
         if( ! _dfs_scheduling_explore(marked, n2))
             return false;
     }
     for( node_t n2 : nodes[n].interference_edges.out){
+        if( n2 == nodes[n].mandatory_following_node )
+            continue;
         if( ! _dfs_scheduling_explore(marked, n2))
             return false;
     }
+    // Do mandatory node in the end if any
+    if( nodes[n].mandatory_following_node != -1 ){
+        if( ! _dfs_scheduling_explore(marked, nodes[n].mandatory_following_node))
+            return false;
+    }
+    
     dfs_scheduling.push_back(n);
     return true;
 }
@@ -1020,7 +1031,7 @@ void StrategyGraph::compute_interference_points(){
 
     // 1. Compute interfering points for regs
     for( Node& node : nodes ){
-        if( node.is_disabled() || node.is_indirect() )
+        if( node.is_disabled() ) // Allow indirect nodes though since they will be executed and interfere 
             continue;
         for( int p = 0; p < node.nb_params(); p++ ){
             Param& param = node.params[p];
@@ -1129,6 +1140,10 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch, Constraint* constraint){
 
     ROPChain* ropchain = new ROPChain(arch);
     for( rit = dfs_scheduling.rbegin(); rit != dfs_scheduling.rend(); rit++ ){
+        if( nodes[*rit].is_indirect() ){
+            continue; // Skip indirect nodes
+        }
+
         // Add gadget
         ropchain->add_gadget(nodes[*rit].params[nodes[*rit].get_param_num_gadget_addr()].value, nodes[*rit].affected_gadget);
         // Add padding after gadget
