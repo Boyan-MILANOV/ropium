@@ -21,6 +21,14 @@ namespace test{
             delete ropchain;
             return 1; 
         }
+        
+        unsigned int _assert_no_ropchain(ROPChain* ropchain, const string& msg){
+            if( ropchain != nullptr){
+                cout << "\nFail: " << msg << endl << std::flush; 
+                throw test_exception();
+            }
+            return 1; 
+        }
 
         unsigned int direct_match(){
             unsigned int nb = 0;
@@ -133,6 +141,39 @@ namespace test{
 
             return nb;
         }
+        
+        unsigned int incorrect_match(){
+            unsigned int nb = 0;
+            ArchX86 arch;
+            GadgetDB db;
+            ROPCompiler comp = ROPCompiler(&arch, &db);
+            ROPChain* ropchain;
+            Constraint constr;
+            constr.bad_bytes.add_bad_byte(0xff);
+
+            // Test when adjust gadget clobbers reg that must be set
+            // Here gadget 2 and 3 both modify ecx
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x89\xF1\xFF\xE0", 4), 1)); // mov ecx, esi; jmp eax
+            raw.push_back(RawGadget(string("\x59\xC3", 2), 2)); // pop ecx; ret
+            raw.push_back(RawGadget(string("\x58\x59\xC3", 3), 3)); // pop eax; pop ecx; ret
+            db.analyse_raw_gadgets(raw, &arch);
+            ropchain = comp.compile(" ecx =  esi");
+            nb += _assert_no_ropchain(ropchain, "Found ropchain but no ropchain should exist");
+            
+            // Test when adjust gadget clobbers input register
+            // Here gadget 2 can set eax but modifies esi
+            db.clear();
+            raw.clear();
+            raw.push_back(RawGadget(string("\x89\xF1\xFF\xE0", 4), 1)); // mov ecx, esi; jmp eax
+            raw.push_back(RawGadget(string("\x5E\x58\xC3", 3), 2)); // pop esi; pop eax; ret
+            raw.push_back(RawGadget(string("\xC3", 1), 3)); // ret
+            db.analyse_raw_gadgets(raw, &arch);
+            ropchain = comp.compile(" ecx =  esi");
+            nb += _assert_no_ropchain(ropchain, "Found ropchain but no ropchain should exist");
+
+            return nb;
+        }
     }
 }
 
@@ -148,6 +189,7 @@ void test_compiler(){
     cout << bold << "[" << green << "+" << def << bold << "]" << def << std::left << std::setw(34) << " Testing ROP compiler... " << std::flush;  
     total += direct_match();
     total += indirect_match();
+    total += incorrect_match();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;
 }

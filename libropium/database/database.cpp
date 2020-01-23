@@ -298,9 +298,23 @@ PossibleGadgets* GadgetDB::get_possible_astore(reg_t dst_addr_reg, cst_t dst_add
     return astore.get_possible(make_tuple(dst_addr_reg, dst_addr_cst, (op_t)op, src_reg), param_is_free, 3);
 }
 
-GadgetDB::~GadgetDB(){
-    // Delete all gadgets
+void GadgetDB::clear(){
+    mov_cst.clear();
+    amov_cst.clear();
+    mov_reg.clear();
+    amov_reg.clear();
+    load.clear();
+    aload.clear();
+    store.clear();
+    astore.clear();
     for( auto g : all ){
         delete g;
     }
+    all.clear();
+    seen.clear();
+}
+
+GadgetDB::~GadgetDB(){
+    // Delete all gadgets
+    clear();
 }

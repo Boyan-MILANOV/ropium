@@ -109,6 +109,10 @@ public:
         }
         return res;
     }
+    
+    void clear(){
+        db.clear();
+    }
 };
 
 // Big gadget database
@@ -160,6 +164,9 @@ public:
     PossibleGadgets* get_possible_jmp(reg_t jmp_reg, bool* param_is_free);
     PossibleGadgets* get_possible_store(reg_t addr_reg, cst_t offset, reg_t src_reg, bool* param_is_free);
     PossibleGadgets* get_possible_astore(reg_t addr_reg, cst_t offset, Op op, reg_t src_reg, bool* param_is_free);
+
+    // Clear
+    void clear();
 
     // Destructor
     ~GadgetDB();
