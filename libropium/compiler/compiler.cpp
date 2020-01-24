@@ -59,6 +59,11 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
         // Generic adjust_jmp
         if( new_graph->rule_generic_adjust_jmp(node.id, arch)){
             add_strategy(new_graph);
+            new_graph = graph->copy();
+        }
+        // Adjust load
+        if( new_graph->rule_adjust_load(node.id, arch)){
+            add_strategy(new_graph);
             // Put new_graph = graph->copy() when adding more strategies
         }else{
             delete new_graph; new_graph = nullptr;

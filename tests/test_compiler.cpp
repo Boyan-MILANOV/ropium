@@ -112,6 +112,9 @@ namespace test{
             raw.push_back(RawGadget(string("\x89\xE8\xFF\xE6", 4), 6)); // mov eax, ebp; jmp esi
             raw.push_back(RawGadget(string("\x89\xF1\xFF\xE0", 4), 7)); // mov ecx, esi; jmp eax
             raw.push_back(RawGadget(string("\x5A\x59\xC3", 3), 8)); // pop edx; pop ecx; ret
+            raw.push_back(RawGadget(string("\x8B\x40\x08\xC3", 4), 9)); // mov eax, [eax + 8]; ret
+            raw.push_back(RawGadget(string("\x8D\x4B\x08\xC3", 4), 10)); // lea ecx, [ebx + 8]; ret
+            raw.push_back(RawGadget(string("\x8D\x40\x20\xFF\xE1", 5), 11)); // lea eax, [eax + 32]; jmp ecx;
 
             db.analyse_raw_gadgets(raw, &arch);
 
@@ -137,6 +140,12 @@ namespace test{
             ropchain = comp.compile(" ebx =  ebp");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             ropchain = comp.compile(" eax =  esi");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            
+            // Test adjust load
+            ropchain = comp.compile(" eax =  mem(ebx+16)");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            ropchain = comp.compile(" eax =  mem(eax+40)");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
 
             return nb;

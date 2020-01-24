@@ -168,6 +168,50 @@ namespace test{
             return nb;
         }
         
+        
+        unsigned int test_adjust_load(){
+            unsigned int nb = 0;
+            Arch* arch = new ArchX86();
+            GadgetDB db;
+            ROPChain* ropchain;
+
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x8B\x41\x08\xC3", 4), 1)); // mov eax, [ecx + 8]; ret
+            raw.push_back(RawGadget(string("\x8D\x4B\x08\xC3", 4), 2)); // lea ecx, [ebx + 8]; ret
+
+            raw.push_back(RawGadget(string("\x23\x56\xF8\xC3", 4), 1)); // and edx, [esi - 8]; ret
+            raw.push_back(RawGadget(string("\x8D\x77\x10\xC3", 4), 2)); // lea esi, [edi + 16]; ret
+            db.analyse_raw_gadgets(raw, arch);
+
+            // Test adjust load on LOAD type
+            StrategyGraph sgraph;
+            node_t n1 = sgraph.new_node(GadgetType::LOAD);
+            Node& node1 = sgraph.nodes[n1];
+            node1.params[PARAM_LOAD_DST_REG].make_reg(X86_EAX);
+            node1.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(X86_EBX);
+            node1.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(0x10, "cst_0");
+            // Apply strat
+            sgraph.rule_adjust_load(n1, arch);
+            sgraph.select_gadgets(db);
+            ropchain = sgraph.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+
+            // Test adjust load on ALOAD type
+            StrategyGraph sgraph2;
+            node_t n2 = sgraph2.new_node(GadgetType::ALOAD);
+            Node& node2 = sgraph2.nodes[n2];
+            node2.params[PARAM_ALOAD_DST_REG].make_reg(X86_EDX);
+            node2.params[PARAM_ALOAD_OP].make_op(Op::AND);
+            node2.params[PARAM_ALOAD_SRC_ADDR_REG].make_reg(X86_EDI);
+            node2.params[PARAM_ALOAD_SRC_ADDR_OFFSET].make_cst(8, "cst_0");
+            // Apply strat
+            sgraph2.rule_adjust_load(n2, arch);
+            sgraph2.select_gadgets(db);
+            ropchain = sgraph2.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+            delete arch;
+            return nb;
+        }
     }
 }
 
@@ -184,6 +228,7 @@ void test_strategy(){
     for( int i = 0; i < 1; i++){
         total += basic();
         total += rules();
+        total += test_adjust_load();
     }
 
     // Return res

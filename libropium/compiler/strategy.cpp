@@ -235,6 +235,24 @@ int Node::get_param_num_dst_reg(){
     }
 }
 
+int Node::get_param_num_src_addr_offset(){
+    switch( type ){
+        case GadgetType::LOAD: return PARAM_LOAD_SRC_ADDR_OFFSET;
+        case GadgetType::ALOAD: return PARAM_ALOAD_SRC_ADDR_OFFSET;
+        default:
+            throw runtime_exception("Node::get_param_num_src_addr_offset(): got unsupported gadget type");
+    }
+}
+
+int Node::get_param_num_src_addr_reg(){
+    switch( type ){
+        case GadgetType::LOAD: return PARAM_LOAD_SRC_ADDR_REG;
+        case GadgetType::ALOAD: return PARAM_ALOAD_SRC_ADDR_REG;
+        default:
+            throw runtime_exception("Node::get_param_num_src_addr_offset(): got unsupported gadget type");
+    }
+}
+
 bool Node::modifies_reg(int reg_num){
         return (affected_gadget->modified_regs[reg_num]);
 }
@@ -559,7 +577,7 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
                    node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value >= 0;
         }
     );
-    
+
     // Add a constraint: the offset of the pop must not be bigger than the sp inc
     node1.assigned_gadget_constraints.push_back(
         [](Node* node, StrategyGraph* graph){
@@ -670,6 +688,86 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
 
     return true;
 }
+
+/* dst_reg <-- mem(src_addr_reg +  src_addr_offset)
+ * =======================
+ * (n1) MovReg R1, src_addr_reg + (src_addr_offset - C1)
+ * (n2) dst_reg <-- mem(R1 + C1)
+ * ======================= */
+bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
+
+    if( nodes[n].type != GadgetType::LOAD &&
+        nodes[n].type != GadgetType::ALOAD ){
+        return false;
+    }
+    
+    if( nodes[n].params[nodes[n].get_param_num_src_addr_reg()].value == arch->sp()){
+        // If we want to read from the stack pointer (typically to pop a value), don't
+        // apply this strategy
+        return false;
+    }
+
+    // Get/Create nodes
+    node_t n1 = new_node(GadgetType::AMOV_CST);
+    node_t n2 = new_node(nodes[n].type);
+    Node& node = nodes[n];
+    Node& node1 = nodes[n1];
+    Node& node2 = nodes[n2];
+    
+    
+    node2 = node; // Copy node to node2
+    node2.id = n2; // But keep id
+    // SET NODE 2
+    // Modify src_addr_reg to be any register
+    node2.params[node2.get_param_num_src_addr_reg()].make_reg(-1, false); // free reg
+    // Make the offset also free
+    node2.params[node2.get_param_num_src_addr_offset()].make_cst(0, new_name("addr_offset"), false); // free cst
+
+    // SET NODE 1
+    node1.params[PARAM_AMOVCST_SRC_OP].make_op(Op::ADD);
+    // Set node1 with the right reg and cst
+    node1.params[PARAM_AMOVCST_DST_REG].make_reg(node2.id,node2.get_param_num_src_addr_reg()); // depends on the load src addr reg
+    node1.params[PARAM_AMOVCST_SRC_REG] = node.params[node.get_param_num_src_addr_reg()]; // Reg should be set with the same reg of the initial LOAD
+    // Cst must be the original offset (of node) minus the new one (of node2)
+    Param& node_offset = node.params[node.get_param_num_src_addr_offset()];
+    Param& node2_offset = node2.params[node2.get_param_num_src_addr_offset()];
+    Expr src_cst_expr = exprvar(arch->bits, node_offset.name) 
+                        - exprvar(arch->bits, node2_offset.name);
+    node1.params[PARAM_AMOVCST_SRC_CST].make_cst(node2.id, node2.get_param_num_src_addr_offset(), 
+            src_cst_expr, new_name("addr_offset"));
+
+    // Add data link between node 1 and 2 for the address reg
+    node1.params[PARAM_AMOVCST_DST_REG].is_data_link = true;
+
+    // Node1 must end with a ret
+    node1.branch_type = BranchType::RET;
+    // Node2 same as node
+    node2.branch_type = node.branch_type;
+
+    // Add new edges
+    add_strategy_edge(node1.id, node2.id);
+    add_param_edge(node1.id, node2.id);
+    add_param_edge(node1.id, node.id);
+
+    // Redirect input params arcs from node to node1
+    redirect_incoming_param_edges(node.id, node.get_param_num_src_addr_offset(), 
+                                  node2.id, node2.get_param_num_src_addr_offset());
+    redirect_incoming_param_edges(node.id, node.get_param_num_dst_reg(), 
+                                  node2.id, node2.get_param_num_dst_reg());
+
+    // Redirect outgoing dst_reg arcs
+    redirect_outgoing_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node.get_param_num_dst_reg());
+
+    // Redirect strategy edges
+    redirect_incoming_strategy_edges(node.id, node1.id);
+    redirect_outgoing_strategy_edges(node.id, node2.id);
+
+    // Disable previous node
+    disable_node(node.id);
+
+    return true;
+}
+
 
 /* ===============  Ordering ============== */
 void StrategyGraph::_dfs_strategy_explore(vector<node_t>& marked, node_t n){
@@ -1267,6 +1365,8 @@ ostream& operator<<(ostream& os, Param& param){
     os << tab << "\t Dep on param type: " << param.dep_param_type << std::endl;
     if( param.expr != nullptr )
         os << tab << "\t Expr: " << param.expr << std::endl;
+    if( !param.name.empty())
+        os << tab << "\t Name: " << param.name << std::endl;
     return os;
 }
 
