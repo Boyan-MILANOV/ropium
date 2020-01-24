@@ -48,10 +48,6 @@ bool StrategyGraph::rule_generic_transitivity(node_t n){
     // Node2 same as node
     node2.branch_type = node.branch_type;
 
-    // Add new edges
-    add_strategy_edge(node1.id, node2.id);
-    add_param_edge(node1.id, node2.id);
-
     // Redirect input params arcs from node to node1
     for( i = 0; i < MAX_PARAMS; i++){
         redirect_incoming_param_edges(node.id, i, node1.id, i);
@@ -60,7 +56,11 @@ bool StrategyGraph::rule_generic_transitivity(node_t n){
     // Redirect outgoing dst_reg arcs
     redirect_outgoing_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node.get_param_num_dst_reg());
 
-    // Redirect strategy edges
+    // Update param edges
+    update_param_edges();
+
+    // Redirect/add strategy edges
+    add_strategy_edge(node1.id, node2.id);
     redirect_incoming_strategy_edges(node.id, node1.id);
     redirect_outgoing_strategy_edges(node.id, node2.id);
     
@@ -126,6 +126,9 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     redirect_incoming_strategy_edges(node.id, node1.id);
     redirect_outgoing_strategy_edges(node.id, node1.id);
 
+    // Update param edges
+    update_param_edges();
+
     // Disable node
     disable_node(node.id);
     
@@ -163,7 +166,6 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
     node_ret.params[PARAM_LOAD_DST_REG].make_reg(arch->pc()); // Dest reg is PC
     node_ret.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(arch->sp()); // addr reg is SP (pop from the stack)
     node_ret.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst( n, node.get_param_num_gadget_sp_delta(), nullptr, new_name("adjust_jmp_offset"));
-    add_param_edge(node_ret.id, node.id);
     node_ret.indirect = true; // This node is 'indirect' (gadget not added explicitely on the stack)
 
     // Set the 'pre-jmp' gadget. It sets the jmp reg to the address of the 'adjust gadget'.
@@ -171,8 +173,6 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
     node1.params[PARAM_MOVCST_DST_REG].make_reg(n, node.get_param_num_gadget_jmp_reg());
     // Src cst of node1 is the address of the adjust gadget
     node1.params[PARAM_MOVCST_SRC_CST].make_cst(node_ret.id, node_ret.get_param_num_gadget_addr(), nullptr, new_name("adjust_jmp_addr"));
-    add_param_edge(node1.id, node.id);
-    add_param_edge(node1.id, node_ret.id);
     // Add data link between node1 and node (the jmp reg must NOT be clobbered after it was set to 
     // point to the adjust gadget
     node1.params[PARAM_MOVCST_DST_REG].is_data_link = true;
@@ -217,6 +217,9 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
             }
         }
     );
+
+    // Update param edges
+    update_param_edges();
 
     return true;
 }
@@ -267,6 +270,7 @@ bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
                         - exprvar(arch->bits, node2_offset.name);
     node1.params[PARAM_AMOVCST_SRC_CST].make_cst(node2.id, node2.get_param_num_src_addr_offset(), 
             src_cst_expr, new_name("addr_offset"));
+    node1.params[PARAM_AMOVCST_SRC_CST].add_dep(node.id, node.get_param_num_src_addr_offset());
 
     // Add data link between node 1 and 2 for the address reg
     node1.params[PARAM_AMOVCST_DST_REG].is_data_link = true;
@@ -275,11 +279,6 @@ bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
     node1.branch_type = BranchType::RET;
     // Node2 same as node
     node2.branch_type = node.branch_type;
-
-    // Add new edges
-    add_strategy_edge(node1.id, node2.id);
-    add_param_edge(node1.id, node2.id);
-    add_param_edge(node1.id, node.id);
 
     // Redirect input params arcs from node to node1
     redirect_incoming_param_edges(node.id, node.get_param_num_src_addr_offset(), 
@@ -290,9 +289,13 @@ bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
     // Redirect outgoing dst_reg arcs
     redirect_outgoing_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node.get_param_num_dst_reg());
 
-    // Redirect strategy edges
+    // Redirect/add strategy edges
+    add_strategy_edge(node1.id, node2.id);
     redirect_incoming_strategy_edges(node.id, node1.id);
     redirect_outgoing_strategy_edges(node.id, node2.id);
+
+    // Update param edges
+    update_param_edges();
 
     // Disable previous node
     disable_node(node.id);

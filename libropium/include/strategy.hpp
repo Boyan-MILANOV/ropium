@@ -24,6 +24,11 @@ enum class ParamType{
     NONE
 };
 
+struct ParamDep{
+    node_t node;
+    param_t param_type;
+};
+
 class Param{
 public:
     ParamType type;
@@ -31,21 +36,33 @@ public:
     // Value
     cst_t value; // Used to put constant OR regnum
     // Dependencies
-    int dep_param_type;
-    node_t dep_node;
+    vector<ParamDep> deps;
     Expr expr; // For constants only
     bool is_fixed;
     bool is_data_link; 
 
-    Param():type(ParamType::NONE), name(""), value(-1), dep_param_type(-1), dep_node(-1), expr(nullptr), is_fixed(true), is_data_link(false){};
+    Param():type(ParamType::NONE), name(""), value(-1), expr(nullptr), is_fixed(true), is_data_link(false){};
+
+    void add_dep(node_t n, param_t p){
+        deps.push_back(ParamDep{n, p});
+    };
+    
+    bool depends_on(node_t n){
+        for( ParamDep& dep : deps ){
+            if( dep.node == n )
+                return true;
+        }
+        return false;
+    };
     
     // Fixed or free register
     void make_reg(int reg, bool fixed=true){
         type = ParamType::REG;
         value = reg;
         is_fixed = fixed;
-        dep_node = -1;
+        deps.clear();
         expr = nullptr;
+        is_data_link = false;
     };
     
     // Dependent register
@@ -53,9 +70,10 @@ public:
         type = ParamType::REG;
         value = -1;
         is_fixed = false;
-        dep_node = dn;
-        dep_param_type = dpt;
+        deps.clear();
+        add_dep(dn, dpt);
         expr = nullptr;
+        is_data_link = false;
     };
     
     // Fixed or free constant
@@ -64,8 +82,9 @@ public:
         name = n;
         value = val;
         is_fixed = fixed;
-        dep_node = -1;
+        deps.clear();
         expr = nullptr;
+        is_data_link = false;
     };
     
     // Dependent constant
@@ -74,9 +93,10 @@ public:
         name = n;
         value = 0;
         is_fixed = false;
-        dep_node = dn;
-        dep_param_type = dpt;
+        deps.clear();
+        add_dep(dn, dpt);
         expr = e;
+        is_data_link = false;
     };
 
     // Operator
@@ -84,11 +104,12 @@ public:
         type = ParamType::OP;
         value = (int)op;
         is_fixed = true;
-        dep_node = -1;
+        deps.clear();
         expr = nullptr;
+        is_data_link = false;
     };
 
-    bool is_dependent(){return !is_fixed && dep_node != -1;};
+    bool is_dependent(){return !is_fixed && !deps.empty();};
     bool is_free(){return !is_dependent() && !is_fixed;};
     bool is_cst(){return type == ParamType::CST;};
     bool is_reg(){return type == ParamType::REG;};
@@ -110,6 +131,7 @@ public:
     string new_name(string& name){
         stringstream ss;
         ss << name << "_" << std::dec << n;
+        n++;
         return ss.str();
     };
 };
@@ -299,7 +321,7 @@ public:
     void add_incoming_param_edge(node_t src_node);
     void add_outgoing_strategy_edge(node_t dst_node);
     void add_outgoing_param_edge(node_t dst_node);
-    
+
     void remove_incoming_strategy_edge(node_t src_node);
     void remove_incoming_param_edge(node_t src_node);
     void remove_outgoing_strategy_edge(node_t dst_node);
@@ -373,6 +395,7 @@ public:
     void add_strategy_edge(node_t from, node_t to);
     void add_param_edge(node_t from, node_t to);
     void add_interference_edge(node_t from, node_t to);
+    void update_param_edges();
     void clear_interference_edges(node_t n);
     bool modifies_reg(node_t n, int reg_num, bool check_following_node=false);
     // Strategy rules

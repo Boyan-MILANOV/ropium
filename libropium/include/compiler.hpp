@@ -33,7 +33,7 @@ public:
 
 /* ROPCompiler
    ============
-   
+
    A ROP compiler is an abstraction over IL and StrategyGraph functionnalities.
    Basically it takes an IL program, parses it, translates it into strategy 
    graphs, and then start a compiler task to try to satisfy the program and

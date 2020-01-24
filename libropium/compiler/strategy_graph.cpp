@@ -318,11 +318,13 @@ void StrategyGraph::redirect_incoming_param_edges(node_t curr_node, param_t curr
         // Redirect parameters
         for( int p = 0; p < prev.nb_params(); p++ ){
             Param& param = prev.params[p];
-            if( param.is_dependent() && param.dep_node == curr_node && param.dep_param_type == curr_param_type ){
-                // Change param dep node and type
-                param.dep_node = new_node;
-                param.dep_param_type = new_param_type;
-                changed = true;
+            
+            for( ParamDep& dep : param.deps ){
+                if( dep.node == curr_node && dep.param_type == curr_param_type ){
+                    dep.node = new_node;
+                    dep.param_type = new_param_type;
+                    changed = true;
+                }
             }
         }
         if( changed ){
@@ -361,11 +363,11 @@ void StrategyGraph::redirect_outgoing_param_edges(node_t curr_node, param_t curr
     Node& curr = nodes[curr_node];
     Node& newn = nodes[new_node];
     Param& param = curr.params[curr_param_type];
-    if( param.is_dependent() ){
+    for( ParamDep& dep : param.deps ){
         // Add outgoing edge in new node
-        newn.add_outgoing_param_edge(param.dep_node);
+        newn.add_outgoing_param_edge(dep.node);
         // Remove incoming edge from curr in next node
-        Node& next = nodes[param.dep_node];
+        Node& next = nodes[dep.node];
         next.remove_incoming_param_edge(curr_node);
         // And replace it
         next.add_incoming_param_edge(new_node);
@@ -401,20 +403,22 @@ void StrategyGraph::redirect_generic_param_edges(node_t curr_node, node_t new_no
         // Redirect parameters
         for( int p = 0; p < prev.nb_params(); p++ ){
             Param& param = prev.params[p];
-            if( param.is_dependent() && param.dep_node == curr_node && curr.is_generic_param(param.dep_param_type) ){
-                // Change param dep node and type
-                param.dep_node = new_node;
-                changed = true;
-                if( param.dep_param_type == curr.get_param_num_gadget_addr()){
-                    param.dep_param_type = newn.get_param_num_gadget_addr();
-                }else if( param.dep_param_type == curr.get_param_num_gadget_jmp_reg()){
-                    param.dep_param_type = newn.get_param_num_gadget_jmp_reg();
-                }else if( param.dep_param_type == curr.get_param_num_gadget_sp_delta()){
-                    param.dep_param_type = newn.get_param_num_gadget_sp_delta();
-                }else if( param.dep_param_type == curr.get_param_num_gadget_sp_inc()){
-                    param.dep_param_type = newn.get_param_num_gadget_sp_inc();
-                }else{
-                    throw runtime_exception("redirect_generic_param_edges(): got unsuported generic param");
+            for( ParamDep& dep : param.deps){
+                if( dep.node == curr_node && curr.is_generic_param(dep.param_type)){
+                    // Change param dep node and type
+                    dep.node = new_node;
+                    changed = true;
+                    if( dep.param_type == curr.get_param_num_gadget_addr()){
+                        dep.param_type = newn.get_param_num_gadget_addr();
+                    }else if( dep.param_type == curr.get_param_num_gadget_jmp_reg()){
+                        dep.param_type = newn.get_param_num_gadget_jmp_reg();
+                    }else if( dep.param_type == curr.get_param_num_gadget_sp_delta()){
+                        dep.param_type = newn.get_param_num_gadget_sp_delta();
+                    }else if( dep.param_type == curr.get_param_num_gadget_sp_inc()){
+                        dep.param_type = newn.get_param_num_gadget_sp_inc();
+                    }else{
+                        throw runtime_exception("redirect_generic_param_edges(): got unsuported generic param");
+                    }
                 }
             }
         }
@@ -444,6 +448,39 @@ void StrategyGraph::add_interference_edge(node_t from, node_t to){
     // We don't add an incoming edge in 'to' for interference edges
     // because they are not used
 }
+
+// Update all parameter edges according to params and paddings
+void StrategyGraph::update_param_edges(){
+    // First, clear all param edges
+    for( Node& node : nodes ){
+        node.param_edges.in.clear();
+        node.param_edges.out.clear();
+    }
+
+    // Check every couple of nodes
+    for( int n1 = 0; n1 < nodes.size(); n1++ ){
+        Node& node1 = nodes[n1];
+        // Check params
+        for( int p = 0; p < node1.nb_params(); p++){
+            Param& param = node1.params[p];
+            for( ParamDep& dep : param.deps ){
+                add_param_edge(n1, dep.node);
+            }
+        }
+        // Check paddings
+        for( ROPPadding& padd : node1.special_paddings){
+            for( ParamDep& dep : padd.offset.deps ){
+                if( dep.node != n1 )
+                    add_param_edge(n1, dep.node);
+            }
+            for( ParamDep& dep : padd.value.deps ){
+                if( dep.node != n1 )
+                    add_param_edge(n1, dep.node);
+            }
+        }
+    }
+}
+
 void StrategyGraph::clear_interference_edges(node_t n){
     nodes[n].interference_edges.out.clear();
 }
@@ -460,10 +497,9 @@ bool StrategyGraph::modifies_reg(node_t n, int reg_num, bool check_following_nod
 bool StrategyGraph::has_dependent_param(node_t n, param_t param){
     for( node_t prev : nodes[n].param_edges.in ){
         for( int p = 0; p < nodes[prev].nb_params(); p++ ){
-            if( nodes[prev].params[p].is_dependent() && 
-                nodes[prev].params[p].dep_node == n && 
-                nodes[prev].params[p].dep_param_type == param ){
-                return true;
+            for( ParamDep& dep : nodes[prev].params[p].deps){
+                if( dep.node == n && dep.param_type == param)
+                    return true;
             }
         }
     }
@@ -586,11 +622,11 @@ bool StrategyGraph::compute_dfs_scheduling(){
 void StrategyGraph::_resolve_param(Param& param){
     if( param.is_dependent()){
         if( param.type == ParamType::REG ){
-            param.value = nodes[param.dep_node].params[param.dep_param_type].value;
+            param.value = nodes[param.deps[0].node].params[param.deps[0].param_type].value;
         }else if( param.type == ParamType::CST){
             if( param.expr == nullptr ){
                 // If not expr, just take the value of the other param
-                param.value = nodes[param.dep_node].params[param.dep_param_type].value;
+                param.value = nodes[param.deps[0].node].params[param.deps[0].param_type].value;
             }else{
                 param.value = param.expr->concretize(&params_ctx);
             }
@@ -798,11 +834,11 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
         has_gadget_selection = select_gadgets(db, constraint, arch, 0);
         return has_gadget_selection;
     }
-    
+
     if( dfs_idx >= dfs_params.size()){
         return schedule_gadgets();
     }
-    
+
     node_t n = dfs_params[dfs_idx];
     Node& node = nodes[n];
     
@@ -909,7 +945,7 @@ void StrategyGraph::compute_interference_points(){
             // Check if this link is modified by another node
             for( Node& other : nodes ){
                 // If disabled, indirect, or one part of the data link, ignore
-                if( other.is_disabled() || other.is_indirect() || other.id == param.dep_node || other.id == node.id)
+                if( other.is_disabled() || other.is_indirect() || param.depends_on(other.id) || other.id == node.id)
                     continue;
                 if( modifies_reg(other.id, param.value, true)){ // True to check also mandatory_following_gadgets
                     // Add interfering point
@@ -920,7 +956,8 @@ void StrategyGraph::compute_interference_points(){
                         // If the param is final (an output of the chain), other must be before
                         interference_points.push_back(InterferencePoint(other.id, node.id, -1));
                     }else{
-                        interference_points.push_back(InterferencePoint(other.id, node.id, param.dep_node));
+                        // Add the first param dependency (since it is for regs we assume there's only one dependency)
+                        interference_points.push_back(InterferencePoint(other.id, node.id, param.deps[0].node));
                     }
                 }
             }
@@ -1063,8 +1100,11 @@ ostream& operator<<(ostream& os, Param& param){
     os << tab << "Param:" << std::endl;
     os << tab << "\t Value: " << param.value << std::endl;
     os << tab << "\t Fixed?: " << param.is_fixed << std::endl;
-    os << tab << "\t Dep on node: " << param.dep_node << std::endl;
-    os << tab << "\t Dep on param type: " << param.dep_param_type << std::endl;
+    os << tab << "\t Is data link?: " << param.is_data_link << std::endl;
+    os << tab << "\t Depends on : " << std::endl;
+    for( ParamDep& dep : param.deps){
+        os << tab << "\t\t Node: " << dep.node << "  Param: " << dep.param_type << std::endl;
+    }
     if( param.expr != nullptr )
         os << tab << "\t Expr: " << param.expr << std::endl;
     if( !param.name.empty())

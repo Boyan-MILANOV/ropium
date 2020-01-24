@@ -169,6 +169,39 @@ namespace test{
         }
         
         
+        unsigned int test_generic_adjust_jmp(){
+            unsigned int nb = 0;
+            Arch* arch = new ArchX86();
+            GadgetDB db;
+            ROPChain* ropchain;
+
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x89\xC8\xC3", 3), 1)); // mov eax, ecx; ret
+            raw.push_back(RawGadget(string("\xc3", 1), 2)); // ret
+            raw.push_back(RawGadget(string("\x89\xF1\xFF\xE0", 4), 3)); // mov ecx, esi; jmp eax
+            raw.push_back(RawGadget(string("\x5A\x59\xC3", 3), 4)); // pop edx; pop ecx; ret
+            db.analyse_raw_gadgets(raw, arch);
+
+            // Test on more advanced example (eax = esi)
+            StrategyGraph sgraph;
+            node_t n1 = sgraph.new_node(GadgetType::MOV_REG);
+            Node& node1 = sgraph.nodes[n1];
+            node1.params[PARAM_MOVREG_DST_REG].make_reg(X86_EAX);
+            node1.params[PARAM_MOVREG_SRC_REG].make_reg(X86_ESI);
+            // Apply strat
+            sgraph.rule_generic_transitivity(n1);
+            sgraph.rule_generic_adjust_jmp(1, arch);
+            sgraph.rule_generic_transitivity(3);
+            sgraph.rule_mov_cst_pop(5, arch);
+            sgraph.select_gadgets(db);
+            ropchain = sgraph.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+
+            delete arch;
+            return nb;
+        }
+        
+        
         unsigned int test_adjust_load(){
             unsigned int nb = 0;
             Arch* arch = new ArchX86();
@@ -228,6 +261,7 @@ void test_strategy(){
     for( int i = 0; i < 1; i++){
         total += basic();
         total += rules();
+        total += test_generic_adjust_jmp();
         total += test_adjust_load();
     }
 
