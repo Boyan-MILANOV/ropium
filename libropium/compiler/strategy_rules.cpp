@@ -7,8 +7,8 @@
 
 /* MovXXX dst_reg, src_xxx
  * =======================
- * MovReg R1, src_xxx
- * MovReg dst_reg, R1 
+ * (n1) MovReg R1, src_xxx
+ * (n2) MovReg dst_reg, R1 
  * ======================= */
 bool StrategyGraph::rule_generic_transitivity(node_t n){
     
@@ -300,5 +300,64 @@ bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
     // Disable previous node
     disable_node(node.id);
 
+    return true;
+}
+
+/* <AnyType> dst, src_reg
+ * =======================
+ * (n2) MovReg R1, src_reg
+ * (n1) <AnyType> dst, R1
+ * ======================= */
+bool StrategyGraph::rule_generic_src_transitivity(node_t n){
+    int i = 0;
+
+    if( nodes[n].type != GadgetType::STORE &&
+        nodes[n].type != GadgetType::ASTORE ){
+        return false;
+    }
+    
+    // Get/Create nodes
+    node_t n1 = new_node(nodes[n].type);
+    node_t n2 = new_node(GadgetType::MOV_REG);
+    Node& node = nodes[n];
+    Node& node1 = nodes[n1];
+    Node& node2 = nodes[n2];
+    
+    
+    node1 = node; // Copy node to node1
+    node1.id = n1; // But keep id
+    // Modify src_reg to make it dependent on the dst reg of previous node (node2)
+    node1.params[node1.get_param_num_src_reg()].make_reg(node2.id, PARAM_MOVREG_DST_REG);
+    
+    // Set node2 with the reg transitivity gadget
+    node2.params[PARAM_MOVREG_DST_REG].make_reg(-1, false); // free reg
+    node2.params[PARAM_MOVREG_SRC_REG] = node.params[node.get_param_num_src_reg()]; // Same src reg as initial query in node
+    // Add data link between node 1 and 2 for the transitive reg
+    node2.params[PARAM_MOVREG_DST_REG].is_data_link = true;
+
+    // Node1 must end with same as node
+    node1.branch_type = node.branch_type;
+    // Node2 must end in ret
+    node2.branch_type = BranchType::RET;
+
+    // Redirect input params arcs from node to node1
+    for( i = 0; i < MAX_PARAMS; i++){
+        redirect_incoming_param_edges(node.id, i, node1.id, i);
+    } // TODO Virer ça ? ??
+
+    // Redirect outgoing src_reg arcs
+    redirect_outgoing_param_edges(node.id, node.get_param_num_src_reg(), node1.id, node1.get_param_num_src_reg());
+
+    // Update param edges
+    update_param_edges();
+
+    // Redirect/add strategy edges
+    add_strategy_edge(node2.id, node1.id);
+    redirect_incoming_strategy_edges(node.id, node2.id);
+    redirect_outgoing_strategy_edges(node.id, node1.id);
+
+    // Disable previous node
+    disable_node(node.id);
+    
     return true;
 }

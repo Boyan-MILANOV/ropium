@@ -148,9 +148,6 @@ namespace test{
             ropchain = graph5.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
             
-            
-            
-            
             StrategyGraph graph6;
             n1 = graph6.new_node(GadgetType::LOAD);
             Node& node1e = graph6.nodes[n1];
@@ -245,6 +242,48 @@ namespace test{
             delete arch;
             return nb;
         }
+        
+        unsigned int test_generic_src_transitivity(){
+            unsigned int nb = 0;
+            Arch* arch = new ArchX86();
+            GadgetDB db;
+            ROPChain* ropchain;
+
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x89\x51\xEC\xC3", 4), 1)); // mov [ecx - 20], edx; ret
+            raw.push_back(RawGadget(string("\x89\xC2\xC3", 3), 2)); // mov edx, eax; ret
+            raw.push_back(RawGadget(string("\x31\x51\xEC\xC3", 4), 3)); // xor [ecx - 20], edx; ret
+            db.analyse_raw_gadgets(raw, arch);
+
+            // Test src transitivity on STORE
+            StrategyGraph sgraph;
+            node_t n1 = sgraph.new_node(GadgetType::STORE);
+            Node& node1 = sgraph.nodes[n1];
+            node1.params[PARAM_STORE_DST_ADDR_REG].make_reg(X86_ECX);
+            node1.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(-20, "cst_0");
+            node1.params[PARAM_STORE_SRC_REG].make_reg(X86_EAX);
+            // Apply strat
+            sgraph.rule_generic_src_transitivity(n1);
+            sgraph.select_gadgets(db);
+            ropchain = sgraph.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+            
+            // Test src transitivity on ASTORE
+            StrategyGraph sgraph2;
+            node_t n2 = sgraph2.new_node(GadgetType::ASTORE);
+            Node& node2 = sgraph2.nodes[n2];
+            node2.params[PARAM_ASTORE_DST_ADDR_REG].make_reg(X86_ECX);
+            node2.params[PARAM_ASTORE_DST_ADDR_OFFSET].make_cst(-20, "cst_0");
+            node2.params[PARAM_ASTORE_SRC_REG].make_reg(X86_EAX);
+            node2.params[PARAM_ASTORE_OP].make_op(Op::XOR);
+            // Apply strat
+            sgraph2.rule_generic_src_transitivity(n2);
+            sgraph2.select_gadgets(db);
+            ropchain = sgraph2.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+
+            return nb;
+        }
     }
 }
 
@@ -263,6 +302,7 @@ void test_strategy(){
         total += rules();
         total += test_generic_adjust_jmp();
         total += test_adjust_load();
+        total += test_generic_src_transitivity();
     }
 
     // Return res

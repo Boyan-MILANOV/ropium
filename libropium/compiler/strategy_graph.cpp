@@ -235,6 +235,18 @@ int Node::get_param_num_dst_reg(){
     }
 }
 
+int Node::get_param_num_src_reg(){
+    switch( type ){
+        case GadgetType::MOV_REG: return PARAM_MOVREG_SRC_REG;
+        case GadgetType::MOV_CST: return PARAM_MOVCST_DST_REG;
+        case GadgetType::AMOV_CST: return PARAM_AMOVCST_SRC_REG;
+        case GadgetType::STORE: return PARAM_STORE_SRC_REG;
+        case GadgetType::ASTORE: return PARAM_ASTORE_SRC_REG;
+        default:
+            throw runtime_exception("Node::get_param_num_src_reg(): got unsupported gadget type");
+    }
+}
+
 int Node::get_param_num_src_addr_offset(){
     switch( type ){
         case GadgetType::LOAD: return PARAM_LOAD_SRC_ADDR_OFFSET;

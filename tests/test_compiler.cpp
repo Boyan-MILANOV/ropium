@@ -115,6 +115,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x8B\x40\x08\xC3", 4), 9)); // mov eax, [eax + 8]; ret
             raw.push_back(RawGadget(string("\x8D\x4B\x08\xC3", 4), 10)); // lea ecx, [ebx + 8]; ret
             raw.push_back(RawGadget(string("\x8D\x40\x20\xFF\xE1", 5), 11)); // lea eax, [eax + 32]; jmp ecx;
+            raw.push_back(RawGadget(string("\x89\x43\x08\xC3", 4), 12)); // mov [ebx + 8], eax; ret
 
             db.analyse_raw_gadgets(raw, &arch);
 
@@ -148,6 +149,9 @@ namespace test{
             ropchain = comp.compile(" eax =  mem(eax+40)");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
 
+            // Test src transitivity
+            ropchain = comp.compile(" mem(ebx+8) =  ebp");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             return nb;
         }
         
