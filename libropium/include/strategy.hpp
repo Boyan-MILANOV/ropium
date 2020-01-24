@@ -340,6 +340,8 @@ public:
     int get_param_num_dst_reg();
     int get_param_num_src_addr_offset();
     int get_param_num_src_addr_reg();
+    int get_param_num_dst_addr_offset();
+    int get_param_num_dst_addr_reg();
     bool has_dst_reg_param();
 
     bool assign_gadget(Gadget* gadget, Arch* arch=nullptr, Constraint* constraint=nullptr);
@@ -405,6 +407,7 @@ public:
     bool rule_generic_src_transitivity(node_t n);
     bool rule_generic_adjust_jmp(node_t n, Arch* arch);
     bool rule_adjust_load(node_t n, Arch* arch);
+    bool rule_adjust_store(node_t n, Arch* arch);
     // Ordering
     void compute_dfs_strategy();
     void compute_dfs_params();

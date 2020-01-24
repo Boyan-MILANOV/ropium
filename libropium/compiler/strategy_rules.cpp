@@ -52,6 +52,8 @@ bool StrategyGraph::rule_generic_transitivity(node_t n){
     for( i = 0; i < MAX_PARAMS; i++){
         redirect_incoming_param_edges(node.id, i, node1.id, i);
     }
+    // Except dst reg (to node2)
+    redirect_incoming_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node2.get_param_num_dst_reg());
 
     // Redirect outgoing dst_reg arcs
     redirect_outgoing_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node.get_param_num_dst_reg());
@@ -359,5 +361,85 @@ bool StrategyGraph::rule_generic_src_transitivity(node_t n){
     // Disable previous node
     disable_node(node.id);
     
+    return true;
+}
+
+/* mem(dst_addr_reg, dst_addr_offset) <-- src_reg
+ * =======================
+ * (n1) MovReg R1, dst_addr_reg + (dst_addr_offset - C1)
+ * (n2) mem(R1 + C1) <-- src_reg
+ * ======================= */
+bool StrategyGraph::rule_adjust_store(node_t n, Arch* arch){
+
+    if( nodes[n].type != GadgetType::STORE &&
+        nodes[n].type != GadgetType::ASTORE ){
+        return false;
+    }
+    
+    // If we want to store at the stack pointer, don't apply this strategy
+    if( nodes[n].params[nodes[n].get_param_num_dst_addr_reg()].value == arch->sp()){
+        return false;
+    }
+    
+    // If the parameters are free then it doesn't make sense to adjust it
+    if( nodes[n].params[nodes[n].get_param_num_dst_addr_reg()].is_free() && 
+        nodes[n].params[nodes[n].get_param_num_dst_addr_offset()].is_free()){
+        return false;
+    }
+
+    // Get/Create nodes
+    node_t n1 = new_node(GadgetType::AMOV_CST);
+    node_t n2 = new_node(nodes[n].type);
+    Node& node = nodes[n];
+    Node& node1 = nodes[n1];
+    Node& node2 = nodes[n2];
+
+    // SET NODE 2
+    node2 = node; // Copy node to node2
+    node2.id = n2; // But keep id
+    // Modify dst_addr_reg to be any register
+    node2.params[node2.get_param_num_dst_addr_reg()].make_reg(-1, false); // free reg
+    // Make the offset also free
+    node2.params[node2.get_param_num_dst_addr_offset()].make_cst(0, new_name("addr_offset"), false); // free cst
+
+    // SET NODE 1
+    node1.params[PARAM_AMOVCST_SRC_OP].make_op(Op::ADD);
+    // Set node1 with the right reg and cst
+    node1.params[PARAM_AMOVCST_DST_REG].make_reg(node2.id,node2.get_param_num_dst_addr_reg()); // depends on the load src addr reg
+    node1.params[PARAM_AMOVCST_SRC_REG] = node.params[node.get_param_num_dst_addr_reg()]; // Reg should be set with the same reg of the initial STORE
+    // Cst must be the original offset (of node) minus the new one (of node2)
+    Param& node_offset = node.params[node.get_param_num_dst_addr_offset()];
+    Param& node2_offset = node2.params[node2.get_param_num_dst_addr_offset()];
+    Expr src_cst_expr = exprvar(arch->bits, node_offset.name) 
+                        - exprvar(arch->bits, node2_offset.name);
+    node1.params[PARAM_AMOVCST_SRC_CST].make_cst(node2.id, node2.get_param_num_dst_addr_offset(), 
+            src_cst_expr, new_name("addr_offset"));
+    node1.params[PARAM_AMOVCST_SRC_CST].add_dep(node.id, node.get_param_num_dst_addr_offset());
+
+    // Add data link between node 1 and 2 for the address reg
+    node1.params[PARAM_AMOVCST_DST_REG].is_data_link = true;
+
+    // Node1 must end with a ret
+    node1.branch_type = BranchType::RET;
+    // Node2 same as node
+    node2.branch_type = node.branch_type;
+
+    // Redirect input params arcs from node to node1
+    redirect_incoming_param_edges(node.id, node.get_param_num_dst_addr_offset(), 
+                                  node2.id, node2.get_param_num_dst_addr_offset());
+    redirect_incoming_param_edges(node.id, node.get_param_num_dst_addr_reg(), 
+                                  node2.id, node2.get_param_num_dst_addr_reg());
+
+    // Redirect/add strategy edges
+    add_strategy_edge(node1.id, node2.id);
+    redirect_incoming_strategy_edges(node.id, node1.id);
+    redirect_outgoing_strategy_edges(node.id, node2.id);
+
+    // Update param edges
+    update_param_edges();
+
+    // Disable previous node
+    disable_node(node.id);
+
     return true;
 }

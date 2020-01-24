@@ -265,6 +265,24 @@ int Node::get_param_num_src_addr_reg(){
     }
 }
 
+int Node::get_param_num_dst_addr_offset(){
+    switch( type ){
+        case GadgetType::STORE: return PARAM_STORE_DST_ADDR_OFFSET;
+        case GadgetType::ASTORE: return PARAM_ASTORE_DST_ADDR_OFFSET;
+        default:
+            throw runtime_exception("Node::get_param_num_dst_addr_offset(): got unsupported gadget type");
+    }
+}
+
+int Node::get_param_num_dst_addr_reg(){
+    switch( type ){
+        case GadgetType::STORE: return PARAM_STORE_DST_ADDR_REG;
+        case GadgetType::ASTORE: return PARAM_ASTORE_DST_ADDR_REG;
+        default:
+            throw runtime_exception("Node::get_param_num_dst_addr_offset(): got unsupported gadget type");
+    }
+}
+
 bool Node::modifies_reg(int reg_num){
         return (affected_gadget->modified_regs[reg_num]);
 }
