@@ -278,6 +278,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         Node& node = graph->nodes[n];
         node.branch_type = BranchType::RET;
         node.params[PARAM_STORE_DST_ADDR_REG].make_reg(instr.args[PARAM_STORE_DST_ADDR_REG]);
+        node.params[PARAM_STORE_DST_ADDR_REG].is_data_link = true;
         node.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(instr.args[PARAM_STORE_DST_ADDR_OFFSET], graph->new_name("offset"));
         node.params[PARAM_STORE_SRC_REG].make_reg(instr.args[PARAM_STORE_SRC_REG]);
         node.params[PARAM_STORE_SRC_REG].is_data_link = true;
@@ -364,6 +365,137 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
 
         graph->add_param_edge(n2, n1);
         graph->add_strategy_edge(n2, n1);
+
+        graphs.push_back(graph);
+    }else if( instr.type == ILInstructionType::STORE_CST ){
+        // STORE_CST
+        graph = new StrategyGraph();
+        node_t n = graph->new_node(GadgetType::STORE);
+        node_t n1 = graph->new_node(GadgetType::MOV_CST);
+        Node& node = graph->nodes[n];
+        Node& node1 = graph->nodes[n1];
+        node.branch_type = BranchType::RET;
+        node.params[PARAM_STORE_DST_ADDR_REG].make_reg(instr.args[PARAM_STORE_DST_ADDR_REG]);
+        node.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(instr.args[PARAM_STORE_DST_ADDR_OFFSET], graph->new_name("offset"));
+        node.params[PARAM_STORE_SRC_REG].make_reg(-1, false); // Free reg
+        node.node_assertion.valid_pointers.add_valid_pointer(PARAM_STORE_DST_ADDR_REG);
+        
+        node1.branch_type = BranchType::RET;
+        node1.params[PARAM_MOVCST_DST_REG].make_reg(node.id, PARAM_STORE_SRC_REG);
+        node1.params[PARAM_MOVCST_DST_REG].is_data_link = true;
+        node1.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_STORECST_SRC_CST], graph->new_name("cst"));
+        
+        graph->add_strategy_edge(node1.id, node.id);
+        graph->add_param_edge(node1.id, node.id);
+        
+        graphs.push_back(graph);
+    }else if( instr.type == ILInstructionType::CST_STORE_CST ){
+        // CST_STORE_CST
+        graph = new StrategyGraph();
+        node_t n1 = graph->new_node(GadgetType::STORE);
+        node_t n2 = graph->new_node(GadgetType::MOV_CST);
+        node_t n3 = graph->new_node(GadgetType::MOV_CST);
+        Node& node1 = graph->nodes[n1];
+        Node& node2 = graph->nodes[n2];
+        Node& node3 = graph->nodes[n3];
+        node1.branch_type = BranchType::RET;
+        node2.branch_type = BranchType::RET;
+        node3.branch_type = BranchType::RET;
+        // First node is mem(X + C) <- reg
+        // Second is X <- src_cst - C 
+        node1.params[PARAM_STORE_SRC_REG].make_reg(-1, false); // Free reg
+        node1.params[PARAM_STORE_DST_ADDR_REG].make_reg(-1, false); // Free
+        node1.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
+        node1.strategy_constraints.push_back(
+            // Can not adjust the addr_reg if it is the same as the reg that must be written
+            // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
+            [](Node* n, StrategyGraph* g)->bool{
+                return n->params[PARAM_STORE_DST_ADDR_REG].value != n->params[PARAM_STORE_SRC_REG].value;
+            }
+        );
+        node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_STORE_DST_ADDR_REG);
+        
+        node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
+        node2.params[PARAM_MOVCST_DST_REG].is_data_link = true;
+        node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_STORE_DST_ADDR_OFFSET, 
+            instr.args[PARAM_CSTSTORECST_DST_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_STORE_DST_ADDR_OFFSET].name)
+            , graph->new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
+        
+        node3.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_SRC_REG);
+        node3.params[PARAM_MOVCST_DST_REG].is_data_link = true;
+        node3.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_CSTSTORECST_SRC_CST], graph->new_name("cst"));
+
+        graph->add_param_edge(n2, n1);
+        graph->add_strategy_edge(n2, n1);
+        graph->add_param_edge(n3, n1);
+        graph->add_strategy_edge(n3, n1);
+
+        graphs.push_back(graph);
+    }else if( instr.type == ILInstructionType::ASTORE_CST ){
+        // ASTORE_CST
+        graph = new StrategyGraph();
+        node_t n = graph->new_node(GadgetType::ASTORE);
+        node_t n1 = graph->new_node(GadgetType::MOV_CST);
+        Node& node = graph->nodes[n];
+        Node& node1 = graph->nodes[n1];
+        node.branch_type = BranchType::RET;
+        node.params[PARAM_ASTORE_DST_ADDR_REG].make_reg(instr.args[PARAM_ASTORE_DST_ADDR_REG]);
+        node.params[PARAM_ASTORE_DST_ADDR_REG].is_data_link = true;
+        node.params[PARAM_ASTORE_DST_ADDR_OFFSET].make_cst(instr.args[PARAM_ASTORE_DST_ADDR_OFFSET], graph->new_name("offset"));
+        node.params[PARAM_ASTORE_SRC_REG].make_reg(-1, false); // Free reg
+        node.params[PARAM_ASTORE_OP].make_op((Op)instr.args[PARAM_ASTORECST_OP]);
+        node.node_assertion.valid_pointers.add_valid_pointer(PARAM_ASTORE_DST_ADDR_REG);
+        
+        node1.branch_type = BranchType::RET;
+        node1.params[PARAM_MOVCST_DST_REG].make_reg(node.id, PARAM_ASTORE_SRC_REG);
+        node1.params[PARAM_MOVCST_DST_REG].is_data_link = true;
+        node1.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_ASTORECST_SRC_CST], graph->new_name("cst"));
+        
+        graph->add_strategy_edge(node1.id, node.id);
+        graph->add_param_edge(node1.id, node.id);
+        
+        graphs.push_back(graph);
+    }else if( instr.type == ILInstructionType::CST_ASTORE_CST ){
+        // CST_ASTORE_CST
+        graph = new StrategyGraph();
+        node_t n1 = graph->new_node(GadgetType::ASTORE);
+        node_t n2 = graph->new_node(GadgetType::MOV_CST);
+        node_t n3 = graph->new_node(GadgetType::MOV_CST);
+        Node& node1 = graph->nodes[n1];
+        Node& node2 = graph->nodes[n2];
+        Node& node3 = graph->nodes[n3];
+        node1.branch_type = BranchType::RET;
+        node2.branch_type = BranchType::RET;
+        node3.branch_type = BranchType::RET;
+        // First node is mem(X + C) <- reg
+        // Second is X <- src_cst - C 
+        node1.params[PARAM_ASTORE_OP].make_op((Op)instr.args[PARAM_CSTASTORECST_OP]);
+        node1.params[PARAM_ASTORE_SRC_REG].make_reg(-1, false); // Free reg
+        node1.params[PARAM_ASTORE_DST_ADDR_REG].make_reg(-1, false); // Free reg
+        node1.params[PARAM_ASTORE_DST_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false); // Free offset also
+        node1.strategy_constraints.push_back(
+            // Can not adjust the addr_reg if it is the same as the reg that must be written
+            // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
+            [](Node* n, StrategyGraph* g)->bool{
+                return n->params[PARAM_ASTORE_DST_ADDR_REG].value != n->params[PARAM_ASTORE_SRC_REG].value;
+            }
+        );
+        node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_ASTORE_DST_ADDR_REG);
+        
+        node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_ASTORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
+        node2.params[PARAM_MOVCST_DST_REG].is_data_link = true;
+        node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_ASTORE_DST_ADDR_OFFSET, 
+            instr.args[PARAM_CSTASTORECST_DST_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_ASTORE_DST_ADDR_OFFSET].name)
+            , graph->new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
+        
+        node3.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_ASTORE_SRC_REG);
+        node3.params[PARAM_MOVCST_DST_REG].is_data_link = true;
+        node3.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_CSTASTORECST_SRC_CST], graph->new_name("cst"));
+
+        graph->add_param_edge(n2, n1);
+        graph->add_strategy_edge(n2, n1);
+        graph->add_param_edge(n3, n1);
+        graph->add_strategy_edge(n3, n1);
 
         graphs.push_back(graph);
     }else{

@@ -31,6 +31,10 @@ enum class ILInstructionType{
     ASTORE,     // mem(reg + offset) OP<- reg
     CST_STORE,  // mem(offset) <- reg
     CST_ASTORE,  // mem(offset) OP<- reg
+    STORE_CST,      // mem(reg + offset) <- cst
+    ASTORE_CST,     // mem(reg + offset) OP<- cst
+    CST_STORE_CST,  // mem(offset) <- cst
+    CST_ASTORE_CST,  // mem(offset) OP<- cst
     // jump
     JMP         // PC <- reg
 };

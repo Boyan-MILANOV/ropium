@@ -415,6 +415,78 @@ bool _parse_il_cst_astore(Arch& arch, ILInstruction* instr, string& str){
     return false;
 }
 
+bool _parse_il_store_cst(Arch& arch, ILInstruction* instr, string& str){
+    int idx = 0;
+    vector<cst_t> args;
+    if  (_parse_il_mem_start(str, idx) &&
+         _parse_il_reg_and_offset(arch, args, str, idx) &&
+        _parse_il_mem_end(str, idx) &&
+        _parse_il_affect(str, idx) &&
+        _parse_il_cst(arch, args, str, idx) &&
+        _parse_end(str, idx))
+    {
+        instr->args = args;
+        instr->type = ILInstructionType::STORE_CST;
+        return true;
+    }
+    return false;
+}
+
+bool _parse_il_astore_cst(Arch& arch, ILInstruction* instr, string& str){
+    int idx = 0;
+    vector<cst_t> args;
+    if  (_parse_il_mem_start(str, idx) &&
+         _parse_il_reg_and_offset(arch, args, str, idx) &&
+        _parse_il_mem_end(str, idx) &&
+        _parse_il_binop(args, str, idx) &&
+        _parse_il_affect(str, idx) &&
+        _parse_il_cst(arch, args, str, idx) &&
+        _parse_end(str, idx))
+    {
+        instr->args = args;
+        instr->type = ILInstructionType::ASTORE_CST;
+        return true;
+    }
+    return false;
+}
+
+bool _parse_il_cst_store_cst(Arch& arch, ILInstruction* instr, string& str){
+    int idx = 0;
+    vector<cst_t> args;
+    if  (_parse_il_mem_start(str, idx) &&
+         _parse_il_cst(arch, args, str, idx) &&
+        _parse_il_mem_end(str, idx) &&
+        _parse_il_affect(str, idx) &&
+        _parse_il_cst(arch, args, str, idx) &&
+        _parse_end(str, idx))
+    {
+        instr->args = args;
+        instr->type = ILInstructionType::CST_STORE_CST;
+        return true;
+    }
+    return false;
+}
+
+bool _parse_il_cst_astore_cst(Arch& arch, ILInstruction* instr, string& str){
+    int idx = 0;
+    vector<cst_t> args;
+    if  (_parse_il_mem_start(str, idx) &&
+         _parse_il_cst(arch, args, str, idx) &&
+        _parse_il_mem_end(str, idx) &&
+        _parse_il_binop(args, str, idx) &&
+        _parse_il_affect(str, idx) &&
+        _parse_il_cst(arch, args, str, idx) &&
+        _parse_end(str, idx))
+    {
+        instr->args = args;
+        instr->type = ILInstructionType::CST_ASTORE_CST;
+        return true;
+    }
+    return false;
+}
+
+
+
 bool _parse_il_instruction(Arch& arch, ILInstruction* instr, string& str){
     return  _parse_il_mov_cst(arch, instr, str) || 
             _parse_il_mov_reg(arch, instr, str) ||
@@ -427,7 +499,11 @@ bool _parse_il_instruction(Arch& arch, ILInstruction* instr, string& str){
             _parse_il_store(arch, instr, str) ||
             _parse_il_cst_store(arch, instr, str) ||
             _parse_il_astore(arch, instr, str) ||
-            _parse_il_cst_astore(arch, instr, str);
+            _parse_il_cst_astore(arch, instr, str) ||
+            _parse_il_store_cst(arch, instr, str) ||
+            _parse_il_cst_store_cst(arch, instr, str) ||
+            _parse_il_astore_cst(arch, instr, str) ||
+            _parse_il_cst_astore_cst(arch, instr, str);
 }
 
 
