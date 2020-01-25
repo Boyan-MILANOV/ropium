@@ -31,7 +31,7 @@ You also need the latest [ROPgadget](https://github.com/JonathanSalwan/ROPgadget
       git clone https://github.com/JonathanSalwan/ROPgadget && cd ROPgadget
       python setup.py install --user 
 
-Finally install ROPium:
+Finally install **ROPium**:
 
       git clone https://github.com/Boyan-MILANOV/ropium && cd ropium
       make
@@ -73,6 +73,19 @@ p += pack('<Q', 0x0000000000052240+off) # push rax; pop rbx; ret
 >>> print(chain.dump('raw'))
 
 b'Q\xa8\t\x00\x00\x00\x00\x00\x18\x00\x13\x00\x00\x00\x00\x00@"\x05\x00\x00\x00\x00\x00'
+```
+
+Set constraints on ropchains:
+```python
+# Bytes that should not appear in the ropchain
+rop.bad_bytes = [0x00, 0x0a, 0x0b]
+
+# Register that should not be clobbered by the ropchain
+rop.keep_regs = ['rsi', 'rdx']
+
+# Enable/Forbid ropchain to dereference registers that might hold invalid addresses
+# Safe mode is 'True' by default
+rop.safe_mem = False
 ```
 
 # Docker

@@ -52,7 +52,7 @@ void ROPChain::print_python(ostream& os, string tab){
 
     for(ROPItem& item : items){
         if( item.type == ROPItemType::GADGET ){
-            os << tab << pack << str_special(value_to_hex_str(arch->octets, item.addr)) << ") # " << str_bold(item.gadget->asm_str) << std::endl;
+            os << tab << pack << str_special(value_to_hex_str(arch->octets, item.addr)) << " + off) # " << str_bold(item.gadget->asm_str) << std::endl;
         }else if( item.type == ROPItemType::CST ){
             os << tab << pack << str_special(value_to_hex_str(arch->octets, item.value)) << ")";
             if( !item.msg.empty())
