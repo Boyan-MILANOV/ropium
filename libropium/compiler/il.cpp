@@ -114,10 +114,10 @@ bool _parse_il_affect(string& str, int& idx){
 
 bool _parse_il_mem_start(string& str, int& idx){
     _skip_whitespace(str, idx);
-    if( idx > str.size()-4)
+    if( idx > str.size()-1)
         return false;
-    if( str.substr(idx, 4) == "mem(" ){
-        idx+=4;
+    if( str.substr(idx, 1) == "[" ){
+        idx+=1;
         return true;
     }else
         return false;
@@ -127,7 +127,7 @@ bool _parse_il_mem_end(string& str, int& idx){
     _skip_whitespace(str, idx);
     if( idx >= str.size())
         return false;
-    if( str[idx] == ')' ){
+    if( str[idx] == ']' ){
         idx++;
         return true;
     }else

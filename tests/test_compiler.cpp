@@ -68,27 +68,27 @@ namespace test{
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             ropchain = comp.compile(" ebx = eax + esi ");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" ebx = mem( ecx - 0x9) ");
+            ropchain = comp.compile(" ebx = [ ecx - 0x9] ");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" ebx = mem( 1) ");
+            ropchain = comp.compile(" ebx = [ 1] ");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" mem(edi) = ecx");
+            ropchain = comp.compile(" [edi] = ecx");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" mem(  esi-   0x3) = ebx");
+            ropchain = comp.compile(" [ esi-   0x3] = ebx");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" mem(19) = ebx");
+            ropchain = comp.compile(" [19] = ebx");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" mem(0x12345678) = ecx");
+            ropchain = comp.compile(" [0x12345678] = ecx");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" edi += mem(ecx)");
+            ropchain = comp.compile(" edi += [ecx]");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" edi ^= mem(0)");
+            ropchain = comp.compile(" edi ^= [0]");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" mem(ecx+0x000) += esp  \t\t\n\t  ");
+            ropchain = comp.compile(" [ecx+0x000 ] += esp  \t\t\n\t  ");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             ropchain = comp.compile(" ecx = -1");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" mem(22) += 4");
+            ropchain = comp.compile(" [22] += 4");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
 
             return nb;
@@ -145,13 +145,13 @@ namespace test{
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             
             // Test adjust load
-            ropchain = comp.compile(" eax =  mem(ebx+16)");
+            ropchain = comp.compile(" eax =  [ebx+16]");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            ropchain = comp.compile(" eax =  mem(eax+40)");
+            ropchain = comp.compile(" eax =  [eax+40]");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
 
             // Test src transitivity
-            ropchain = comp.compile(" mem(ebx+8) =  ebp");
+            ropchain = comp.compile(" [ebx+8] =  ebp");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             return nb;
         }
