@@ -202,7 +202,6 @@ namespace test{
             nb += _assert(instr.args[PARAM_CSTASTORE_SRC_REG] == X86_EBX, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_CSTASTORE_OP] == (int)Op::MOD, "Failed to parse IL Instruction");
 
-            
             // store_cst
             str = " mem(eax - 2) = 42";
             instr = ILInstruction(arch, str);
@@ -210,7 +209,7 @@ namespace test{
             nb += _assert(instr.args[PARAM_STORECST_DST_ADDR_REG] == X86_EAX, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_STORECST_DST_ADDR_OFFSET] == -2, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_STORECST_SRC_CST] == 42, "Failed to parse IL Instruction");
-            
+
             str = " mem( eax) = 1234";
             instr = ILInstruction(arch, str);
             nb += _assert(instr.type == ILInstructionType::STORE_CST, "Failed to parse IL Instruction");
