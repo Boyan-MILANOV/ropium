@@ -1,4 +1,6 @@
 #include "strategy.hpp"
+#include "compiler.hpp"
+#include "il.hpp"
 #include "exception.hpp"
 #include "utils.hpp"
 #include <cassert>

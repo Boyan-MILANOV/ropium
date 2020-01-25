@@ -22,7 +22,7 @@ ifeq ($(DEBUG), 1)
 	LDFLAGS += -g
 else
 	CFLAGS += -O2
-	CXXFLAGS += -O2
+	CXXFLAGS += -O2 -Wno-narrowing
 endif
 
 ## Bindings

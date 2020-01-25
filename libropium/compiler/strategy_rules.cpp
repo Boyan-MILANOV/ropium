@@ -318,6 +318,12 @@ bool StrategyGraph::rule_generic_src_transitivity(node_t n){
         return false;
     }
     
+    // Don't apply this strategy if the src reg is already free no sense to add a 
+    // transitivy step
+    if( nodes[n].params[nodes[n].get_param_num_src_reg()].is_free()){
+        return false;
+    }
+
     // Get/Create nodes
     node_t n1 = new_node(nodes[n].type);
     node_t n2 = new_node(GadgetType::MOV_REG);
@@ -328,11 +334,11 @@ bool StrategyGraph::rule_generic_src_transitivity(node_t n){
     
     node1 = node; // Copy node to node1
     node1.id = n1; // But keep id
-    // Modify src_reg to make it dependent on the dst reg of previous node (node2)
-    node1.params[node1.get_param_num_src_reg()].make_reg(node2.id, PARAM_MOVREG_DST_REG);
+    // Modify src_reg to make it free
+    node1.params[node1.get_param_num_src_reg()].make_reg(-1, false); // Free
     
     // Set node2 with the reg transitivity gadget
-    node2.params[PARAM_MOVREG_DST_REG].make_reg(-1, false); // free reg
+    node2.params[PARAM_MOVREG_DST_REG].make_reg(node1.id, node1.get_param_num_src_reg()); // Depends on node1 src reg
     node2.params[PARAM_MOVREG_SRC_REG] = node.params[node.get_param_num_src_reg()]; // Same src reg as initial query in node
     // Add data link between node 1 and 2 for the transitive reg
     node2.params[PARAM_MOVREG_DST_REG].is_data_link = true;
@@ -405,7 +411,7 @@ bool StrategyGraph::rule_adjust_store(node_t n, Arch* arch){
     // SET NODE 1
     node1.params[PARAM_AMOVCST_SRC_OP].make_op(Op::ADD);
     // Set node1 with the right reg and cst
-    node1.params[PARAM_AMOVCST_DST_REG].make_reg(node2.id,node2.get_param_num_dst_addr_reg()); // depends on the load src addr reg
+    node1.params[PARAM_AMOVCST_DST_REG].make_reg(node2.id,node2.get_param_num_dst_addr_reg()); // depends on the store dst addr reg
     node1.params[PARAM_AMOVCST_SRC_REG] = node.params[node.get_param_num_dst_addr_reg()]; // Reg should be set with the same reg of the initial STORE
     // Cst must be the original offset (of node) minus the new one (of node2)
     Param& node_offset = node.params[node.get_param_num_dst_addr_offset()];
@@ -429,6 +435,8 @@ bool StrategyGraph::rule_adjust_store(node_t n, Arch* arch){
                                   node2.id, node2.get_param_num_dst_addr_offset());
     redirect_incoming_param_edges(node.id, node.get_param_num_dst_addr_reg(), 
                                   node2.id, node2.get_param_num_dst_addr_reg());
+    redirect_incoming_param_edges(node.id, node.get_param_num_src_reg(), 
+                                  node2.id, node2.get_param_num_src_reg());
 
     // Redirect/add strategy edges
     add_strategy_edge(node1.id, node2.id);
