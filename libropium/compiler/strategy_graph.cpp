@@ -1096,7 +1096,15 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch, Constraint* constraint){
         for( int offset = 0; offset < nb_paddings*arch->octets; offset += arch->octets){
             // If special padding
             if( padding_num != -1 && padding.offset.value == offset ){
-                ropchain->add_padding(cst_sign_trunc(arch->bits, padding.value.value));
+                // If the padding is a gadget address (indirect gadget), add a info msg
+                string msg = "";
+                if( padding.value.is_dependent() && padding.value.deps[0].param_type == nodes[padding.value.deps[0].node].get_param_num_gadget_addr()){
+                    msg = nodes[padding.value.deps[0].node].affected_gadget->asm_str;
+                    ropchain->add_gadget_address(cst_sign_trunc(arch->bits, padding.value.value), msg);
+                }else{
+                    ropchain->add_padding(cst_sign_trunc(arch->bits, padding.value.value), msg);
+                }
+
                 // Step to next special padding (if any)
                 if( padding_num == nodes[*rit].special_paddings.size()-1 ){
                     // No more special paddings

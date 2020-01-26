@@ -50,8 +50,8 @@ ostream& operator<<(ostream& os, Gadget& g);
 
 enum class ROPItemType{
     GADGET,
-    CST,
-    PADDING
+    PADDING,
+    GADGET_ADDRESS
 };
 
 class ROPItem{
@@ -73,8 +73,8 @@ private:
 public:
     ROPChain(Arch* arch);
     void add_gadget(addr_t addr, Gadget* gadget);
-    void add_padding(cst_t val);
-    void add_cst(cst_t val);
+    void add_padding(cst_t val, string m="");
+    void add_gadget_address(cst_t addr, string m = "");
     int len();
     void print_pretty(ostream& os, string tab="");
     void print_python(ostream& os, string tab="");
