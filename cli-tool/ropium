@@ -35,12 +35,19 @@ def warning(msg):
 
 
 compiler = None
+bad_bytes = []
+keep_regs = []
+safe_mem = True
 start_msg = "\n" + str_bold("ROPium") + " - v3.0\n"
 
 # Commands
 CMD_HELP = "help"
 CMD_LOAD = "load"
 CMD_FIND = "find"
+CMD_BADBYTES = "badbytes"
+CMD_KEEPREGS = "keepregs"
+CMD_ABI = "abi"
+CMD_SAFEMEM = "safemem"
 CMD_EXIT = "exit"
 
 # Arch correspondance
@@ -76,6 +83,11 @@ def main():
                 try:
                     find(args[1:])
                 except FindException as e:
+                    error(str(e), skip=True)
+            elif( command == CMD_BADBYTES ):
+                try:
+                    badbytes(args[1:])
+                except ContextException as e:
                     error(str(e), skip=True)
             else:
                 error(f"Unknown command '{command}'", skip=True)
@@ -155,11 +167,17 @@ class FindException(Exception):
 
 def find(args):
     global compiler
-    
+    global bad_bytes
+    global keep_regs
+    global safemem
+
     if not compiler:
         raise FindException("You must load a binary before finding ropchains")
 
     query = "".join(args)
+    compiler.bad_bytes = bad_bytes
+    compiler.keep_regs = keep_regs
+    compiler.safe_mem = safe_mem
     try:
         ropchain = compiler.compile(query)
     except ValueError as e:
@@ -171,6 +189,50 @@ def find(args):
         print(ropchain.dump(tab="\t"))
     else:
         print("\n\tNo ROPChain found.")
+
+# Badbytes command
+class ContextException(Exception):
+    pass
+
+def badbytes(args):
+    global compiler
+    badbytes_help = "TODO DEBUG HELP"
+
+    if not args:
+        print(badbytes_help)
+        return
+    
+    subcommand = args[0]
+    if subcommand == "set":
+        set_badbytes(args[1:])
+    elif subcommand == "reset":
+        reset_bad_bytes(args[1:])
+    else:
+        raise ContextException(f"Unsupported action '{subcommand}'")
+
+def str_to_byte(s):
+    try:
+        return int(s, 10)
+    except:
+        try:
+            return int(s, 16)
+        except:
+            return None
+
+def set_badbytes(args):
+    global bad_bytes
+    new_bad = []
+    for arg in args:
+        bad = str_to_byte(arg)
+        if bad is None or bad > 0xff:
+            raise ContextException(f"'{arg}' is not a valid byte")
+        new_bad.append(bad)
+    bad_bytes = new_bad
+
+def reset_badbytes(args):
+    global bad_bytes
+    bad_bytes = []
+    
 
 def show_help():
     print("Not implemented")
