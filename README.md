@@ -8,7 +8,7 @@ Key features:
    - **Effortless**: ROPium works out-of-the-box with a smooth Command Line Interface
    - **Scriptable**: It is easy to integrate ROPium in script thanks to its python API
    - **Automatic chaining**: ROPium automatically combines gadgets to create complex ROP-chains
-   - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``[rdi+0x20]=rax``, ``rsi=[rbx+16]/2``, ``...``
+   - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``[rdi+0x20]=rax``, ``rsi=[rbx+16]``, ``0x08040212(1, 2, 3)``, ``...``
 
 # Content
 - [About](#about)
@@ -104,7 +104,7 @@ docker build . --tag ropium
 # Run the image in interactive mode, bind mounting the file to analyze
 docker run --rm -it -v /FULL/HOST/PATH/FILE:/tmp/FILE:ro ropium
 
----> TODO 
+(ropium)> load -a X86 /tmp/FILE
 ```
 The actual image is around 200 MB based on a Debian Stretch with a Python 3.7.3 installed. 
 
