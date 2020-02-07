@@ -31,7 +31,7 @@ struct ParamDep{
 
 class Param{
 public:
-    ParamType type;
+    ParamType type; 
     string name; // Name for the param (used for 'free' constants only)
     // Value
     cst_t value; // Used to put constant OR regnum
@@ -44,6 +44,11 @@ public:
     Param():type(ParamType::NONE), name(""), value(-1), expr(nullptr), is_fixed(true), is_data_link(false){};
 
     void add_dep(node_t n, param_t p){
+        // Check if already present
+        for( ParamDep& dep : deps )
+            if( dep.node == n && dep.param_type == p )
+                return;
+        // If not present, add the dependency
         deps.push_back(ParamDep{n, p});
     };
     
@@ -322,25 +327,24 @@ typedef bool (*constraint_callback_t)(Node* node, StrategyGraph* graph);
 // Commonly used node constraints
 bool constraint_branch_type(Node* node, StrategyGraph* graph);
 
-// Node class
 class Node{
 public:
-    int depth;
-    // Fixed
     int id;
-    bool indirect; // Means that the node must have a gadget assigned
-                   // but the gaget is not added explicitely in the ROPChain
-                   // (it is used for adjust_reg strategy for example)
-    GadgetType type; // Type of gadget for this node
+    bool is_indirect;
+    bool is_disabled;
+    GadgetType type;
+    // Edges
     EdgeSet strategy_edges; 
     EdgeSet param_edges;
     EdgeSet interference_edges;
-    // Dynamic
+    // Parameters
     Param params[MAX_PARAMS];
+    // Affected gadget
     Gadget* affected_gadget;
     // Constraint
     vector<constraint_callback_t> strategy_constraints;
     vector<constraint_callback_t> assigned_gadget_constraints;
+    // Branch type (RET, JMP, ANY, ...)
     BranchType branch_type;
     // Gadget paddings
     vector<ROPPadding> special_paddings;
@@ -354,13 +358,11 @@ public:
     int nb_params();
     bool has_free_param();
     bool has_mandatory_following_node();
-    bool is_disabled();
-    bool is_indirect();
+    // Manage edges
     void add_incoming_strategy_edge(node_t src_node);
     void add_incoming_param_edge(node_t src_node);
     void add_outgoing_strategy_edge(node_t dst_node);
     void add_outgoing_param_edge(node_t dst_node);
-
     void remove_incoming_strategy_edge(node_t src_node);
     void remove_incoming_param_edge(node_t src_node);
     void remove_outgoing_strategy_edge(node_t dst_node);

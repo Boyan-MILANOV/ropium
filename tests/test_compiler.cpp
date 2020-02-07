@@ -222,10 +222,10 @@ void test_compiler(){
     
     // Start testing 
     cout << bold << "[" << green << "+" << def << bold << "]" << def << std::left << std::setw(34) << " Testing ROP compiler... " << std::flush;  
-    //total += direct_match();
-    //total += indirect_match();
-    total += function_call();
-    // DEBUG total += incorrect_match();
+    total += direct_match();
+    total += indirect_match();
+    //  DEBUG uncomment total += function_call();
+    total += incorrect_match();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;
 }

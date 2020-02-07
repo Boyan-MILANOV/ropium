@@ -35,7 +35,7 @@ bool constraint_branch_type(Node* node, StrategyGraph* graph){
            (node->branch_type == BranchType::ANY);
 }
 
-Node::Node(int i, GadgetType t):id(i), type(t), depth(-1), branch_type(BranchType::ANY), indirect(false){
+Node::Node(int i, GadgetType t):id(i), type(t), branch_type(BranchType::ANY), is_indirect(false), is_disabled(false){
     mandatory_following_node = -1;
     // Add constraints that must always be verified
     assigned_gadget_constraints.push_back(constraint_branch_type); // Matching branch type
@@ -115,13 +115,6 @@ bool Node::is_generic_param(param_t param){
            param == get_param_num_gadget_sp_inc();
 }
 
-bool Node::is_disabled(){
-    return id == -1;
-}
-
-bool Node::is_indirect(){
-    return indirect;
-}
 
 void Node::add_incoming_strategy_edge(node_t src_node){
     if( std::find(strategy_edges.in.begin(), strategy_edges.in.end(), src_node) == strategy_edges.in.end()){
@@ -334,7 +327,8 @@ node_t StrategyGraph::new_node(GadgetType t){
 }
 
 void StrategyGraph::disable_node(node_t node){
-    nodes[node].id = -1;
+    nodes[node].id = -1; // DEBUG TODO see if we can keep the ID when disabling
+    nodes[node].is_disabled = true;
 }
 
 string StrategyGraph::new_name(string base){
@@ -559,19 +553,15 @@ bool StrategyGraph::has_dependent_param(node_t n, param_t param){
 
 /* ===============  Ordering ============== */
 void StrategyGraph::_dfs_strategy_explore(vector<node_t>& marked, node_t n){
-    if( nodes[n].is_disabled() || nodes[n].is_indirect() || std::count(dfs_strategy.begin(), dfs_strategy.end(), n))
+    if( nodes[n].is_disabled || nodes[n].is_indirect || std::count(dfs_strategy.begin(), dfs_strategy.end(), n))
         return; // Ignore disabled or indirect nodes
     if( std::count(marked.begin(), marked.end(), n) != 0 ){
         throw runtime_exception("StrategyGraph: strategy DFS: unexpected cycle detected!");
     }else{
         marked.push_back(n);
     }
-    nodes[n].depth = 0;
     for( node_t n2 : nodes[n].strategy_edges.out ){
         _dfs_strategy_explore(marked, n2);
-        // Adjust depth
-        if( nodes[n2].depth +1 < nodes[n].depth)
-            nodes[n].depth = nodes[n2].depth +1;
     }
     dfs_strategy.push_back(n);
 }
@@ -580,7 +570,7 @@ void StrategyGraph::compute_dfs_strategy(){
     vector<node_t> marked;
     dfs_strategy.clear();
     for( Node& node : nodes ){
-        if( node.is_disabled() || (std::count(marked.begin(), marked.end(), node.id) != 0))
+        if( node.is_disabled || (std::count(marked.begin(), marked.end(), node.id) != 0))
             continue;
         else
             _dfs_strategy_explore(marked, node.id);
@@ -608,7 +598,7 @@ void StrategyGraph::compute_dfs_params(){
     vector<node_t> marked;
     dfs_params.clear();
     for( Node& node : nodes ){
-        if( node.is_disabled() || (std::count(marked.begin(), marked.end(), node.id) != 0))
+        if( node.is_disabled || (std::count(marked.begin(), marked.end(), node.id) != 0))
             continue;
         else
             _dfs_params_explore(marked, node.id);
@@ -617,7 +607,7 @@ void StrategyGraph::compute_dfs_params(){
 
 // Returns false <=> the graph contains a cycle
 bool StrategyGraph::_dfs_scheduling_explore(vector<node_t>& marked, node_t n){
-    if( nodes[n].is_disabled() || std::count(dfs_scheduling.begin(), dfs_scheduling.end(), n))
+    if( nodes[n].is_disabled || std::count(dfs_scheduling.begin(), dfs_scheduling.end(), n))
         return true; // Ignore disabled or indirect nodes or already visited ones
 
     if( std::count(marked.begin(), marked.end(), n) != 0 ){
@@ -654,7 +644,7 @@ bool StrategyGraph::compute_dfs_scheduling(){
     vector<node_t> marked;
     dfs_scheduling.clear();
     for( Node& node : nodes ){
-        if( node.is_disabled() || node.is_indirect() || 
+        if( node.is_disabled || node.is_indirect || 
                 (std::count(marked.begin(), marked.end(), node.id) != 0)){
             continue;
         }else{
@@ -678,7 +668,6 @@ void StrategyGraph::_resolve_param(Param& param){
                 // If not expr, just take the value of the other param
                 param.value = nodes[param.deps[0].node].params[param.deps[0].param_type].value;
             }else{
-                std::cout << "DEBUG, resolving param " << param << std::endl;
                 param.value = param.expr->concretize(&params_ctx);
             }
         }else{
@@ -714,7 +703,6 @@ const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t
     Op src_op, op;
 
     // resolve parameters for node 'n'
-    std::cout << "DEBUG, resolving params for node " << n << std::endl;
     _resolve_all_params(n);
 
     switch( node.type ){
@@ -883,7 +871,6 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
         compute_dfs_params();
         compute_dfs_strategy();
         params_ctx = VarContext(); // New context for params
-        std::cout << "DEBUG, graph selecting gadgets : " << *this << std::endl;
         has_gadget_selection = select_gadgets(db, constraint, arch, 0);
         return has_gadget_selection;
     }
@@ -897,7 +884,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
     
     // If the node is a disabled node, juste resolve the parameters
     // and continue the selection 
-    if( node.is_disabled()){
+    if( node.is_disabled){
         _resolve_all_params(n);
         // Continue to select from next node
         if( select_gadgets(db, constraint, arch, dfs_idx+1) )
@@ -989,7 +976,7 @@ void StrategyGraph::compute_interference_points(){
 
     // 1. Compute interfering points for regs
     for( Node& node : nodes ){
-        if( node.is_disabled() ) // Allow indirect nodes though since they will be executed and interfere 
+        if( node.is_disabled ) // Allow indirect nodes though since they will be executed and interfere 
             continue;
         for( int p = 0; p < node.nb_params(); p++ ){
             Param& param = node.params[p];
@@ -998,7 +985,7 @@ void StrategyGraph::compute_interference_points(){
             // Check if this link is modified by another node
             for( Node& other : nodes ){
                 // If disabled, indirect, or one part of the data link, ignore
-                if( other.is_disabled() || other.is_indirect() || param.depends_on(other.id) || other.id == node.id)
+                if( other.is_disabled || other.is_indirect || param.depends_on(other.id) || other.id == node.id)
                     continue;
                 if( modifies_reg(other.id, param.value, true)){ // True to check also mandatory_following_gadgets
                     // Add interfering point
@@ -1094,14 +1081,12 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch, Constraint* constraint){
         return nullptr;
     }
 
-    //std::cout << "DEBUG, graph get ropchain : " << *this << std::endl;
-
     // Get default padding (validate against bad_bytes if constraint specified)
     default_padding = constraint ? constraint->bad_bytes.get_valid_padding(arch->octets) : cst_sign_trunc(arch->bits, -1);
 
     ROPChain* ropchain = new ROPChain(arch);
     for( rit = dfs_scheduling.rbegin(); rit != dfs_scheduling.rend(); rit++ ){
-        if( nodes[*rit].is_indirect() ){
+        if( nodes[*rit].is_indirect ){
             continue; // Skip indirect nodes
         }
 

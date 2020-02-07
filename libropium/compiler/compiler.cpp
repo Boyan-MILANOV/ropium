@@ -39,7 +39,7 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
 
     // Iterate through all nodes of the graph
     for( Node& node : graph->nodes ){
-        if( node.is_disabled() || node.is_indirect() )
+        if( node.is_disabled || node.is_indirect )
             continue; // Skip invalid/removed nodes
         // Apply strategy rules
         // Generic transitivity

@@ -174,7 +174,7 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
     node_ret.params[PARAM_LOAD_DST_REG].make_reg(arch->pc()); // Dest reg is PC
     node_ret.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(arch->sp()); // addr reg is SP (pop from the stack)
     node_ret.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst( n, node.get_param_num_gadget_sp_delta(), nullptr, new_name("adjust_jmp_offset"));
-    node_ret.indirect = true; // This node is 'indirect' (gadget not added explicitely on the stack)
+    node_ret.is_indirect = true; // This node is 'indirect' (gadget not added explicitely on the stack)
 
     // Set the 'pre-jmp' gadget. It sets the jmp reg to the address of the 'adjust gadget'.
     // Dest reg of node1 is the jmp reg of node
