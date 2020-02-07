@@ -50,13 +50,10 @@ bool StrategyGraph::rule_generic_transitivity(node_t n){
 
     // Redirect input params arcs from node to node1
     for( i = 0; i < MAX_PARAMS; i++){
-        redirect_incoming_param_edges(node.id, i, node1.id, i);
+        redirect_param_edges(node.id, i, node1.id, i);
     }
     // Except dst reg (to node2)
-    redirect_incoming_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node2.get_param_num_dst_reg());
-
-    // Redirect outgoing dst_reg arcs
-    redirect_outgoing_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node.get_param_num_dst_reg());
+    redirect_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node2.get_param_num_dst_reg());
 
     // Update param edges
     update_param_edges();
@@ -123,10 +120,6 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     );
 
     // Redirect the different params and edges
-    // Leave incoming args to the constant (do nothing)
-    // Any arc outgoing from node:dst_reg now goes out from node1:dst_reg
-    redirect_outgoing_param_edges(node.id, PARAM_MOVCST_DST_REG, node1.id, PARAM_LOAD_DST_REG);
-    
     // Generic params
     redirect_generic_param_edges(node.id, node1.id);
 
@@ -289,11 +282,8 @@ bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
     node2.branch_type = node.branch_type;
 
     // Redirect input params arcs from node to node1
-    redirect_incoming_param_edges(node.id, node.get_param_num_dst_reg(), 
+    redirect_param_edges(node.id, node.get_param_num_dst_reg(), 
                                   node2.id, node2.get_param_num_dst_reg());
-
-    // Redirect outgoing dst_reg arcs
-    redirect_outgoing_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node.get_param_num_dst_reg());
 
     // Redirect/add strategy edges
     add_strategy_edge(node1.id, node2.id);
@@ -354,11 +344,8 @@ bool StrategyGraph::rule_generic_src_transitivity(node_t n){
 
     // Redirect input params arcs from node to node1
     for( i = 0; i < MAX_PARAMS; i++){
-        redirect_incoming_param_edges(node.id, i, node1.id, i);
-    } // TODO Virer ça ? ??
-
-    // Redirect outgoing src_reg arcs
-    redirect_outgoing_param_edges(node.id, node.get_param_num_src_reg(), node1.id, node1.get_param_num_src_reg());
+        redirect_param_edges(node.id, i, node1.id, i);
+    } // TODO DEBUG Virer ça ? ??
 
     // Update param edges
     update_param_edges();
@@ -435,9 +422,9 @@ bool StrategyGraph::rule_adjust_store(node_t n, Arch* arch){
     node2.branch_type = node.branch_type;
 
     // Redirect input params arcs from node to node1
-    redirect_incoming_param_edges(node.id, node.get_param_num_dst_addr_reg(), 
+    redirect_param_edges(node.id, node.get_param_num_dst_addr_reg(), 
                                   node2.id, node2.get_param_num_dst_addr_reg());
-    redirect_incoming_param_edges(node.id, node.get_param_num_src_reg(), 
+    redirect_param_edges(node.id, node.get_param_num_src_reg(), 
                                   node2.id, node2.get_param_num_src_reg());
 
     // Redirect/add strategy edges

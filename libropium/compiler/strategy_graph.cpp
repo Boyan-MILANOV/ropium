@@ -335,10 +335,6 @@ string StrategyGraph::new_name(string base){
     return name_generator.new_name(base);
 }
 
-// Make the edges that point to the parameter 'curr_param_type' on 'curr_node' point to 'new_node'
-// and 'new_param_type'. The edges to 'curr_node' are removed and the new edges are also added as
-// 'in' edges in the new node.
-
 
 bool _redirect_param_dep(ParamDep& dep, node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type){
     if( dep.node == curr_node && dep.param_type == curr_param_type ){
@@ -349,35 +345,26 @@ bool _redirect_param_dep(ParamDep& dep, node_t curr_node, param_t curr_param_typ
         return false;
 }
 
-void StrategyGraph::redirect_incoming_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type){
-    Node& newn = nodes[new_node];
-    bool changed = false;
+// Make the edges that point to the parameter 'curr_param_type' on 'curr_node' point to 'new_node'
+// and 'new_param_type'.
+void StrategyGraph::redirect_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type){
     for( node_t p = 0; p < nodes.size(); p++ ){
         Node& prev = nodes[p];
         // Redirect parameters
         for( int p = 0; p < prev.nb_params(); p++ ){
             Param& param = prev.params[p];
             for( ParamDep& dep : param.deps ){
-                changed |= _redirect_param_dep(dep, curr_node, curr_param_type, new_node, new_param_type);
+                _redirect_param_dep(dep, curr_node, curr_param_type, new_node, new_param_type);
             }
         }
         // Redirect special paddings
         for( ROPPadding padd : prev.special_paddings ){
             for( ParamDep& dep : padd.offset.deps ){
-                changed |= _redirect_param_dep(dep, curr_node, curr_param_type, new_node, new_param_type);
+                _redirect_param_dep(dep, curr_node, curr_param_type, new_node, new_param_type);
             }
             for( ParamDep& dep : padd.value.deps ){
-                changed |= _redirect_param_dep(dep, curr_node, curr_param_type, new_node, new_param_type);
+                _redirect_param_dep(dep, curr_node, curr_param_type, new_node, new_param_type);
             }
-        }
-
-        if( changed ){
-            // Remove previous outgoing edge
-            prev.remove_outgoing_param_edge(curr_node);
-            // Add new outgoing edge
-            prev.add_outgoing_param_edge(new_node);
-            // Add new incoming edge to new node
-            newn.add_incoming_param_edge(prev.id);
         }
     }
 }
@@ -398,23 +385,6 @@ void StrategyGraph::redirect_incoming_strategy_edges(node_t curr_node, node_t ne
                 newn.add_incoming_strategy_edge(prev.id);
             }
         }
-    }
-}
-
-// Redirect edges that come from parameter 'curr_param_type' in 'curr_node' to make them come from
-// parameter 'new_param_type' from 'new_node'
-void StrategyGraph::redirect_outgoing_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type){
-    Node& curr = nodes[curr_node];
-    Node& newn = nodes[new_node];
-    Param& param = curr.params[curr_param_type];
-    for( ParamDep& dep : param.deps ){
-        // Add outgoing edge in new node
-        newn.add_outgoing_param_edge(dep.node);
-        // Remove incoming edge from curr in next node
-        Node& next = nodes[dep.node];
-        next.remove_incoming_param_edge(curr_node);
-        // And replace it
-        next.add_incoming_param_edge(new_node);
     }
 }
 
@@ -440,7 +410,6 @@ void StrategyGraph::redirect_outgoing_strategy_edges(node_t curr_node, node_t ne
 void StrategyGraph::redirect_generic_param_edges(node_t curr_node, node_t new_node){
     Node& curr = nodes[curr_node];
     Node& newn = nodes[new_node];
-    bool changed = false;
     // INCOMING EDGES
     for( node_t p : curr.param_edges.in ){
         Node& prev = nodes[p];
@@ -451,7 +420,6 @@ void StrategyGraph::redirect_generic_param_edges(node_t curr_node, node_t new_no
                 if( dep.node == curr_node && curr.is_generic_param(dep.param_type)){
                     // Change param dep node and type
                     dep.node = new_node;
-                    changed = true;
                     if( dep.param_type == curr.get_param_num_gadget_addr()){
                         dep.param_type = newn.get_param_num_gadget_addr();
                     }else if( dep.param_type == curr.get_param_num_gadget_jmp_reg()){
@@ -465,14 +433,6 @@ void StrategyGraph::redirect_generic_param_edges(node_t curr_node, node_t new_no
                     }
                 }
             }
-        }
-        if( changed ){
-            // Remove previous outgoing edge
-            prev.remove_outgoing_param_edge(curr_node);
-            // Add new outgoing edge
-            prev.add_outgoing_param_edge(new_node);
-            // Add new incoming edge to new node
-            newn.add_incoming_param_edge(prev.id);
         }
     }
 }

@@ -431,9 +431,8 @@ public:
     node_t new_node(GadgetType t);
     string new_name(string base);
     void disable_node(node_t node);
-    void redirect_incoming_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type);
+    void redirect_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type);
     void redirect_incoming_strategy_edges(node_t curr_node, node_t new_node);
-    void redirect_outgoing_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type);
     void redirect_outgoing_strategy_edges(node_t curr_node, node_t new_node);
     void redirect_generic_param_edges(node_t curr_node, node_t new_node);
     void add_strategy_edge(node_t from, node_t to);
