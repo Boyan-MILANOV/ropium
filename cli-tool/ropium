@@ -1,2 +1,177 @@
 #!/usr/bin/env python3
 from ropium import *
+from prompt_toolkit import PromptSession, ANSI
+import os
+
+# Colors and util functions
+MAIN_COLOR_ANSI = '\033[92m'    # Default color 
+ERROR_COLOR_ANSI = '\033[91m' 
+BOLD_COLOR_ANSI = '\033[1m'
+WARNING_COLOR_ANSI = '\033[93m'
+END_COLOR_ANSI = '\033[0m'
+
+def str_bold(msg):
+    return BOLD_COLOR_ANSI + msg + END_COLOR_ANSI
+
+def str_error(msg):
+    return ERROR_COLOR_ANSI + msg + END_COLOR_ANSI
+
+def str_main(msg):
+    return MAIN_COLOR_ANSI + msg + END_COLOR_ANSI
+    
+def str_warning(msg):
+    return WARNING_COLOR_ANSI + msg + END_COLOR_ANSI
+
+def error(msg, skip=False):
+    if skip:
+        print('')
+    print("\t[" + str_bold(str_error("!")) + "] " + msg)
+
+def info(msg):
+    print("\t[" + str_main("+") + "] " + msg)
+    
+def warning(msg):
+    print("\t[" + str_bold(str_warning("!")) + "] " + msg)
+
+
+compiler = None
+start_msg = "\n" + str_bold("ROPium") + " - v3.0\n"
+
+# Commands
+CMD_HELP = "help"
+CMD_LOAD = "load"
+CMD_FIND = "find"
+CMD_EXIT = "exit"
+
+# Arch correspondance
+str_to_arch = {"X86":ARCH.X86, "X64":ARCH.X64}
+
+# Main function
+def main():
+    print(start_msg)
+    
+    finish = False
+    promptSession = PromptSession(ANSI(u"("+ str_main(u"ropium") +u")> "))
+    while( not finish ):
+        try:
+            user_input = promptSession.prompt()
+            args = user_input.split()
+            argslen = len(args)
+            if( argslen > 0 ):
+                command = args[0]
+            else:
+                command = None
+                continue
+
+            if( command == CMD_LOAD ):
+                try:
+                    load(args[1:])
+                except LoadException as e:
+                    error(str(e), skip=True)
+            elif( command == CMD_EXIT ):
+                finish = True
+            elif( command == CMD_HELP ):
+                show_help()
+            elif( command == CMD_FIND ):
+                try:
+                    find(args[1:])
+                except FindException as e:
+                    error(str(e), skip=True)
+            else:
+                error(f"Unknown command '{command}'", skip=True)
+            print('')
+        except KeyboardInterrupt:
+            pass
+        except EOFError:
+            finish = True
+    print('Thanks for using ROPium !')
+    return
+
+# Load command
+class LoadException(Exception):
+    pass
+
+def load(args):
+    global compiler
+    OPTIONS_ARCH = ['-a', '--arch']
+    OPTIONS_HELP = ['-h', '--help']
+    seen_arch = False
+    seen_filename = False
+    arch = None
+    filenames = []
+    
+    # Help string
+    load_help = "DEBUG TODO HELP"
+    
+    # Parse arguments
+    if not args:
+        print(load_help)
+        return
+    i = 0
+    while i < len(args):
+        if args[i] in OPTIONS_ARCH:
+            if seen_arch:
+                raise LoadException(f"Option '{args[i]}' can be used only one time") 
+            seen_arch = True
+            if( i+1 == len(args)):
+                raise LoadException(f"Missing argument after {args[i]}")
+            else:
+                arch = args[i+1]
+            i += 2
+        elif args[i] in OPTIONS_HELP:
+            print(load_help)
+            return
+        else:
+            filenames.append(args[i])
+            i += 1
+
+    # Check arguments
+    if not filenames:
+        raise LoadException("Missing filename")
+    if not arch and not compiler:
+        raise LoadException("Missing architecture")
+    if arch and (arch not in str_to_arch):
+        raise LoadException(f"Unsupported architecture: {arch}")
+
+    # Instanciate compiler if not already
+    if compiler is None:
+        compiler = ROPium(str_to_arch[arch])
+    elif arch and (str_to_arch[arch] != compiler.arch):
+        raise LoadException(f"Already working on a different architecture than '{arch}'")
+
+    print('') # So it's moar pretty
+    for f in filenames:
+        # Test if the file exists 
+        if not os.path.isfile(f):
+            warning(f"Skipped: {f} (file doesn't exist)")
+        else:
+            compiler.load(f)
+            info(f"Loaded: {f}")
+
+
+# Find command
+class FindException(Exception):
+    pass
+
+def find(args):
+    global compiler
+    
+    if not compiler:
+        raise FindException("You must load a binary before finding ropchains")
+
+    query = "".join(args)
+    try:
+        ropchain = compiler.compile(query)
+    except ValueError as e:
+        raise FindException(str(e))
+    if ropchain:
+        print('')
+        print(ropchain.dump(tab="\t"))
+    else:
+        print("\n\tNo ROPChain found.")
+
+def show_help():
+    print("Not implemented")
+
+if __name__ == "__main__":
+    main()

@@ -8,7 +8,7 @@ Key features:
    - **Effortless**: ROPium works out-of-the-box with a smooth Command Line Interface
    - **Scriptable**: It is easy to integrate ROPium in script thanks to its python API
    - **Automatic chaining**: ROPium automatically combines gadgets to create complex ROP-chains
-   - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``mem(rdi+0x20)=rax``, ``rsi=mem(rbx+16)/2``, ``...``
+   - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``[rdi+0x20]=rax``, ``rsi=[rbx+16]/2``, ``...``
 
 # Content
 - [About](#about)
@@ -39,8 +39,12 @@ Finally install **ROPium**:
       sudo make install 
 
 # Getting started
-### CLI Tool
-TODO
+
+### CLI tool
+
+Thanks to a Command-Line-Interface wrapper, you can use ROPium interactively to quickly build ropchains:  
+
+
 
 ### Python API
 
@@ -106,7 +110,7 @@ The actual image is around 200 MB based on a Debian Stretch with a Python 3.7.3 
 
 # Contact
 
-**Boyan MILANOV** - bmilanov (at) quarkslab (dot) com
+**Boyan MILANOV** - boyan.milanov (at) hotmail (dot) fr
 
 # Licence
 ROPium is provided under the MIT licence.

@@ -32,10 +32,11 @@ static PyObject* ropchain_dump(PyObject* self, PyObject* args, PyObject* keyword
     int color = 1;
     vector<uint8_t> raw;
     PyObject* res;
+    char* tab = "";
 
-    char* keywd[] = {"", "color", NULL};
+    char* keywd[] = {"", "tab", "color", NULL};
 
-    if( ! PyArg_ParseTupleAndKeywords(args, keywords, "|sp", keywd, &arg, &color)){
+    if( ! PyArg_ParseTupleAndKeywords(args, keywords, "|ssp", keywd, &arg, &tab, &color)){
         return NULL;
     }
 
@@ -46,10 +47,10 @@ static PyObject* ropchain_dump(PyObject* self, PyObject* args, PyObject* keyword
     }
 
     if( fmt == "pretty" ){
-        ss << *(as_ropchain_object(self).ropchain);
+        as_ropchain_object(self).ropchain->print_pretty(ss, string(tab));
         res = PyUnicode_FromString(ss.str().c_str());
     }else if( fmt == "python" ){
-        as_ropchain_object(self).ropchain->print_python(ss);
+        as_ropchain_object(self).ropchain->print_python(ss, string(tab));
         res = PyUnicode_FromString(ss.str().c_str());
     }else if( fmt == "raw" ){
         as_ropchain_object(self).ropchain->dump_raw(raw);

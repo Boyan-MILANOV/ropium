@@ -108,7 +108,7 @@ else
 endif
 
 # make install command
-install: $(INSTALL_LIB_RULE) $(INSTALL_BINDINGS_RULE) $(INSTALL_MESSAGE_RULE)
+install: $(INSTALL_LIB_RULE) $(INSTALL_BINDINGS_RULE) install_cli_tool $(INSTALL_MESSAGE_RULE)
 
 install_lib:
 	install -d $(DESTDIR)$(PREFIX)/lib/
@@ -119,6 +119,9 @@ install_lib:
 install_bindings:
 	install -d $(PYTHONDIR)
 	install -D $(OUTDIR)/$(BINDINGS_FILE) $(PYTHONDIR)
+
+install_cli_tool:
+	install -D cli-tool/ropium $(DESTDIR)$(PREFIX)/bin/
 
 print_install_message:
 	@echo "\nROPium was successfully installed."

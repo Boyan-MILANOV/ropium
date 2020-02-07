@@ -30,7 +30,7 @@ static PyObject* ROPium_load(PyObject* self, PyObject* args){
         }
         raw = raw_gadgets_from_file(gadget_file);
         as_ropium_object(self).gadget_db->analyse_raw_gadgets(*raw, as_ropium_object(self).arch);
-        delete raw; raw = nullptr; 
+        delete raw; raw = nullptr;
         remove(gadget_file.c_str());
     }catch(runtime_exception& e){
         return PyErr_Format(PyExc_RuntimeError, "%s", e.what());
@@ -202,10 +202,15 @@ static int ROPium_set_keep_regs(PyObject* self, PyObject* list, void* closure){
     return 0;
 }
 
+static PyObject* ROPium_get_arch(PyObject* self, void* closure){
+    return PyLong_FromLong((int)(as_ropium_object(self).arch->type));
+}
+
 static PyGetSetDef ROPium_getset[] = {
     {"bad_bytes", ROPium_get_bad_bytes, ROPium_set_bad_bytes, "Bad bytes that must not occur in the ropchains", NULL},
     {"keep_regs", ROPium_get_keep_regs, ROPium_set_keep_regs, "Registers that should not be clobbered by the ropchains", NULL},
     {"safe_mem", ROPium_get_safe_mem, ROPium_set_safe_mem, "Indicates whether ropchains can contain gadgets that perform potentially unsafe register dereferencing", NULL},
+    {"arch", ROPium_get_arch, NULL, "Architecture type", NULL},
     {NULL}
 };
 
