@@ -36,7 +36,9 @@ enum class ILInstructionType{
     CST_STORE_CST,  // mem(offset) <- cst
     CST_ASTORE_CST,  // mem(offset) OP<- cst
     // jump
-    JMP         // PC <- reg
+    JMP,         // PC <- reg
+    // Call functions
+    FUNCTION
 };
 
 /* IL - Instruction
@@ -59,10 +61,14 @@ enum class ILInstructionType{
     "edx = mem(ecx)"
 */
 
+#define IL_FUNC_ARG_REG 0
+#define IL_FUNC_ARG_CST 1
+
 class ILInstruction{
 public:
     ILInstructionType type;
     vector<cst_t> args;
+    vector<int> args_type; // Used for FUNCTION
     ILInstruction(Arch& arch, string instr_str); // raises il_exception if instr_str is invalid
 };
 

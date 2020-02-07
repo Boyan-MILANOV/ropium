@@ -90,6 +90,9 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     
     // Node1 must have same return type than node
     node1.branch_type = node.branch_type;
+    
+    // Node1 must have same special paddings than node
+    node1.special_paddings = node.special_paddings;
 
     // Modify parameters
     node1.params[PARAM_LOAD_DST_REG] = node.params[PARAM_MOVCST_DST_REG];
@@ -123,6 +126,9 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     // Leave incoming args to the constant (do nothing)
     // Any arc outgoing from node:dst_reg now goes out from node1:dst_reg
     redirect_outgoing_param_edges(node.id, PARAM_MOVCST_DST_REG, node1.id, PARAM_LOAD_DST_REG);
+    
+    // Generic params
+    redirect_generic_param_edges(node.id, node1.id);
 
     // Redirect strategy edges
     redirect_incoming_strategy_edges(node.id, node1.id);
@@ -283,8 +289,6 @@ bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
     node2.branch_type = node.branch_type;
 
     // Redirect input params arcs from node to node1
-    redirect_incoming_param_edges(node.id, node.get_param_num_src_addr_offset(), 
-                                  node2.id, node2.get_param_num_src_addr_offset());
     redirect_incoming_param_edges(node.id, node.get_param_num_dst_reg(), 
                                   node2.id, node2.get_param_num_dst_reg());
 
@@ -431,8 +435,6 @@ bool StrategyGraph::rule_adjust_store(node_t n, Arch* arch){
     node2.branch_type = node.branch_type;
 
     // Redirect input params arcs from node to node1
-    redirect_incoming_param_edges(node.id, node.get_param_num_dst_addr_offset(), 
-                                  node2.id, node2.get_param_num_dst_addr_offset());
     redirect_incoming_param_edges(node.id, node.get_param_num_dst_addr_reg(), 
                                   node2.id, node2.get_param_num_dst_addr_reg());
     redirect_incoming_param_edges(node.id, node.get_param_num_src_reg(), 

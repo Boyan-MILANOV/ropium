@@ -288,6 +288,9 @@ public:
 #define PARAM_CSTASTORECST_GADGET_SP_DELTA 6
 #define NB_PARAM_CSTASTORECST 7
 
+#define PARAM_FUNCTION_ADDR 0
+#define PARAM_FUNCTION_ARGS 1
+
 typedef struct {
     Param offset;
     Param value;

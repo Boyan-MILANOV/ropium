@@ -7,9 +7,6 @@
 CompilerTask::CompilerTask(Arch* a):arch(a){}
 
 void CompilerTask::add_strategy(StrategyGraph* graph){
-    // Fuck this fucking C++ shit, insert in linear time because it's time
-    // to sleep and I'm so fucking tired and lower_bound won't compile 
-    // for a FUCKING unknown reason
     vector<StrategyGraph*>::iterator g;
     for( g = pending_strategies.begin();
          g != pending_strategies.end() && (*g)->nodes.size() > graph->nodes.size();
@@ -93,7 +90,7 @@ CompilerTask::~CompilerTask(){
 /* ============= ROPCompiler ============= */
 ROPCompiler::ROPCompiler(Arch* a, GadgetDB *d):arch(a), db(d){}
 
-ROPChain* ROPCompiler::compile(string program, Constraint* constraint){
+ROPChain* ROPCompiler::compile(string program, Constraint* constraint, ABI abi){
     
     vector<ILInstruction> instr = parse(program); // This raises il_exception if malformed program
     
@@ -102,13 +99,13 @@ ROPChain* ROPCompiler::compile(string program, Constraint* constraint){
         constraint->mem_safety.add_safe_reg(arch->sp()); // Stack pointer is always safe for RW
     }
     
-    return process(instr, constraint);
+    return process(instr, constraint, abi);
 }
 
-ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions, Constraint* constraint){
+ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions, Constraint* constraint, ABI abi){
     CompilerTask task = CompilerTask(arch);
     for( ILInstruction& instr : instructions ){
-        il_to_strategy(task.pending_strategies, instr);
+        il_to_strategy(task.pending_strategies, instr, abi);
     }
     return task.compile(arch, db, constraint);
 }
@@ -142,7 +139,45 @@ vector<ILInstruction> ROPCompiler::parse(string program){
     return res;
 }
 
-void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr){
+
+bool ROPCompiler::_x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+    /* Arguments are on the stack, pushed right to left */
+    node_t n = graph.new_node(GadgetType::MOV_CST);
+    Node& node = graph.nodes[n];
+    node.params[PARAM_MOVCST_DST_REG].make_reg(X86_EIP);
+    node.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_FUNCTION_ADDR], graph.new_name("function_address"));
+    // Add parameters at the final sp_inc of the gadget
+    for( int i = 1; i < instr.args.size(); i++){
+        node.special_paddings.push_back(ROPPadding());
+        // The offset is sp_inc + arch_size_bytes*param_num
+        node.special_paddings.back().offset.make_cst(
+            node.id, PARAM_MOVCST_GADGET_SP_INC,
+            exprvar(arch->bits, node.params[PARAM_MOVCST_GADGET_SP_INC].name) + (arch->octets * (i-1)),
+            graph.new_name("func_arg_offset")
+        );
+        if( instr.args_type[i] == IL_FUNC_ARG_CST ){
+            node.special_paddings.back().value.make_cst(instr.args[i], graph.new_name("func_arg"));
+        }else{
+            // Putting the registers on the stack then call a function isn't supported
+            return false;
+        }
+    }
+    // DEBUG TODO ADD CONSTRAINT CALLBACK THAT CHECKS THAT THE SP_DELTA IS 0 ! 
+    std::cout << "DEBUG, did graph " << graph << std::endl;
+    return true;
+}
+
+bool ROPCompiler::_x86_fastcall_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+    return false;
+}
+bool ROPCompiler::_x64_system_v_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+    return false;
+}
+bool ROPCompiler::_x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+    return false;
+}
+
+void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, ABI abi){
     StrategyGraph* graph;
     if( instr.type == ILInstructionType::MOV_CST ){
         // MOV_CST
@@ -498,7 +533,23 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         graph->add_strategy_edge(n3, n1);
 
         graphs.push_back(graph);
+    }else if( instr.type == ILInstructionType::FUNCTION ){
+        graph = new StrategyGraph();
+        bool success = true;
+        switch( abi ){
+            case ABI::X86_CDECL: success = _x86_cdecl_to_strategy(*graph, instr); break;
+            case ABI::X86_FASTCALL: success = _x86_fastcall_to_strategy(*graph, instr); break;
+            case ABI::X64_SYSTEM_V: success = _x64_system_v_to_strategy(*graph, instr); break;
+            case ABI::X64_MS: success = _x64_ms_to_strategy(*graph, instr); break;
+            case ABI::NONE: throw compiler_exception("You have to specify which ABI to use to call functions");
+            default:
+                throw compiler_exception("Unsupported ABI when calling function");
+        }
+        if( !success ){
+            throw compiler_exception("Couldn't translate function call into a chaining strategy");
+        }
+        graphs.push_back(graph);
     }else{
-        throw runtime_exception("add_il_instruction_to_strategy(): unsupported ILInstructionType");
+        throw runtime_exception("il_instruction_to_strategy(): unsupported ILInstructionType");
     }
 }

@@ -211,8 +211,8 @@ namespace test{
             raw.push_back(RawGadget(string("\x8B\x41\x08\xC3", 4), 1)); // mov eax, [ecx + 8]; ret
             raw.push_back(RawGadget(string("\x8D\x4B\x08\xC3", 4), 2)); // lea ecx, [ebx + 8]; ret
 
-            raw.push_back(RawGadget(string("\x23\x56\xF8\xC3", 4), 1)); // and edx, [esi - 8]; ret
-            raw.push_back(RawGadget(string("\x8D\x77\x10\xC3", 4), 2)); // lea esi, [edi + 16]; ret
+            raw.push_back(RawGadget(string("\x23\x56\xF8\xC3", 4), 3)); // and edx, [esi - 8]; ret
+            raw.push_back(RawGadget(string("\x8D\x77\x10\xC3", 4), 4)); // lea esi, [edi + 16]; ret
             db.analyse_raw_gadgets(raw, arch);
 
             // Test adjust load on LOAD type

@@ -134,6 +134,50 @@ bool _parse_il_mem_end(string& str, int& idx){
         return false;
 }
 
+bool _parse_il_function_args_list(Arch& arch, vector<cst_t>& args, vector<int>& args_type, string& str, int& i){
+    _skip_whitespace(str, i);
+    // Parse first argument if any
+    if( _parse_il_cst(arch, args, str, i)){
+        args_type.push_back(IL_FUNC_ARG_CST);
+    }else if( _parse_il_reg(arch, args, str, i)){
+        args_type.push_back(IL_FUNC_ARG_REG);
+    }
+    
+    // Go to next char
+    _skip_whitespace(str, i);
+    // If coma, next argument is expected
+    if( str[i] == ','){
+        return _parse_il_function_args_list(arch, args, args_type, str, ++i);
+    // Else just return true
+    }else{
+        return true;
+    }
+}
+
+
+// (arg1, arg2, arg3, ... )
+// or just ()
+bool _parse_il_function_args(Arch& arch, vector<cst_t>& args, vector<int>& args_type, string& str, int& idx){
+    int i = idx;
+    _skip_whitespace(str, i);
+    if( i >= str.size())
+        return false;
+    if( str[i] != '(' )
+        return false;
+    i++;
+    // Parse args list
+    if( _parse_il_function_args_list(arch, args, args_type, str, i)){
+        _skip_whitespace(str, i);
+        if( str[i] == ')' ){
+            idx = i+1;
+            return true;
+        }else
+            return false;
+    }else{
+        return false;
+    }
+}
+
 bool _parse_il_reg_and_offset(Arch& arch, vector<cst_t>& args, string& str, int& idx){
     cst_t mult;
     // Get reg
@@ -486,6 +530,23 @@ bool _parse_il_cst_astore_cst(Arch& arch, ILInstruction* instr, string& str){
 }
 
 
+bool _parse_il_function(Arch& arch, ILInstruction* instr, string& str){
+    int idx = 0;
+    vector<cst_t> args;
+    vector<int> args_type;
+    if  (_parse_il_cst(arch, args, str, idx) &&
+         _parse_il_function_args(arch, args, args_type, str, idx) &&
+        _parse_end(str, idx))
+    {
+        
+        instr->args = args;
+        instr->args_type = args_type;
+        instr->args_type.insert(instr->args_type.begin(), -1); // Because first arg is the function address :/
+        instr->type = ILInstructionType::FUNCTION;
+        return true;
+    }
+    return false;
+}
 
 bool _parse_il_instruction(Arch& arch, ILInstruction* instr, string& str){
     return  _parse_il_mov_cst(arch, instr, str) || 
@@ -503,7 +564,8 @@ bool _parse_il_instruction(Arch& arch, ILInstruction* instr, string& str){
             _parse_il_store_cst(arch, instr, str) ||
             _parse_il_cst_store_cst(arch, instr, str) ||
             _parse_il_astore_cst(arch, instr, str) ||
-            _parse_il_cst_astore_cst(arch, instr, str);
+            _parse_il_cst_astore_cst(arch, instr, str) ||
+            _parse_il_function(arch, instr, str);
 }
 
 

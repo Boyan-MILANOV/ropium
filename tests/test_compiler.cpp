@@ -188,6 +188,27 @@ namespace test{
 
             return nb;
         }
+        
+        unsigned int function_call(){
+            unsigned int nb = 0;
+            ArchX86 arch;
+            GadgetDB db;
+            ROPCompiler comp = ROPCompiler(&arch, &db);
+            ROPChain* ropchain;
+            Constraint constr;
+            constr.bad_bytes.add_bad_byte(0xff);
+            // Test when adjust gadget clobbers reg that must be set
+            // Here gadget 2 and 3 both modify ecx
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x58\xFF\xE0", 3), 1)); // pop eax; jmp eax
+            db.analyse_raw_gadgets(raw, &arch);
+            
+            ropchain = comp.compile(" 0x1234(42)", nullptr, ABI::X86_CDECL);
+            std::cout << "DEBUG " << *ropchain;
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+            
+            return nb;
+        }
     }
 }
 
@@ -201,9 +222,10 @@ void test_compiler(){
     
     // Start testing 
     cout << bold << "[" << green << "+" << def << bold << "]" << def << std::left << std::setw(34) << " Testing ROP compiler... " << std::flush;  
-    total += direct_match();
-    total += indirect_match();
-    total += incorrect_match();
+    //total += direct_match();
+    //total += indirect_match();
+    total += function_call();
+    // DEBUG total += incorrect_match();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;
 }

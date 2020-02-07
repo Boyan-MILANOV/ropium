@@ -7,6 +7,23 @@
 
 using std::vector;
 
+
+enum class ABI{
+    /* X86 */
+    X86_CDECL,
+    X86_STDCALL,
+    X86_FASTCALL,
+    X86_THISCALL_GCC,
+    X86_THISCALL_MS,
+    X86_LINUX_SYSENTER,
+    X86_LINUX_INT80,
+    /* X64 */
+    X64_MS,
+    X64_SYSTEM_V,
+    /* No specific ABI */
+    NONE
+};
+
 /* CompilerTask
    ============
 
@@ -44,13 +61,18 @@ public:
 class ROPCompiler{
     Arch* arch;
     GadgetDB* db;
+    // Translate function calls into strategy graphs
+    bool _x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& instr);
+    bool _x86_fastcall_to_strategy(StrategyGraph& graph, ILInstruction& instr);
+    bool _x64_system_v_to_strategy(StrategyGraph& graph, ILInstruction& instr);
+    bool _x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr);
 public:
-    ROPChain* process(vector<ILInstruction>& instructions, Constraint* constraint=nullptr);
+    ROPChain* process(vector<ILInstruction>& instructions, Constraint* constraint=nullptr, ABI abi = ABI::NONE);
     vector<ILInstruction> parse(string program);
-    void il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr);
+    void il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, ABI abi = ABI::NONE);
 
     ROPCompiler( Arch* arch, GadgetDB* db);
-    ROPChain* compile(string program, Constraint* constraint=nullptr);
+    ROPChain* compile(string program, Constraint* constraint=nullptr, ABI abi = ABI::NONE );
 };
 
 #endif

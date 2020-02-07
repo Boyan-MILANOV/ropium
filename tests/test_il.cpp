@@ -247,9 +247,48 @@ namespace test{
             nb += _assert(instr.args[PARAM_CSTASTORECST_SRC_CST] == 0, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_CSTASTORECST_OP] == (int)Op::MOD, "Failed to parse IL Instruction");
 
+            // function 
+            str = " 0x1000()";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::FUNCTION, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ADDR] == 0x1000, "Failed to parse IL Instruction");
+            
+            str = " 1000( 22  )";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::FUNCTION, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ADDR] == 1000, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ARGS+0] == 22, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+0] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+            
+            str = " 1000( eax  )";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::FUNCTION, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ADDR] == 1000, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ARGS+0] == X86_EAX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+0] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
+            
+            str = " 1000( 22, ebx  )";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::FUNCTION, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ADDR] == 1000, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ARGS+0] == 22, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+0] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ARGS+1] == X86_EBX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+1] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
+            
+            str = " 1000( eax , 34, ebx )";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::FUNCTION, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ADDR] == 1000, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ARGS+0] == X86_EAX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+0] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ARGS+1] == 34, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+1] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ARGS+2] == X86_EBX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+2] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
+            
             return nb;
         }
-
     }
 }
 
