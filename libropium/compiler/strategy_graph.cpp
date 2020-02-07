@@ -297,7 +297,7 @@ bool Node::assign_gadget(Gadget* gadget, Arch* arch, Constraint* constraint){
     }
 
     affected_gadget = gadget;
-    // Set gadget parameters depending on type
+    // Set gadget parameters depending on type (but dont change the name!)
     params[get_param_num_gadget_addr()].value = addr;
     params[get_param_num_gadget_sp_inc()].value = gadget->sp_inc;
     params[get_param_num_gadget_jmp_reg()].value = gadget->jmp_reg;
@@ -327,15 +327,16 @@ node_t StrategyGraph::new_node(GadgetType t){
 }
 
 void StrategyGraph::disable_node(node_t node){
-    nodes[node].id = -1; // DEBUG TODO see if we can keep the ID when disabling
     nodes[node].is_disabled = true;
+    nodes[node].special_paddings.clear();
 }
 
 string StrategyGraph::new_name(string base){
     return name_generator.new_name(base);
 }
 
-
+// Make the dep that point to the parameter 'curr_param_type' on 'curr_node' point to 'new_node'
+// and 'new_param_type' instead.
 bool _redirect_param_dep(ParamDep& dep, node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type){
     if( dep.node == curr_node && dep.param_type == curr_param_type ){
         dep.node = new_node;
@@ -345,6 +346,20 @@ bool _redirect_param_dep(ParamDep& dep, node_t curr_node, param_t curr_param_typ
         return false;
 }
 
+void _redirect_param_deps(Param& param, Node& curr_node, param_t curr_param_type, Node& new_node, param_t new_param_type){
+    for( ParamDep& dep : param.deps ){
+        if( dep.node == curr_node.id && dep.param_type == curr_param_type ){
+            // Change var name in expression if constant
+            if( param.type == ParamType::CST && param.expr != nullptr){
+                param.expr->replace_var_name(curr_node.params[curr_param_type].name, new_node.params[new_param_type].name); 
+            }
+            // Redirect
+            dep.node = new_node.id;
+            dep.param_type = new_param_type;
+        }
+    }
+}
+
 // Make the edges that point to the parameter 'curr_param_type' on 'curr_node' point to 'new_node'
 // and 'new_param_type'.
 void StrategyGraph::redirect_param_edges(node_t curr_node, param_t curr_param_type, node_t new_node, param_t new_param_type){
@@ -352,19 +367,12 @@ void StrategyGraph::redirect_param_edges(node_t curr_node, param_t curr_param_ty
         Node& prev = nodes[p];
         // Redirect parameters
         for( int p = 0; p < prev.nb_params(); p++ ){
-            Param& param = prev.params[p];
-            for( ParamDep& dep : param.deps ){
-                _redirect_param_dep(dep, curr_node, curr_param_type, new_node, new_param_type);
-            }
+            _redirect_param_deps(prev.params[p], nodes[curr_node], curr_param_type, nodes[new_node], new_param_type);
         }
         // Redirect special paddings
-        for( ROPPadding padd : prev.special_paddings ){
-            for( ParamDep& dep : padd.offset.deps ){
-                _redirect_param_dep(dep, curr_node, curr_param_type, new_node, new_param_type);
-            }
-            for( ParamDep& dep : padd.value.deps ){
-                _redirect_param_dep(dep, curr_node, curr_param_type, new_node, new_param_type);
-            }
+        for( ROPPadding& padd : prev.special_paddings ){
+            _redirect_param_deps(padd.offset, nodes[curr_node], curr_param_type, nodes[new_node], new_param_type);
+            _redirect_param_deps(padd.value, nodes[curr_node], curr_param_type, nodes[new_node], new_param_type);
         }
     }
 }
@@ -407,34 +415,15 @@ void StrategyGraph::redirect_outgoing_strategy_edges(node_t curr_node, node_t ne
     }
 }
 
+
 void StrategyGraph::redirect_generic_param_edges(node_t curr_node, node_t new_node){
     Node& curr = nodes[curr_node];
     Node& newn = nodes[new_node];
-    // INCOMING EDGES
-    for( node_t p : curr.param_edges.in ){
-        Node& prev = nodes[p];
-        // Redirect parameters
-        for( int p = 0; p < prev.nb_params(); p++ ){
-            Param& param = prev.params[p];
-            for( ParamDep& dep : param.deps){
-                if( dep.node == curr_node && curr.is_generic_param(dep.param_type)){
-                    // Change param dep node and type
-                    dep.node = new_node;
-                    if( dep.param_type == curr.get_param_num_gadget_addr()){
-                        dep.param_type = newn.get_param_num_gadget_addr();
-                    }else if( dep.param_type == curr.get_param_num_gadget_jmp_reg()){
-                        dep.param_type = newn.get_param_num_gadget_jmp_reg();
-                    }else if( dep.param_type == curr.get_param_num_gadget_sp_delta()){
-                        dep.param_type = newn.get_param_num_gadget_sp_delta();
-                    }else if( dep.param_type == curr.get_param_num_gadget_sp_inc()){
-                        dep.param_type = newn.get_param_num_gadget_sp_inc();
-                    }else{
-                        throw runtime_exception("redirect_generic_param_edges(): got unsuported generic param");
-                    }
-                }
-            }
-        }
-    }
+    redirect_param_edges(curr_node, curr.get_param_num_gadget_addr(), new_node, newn.get_param_num_gadget_addr());
+    redirect_param_edges(curr_node, curr.get_param_num_gadget_jmp_reg(), new_node, newn.get_param_num_gadget_jmp_reg());
+    redirect_param_edges(curr_node, curr.get_param_num_gadget_sp_inc(), new_node, newn.get_param_num_gadget_sp_inc());
+    redirect_param_edges(curr_node, curr.get_param_num_gadget_sp_delta(), new_node, newn.get_param_num_gadget_sp_delta());
+
 }
 
 void StrategyGraph::add_strategy_edge(node_t from, node_t to){
@@ -883,6 +872,10 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
                 if( ! node.assign_gadget(gadget, arch, constraint))
                     continue;
 
+                // Resolve params once again (useful for special paddings that depend
+                // on gadget specific parameters such as gadget_addr, gadget_sp_inc, etc)
+                _resolve_all_params(node.id);
+
                 // Check assigned gadget constraints and global constraint
                 if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
                     continue;
@@ -907,6 +900,10 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
             for( Gadget* gadget : gadgets ){
                 if( ! node.assign_gadget(gadget, arch, constraint))
                     continue;
+                
+                // Resolve params again (useful for special paddings that depend
+                // on regular parameters such as offsets, etc)
+                _resolve_all_params(node.id);
                 
                 // Check if paddings have valid values (no bad bytes)
                 if( !_check_special_padding_constraints(node, arch, constraint))
@@ -1046,29 +1043,37 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch, Constraint* constraint){
 
     ROPChain* ropchain = new ROPChain(arch);
     for( rit = dfs_scheduling.rbegin(); rit != dfs_scheduling.rend(); rit++ ){
-        if( nodes[*rit].is_indirect ){
+        Node& node = nodes[*rit];
+        if( node.is_indirect ){
             continue; // Skip indirect nodes
         }
 
         // Add gadget
-        ropchain->add_gadget(nodes[*rit].params[nodes[*rit].get_param_num_gadget_addr()].value, nodes[*rit].affected_gadget);
-        // Add padding after gadget
-        if( !nodes[*rit].special_paddings.empty()){
-            padding = nodes[*rit].special_paddings[0];
-            padding_num = 0;
-        }
+        ropchain->add_gadget(node.params[node.get_param_num_gadget_addr()].value, node.affected_gadget);
 
-        int nb_paddings = nodes[*rit].affected_gadget->sp_inc / arch->octets;
-        if( nodes[*rit].affected_gadget->branch_type == BranchType::RET ){
-            nb_paddings--;
-        }
-        
         // Order paddings by offset
         std::sort(nodes[*rit].special_paddings.begin(), nodes[*rit].special_paddings.end(), 
             [](const ROPPadding& padd1, const ROPPadding& padd2){
                 return padd1.offset.value < padd2.offset.value;
                 });
-        
+
+        // Init padding iterator
+        if( !node.special_paddings.empty()){
+            padding = node.special_paddings[0];
+            padding_num = 0;
+        }
+
+        // Get number of paddings depending on sp_inc
+        int nb_paddings = node.affected_gadget->sp_inc / arch->octets;
+        if( node.affected_gadget->branch_type == BranchType::RET ){
+            nb_paddings--;
+        }
+        // Check number of paddings according to special paddings
+        if( !node.special_paddings.empty() && 
+                (node.special_paddings.back().offset.value/arch->octets)+1 > nb_paddings){
+            nb_paddings = (node.special_paddings.back().offset.value/arch->octets)+1;
+        }
+
         for( int offset = 0; offset < nb_paddings*arch->octets; offset += arch->octets){
             // If special padding
             if( padding_num != -1 && padding.offset.value == offset ){
@@ -1082,7 +1087,7 @@ ROPChain* StrategyGraph::get_ropchain(Arch* arch, Constraint* constraint){
                 }
 
                 // Step to next special padding (if any)
-                if( padding_num == nodes[*rit].special_paddings.size()-1 ){
+                if( padding_num == node.special_paddings.size()-1 ){
                     // No more special paddings
                     padding_num = -1;
                 }else{
@@ -1128,6 +1133,8 @@ ostream& operator<<(ostream& os, Param& param){
 
 ostream& operator<<(ostream& os, Node& node){
     os << "Node " << std::dec << node.id << ":";
+    if( node.is_disabled )
+        os << " ( disabled ) ";
     os << "\n\tGadget type:  " << (int)node.type;
     os << "\n\tBranch type:  " << (int)node.branch_type;
     os << "\n\tIncoming strategy edges: ";

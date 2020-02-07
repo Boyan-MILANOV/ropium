@@ -113,6 +113,30 @@ bool ExprObject::inf(Expr e2){
     }
 }
 
+void ExprObject::replace_var_name(string& curr_name, string& new_name){
+    switch(type){
+        case ExprType::CST: return;
+        case ExprType::VAR: 
+            if (name() == curr_name)
+                replace_name(new_name);
+            return;
+        case ExprType::MEM: 
+        case ExprType::UNOP:
+        case ExprType::BISZ:
+            return args[0]->replace_var_name(curr_name, new_name);
+        case ExprType::BINOP:
+        case ExprType::EXTRACT:
+        case ExprType::CONCAT:
+            args[0]->replace_var_name(curr_name, new_name);
+            args[1]->replace_var_name(curr_name, new_name);
+            return;
+        case ExprType::UNKNOWN:
+            return;
+        default:
+            throw runtime_exception("ExprObject::replace_var_name() got unsupported ExprType");
+    }
+}
+
 // ==================================
 ExprCst::ExprCst(exprsize_t s, cst_t c): ExprObject(ExprType::CST, s, true){
     _cst = cst_sign_extend(s, c);
@@ -166,6 +190,7 @@ cst_t ExprVar::concretize(VarContext* ctx){
     return _concrete; 
 }
 const string& ExprVar::name(){ return _name; } 
+void ExprVar::replace_name(string& new_name){ _name = new_name; }
 void ExprVar::print(ostream& os){os << _name;}
 // ==================================
 ExprMem::ExprMem(exprsize_t s, Expr addr): ExprObject(ExprType::MEM, s, false) {

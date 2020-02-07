@@ -162,8 +162,7 @@ bool ROPCompiler::_x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& in
             return false;
         }
     }
-    // DEBUG TODO ADD CONSTRAINT CALLBACK THAT CHECKS THAT THE SP_DELTA IS 0 ! 
-    std::cout << "DEBUG, did graph " << graph << std::endl;
+    // DEBUG TODO ADD CONSTRAINT CALLBACK THAT CHECKS THAT THE SP_DELTA IS 0 !
     return true;
 }
 

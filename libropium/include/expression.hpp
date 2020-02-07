@@ -122,6 +122,7 @@ public:
     virtual hash_t hash(){throw runtime_exception("Called virtual function in ExprObject base class!");};
     virtual cst_t cst(){throw runtime_exception("Called virtual function in ExprObject base class!");};
     virtual const string& name(){throw runtime_exception("Called virtual function in ExprObject base class!");};
+    virtual void replace_name(string& new_name){throw runtime_exception("Called virtual function in ExprObject base class!");};
     virtual Op op(){throw runtime_exception("Called virtual function in ExprObject base class!");};
     virtual cst_t mode(){throw runtime_exception("Called virtual function in ExprObject base class!");};
     virtual void print(ostream& out){out << "???";};
@@ -148,6 +149,9 @@ public:
     
     /* Priority between expressions */
     bool inf(Expr other);
+    
+    /* Replace constants (used for dependencies) */
+    void replace_var_name(string& curr_name, string& new_name); 
 };
 
 /* Child specialized classes */
@@ -171,6 +175,7 @@ public:
     int reg();
     virtual cst_t concretize(VarContext* ctx=nullptr);
     const string& name();
+    void replace_name(string& new_name);
     void print(ostream& out);
 };
 
