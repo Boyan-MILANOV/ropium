@@ -57,6 +57,8 @@ static PyObject* ROPium_compile(PyObject* self, PyObject* args){
         return PyErr_Format(PyExc_ValueError, "%s", e.what());
     }catch(runtime_exception& e){
         return PyErr_Format(PyExc_RuntimeError, "%s", e.what());
+    }catch(compiler_exception& e){
+        return PyErr_Format(PyExc_RuntimeError, "%s", e.what());
     }
 
     Py_RETURN_NONE;

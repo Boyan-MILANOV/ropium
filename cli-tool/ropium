@@ -164,6 +164,8 @@ def find(args):
         ropchain = compiler.compile(query)
     except ValueError as e:
         raise FindException(str(e))
+    except RuntimeError as e:
+        raise FindException(str(e))
     if ropchain:
         print('')
         print(ropchain.dump(tab="\t"))

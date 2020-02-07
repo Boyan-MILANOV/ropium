@@ -963,7 +963,6 @@ void StrategyGraph::compute_interference_points(){
     }
 }
 
-
 bool StrategyGraph::_do_scheduling(int interference_idx){
     bool success = false;
     if( interference_idx == interference_points.size() ){
