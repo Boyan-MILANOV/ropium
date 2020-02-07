@@ -35,7 +35,8 @@ bool constraint_branch_type(Node* node, StrategyGraph* graph){
            (node->branch_type == BranchType::ANY);
 }
 
-Node::Node(int i, GadgetType t):id(i), type(t), branch_type(BranchType::ANY), is_indirect(false), is_disabled(false){
+Node::Node(int i, GadgetType t):id(i), type(t), branch_type(BranchType::ANY), is_indirect(false), is_disabled(false),
+                                affected_gadget(nullptr){
     mandatory_following_node = -1;
     // Add constraints that must always be verified
     assigned_gadget_constraints.push_back(constraint_branch_type); // Matching branch type
@@ -939,10 +940,10 @@ void StrategyGraph::compute_interference_points(){
             Param& param = node.params[p];
             if( ! param.is_data_link )
                 continue;
-            // Check if this link is modified by another node
+            // Check if this link is modified by another node (other)
             for( Node& other : nodes ){
                 // If disabled, indirect, or one part of the data link, ignore
-                if( other.is_disabled || other.is_indirect || param.depends_on(other.id) || other.id == node.id)
+                if( other.is_disabled || param.depends_on(other.id) || other.id == node.id)
                     continue;
                 if( modifies_reg(other.id, param.value, true)){ // True to check also mandatory_following_gadgets
                     // Add interfering point
@@ -1137,6 +1138,8 @@ ostream& operator<<(ostream& os, Node& node){
         os << " ( disabled ) ";
     if( node.is_indirect )
         os << " ( indirect ) ";
+    if( node.affected_gadget != nullptr )
+        os << "\n\tAffected gadget:  " << node.affected_gadget->asm_str;
     os << "\n\tGadget type:  " << (int)node.type;
     os << "\n\tBranch type:  " << (int)node.branch_type;
     os << "\n\tIncoming strategy edges: ";
