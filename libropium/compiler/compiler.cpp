@@ -93,7 +93,7 @@ ROPCompiler::ROPCompiler(Arch* a, GadgetDB *d):arch(a), db(d){}
 ROPChain* ROPCompiler::compile(string program, Constraint* constraint, ABI abi){
     
     vector<ILInstruction> instr = parse(program); // This raises il_exception if malformed program
-    
+
     // Add some general assertions
     if( constraint ){
         constraint->mem_safety.add_safe_reg(arch->sp()); // Stack pointer is always safe for RW
@@ -141,18 +141,31 @@ vector<ILInstruction> ROPCompiler::parse(string program){
 
 
 bool ROPCompiler::_x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& instr){
-    /* Arguments are on the stack, pushed right to left */
+    node_t n_ret = graph.new_node(GadgetType::LOAD);
     node_t n = graph.new_node(GadgetType::MOV_CST);
+    Node& node_ret = graph.nodes[n_ret];
     Node& node = graph.nodes[n];
+    // Add the 'ret' gadget that will 
+    node_ret.is_indirect = true; // Indirect
+    node_ret.params[PARAM_LOAD_DST_REG].make_reg(X86_EIP);
+    node_ret.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(X86_ESP);
+    // For return gadget, skip all the arguments and return 
+    // (nb args is args.size() -1 because 1rst arg is the function address)
+    node_ret.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(arch->octets*(instr.args.size()-1), graph.new_name("stack_offset"));    
+
+    // Main node
+    /* Arguments are on the stack, pushed right to left */
+    
+    
     node.params[PARAM_MOVCST_DST_REG].make_reg(X86_EIP);
     node.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_FUNCTION_ADDR], graph.new_name("function_address"));
     // Add parameters at the final sp_inc of the gadget
     for( int i = 1; i < instr.args.size(); i++){
         node.special_paddings.push_back(ROPPadding());
-        // The offset is sp_inc + arch_size_bytes*param_num
+        // The offset is sp_inc + arch_size_bytes*(param_num+1) (+1 because return address comes before args)
         node.special_paddings.back().offset.make_cst(
             node.id, PARAM_MOVCST_GADGET_SP_INC,
-            exprvar(arch->bits, node.params[PARAM_MOVCST_GADGET_SP_INC].name) + (arch->octets * (i-1)),
+            exprvar(arch->bits, node.params[PARAM_MOVCST_GADGET_SP_INC].name) + (arch->octets * ((i-1)+1)),
             graph.new_name("func_arg_offset")
         );
         if( instr.args_type[i] == IL_FUNC_ARG_CST ){
@@ -162,7 +175,28 @@ bool ROPCompiler::_x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& in
             return false;
         }
     }
-    // DEBUG TODO ADD CONSTRAINT CALLBACK THAT CHECKS THAT THE SP_DELTA IS 0 !
+    // Add constraint to check that the sp-delta of the gadget is 0
+    node.assigned_gadget_constraints.push_back(
+        // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
+        // jumping to the function
+        [](Node* n, StrategyGraph* g)->bool{
+            return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
+        }
+    );
+
+    // Add the 'ret' gadget address as first padding of the first gadget :)
+    node.special_paddings.push_back(ROPPadding());
+    node.special_paddings.back().offset.make_cst(
+            node.id, PARAM_MOVCST_GADGET_SP_INC,
+            exprvar(arch->bits, node.params[PARAM_MOVCST_GADGET_SP_INC].name),
+            graph.new_name("func_ret_addr_offset")
+        );
+    node.special_paddings.back().value.make_cst(node_ret.id, PARAM_LOAD_GADGET_ADDR,
+        exprvar(arch->bits, node_ret.params[PARAM_LOAD_GADGET_ADDR].name), graph.new_name("func_ret_addr"));
+
+    // Add mandatory following node
+    node.mandatory_following_node = node_ret.id;
+
     return true;
 }
 

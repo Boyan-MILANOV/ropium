@@ -201,8 +201,11 @@ namespace test{
             // Here gadget 2 and 3 both modify ecx
             vector<RawGadget> raw;
             raw.push_back(RawGadget(string("\x58\xFF\xE0", 3), 1)); // pop eax; jmp eax
+            raw.push_back(RawGadget(string("\xC3", 1), 2)); // ret
+            raw.push_back(RawGadget(string("\x59\xC3", 2), 3)); // pop ecx; ret
+            raw.push_back(RawGadget(string("\x83\xC4\x0C\xC3", 4), 4)); // add esp, 12; ret
             db.analyse_raw_gadgets(raw, &arch);
-            
+
             // X86 CDECL ABI
             ropchain = comp.compile(" 0x1234(42)", nullptr, ABI::X86_CDECL);
             nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");

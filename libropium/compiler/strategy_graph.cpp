@@ -1117,7 +1117,7 @@ StrategyGraph* StrategyGraph::copy(){
 ostream& operator<<(ostream& os, Param& param){
     string tab = "\t";
     os << tab << "Param:" << std::endl;
-    os << tab << "\t Value: " << param.value << std::endl;
+    os << tab << "\t Value: " << std::dec << param.value << std::endl;
     os << tab << "\t Fixed?: " << param.is_fixed << std::endl;
     os << tab << "\t Is data link?: " << param.is_data_link << std::endl;
     os << tab << "\t Depends on : " << std::endl;
@@ -1135,6 +1135,8 @@ ostream& operator<<(ostream& os, Node& node){
     os << "Node " << std::dec << node.id << ":";
     if( node.is_disabled )
         os << " ( disabled ) ";
+    if( node.is_indirect )
+        os << " ( indirect ) ";
     os << "\n\tGadget type:  " << (int)node.type;
     os << "\n\tBranch type:  " << (int)node.branch_type;
     os << "\n\tIncoming strategy edges: ";

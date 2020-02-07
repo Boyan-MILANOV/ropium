@@ -59,6 +59,7 @@ public:
 */
 
 class ROPCompiler{
+public:
     Arch* arch;
     GadgetDB* db;
     // Translate function calls into strategy graphs
@@ -66,7 +67,8 @@ class ROPCompiler{
     bool _x86_fastcall_to_strategy(StrategyGraph& graph, ILInstruction& instr);
     bool _x64_system_v_to_strategy(StrategyGraph& graph, ILInstruction& instr);
     bool _x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr);
-public:
+
+    // Main API
     ROPChain* process(vector<ILInstruction>& instructions, Constraint* constraint=nullptr, ABI abi = ABI::NONE);
     vector<ILInstruction> parse(string program);
     void il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, ABI abi = ABI::NONE);

@@ -331,6 +331,37 @@ namespace test{
             delete arch;
             return nb;
         }
+        
+        unsigned int test_cst_pop(){
+            unsigned int nb = 0;
+            /*
+            Arch* arch = new ArchX86();
+            GadgetDB db;
+            ROPChain* ropchain;
+            
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x59\x58\x5B\xFF\xE0", 5), 1)); // pop ecx; pop eax; pop ebx; jmp eax
+            raw.push_back(RawGadget(string("\xC3", 1), 2)); // ret
+            db.analyse_raw_gadgets(raw, arch);
+
+            // Test cst_pop on a function call strategy graph 
+            vector<StrategyGraph*> graphs;
+            ROPCompiler* comp = new ROPCompiler(arch, &db);
+            vector<ILInstruction> instrs = comp->parse("0x1234()");
+            comp->il_to_strategy(graphs, instrs[0], ABI::X86_CDECL);
+
+            // Apply strat
+            graphs[0]->rule_mov_cst_pop(1, arch);
+            
+            graphs[0]->select_gadgets(db);
+            ropchain = graphs[0]->get_ropchain(arch);
+            // nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+
+            delete arch;
+            delete comp;
+            */
+            return nb;
+        }
     }
 }
 
@@ -341,7 +372,7 @@ void test_strategy(){
     string green = "\033[1;32m";
     string def = "\033[0m";
     string bold = "\033[1m";
-    
+
     // Start testing 
     cout << bold << "[" << green << "+" << def << bold << "]" << def << " Testing strategy graphs... " << std::flush;
     for( int i = 0; i < 1; i++){
@@ -351,6 +382,7 @@ void test_strategy(){
         total += test_adjust_load();
         total += test_generic_src_transitivity();
         total += test_adjust_store();
+        total += test_cst_pop();
     }
 
     // Return res
