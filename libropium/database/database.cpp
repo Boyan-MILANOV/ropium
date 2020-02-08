@@ -19,6 +19,24 @@ int find_insert_index(vector<Gadget*>& gadget_list, Gadget* gadget){
     return first; 
 }
 
+
+int find_insert_index_possible_gadgets(PossibleGadgets* possible, Gadget* gadget){
+    int count= possible->gadgets.size(); 
+    int first = 0; 
+    int curr;
+    while(count > 0){
+        curr = first;
+        curr += count/2;
+        if( possible->gadgets.at(curr).second->at(0)->lthan(*gadget)){
+            first = curr+1;
+            count -= count/2 + 1;
+        }else{
+            count = count/2;
+        }
+    }
+    return first; 
+}
+
 gadget_t GadgetDB::add(Gadget* gadget, Arch* arch){
     Expr e, addr;
     

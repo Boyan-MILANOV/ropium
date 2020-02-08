@@ -59,6 +59,7 @@ public:
 
 // Generic database for different kinds of gadgets
 int find_insert_index(vector<Gadget*>& gadget_list, Gadget* gadget);
+int find_insert_index_possible_gadgets(PossibleGadgets* possible, Gadget* gadget);
 
 template<class K> 
 class BaseDB{
@@ -96,15 +97,16 @@ public:
         }
         return true;
     }
-    
+
     PossibleGadgets* get_possible(K key, bool* param_is_free, int nb_params){
         PossibleGadgets* res = new PossibleGadgets();
-        
+        int index;
         for( auto& it : db ){
             // Check if key matches
-            if( _check_key_match(key, it.first, param_is_free, nb_params)){
+            if( !it.second.empty() && _check_key_match(key, it.first, param_is_free, nb_params)){
                 vector<cst_t> vec = tuple_to_vector(it.first);
-                res->gadgets.push_back(std::make_pair(vec, &(it.second)));
+                index = find_insert_index_possible_gadgets(res, it.second[0]);
+                res->gadgets.insert(res->gadgets.begin()+index, std::make_pair(vec, &(it.second)));
             }
         }
         return res;
