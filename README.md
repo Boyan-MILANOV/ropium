@@ -44,7 +44,9 @@ Finally install **ROPium**:
 
 Thanks to a Command-Line-Interface wrapper, you can use ROPium interactively to quickly build ropchains:  
 
-
+<p align="center">
+  <img src="/ressources/ropium.gif" width="800" align="middle">
+</p>
 
 ### Python API
 
