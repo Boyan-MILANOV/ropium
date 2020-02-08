@@ -49,7 +49,7 @@ static PyObject* ROPium_compile(PyObject* self, PyObject* args){
     }
 
     try{
-        ropchain = as_ropium_object(self).compiler->compile( string(query, query_len), as_ropium_object(self).constraint); 
+        ropchain = as_ropium_object(self).compiler->compile( string(query, query_len), as_ropium_object(self).constraint, as_ropium_object(self).abi); 
         if( ropchain ){
             return Pyropchain_FromROPChain(ropchain);
         }
@@ -208,11 +208,31 @@ static PyObject* ROPium_get_arch(PyObject* self, void* closure){
     return PyLong_FromLong((int)(as_ropium_object(self).arch->type));
 }
 
+static PyObject* ROPium_get_abi(PyObject* self, void* closure){
+    return PyLong_FromLong((int)(as_ropium_object(self).abi));
+}
+
+static int ROPium_set_abi(PyObject* self, PyObject* val, void* closure){
+    int abi;
+
+    if( ! PyLong_Check(val)){
+        PyErr_SetString(PyExc_RuntimeError, "Argument should be a ABI.* enum value");
+        return -1;
+    }
+
+    abi = PyLong_AsLong(val);
+    as_ropium_object(self).abi = (ABI)abi;
+
+    return 0;
+}
+
+
 static PyGetSetDef ROPium_getset[] = {
     {"bad_bytes", ROPium_get_bad_bytes, ROPium_set_bad_bytes, "Bad bytes that must not occur in the ropchains", NULL},
     {"keep_regs", ROPium_get_keep_regs, ROPium_set_keep_regs, "Registers that should not be clobbered by the ropchains", NULL},
     {"safe_mem", ROPium_get_safe_mem, ROPium_set_safe_mem, "Indicates whether ropchains can contain gadgets that perform potentially unsafe register dereferencing", NULL},
     {"arch", ROPium_get_arch, NULL, "Architecture type", NULL},
+    {"abi", ROPium_get_abi, ROPium_set_abi, "ABI to use when calling functions", NULL},
     {NULL}
 };
 
@@ -296,6 +316,7 @@ PyObject* ropium_ROPium(PyObject* self, PyObject* args){
             as_ropium_object(object).gadget_db = new GadgetDB();
             // Set compiler
             as_ropium_object(object).compiler = new ROPCompiler(object->arch, (object->gadget_db));
+            as_ropium_object(object).abi = ABI::NONE;
         }
     }catch(runtime_exception& e){
         return PyErr_Format(PyExc_RuntimeError, "%s", e.what());
