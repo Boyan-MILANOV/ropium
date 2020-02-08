@@ -216,6 +216,16 @@ namespace test{
             ropchain = comp.compile(" 0()", nullptr, ABI::X86_CDECL);
             nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
             
+            // X86 STDCALL ABI
+            ropchain = comp.compile(" 0x1234(42)", nullptr, ABI::X86_STDCALL);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+
+            ropchain = comp.compile(" 0x12345678(42, -1, 43)", nullptr, ABI::X86_STDCALL);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+
+            ropchain = comp.compile(" 0()", nullptr, ABI::X86_STDCALL);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+            
             return nb;
         }
     }

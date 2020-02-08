@@ -64,7 +64,7 @@ public:
     GadgetDB* db;
     // Translate function calls into strategy graphs
     bool _x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& instr);
-    bool _x86_fastcall_to_strategy(StrategyGraph& graph, ILInstruction& instr);
+    bool _x86_stdcall_to_strategy(StrategyGraph& graph, ILInstruction& instr);
     bool _x64_system_v_to_strategy(StrategyGraph& graph, ILInstruction& instr);
     bool _x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr);
 

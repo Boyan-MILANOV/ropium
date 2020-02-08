@@ -141,6 +141,9 @@ vector<ILInstruction> ROPCompiler::parse(string program){
 
 
 bool ROPCompiler::_x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+    // Arguments pushed on the stack right to left
+    // Caller-cleanup = we have to set a proper gadget as return address to go to 
+    // the next gadget in the ropchain
     node_t n_ret = graph.new_node(GadgetType::LOAD);
     node_t n = graph.new_node(GadgetType::MOV_CST);
     Node& node_ret = graph.nodes[n_ret];
@@ -200,9 +203,64 @@ bool ROPCompiler::_x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& in
     return true;
 }
 
-bool ROPCompiler::_x86_fastcall_to_strategy(StrategyGraph& graph, ILInstruction& instr){
-    return false;
+bool ROPCompiler::_x86_stdcall_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+    // Similar to cdecl but easier since it's a callee-cleaup convention so we just need
+    // a 'ret' as return gadget and don't need to adapt it to the number of arguments
+    node_t n_ret = graph.new_node(GadgetType::LOAD);
+    node_t n = graph.new_node(GadgetType::MOV_CST);
+    Node& node_ret = graph.nodes[n_ret];
+    Node& node = graph.nodes[n];
+    // Add the 'ret' gadget
+    node_ret.is_indirect = true; // Indirect
+    node_ret.params[PARAM_LOAD_DST_REG].make_reg(X86_EIP);
+    node_ret.params[PARAM_LOAD_SRC_ADDR_REG].make_reg(X86_ESP);
+    node_ret.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(0, graph.new_name("stack_offset"));    
+
+    // Main node
+    /* Arguments are on the stack, pushed right to left */
+    node.params[PARAM_MOVCST_DST_REG].make_reg(X86_EIP);
+    node.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_FUNCTION_ADDR], graph.new_name("function_address"));
+    // Add parameters at the final sp_inc of the gadget
+    for( int i = 1; i < instr.args.size(); i++){
+        node.special_paddings.push_back(ROPPadding());
+        // The offset is sp_inc + arch_size_bytes*(param_num+1) (+1 because return address comes before args)
+        node.special_paddings.back().offset.make_cst(
+            node.id, PARAM_MOVCST_GADGET_SP_INC,
+            exprvar(arch->bits, node.params[PARAM_MOVCST_GADGET_SP_INC].name) + (arch->octets * ((i-1)+1)),
+            graph.new_name("func_arg_offset")
+        );
+        if( instr.args_type[i] == IL_FUNC_ARG_CST ){
+            node.special_paddings.back().value.make_cst(instr.args[i], graph.new_name("func_arg"));
+        }else{
+            // Putting the registers on the stack then call a function isn't supported
+            return false;
+        }
+    }
+    // Add constraint to check that the sp-delta of the gadget is 0
+    node.assigned_gadget_constraints.push_back(
+        // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
+        // jumping to the function
+        [](Node* n, StrategyGraph* g)->bool{
+            return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
+        }
+    );
+
+    // Add the 'ret' gadget address as first padding of the first gadget :)
+    node.special_paddings.push_back(ROPPadding());
+    node.special_paddings.back().offset.make_cst(
+            node.id, PARAM_MOVCST_GADGET_SP_INC,
+            exprvar(arch->bits, node.params[PARAM_MOVCST_GADGET_SP_INC].name),
+            graph.new_name("func_ret_addr_offset")
+        );
+    node.special_paddings.back().value.make_cst(node_ret.id, PARAM_LOAD_GADGET_ADDR,
+        exprvar(arch->bits, node_ret.params[PARAM_LOAD_GADGET_ADDR].name), graph.new_name("func_ret_addr"));
+
+    // Add mandatory following node
+    node.mandatory_following_node = node_ret.id;
+
+    return true;
 }
+
 bool ROPCompiler::_x64_system_v_to_strategy(StrategyGraph& graph, ILInstruction& instr){
     return false;
 }
@@ -571,7 +629,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         bool success = true;
         switch( abi ){
             case ABI::X86_CDECL: success = _x86_cdecl_to_strategy(*graph, instr); break;
-            case ABI::X86_FASTCALL: success = _x86_fastcall_to_strategy(*graph, instr); break;
+            case ABI::X86_STDCALL: success = _x86_stdcall_to_strategy(*graph, instr); break;
             case ABI::X64_SYSTEM_V: success = _x64_system_v_to_strategy(*graph, instr); break;
             case ABI::X64_MS: success = _x64_ms_to_strategy(*graph, instr); break;
             case ABI::NONE: throw compiler_exception("You have to specify which ABI to use to call functions");
