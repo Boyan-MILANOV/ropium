@@ -30,7 +30,9 @@ def error(msg, skip=False):
 def info(msg):
     print("\t[" + str_main("+") + "] " + msg)
     
-def warning(msg):
+def warning(msg, skip=False):
+    if skip:
+        print('')
     print("\t[" + str_bold(str_warning("!")) + "] " + msg)
 
 
@@ -92,6 +94,11 @@ def main():
             elif( command == CMD_KEEPREGS ):
                 try:
                     keepregs(args[1:])
+                except ContextException as e:
+                    error(str(e), skip=True)
+            elif( command == CMD_SAFEMEM ):
+                try:
+                    safemem(args[1:])
                 except ContextException as e:
                     error(str(e), skip=True)
             else:
@@ -305,6 +312,29 @@ def set_keepregs(args):
 def reset_keepregs(args):
     global keep_regs
     keep_regs = []
+
+
+# safemem command
+def safemem(args):
+    global compiler
+    global safe_mem
+    safemem_help = "TODO DEBUG HELP"
+
+    if not args:
+        print(safemem_help)
+        return
+    
+    subcommand = args[0]
+    if subcommand == "set":
+        safe_mem = True
+    elif subcommand == "unset":
+        safe_mem = False
+    else:
+        raise ContextException(f"Unsupported action '{subcommand}'")
+    
+    if len(args) > 1:
+        args_str = ''.join(args[1:])
+        warning(f"Extra arguments ignored: '{args_str}'", skip=True)
 
 def show_help():
     print("Not implemented")
