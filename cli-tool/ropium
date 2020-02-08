@@ -101,6 +101,11 @@ def main():
                     safemem(args[1:])
                 except ContextException as e:
                     error(str(e), skip=True)
+            elif( command == CMD_ABI ):
+                try:
+                    cmd_abi(args[1:])
+                except ContextException as e:
+                    error(str(e), skip=True)
             else:
                 error(f"Unknown command '{command}'", skip=True)
             print('')
@@ -182,6 +187,7 @@ def find(args):
     global bad_bytes
     global keep_regs
     global safemem
+    global abi
 
     if not compiler:
         raise FindException("You must load a binary before finding ropchains")
@@ -190,6 +196,7 @@ def find(args):
     compiler.bad_bytes = bad_bytes
     compiler.keep_regs = keep_regs
     compiler.safe_mem = safe_mem
+    compiler.abi = abi
     try:
         ropchain = compiler.compile(query)
     except ValueError as e:
@@ -333,8 +340,43 @@ def safemem(args):
         raise ContextException(f"Unsupported action '{subcommand}'")
     
     if len(args) > 1:
-        args_str = ''.join(args[1:])
+        args_str = ' '.join(args[1:])
         warning(f"Extra arguments ignored: '{args_str}'", skip=True)
+
+# ABI Command
+str_to_abi = {
+    "X86_CDECL":ABI.X86_CDECL
+}
+
+def cmd_abi(args):
+    global compiler
+    abi_help = "TODO DEBUG HELP"
+
+    if not args:
+        print(abi_help)
+        return
+    
+    subcommand = args[0]
+    if subcommand == "set":
+        set_abi(args[1:])
+    else:
+        raise ContextException(f"Unsupported action '{subcommand}'")
+
+def set_abi(args):
+    global abi
+    
+    if not args:
+        raise ContextException(f"Missing ABI argument")
+    
+    if args[0] not in str_to_abi:
+        raise ContextException(f"Unsupported ABI: '{args[0]}'")
+    else:
+        abi = str_to_abi[args[0]]
+        
+    if len(args) > 1:
+        extra_args = ' '.join(args[1:])
+        warning(f"Extra arguments ignored: '{extra_args}'", skip=True)
+    
 
 def show_help():
     print("Not implemented")
