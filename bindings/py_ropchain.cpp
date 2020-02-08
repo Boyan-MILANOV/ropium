@@ -69,7 +69,7 @@ static PyObject* ropchain_dump(PyObject* self, PyObject* args, PyObject* keyword
 }
 
 static PyMethodDef ropchain_methods[] = {
-    {"dump", (PyCFunction)ropchain_dump, METH_VARARGS | METH_KEYWORDS, "Dump the ropchain in various formats"},
+    {"dump", (PyCFunction)ropchain_dump, METH_VARARGS | METH_KEYWORDS, "dump(fmt='pretty', tab='', color=True) \nDump the ropchain in various formats. Available formats: 'pretty', 'python', 'raw'"},
     {NULL, NULL, 0, NULL}
 };
 
