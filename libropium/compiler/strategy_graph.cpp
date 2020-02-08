@@ -69,7 +69,9 @@ bool Node::has_free_param(){
 }
 
 bool Node::is_final_param(param_t param){
-    return strategy_edges.out.empty() && has_dst_reg_param() && (param == get_param_num_dst_reg());
+    return strategy_edges.out.empty() &&
+           ( (has_dst_reg_param() && (param == get_param_num_dst_reg())) || 
+              (has_dst_addr_reg_param() && param == get_param_num_dst_addr_reg()));
 }
 
 bool Node::is_initial_param(param_t param){
@@ -83,6 +85,11 @@ bool Node::has_dst_reg_param(){
             type == GadgetType::AMOV_REG ||   
             type == GadgetType::LOAD ||
             type == GadgetType::ALOAD; 
+}
+
+bool Node::has_dst_addr_reg_param(){
+    return  type == GadgetType::STORE || 
+            type == GadgetType::ASTORE;
 }
 
 bool Node::is_src_param(param_t param){
@@ -931,7 +938,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
 void StrategyGraph::compute_interference_points(){
     // Clear previous points if any
     interference_points.clear();
-
+    
     // 1. Compute interfering points for regs
     for( Node& node : nodes ){
         if( node.is_disabled ) // Allow indirect nodes though since they will be executed and interfere 

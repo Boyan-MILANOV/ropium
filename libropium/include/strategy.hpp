@@ -384,6 +384,7 @@ public:
     int get_param_num_dst_addr_offset();
     int get_param_num_dst_addr_reg();
     bool has_dst_reg_param();
+    bool has_dst_addr_reg_param();
 
     bool assign_gadget(Gadget* gadget, Arch* arch=nullptr, Constraint* constraint=nullptr);
     void apply_assertion();
