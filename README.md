@@ -1,5 +1,5 @@
 # About
-ROPium is a library/tool that makes ROP-exploits easy. It automatically extracts and analyses gadgets from binaries and
+**ROPium** is a library/tool that makes ROP-exploits easy. It automatically extracts and analyses gadgets from binaries and
 lets you find ROP-chains with semantic queries. ROPium supports *X86* and *X64* architectures, soon to be 
 extended with *ARM*.
 
@@ -48,10 +48,13 @@ Thanks to a Command-Line-Interface wrapper, you can use ROPium interactively to 
   <img src="/ressources/ropium.gif" width="800" align="middle">
 </p>
 
+
 ### Python API
 
+Do you need to integrate ropchains directly in your scripts ? Good news, ROPium has a python API !
+
 Loading a binary and finding ropchains:
-```python
+```Python
 from ropium import *
 rop = ROPium(ARCH.X64)
 rop.load('/lib/x86_64-linux-gnu/libc-2.27.so')
@@ -60,7 +63,7 @@ chain = rop.compile('rbx = [rax + 0x20]')
 ```
 
 Dumping a ropchain in various formats:
-```python
+```Python
 >>> print( chain.dump() )
 
 0x000000000009a851 (sub rax, 0x10; ret)
@@ -82,7 +85,7 @@ b'Q\xa8\t\x00\x00\x00\x00\x00\x18\x00\x13\x00\x00\x00\x00\x00@"\x05\x00\x00\x00\
 ```
 
 Set constraints on ropchains:
-```python
+```Python
 # Bytes that should not appear in the ropchain
 rop.bad_bytes = [0x00, 0x0a, 0x0b]
 
