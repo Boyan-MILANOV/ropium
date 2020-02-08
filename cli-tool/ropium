@@ -405,11 +405,11 @@ main_help += '\n\t' + str_bold(CMD_EXIT) + ': \t\texit ROPium'
 
 load_help = str_main(str_bold("\n\t'load' Command"))
 load_help += str_special("\n\t(Load gadgets from a binary file)")
-load_help += "\n\n\t"+str_bold("Usage")+":\tload [OPTIONS] <filename>"
+load_help += "\n\n\t"+str_bold("Usage")+":\tload [OPTIONS] <filename> [<filename> ...]"
 load_help += "\n\n\t"+str_bold("Options")+":"
 load_help += str_special("\n\t\t-a,--arch <arch>")+"  architecture to use for gadget" +"\n\t\t\t\t  disassembly/analysis"
 load_help += "\n\n\t"+str_bold("Supported achitectures")+": "+', '.join([str_special(s) for s in str_to_arch])
-load_help += "\n\n\t"+str_bold("Examples")+":\n\t\tload -a X86 /bin/bash \n\t\tload -a X64 ../test/vuln_prog"
+load_help += "\n\n\t"+str_bold("Examples")+":\n\t\tload -a X86 /bin/bash \n\t\tload -a X64 ../my_binary1 ../my_binary2 "
 
 find_help = str_main(str_bold("\n\t'find' Command"))
 find_help += str_special("\n\t(Automatically find ropchains)")
