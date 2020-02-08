@@ -89,6 +89,11 @@ def main():
                     badbytes(args[1:])
                 except ContextException as e:
                     error(str(e), skip=True)
+            elif( command == CMD_KEEPREGS ):
+                try:
+                    keepregs(args[1:])
+                except ContextException as e:
+                    error(str(e), skip=True)
             else:
                 error(f"Unknown command '{command}'", skip=True)
             print('')
@@ -232,7 +237,74 @@ def set_badbytes(args):
 def reset_badbytes(args):
     global bad_bytes
     bad_bytes = []
+
+
+# Keppregs command
+def keepregs(args):
+    global compiler
+    keepregs_help = "TODO DEBUG HELP"
+
+    if not args:
+        print(keepregs_help)
+        return
     
+    subcommand = args[0]
+    if subcommand == "set":
+        set_keepregs(args[1:])
+    elif subcommand == "reset":
+        reset_keepregs(args[1:])
+    else:
+        raise ContextException(f"Unsupported action '{subcommand}'")
+
+reg_map = {
+    "eax":X86.EAX,
+    "ebx":X86.EBX,
+    "ecx":X86.ECX,
+    "edx":X86.EDX,
+    "esi":X86.ESI,
+    "edi":X86.EDI,
+    "esp":X86.ESP,
+    "ebp":X86.EBP,
+    "eip":X86.EIP,
+    
+    "rax":X64.RAX,
+    "rbx":X64.RBX,
+    "rcx":X64.RBX,
+    "rdx":X64.RDX,
+    "rdi":X64.RDI,
+    "rsi":X64.RSI,
+    "rsp":X64.RSP,
+    "rbp":X64.RBP,
+    "rip":X64.RIP,
+    "r8":X64.R8,
+    "r9":X64.R9,
+    "r10":X64.R10,
+    "r11":X64.R11,
+    "r12":X64.R12,
+    "r13":X64.R13,
+    "r14":X64.R14,
+    "r15":X64.R15
+}
+
+def str_to_reg(s):
+    if s in reg_map:
+        return reg_map[s]
+    else:
+        return None
+
+def set_keepregs(args):
+    global keep_regs
+    new_keep = []
+    for arg in args:
+        reg = str_to_reg(arg)
+        if reg is None:
+            raise ContextException(f"Register '{arg}' is not supported for 'keepregs'")
+        new_keep.append(arg)
+    keep_regs = new_keep
+
+def reset_keepregs(args):
+    global keep_regs
+    keep_regs = []
 
 def show_help():
     print("Not implemented")
