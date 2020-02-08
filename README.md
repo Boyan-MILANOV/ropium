@@ -1,3 +1,7 @@
+<p align="center" >
+<img width=50% src="/ressources/ropium_logo.png"/><br /><br /><br />
+</p>
+
 # About
 **ROPium** is a library/tool that makes ROP-exploits easy. It automatically extracts and analyses gadgets from binaries and
 lets you find ROP-chains with semantic queries. ROPium supports *X86* and *X64* architectures, soon to be 
