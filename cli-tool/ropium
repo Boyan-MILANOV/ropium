@@ -8,6 +8,7 @@ MAIN_COLOR_ANSI = '\033[92m'    # Default color
 ERROR_COLOR_ANSI = '\033[91m' 
 BOLD_COLOR_ANSI = '\033[1m'
 WARNING_COLOR_ANSI = '\033[93m'
+SPECIAL_COLOR_ANSI = '\033[93m'
 END_COLOR_ANSI = '\033[0m'
 
 def str_bold(msg):
@@ -21,6 +22,9 @@ def str_main(msg):
     
 def str_warning(msg):
     return WARNING_COLOR_ANSI + msg + END_COLOR_ANSI
+
+def str_special(msg):
+    return SPECIAL_COLOR_ANSI + msg + END_COLOR_ANSI
 
 def error(msg, skip=False):
     if skip:
@@ -40,6 +44,7 @@ compiler = None
 bad_bytes = []
 keep_regs = []
 safe_mem = True
+abi = ABI.NONE
 start_msg = "\n" + str_bold("ROPium") + " - v3.0\n"
 
 # Commands
@@ -80,7 +85,23 @@ def main():
             elif( command == CMD_EXIT ):
                 finish = True
             elif( command == CMD_HELP ):
-                show_help()
+                if len(args) > 1:
+                    if args[1] == "load":
+                        print(load_help)
+                    elif args[1] == "find":
+                        print(find_help)
+                    elif args[1] == "badbytes":
+                        print(badbytes_help)
+                    elif args[1] == "keepregs":
+                        print(keepregs_help)
+                    elif args[1] == "safemem":
+                        print(safemem_help)
+                    elif args[1] == "abi":
+                        print(abi_help)
+                    else:
+                        print(main_help)
+                else:
+                    print(main_help)
             elif( command == CMD_FIND ):
                 try:
                     find(args[1:])
@@ -128,10 +149,7 @@ def load(args):
     seen_filename = False
     arch = None
     filenames = []
-    
-    # Help string
-    load_help = "DEBUG TODO HELP"
-    
+
     # Parse arguments
     if not args:
         print(load_help)
@@ -215,7 +233,6 @@ class ContextException(Exception):
 
 def badbytes(args):
     global compiler
-    badbytes_help = "TODO DEBUG HELP"
 
     if not args:
         print(badbytes_help)
@@ -256,7 +273,6 @@ def reset_badbytes(args):
 # Keppregs command
 def keepregs(args):
     global compiler
-    keepregs_help = "TODO DEBUG HELP"
 
     if not args:
         print(keepregs_help)
@@ -325,7 +341,6 @@ def reset_keepregs(args):
 def safemem(args):
     global compiler
     global safe_mem
-    safemem_help = "TODO DEBUG HELP"
 
     if not args:
         print(safemem_help)
@@ -350,7 +365,6 @@ str_to_abi = {
 
 def cmd_abi(args):
     global compiler
-    abi_help = "TODO DEBUG HELP"
 
     if not args:
         print(abi_help)
@@ -377,9 +391,69 @@ def set_abi(args):
         extra_args = ' '.join(args[1:])
         warning(f"Extra arguments ignored: '{extra_args}'", skip=True)
     
+# Help strings
+main_help = str_main(str_bold('\n\tMain Commands'))
+main_help += str_special("\n\t(For more info about a command type 'help <cmd>')")
+main_help += '\n\n\t' + str_bold(CMD_LOAD) + ': \t\tload gadgets from a binary file'
+main_help += '\n\t' + str_bold(CMD_FIND) + ': \t\tFind ropchains using semantic queries'
+main_help += '\n\n\t' + str_bold(CMD_BADBYTES) + ': \tSet bad bytes to be avoided in ropchains'
+main_help += '\n\t' + str_bold(CMD_KEEPREGS) + ': \tSet registers that must not be clobbered'
+main_help += '\n\t' + str_bold(CMD_SAFEMEM) + ': \tEnable/Disable the use of unsafe gadgets'
+main_help += '\n\t' + str_bold(CMD_ABI) + ': \t\tSpecify the ABI to use when calling functions'
+main_help += '\n\n\t' + str_bold(CMD_HELP) + ': \t\tshow this help'
+main_help += '\n\t' + str_bold(CMD_EXIT) + ': \t\texit ROPium'
 
-def show_help():
-    print("Not implemented")
+load_help = str_main(str_bold("\n\t'load' Command"))
+load_help += str_special("\n\t(Load gadgets from a binary file)")
+load_help += "\n\n\t"+str_bold("Usage")+":\tload [OPTIONS] <filename>"
+load_help += "\n\n\t"+str_bold("Options")+":"
+load_help += str_special("\n\t\t-a,--arch <arch>")+"  architecture to use for gadget" +"\n\t\t\t\t  disassembly/analysis"
+load_help += "\n\n\t"+str_bold("Supported achitectures")+": "+', '.join([str_special(s) for s in str_to_arch])
+load_help += "\n\n\t"+str_bold("Examples")+":\n\t\tload -a X86 /bin/bash \n\t\tload -a X64 ../test/vuln_prog"
+
+find_help = str_main(str_bold("\n\t'find' Command"))
+find_help += str_special("\n\t(Automatically find ropchains)")
+find_help += "\n\n\t"+str_bold("Usage")+":\tfind <query>"
+find_help += "\n\n\t"+str_bold("Query examples")+":\n"
+find_help += "\n\t eax = 0x42"
+find_help += "\n\t eax = ebx"
+find_help += "\n\t eax = ebx ^ 3"
+find_help += "\n\t eax = ebx & ecx"
+find_help += "\n\t eax = [ebx + 16] "
+find_help += "\n\t eax = [0x12345678] "
+find_help += "\n\t eax += [ebx + 16]"
+find_help += "\n\t eax *= [0x12345678]"
+find_help += "\n\t [eax - 8] = ebx"
+find_help += "\n\t [eax - 8] = 0x42"
+find_help += "\n\t [eax - 8] &= ebx"
+find_help += "\n\t [eax - 8] &= 0x42"
+find_help += "\n\t [0x12345678] = ebx"
+find_help += "\n\t [0x12345678] = 0x42"
+find_help += "\n\t [0x12345678] &= ebx"
+find_help += "\n\t [0x12345678] &= 0x42"
+find_help += "\n\t 0x08040120()"
+find_help += "\n\t 0x08040120(1, 2, 3, 4)"
+
+badbytes_help = str_main(str_bold("\n\t'badbytes' Command"))
+badbytes_help += str_special("\n\t(Set bad bytes to avoid in ropchains)")
+badbytes_help += "\n\n\t"+str_bold("Usage")+":\tbadbytes set BYTE [BYTE ...]"+"\n\t\tbadbytes reset"
+badbytes_help += "\n\n\t"+str_bold("Example")+": badbytes set 0 0xa 0xb 255"
+
+keepregs_help = str_main(str_bold("\n\t'keepregs' Command"))
+keepregs_help += str_special("\n\t(Set registers that must not be clobbered)")
+keepregs_help += "\n\n\t"+str_bold("Usage")+":\tkeepregs set REG [REG ...]"+"\n\t\tkeepregs reset"
+keepregs_help += "\n\n\t"+str_bold("Example")+": keepregs set rsi rbp"
+
+safemem_help = str_main(str_bold("\n\t'safemem' Command"))
+safemem_help += str_special("\n\t(Enable/Disable the use of gadgets that dereference" +
+"\n\tregisters holding unknown values and thus might"+ "\n\tcause a crash)")
+safemem_help += "\n\n\t"+str_bold("Usage")+":\tsafemem set  (disable unsafe gadgets)"+"\n\t\tsafemem unset (enable unsafe gadgets)"
+
+abi_help = str_main(str_bold("\n\t'abi' Command"))
+abi_help += str_special("\n\t(Set ABI to use when calling functions)")
+abi_help += "\n\n\t"+str_bold("Usage")+":\tabi set <ABI>"
+abi_help += "\n\n\t"+str_bold("Supported ABIs")+": "+', '.join([str_special(s) for s in str_to_abi])
+
 
 if __name__ == "__main__":
     main()
