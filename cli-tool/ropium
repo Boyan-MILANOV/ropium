@@ -128,7 +128,7 @@ def main():
                 except ContextException as e:
                     error(str(e), skip=True)
             else:
-                error(f"Unknown command '{command}'", skip=True)
+                error(f"Unknown command '{command}' (type 'help' for help)", skip=True)
             print('')
         except KeyboardInterrupt:
             pass
