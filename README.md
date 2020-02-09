@@ -12,7 +12,7 @@ extended with *ARM*.
 Key features:
 
    - **Effortless**: ROPium works out-of-the-box with a smooth Command Line Interface
-   - **Scriptable**: It is easy to integrate ROPium in script thanks to its python API
+   - **Python API**: It is easy to integrate ROPium in script thanks to its python API
    - **Automatic chaining**: ROPium automatically combines gadgets to create complex ROP-chains
    - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``[rdi+0x20]=rax``, ``rsi=[rbx+16]``, ``0x08040212(1, 2, rax)``, ``...``
 
