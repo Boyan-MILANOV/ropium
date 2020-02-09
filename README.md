@@ -5,7 +5,7 @@
 </p>
 
 # About
-**ROPium** is a library/tool that makes ROP-exploits easy. It automatically extracts and analyses gadgets from binaries and
+**ROPium** (ex-ROPGenerator) is a library/tool that makes ROP-exploits easy. It automatically extracts and analyses gadgets from binaries and
 lets you find ROP-chains with semantic queries. ROPium supports *X86* and *X64* architectures, soon to be 
 extended with *ARM*.
 
@@ -14,7 +14,7 @@ Key features:
    - **Effortless**: ROPium works out-of-the-box with a smooth Command Line Interface
    - **Scriptable**: It is easy to integrate ROPium in script thanks to its python API
    - **Automatic chaining**: ROPium automatically combines gadgets to create complex ROP-chains
-   - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``[rdi+0x20]=rax``, ``rsi=[rbx+16]``, ``0x08040212(1, 2, 3)``, ``...``
+   - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``[rdi+0x20]=rax``, ``rsi=[rbx+16]``, ``0x08040212(1, 2, rax)``, ``...``
 
 # Content
 - [About](#about)
@@ -37,6 +37,10 @@ You also need the latest [ROPgadget](https://github.com/JonathanSalwan/ROPgadget
       git clone https://github.com/JonathanSalwan/ROPgadget && cd ROPgadget
       python setup.py install --user 
 
+To use the CLI tool, install [prompt_toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit):
+      
+      pip3 install prompt_toolkit
+
 Finally install **ROPium**:
 
       git clone https://github.com/Boyan-MILANOV/ropium && cd ropium
@@ -53,7 +57,6 @@ Thanks to a Command-Line-Interface wrapper, you can use ROPium interactively to 
 <p align="center">
   <img src="/ressources/ropium.gif" width="800" align="middle">
 </p>
-
 
 ### Python API
 
@@ -133,5 +136,5 @@ Contributors:
 ROPium uses the following awesome projects: 
    - [capstone](https://github.com/aquynh/capstone) : Disassembly Framework
    - [ROPgadget](https://github.com/JonathanSalwan/ROPgadget) : Gadget extractor
-   - [prompt-toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) : Python CLI interface
+   - [prompt-toolkit](https://github.com/prompt-toolkit/python-prompt-toolkit) : Python CLI interface library
 
