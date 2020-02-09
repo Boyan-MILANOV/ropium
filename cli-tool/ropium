@@ -362,7 +362,8 @@ def safemem(args):
 str_to_abi = {
     "X86_CDECL":ABI.X86_CDECL,
     "X86_STDCALL":ABI.X86_STDCALL,
-    "X64_SYSTEM_V":ABI.X64_SYSTEM_V
+    "X64_SYSTEM_V":ABI.X64_SYSTEM_V,
+    "X64_MS":ABI.X64_MS
 }
 
 def cmd_abi(args):
