@@ -23,4 +23,4 @@ RUN apt-get update && apt-get install -y --no-install-recommends g++ \
 	&& apt-get purge -y --autoremove \
 	&& rm -rf /var/lib/apt/lists/*
 
-# ENTRYPOINT ["ropium"]
+ENTRYPOINT ["ropium"]
