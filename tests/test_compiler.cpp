@@ -251,6 +251,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x41\x59\x59\xc3", 4), 9)); // pop r9; pop rcx; ret
             raw.push_back(RawGadget(string("\x48\x89\xef\xc3",4), 10)); // mov rdi, rbp; ret
             raw.push_back(RawGadget(string("\x48\x83\xC4\x18\xC3", 5), 11)); // add rsp, 24; ret
+            raw.push_back(RawGadget(string("\x49\x89\xd1\xc3",4), 12)); // mov r9, rdx; ret
             db.analyse_raw_gadgets(raw, &arch);
 
             // X64 SYSTEM V
@@ -267,6 +268,19 @@ namespace test{
             nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
             
             ropchain = comp.compile(" 0x1234(rbp, 2, 3, 4, 5, 6, 7, 8, 9)", nullptr, ABI::X64_SYSTEM_V);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+            
+            // X64 Microsoft
+            ropchain = comp.compile(" 0x1234(42)", nullptr, ABI::X64_MS);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+            
+            ropchain = comp.compile(" 0x1234(1, 2, 3, rdx)", nullptr, ABI::X64_MS);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+            
+            ropchain = comp.compile(" 0x1234(1, 2, 3, 4, 5, 6)", nullptr, ABI::X64_MS);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+            
+            ropchain = comp.compile(" 0x1234(1, 2, 3, rdx, 5, 6, 7)", nullptr, ABI::X64_MS);
             nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
 
             return nb;
