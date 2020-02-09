@@ -9,7 +9,7 @@ CompilerTask::CompilerTask(Arch* a):arch(a){}
 void CompilerTask::add_strategy(StrategyGraph* graph){
     vector<StrategyGraph*>::iterator g;
     for( g = pending_strategies.begin();
-         g != pending_strategies.end() && (*g)->nodes.size() > graph->nodes.size();
+         g != pending_strategies.end() && (*g)->size >= graph->size;
          g++ ){}
     pending_strategies.insert(g, graph);
 }
@@ -219,7 +219,7 @@ bool ROPCompiler::_x86_stdcall_to_strategy(StrategyGraph& graph, ILInstruction& 
     // Main node
     /* Arguments are on the stack, pushed right to left */
     node.params[PARAM_MOVCST_DST_REG].make_reg(X86_EIP);
-    node.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_FUNCTION_ADDR], graph.new_name("function_address"));
+    node.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_FUNCTION_ADDR], graph.new_name("func_address"));
     // Add parameters at the final sp_inc of the gadget
     for( int i = 1; i < instr.args.size(); i++){
         node.special_paddings.push_back(ROPPadding());
@@ -262,7 +262,86 @@ bool ROPCompiler::_x86_stdcall_to_strategy(StrategyGraph& graph, ILInstruction& 
 }
 
 bool ROPCompiler::_x64_system_v_to_strategy(StrategyGraph& graph, ILInstruction& instr){
-    return false;
+    // First 6 args in RDI,RSI,RDX,RCX,R8,R9 then on the stack pushed right to left
+    node_t n, call_node, ret_node;
+    int arg_regs[6] = {X64_RDI, X64_RSI, X64_RDX, X64_RCX, X64_R8, X64_R9};
+    int nb_args_on_stack;
+    
+    if( instr.args.size()-1 > 6 )
+        nb_args_on_stack = instr.args.size()-1 - 6;
+    else
+        nb_args_on_stack = 0;
+    
+    // Add the 'ret' gadget
+    ret_node = graph.new_node(GadgetType::LOAD);
+    graph.nodes[ret_node].is_indirect = true; // Indirect
+    graph.nodes[ret_node].params[PARAM_LOAD_DST_REG].make_reg(X64_RIP);
+    graph.nodes[ret_node].params[PARAM_LOAD_SRC_ADDR_REG].make_reg(X64_RSP);
+    graph.nodes[ret_node].params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(nb_args_on_stack*arch->octets, graph.new_name("stack_offset"));
+    
+    // Add the call node
+    call_node = graph.new_node(GadgetType::MOV_CST);
+    graph.nodes[call_node].params[PARAM_MOVCST_DST_REG].make_reg(X64_RIP);
+    graph.nodes[call_node].params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_FUNCTION_ADDR], graph.new_name("func_address"));
+    // Add constraint to check that the sp-delta of the gadget is 0
+    graph.nodes[call_node].assigned_gadget_constraints.push_back(
+        // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
+        // jumping to the function
+        [](Node* n, StrategyGraph* g)->bool{
+            return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
+        }
+    );
+    // If needed add special paddings for extra args (after the 6th argument)
+    for( int i = 0; i < nb_args_on_stack; i++){
+        graph.nodes[call_node].special_paddings.push_back(ROPPadding());
+        // The offset is sp_inc + arch_size_bytes*(param_num+1) (+1 because return address comes before args)
+        graph.nodes[call_node].special_paddings.back().offset.make_cst(
+            call_node, PARAM_MOVCST_GADGET_SP_INC,
+            exprvar(arch->bits, graph.nodes[call_node].params[PARAM_MOVCST_GADGET_SP_INC].name) + (arch->octets * (i+1)),
+            graph.new_name("func_arg_offset")
+        );
+        if( instr.args_type[PARAM_FUNCTION_ARGS+6+i] == IL_FUNC_ARG_CST ){
+            graph.nodes[call_node].special_paddings.back().value.make_cst(instr.args[PARAM_FUNCTION_ARGS+6+i], graph.new_name("func_arg"));
+        }else{
+            // Putting the registers on the stack then call a function isn't supported
+            return false;
+        }
+    }
+    // Add the 'ret' gadget address as first padding of the first gadget :)
+    graph.nodes[call_node].special_paddings.push_back(ROPPadding());
+    graph.nodes[call_node].special_paddings.back().offset.make_cst(
+            call_node, PARAM_MOVCST_GADGET_SP_INC,
+            exprvar(arch->bits, graph.nodes[call_node].params[PARAM_MOVCST_GADGET_SP_INC].name),
+            graph.new_name("func_ret_addr_offset")
+        );
+    graph.nodes[call_node].special_paddings.back().value.make_cst(ret_node, PARAM_LOAD_GADGET_ADDR,
+        exprvar(arch->bits, graph.nodes[ret_node].params[PARAM_LOAD_GADGET_ADDR].name), graph.new_name("func_ret_addr"));
+
+    // Add 'ret' node as mandatory following node
+    graph.nodes[call_node].mandatory_following_node = ret_node;
+
+    // Eventually add nodes to put the first 6 args in registers
+    for( int i = 0; i < 6 && (i < instr.args.size()-PARAM_FUNCTION_ARGS); i++){
+        // Set register that must hold the argument
+        if( instr.args_type[PARAM_FUNCTION_ARGS+i] == IL_FUNC_ARG_CST ){
+            n = graph.new_node(GadgetType::MOV_CST);
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].make_reg(arg_regs[i]);
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].is_data_link = true; // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].add_dep(call_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_FUNCTION_ARGS+i], graph.new_name("func_arg"));
+        }else{
+            n = graph.new_node(GadgetType::MOV_REG);
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].make_reg(arg_regs[i]);
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].is_data_link = true; // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].add_dep(call_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVREG_SRC_REG].make_reg(instr.args[PARAM_FUNCTION_ARGS+i]);
+            graph.nodes[n].params[PARAM_MOVREG_SRC_REG].is_data_link = true; // src_reg not be clobbered before being passed as argument
+        }
+        graph.nodes[n].branch_type = BranchType::RET;
+        graph.add_strategy_edge(n, call_node);
+    }
+
+    return true;
 }
 bool ROPCompiler::_x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr){
     return false;

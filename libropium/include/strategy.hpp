@@ -146,7 +146,7 @@ public:
    WARNING: their values have to match the place they have in the tuple
    when the gadgets are addded in the database !
 */
-#define MAX_PARAMS 8
+#define MAX_PARAMS 9
 
 #define PARAM_MOVREG_DST_REG 0
 #define PARAM_MOVREG_SRC_REG 1
@@ -154,7 +154,8 @@ public:
 #define PARAM_MOVREG_GADGET_SP_INC 3
 #define PARAM_MOVREG_GADGET_JMP_REG 4
 #define PARAM_MOVREG_GADGET_SP_DELTA 5
-#define NB_PARAM_MOVREG 6
+#define PARAM_MOVREG_DATA_LINK 6
+#define NB_PARAM_MOVREG 7
 
 #define PARAM_MOVCST_DST_REG 0
 #define PARAM_MOVCST_SRC_CST 1
@@ -162,7 +163,8 @@ public:
 #define PARAM_MOVCST_GADGET_SP_INC 3
 #define PARAM_MOVCST_GADGET_JMP_REG 4
 #define PARAM_MOVCST_GADGET_SP_DELTA 5
-#define NB_PARAM_MOVCST 6
+#define PARAM_MOVCST_DATA_LINK 6
+#define NB_PARAM_MOVCST 7
 
 #define PARAM_AMOVCST_DST_REG 0
 #define PARAM_AMOVCST_SRC_REG 1
@@ -172,7 +174,8 @@ public:
 #define PARAM_AMOVCST_GADGET_SP_INC 5
 #define PARAM_AMOVCST_GADGET_JMP_REG 6
 #define PARAM_AMOVCST_GADGET_SP_DELTA 7
-#define NB_PARAM_AMOVCST 8
+#define PARAM_AMOVCST_DATA_LINK 8
+#define NB_PARAM_AMOVCST 9
 
 #define PARAM_AMOVREG_DST_REG 0
 #define PARAM_AMOVREG_SRC_REG1 1
@@ -182,7 +185,8 @@ public:
 #define PARAM_AMOVREG_GADGET_SP_INC 5
 #define PARAM_AMOVREG_GADGET_JMP_REG 6
 #define PARAM_AMOVREG_GADGET_SP_DELTA 7
-#define NB_PARAM_AMOVREG 8
+#define PARAM_AMOVREG_DATA_LINK 8
+#define NB_PARAM_AMOVREG 9
 
 #define PARAM_LOAD_DST_REG 0
 #define PARAM_LOAD_SRC_ADDR_REG 1
@@ -191,7 +195,8 @@ public:
 #define PARAM_LOAD_GADGET_SP_INC 4
 #define PARAM_LOAD_GADGET_JMP_REG 5
 #define PARAM_LOAD_GADGET_SP_DELTA 6
-#define NB_PARAM_LOAD 7
+#define PARAM_LOAD_DATA_LINK 7
+#define NB_PARAM_LOAD 8
 
 #define PARAM_ALOAD_DST_REG 0
 #define PARAM_ALOAD_OP 1
@@ -201,7 +206,8 @@ public:
 #define PARAM_ALOAD_GADGET_SP_INC 5
 #define PARAM_ALOAD_GADGET_JMP_REG 6
 #define PARAM_ALOAD_GADGET_SP_DELTA 7
-#define NB_PARAM_ALOAD 8
+#define PARAM_ALOAD_DATA_LINK 8
+#define NB_PARAM_ALOAD 9
 
 #define PARAM_LOADCST_DST_REG 0
 #define PARAM_LOADCST_SRC_ADDR_OFFSET 1
@@ -227,7 +233,8 @@ public:
 #define PARAM_STORE_GADGET_SP_INC 4
 #define PARAM_STORE_GADGET_JMP_REG 5
 #define PARAM_STORE_GADGET_SP_DELTA 6
-#define NB_PARAM_STORE 7
+#define PARAM_STORE_DATA_LINK 7
+#define NB_PARAM_STORE 8
 
 #define PARAM_CSTSTORE_DST_ADDR_OFFSET 0
 #define PARAM_CSTSTORE_SRC_REG 1
@@ -245,7 +252,8 @@ public:
 #define PARAM_ASTORE_GADGET_SP_INC 5
 #define PARAM_ASTORE_GADGET_JMP_REG 6
 #define PARAM_ASTORE_GADGET_SP_DELTA 7
-#define NB_PARAM_ASTORE 8
+#define PARAM_ASTORE_DATA_LINK 8
+#define NB_PARAM_ASTORE 9
 
 #define PARAM_CSTASTORE_DST_ADDR_OFFSET 0
 #define PARAM_CSTASTORE_OP 1
@@ -383,6 +391,7 @@ public:
     int get_param_num_src_addr_reg();
     int get_param_num_dst_addr_offset();
     int get_param_num_dst_addr_reg();
+    int get_param_num_data_link();
     bool has_dst_reg_param();
     bool has_dst_addr_reg_param();
 
@@ -422,6 +431,7 @@ private:
     int _depth;
     vector<InterferencePoint> interference_points;
 public:
+    int size;
     vector<Node> nodes;
     vector<node_t> dfs_strategy;
     vector<node_t> dfs_params;
@@ -440,6 +450,7 @@ public:
     void add_param_edge(node_t from, node_t to);
     void add_interference_edge(node_t from, node_t to);
     void update_param_edges();
+    void update_size();
     void clear_interference_edges(node_t n);
     bool modifies_reg(node_t n, int reg_num, bool check_following_node=false);
     // Strategy rules

@@ -156,6 +156,9 @@ hash_t ExprCst::hash(){
 cst_t ExprCst::cst(){ return _cst; }
 cst_t ExprCst::concretize(VarContext* ctx){return _cst;}
 void ExprCst::print(ostream& os){os << std::showbase << cst_sign_trunc(size, _cst) << std::noshowbase;}
+Expr ExprCst::copy(){
+    return exprcst(size, _cst);
+}
 // ==================================
 ExprVar::ExprVar(exprsize_t s, string n, int num): ExprObject(ExprType::VAR, s, true), _name(n), _num(num){
     if( s > 64 ){
@@ -192,6 +195,10 @@ cst_t ExprVar::concretize(VarContext* ctx){
 const string& ExprVar::name(){ return _name; } 
 void ExprVar::replace_name(string& new_name){ _name = new_name; }
 void ExprVar::print(ostream& os){os << _name;}
+Expr ExprVar::copy(){
+    return exprvar(size, _name);
+}
+
 // ==================================
 ExprMem::ExprMem(exprsize_t s, Expr addr): ExprObject(ExprType::MEM, s, false) {
     args.push_back(addr);
@@ -209,6 +216,10 @@ cst_t ExprMem::concretize(VarContext* ctx){
 }
 void ExprMem::print(ostream& os){
     os << "@" << std::dec << size << "[" << std::hex << args.at(0) << "]";
+}
+
+Expr ExprMem::copy(){
+    return exprmem(size, args[0]->copy());
 }
 
 // ==================================
@@ -251,6 +262,10 @@ cst_t ExprUnop::concretize(VarContext* ctx){
         _concrete = cst_sign_extend(size, _concrete);
     }
     return _concrete; 
+}
+
+Expr ExprUnop::copy(){
+    return exprunop(_op, args[0]->copy());
 }
 
 // ==================================
@@ -360,6 +375,10 @@ cst_t ExprBinop::concretize(VarContext* ctx){
     return _concrete; 
 }
 
+Expr ExprBinop::copy(){
+    return exprbinop(_op, args[0]->copy(), args[1]->copy());
+}
+
 // ==================================
 ExprExtract::ExprExtract(Expr arg, Expr higher, Expr lower): ExprObject(ExprType::EXTRACT, 0){
     assert(higher->is_cst() && lower->is_cst() && 
@@ -417,6 +436,10 @@ cst_t ExprExtract::concretize(VarContext* ctx){
     return _concrete; 
 }
 
+Expr ExprExtract::copy(){
+    return extract(args[0]->copy(), args[1]->copy(), args[2]->copy());
+}
+
 // ==================================
 ExprConcat::ExprConcat(Expr upper, Expr lower): ExprObject(ExprType::CONCAT, upper->size+lower->size){
     args.push_back(upper);
@@ -455,6 +478,10 @@ cst_t ExprConcat::concretize(VarContext* ctx){
     }
    
     return _concrete; 
+}
+
+Expr ExprConcat::copy(){
+    return concat(args[0]->copy(), args[1]->copy());
 }
 
 /* ===================================== */
@@ -502,6 +529,10 @@ cst_t ExprBisz::concretize(VarContext* ctx){
     return _concrete;
 }
 
+Expr ExprBisz::copy(){
+    return bisz(size, args[0]->copy(), _mode);
+}
+
 // ==================================
 ExprUnknown::ExprUnknown(exprsize_t s): ExprObject(ExprType::UNKNOWN, s){}
 hash_t ExprUnknown::hash(){
@@ -535,6 +566,9 @@ Expr exprmem(exprsize_t size, Expr addr){
 }
 Expr exprbinop(Op op, Expr left, Expr right){
     return expr_canonize(make_shared<ExprBinop>(op, left, right));
+} 
+Expr exprunop(Op op, Expr arg){
+    return expr_canonize(make_shared<ExprUnop>(op, arg));
 } 
 Expr extract(Expr arg, unsigned long higher, unsigned long lower){
     return make_shared<ExprExtract>(arg, exprcst(sizeof(cst_t)*8, higher), exprcst(sizeof(cst_t)*8, lower));

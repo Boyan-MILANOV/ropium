@@ -152,6 +152,9 @@ public:
     
     /* Replace constants (used for dependencies) */
     void replace_var_name(string& curr_name, string& new_name); 
+    
+    /* Copy */
+    virtual Expr copy(){throw runtime_exception("Called virtual function in ExprObject base class!");};
 };
 
 /* Child specialized classes */
@@ -162,6 +165,7 @@ public:
     hash_t hash();
     cst_t cst();
     virtual cst_t concretize(VarContext* ctx=nullptr);
+    virtual Expr copy();
     void print(ostream& out);
 };
 
@@ -176,6 +180,7 @@ public:
     virtual cst_t concretize(VarContext* ctx=nullptr);
     const string& name();
     void replace_name(string& new_name);
+    virtual Expr copy();
     void print(ostream& out);
 };
 
@@ -184,6 +189,7 @@ public:
     ExprMem(exprsize_t size, Expr addr);
     hash_t hash();
     virtual cst_t concretize(VarContext* ctx=nullptr);
+    virtual Expr copy();
     void print(ostream& out);
 };
 
@@ -195,6 +201,7 @@ public:
     Op op();
     virtual cst_t concretize(VarContext* ctx=nullptr);
     void print(ostream& out);
+    virtual Expr copy();
     bool is_unop(Op op);
 };
 
@@ -209,6 +216,7 @@ public:
 
     virtual cst_t concretize(VarContext* ctx=nullptr);
     void print(ostream& out);
+    virtual Expr copy();
     bool is_binop(Op op);
 };
 
@@ -217,6 +225,7 @@ public:
     ExprExtract(Expr arg, Expr higher, Expr lower);
     hash_t hash();
     virtual cst_t concretize(VarContext* ctx=nullptr);
+    virtual Expr copy();
     void print(ostream& out);
 };
 
@@ -225,6 +234,7 @@ public:
     ExprConcat(Expr upper, Expr lower);
     hash_t hash();
     virtual cst_t concretize(VarContext* ctx=nullptr);
+    virtual Expr copy();
     void print(ostream& out);
 };
 
@@ -235,6 +245,7 @@ public:
     hash_t hash();
     cst_t mode();
     virtual cst_t concretize(VarContext* ctx=nullptr);
+    virtual Expr copy();
     void print(ostream& out);
 };
 
@@ -251,6 +262,7 @@ public:
 Expr exprcst(exprsize_t size, cst_t cst);
 Expr exprvar(exprsize_t size, string name, int num=-1);
 Expr exprmem(exprsize_t size, Expr addr);
+Expr exprunop(Op op, Expr arg);
 Expr exprbinop(Op op, Expr left, Expr right);
 Expr extract(Expr arg, unsigned long higher, unsigned long lower);
 Expr extract(Expr arg, Expr higher, Expr lower);

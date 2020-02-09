@@ -189,7 +189,7 @@ namespace test{
             return nb;
         }
         
-        unsigned int function_call(){
+        unsigned int function_call_x86(){
             unsigned int nb = 0;
             ArchX86 arch;
             GadgetDB db;
@@ -228,6 +228,49 @@ namespace test{
             
             return nb;
         }
+
+        unsigned int function_call_x64(){
+            unsigned int nb = 0;
+            ArchX64 arch;
+            GadgetDB db;
+            ROPCompiler comp = ROPCompiler(&arch, &db);
+            ROPChain* ropchain;
+            Constraint constr;
+            constr.bad_bytes.add_bad_byte(0xff);
+            // Test when adjust gadget clobbers reg that must be set
+            // Here gadget 2 and 3 both modify ecx
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x58\xFF\xE0", 3), 1)); // pop rax; jmp rax
+            raw.push_back(RawGadget(string("\xC3", 1), 2)); // ret
+            raw.push_back(RawGadget(string("\x5F\xC3", 2), 3)); // pop rdi; ret
+            raw.push_back(RawGadget(string("\x48\x83\xC4\x08\xC3", 5), 4)); // add rsp, 8; ret
+            raw.push_back(RawGadget(string("\x5E\xC3", 2), 5)); // pop rsi; ret
+            raw.push_back(RawGadget(string("\x5A\xC3", 2), 6)); // pop rdx; ret
+            raw.push_back(RawGadget(string("\x59\xC3", 2), 7)); // pop rcx; ret
+            raw.push_back(RawGadget(string("\x41\x58\xc3", 3), 8)); // pop r8; ret
+            raw.push_back(RawGadget(string("\x41\x59\x59\xc3", 4), 9)); // pop r9; pop rcx; ret
+            raw.push_back(RawGadget(string("\x48\x89\xef\xc3",4), 10)); // mov rdi, rbp; ret
+            raw.push_back(RawGadget(string("\x48\x83\xC4\x18\xC3", 5), 11)); // add rsp, 24; ret
+            db.analyse_raw_gadgets(raw, &arch);
+
+            // X64 SYSTEM V
+            ropchain = comp.compile(" 0x1234(42)", nullptr, ABI::X64_SYSTEM_V);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+            
+            ropchain = comp.compile(" 0x1234(1, 2, 3, 4)", nullptr, ABI::X64_SYSTEM_V);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+            
+            ropchain = comp.compile(" 0x1234(rbp, 2, 3, 4, 5, 6)", nullptr, ABI::X64_SYSTEM_V);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+            
+            ropchain = comp.compile(" 0x1234(rbp, 2, 3, 4, 5, 6, 7, 8)", nullptr, ABI::X64_SYSTEM_V);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+            
+            ropchain = comp.compile(" 0x1234(rbp, 2, 3, 4, 5, 6, 7, 8, 9)", nullptr, ABI::X64_SYSTEM_V);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to call function");
+
+            return nb;
+        }
     }
 }
 
@@ -243,7 +286,8 @@ void test_compiler(){
     cout << bold << "[" << green << "+" << def << bold << "]" << def << std::left << std::setw(34) << " Testing ROP compiler... " << std::flush;  
     total += direct_match();
     total += indirect_match();
-    total += function_call();
+    total += function_call_x86();
+    total += function_call_x64();
     total += incorrect_match();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;

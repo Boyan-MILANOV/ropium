@@ -52,8 +52,9 @@ bool StrategyGraph::rule_generic_transitivity(node_t n){
     for( i = 0; i < MAX_PARAMS; i++){
         redirect_param_edges(node.id, i, node1.id, i);
     }
-    // Except dst reg (to node2)
+    // Except dst reg (to node2) (and datalink of course)
     redirect_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node2.get_param_num_dst_reg());
+    redirect_param_edges(node.id, node.get_param_num_data_link(), node2.id, node2.get_param_num_data_link());
 
     // Update param edges
     update_param_edges();
@@ -65,6 +66,9 @@ bool StrategyGraph::rule_generic_transitivity(node_t n){
     
     // Disable previous node
     disable_node(node.id);
+    
+    // Update size in the end
+    update_size();
     
     return true;
 }
@@ -122,6 +126,7 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     // Redirect the different params and edges
     // Generic params
     redirect_generic_param_edges(node.id, node1.id);
+    redirect_param_edges(node.id, node.get_param_num_data_link(), node1.id, node1.get_param_num_data_link());
 
     // Redirect strategy edges
     redirect_incoming_strategy_edges(node.id, node1.id);
@@ -132,6 +137,9 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
 
     // Disable node
     disable_node(node.id);
+    
+    // Update size in the end
+    update_size();
     
     return true;
 }
@@ -222,6 +230,9 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
     // Update param edges
     update_param_edges();
 
+    // Update size in the end
+    update_size();
+
     return true;
 }
 
@@ -285,6 +296,9 @@ bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
     redirect_param_edges(node.id, node.get_param_num_dst_reg(), 
                                   node2.id, node2.get_param_num_dst_reg());
 
+    // Redirect data_link to node2
+    redirect_param_edges(node.id, node.get_param_num_data_link(), node2.id, node2.get_param_num_data_link());
+
     // Redirect/add strategy edges
     add_strategy_edge(node1.id, node2.id);
     redirect_incoming_strategy_edges(node.id, node1.id);
@@ -295,6 +309,9 @@ bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
 
     // Disable previous node
     disable_node(node.id);
+
+    // Update size in the end
+    update_size();
 
     return true;
 }
@@ -347,6 +364,9 @@ bool StrategyGraph::rule_generic_src_transitivity(node_t n){
         redirect_param_edges(node.id, i, node1.id, i);
     } // TODO DEBUG Virer ça ? ??
 
+    // Redirect data link to node1 (node1 gets after node2)
+    redirect_param_edges(node.id, node.get_param_num_data_link(), node1.id, node1.get_param_num_data_link());
+
     // Update param edges
     update_param_edges();
 
@@ -357,6 +377,9 @@ bool StrategyGraph::rule_generic_src_transitivity(node_t n){
 
     // Disable previous node
     disable_node(node.id);
+    
+    // Update size in the end
+    update_size();
     
     return true;
 }
@@ -427,6 +450,9 @@ bool StrategyGraph::rule_adjust_store(node_t n, Arch* arch){
     redirect_param_edges(node.id, node.get_param_num_src_reg(), 
                                   node2.id, node2.get_param_num_src_reg());
 
+    // Redirect data_link
+    redirect_param_edges(node.id, node.get_param_num_data_link(), node2.id, node2.get_param_num_data_link());
+
     // Redirect/add strategy edges
     add_strategy_edge(node1.id, node2.id);
     redirect_incoming_strategy_edges(node.id, node1.id);
@@ -437,6 +463,9 @@ bool StrategyGraph::rule_adjust_store(node_t n, Arch* arch){
 
     // Disable previous node
     disable_node(node.id);
+
+    // Update size in the end
+    update_size();
 
     return true;
 }

@@ -162,6 +162,21 @@ void Node::remove_outgoing_strategy_edge(node_t dst_node){
 void Node::remove_outgoing_param_edge(node_t dst_node){
      param_edges.out.erase(std::remove(param_edges.out.begin(), param_edges.out.end(), dst_node), param_edges.out.end());
 }
+     
+int Node::get_param_num_data_link(){
+    switch( type ){
+        case GadgetType::MOV_REG: return PARAM_MOVREG_DATA_LINK;
+        case GadgetType::AMOV_REG: return PARAM_AMOVREG_DATA_LINK;
+        case GadgetType::MOV_CST: return PARAM_MOVCST_DATA_LINK;
+        case GadgetType::AMOV_CST: return PARAM_AMOVCST_DATA_LINK;
+        case GadgetType::LOAD: return PARAM_LOAD_DATA_LINK;
+        case GadgetType::ALOAD: return PARAM_ALOAD_DATA_LINK;
+        case GadgetType::STORE: return PARAM_STORE_DATA_LINK;
+        case GadgetType::ASTORE: return PARAM_ASTORE_DATA_LINK;
+        default:
+            throw runtime_exception("Node::get_param_num_data_link(): got unsupported gadget type");
+    }
+}
             
 int Node::get_param_num_gadget_sp_inc(){
     switch( type ){
@@ -323,6 +338,13 @@ void Node::apply_assertion(){
 
 StrategyGraph::StrategyGraph(): has_gadget_selection(false), _depth(-1){};
 
+void StrategyGraph::update_size(){
+    size = 0;
+    for( Node& node: nodes )
+        if( ! node.is_disabled )
+            size++;
+}
+
 /* =========== Basic manips on edges/nodes =========== */
 node_t StrategyGraph::new_node(GadgetType t){
     nodes.push_back(Node(nodes.size(), t));
@@ -359,7 +381,9 @@ void _redirect_param_deps(Param& param, Node& curr_node, param_t curr_param_type
         if( dep.node == curr_node.id && dep.param_type == curr_param_type ){
             // Change var name in expression if constant
             if( param.type == ParamType::CST && param.expr != nullptr){
-                param.expr->replace_var_name(curr_node.params[curr_param_type].name, new_node.params[new_param_type].name); 
+                Expr e = param.expr->copy();
+                e->replace_var_name(curr_node.params[curr_param_type].name, new_node.params[new_param_type].name); 
+                param.expr = e;
             }
             // Redirect
             dep.node = new_node.id;
