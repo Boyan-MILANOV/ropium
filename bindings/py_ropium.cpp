@@ -49,7 +49,8 @@ static PyObject* ROPium_compile(PyObject* self, PyObject* args){
     }
 
     try{
-        ropchain = as_ropium_object(self).compiler->compile( string(query, query_len), as_ropium_object(self).constraint, as_ropium_object(self).abi); 
+        ropchain = as_ropium_object(self).compiler->compile( string(query, query_len), 
+                as_ropium_object(self).constraint, as_ropium_object(self).abi, as_ropium_object(self).system); 
         if( ropchain ){
             return Pyropchain_FromROPChain(ropchain);
         }
@@ -226,6 +227,24 @@ static int ROPium_set_abi(PyObject* self, PyObject* val, void* closure){
     return 0;
 }
 
+static PyObject* ROPium_get_os(PyObject* self, void* closure){
+    return PyLong_FromLong((int)(as_ropium_object(self).system));
+}
+
+static int ROPium_set_os(PyObject* self, PyObject* val, void* closure){
+    int system;
+
+    if( ! PyLong_Check(val)){
+        PyErr_SetString(PyExc_RuntimeError, "Argument should be a OS.* enum value");
+        return -1;
+    }
+
+    system = PyLong_AsLong(val);
+    as_ropium_object(self).system = (System)system;
+
+    return 0;
+}
+
 
 static PyGetSetDef ROPium_getset[] = {
     {"bad_bytes", ROPium_get_bad_bytes, ROPium_set_bad_bytes, "Bad bytes that must not occur in the ropchains", NULL},
@@ -233,6 +252,7 @@ static PyGetSetDef ROPium_getset[] = {
     {"safe_mem", ROPium_get_safe_mem, ROPium_set_safe_mem, "Indicates whether ropchains can contain gadgets that perform potentially unsafe register dereferencing", NULL},
     {"arch", ROPium_get_arch, NULL, "Architecture type", NULL},
     {"abi", ROPium_get_abi, ROPium_set_abi, "ABI to use when calling functions", NULL},
+    {"os", ROPium_get_os, ROPium_set_os, "OS to target when doing syscalls", NULL},
     {NULL}
 };
 
@@ -240,7 +260,6 @@ static PyGetSetDef ROPium_getset[] = {
 static PyMemberDef ROPium_members[] = {
     {NULL}
 };
-
 
 
 /* Type description for python Expr objects */
@@ -317,6 +336,7 @@ PyObject* ropium_ROPium(PyObject* self, PyObject* args){
             // Set compiler
             as_ropium_object(object).compiler = new ROPCompiler(object->arch, (object->gadget_db));
             as_ropium_object(object).abi = ABI::NONE;
+            as_ropium_object(object).system = System::NONE;
         }
     }catch(runtime_exception& e){
         return PyErr_Format(PyExc_RuntimeError, "%s", e.what());

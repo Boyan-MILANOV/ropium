@@ -90,7 +90,7 @@ CompilerTask::~CompilerTask(){
 /* ============= ROPCompiler ============= */
 ROPCompiler::ROPCompiler(Arch* a, GadgetDB *d):arch(a), db(d){}
 
-ROPChain* ROPCompiler::compile(string program, Constraint* constraint, ABI abi){
+ROPChain* ROPCompiler::compile(string program, Constraint* constraint, ABI abi, System system){
     
     vector<ILInstruction> instr = parse(program); // This raises il_exception if malformed program
 
@@ -99,13 +99,13 @@ ROPChain* ROPCompiler::compile(string program, Constraint* constraint, ABI abi){
         constraint->mem_safety.add_safe_reg(arch->sp()); // Stack pointer is always safe for RW
     }
     
-    return process(instr, constraint, abi);
+    return process(instr, constraint, abi, system);
 }
 
-ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions, Constraint* constraint, ABI abi){
+ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions, Constraint* constraint, ABI abi, System system){
     CompilerTask task = CompilerTask(arch);
     for( ILInstruction& instr : instructions ){
-        il_to_strategy(task.pending_strategies, instr, abi);
+        il_to_strategy(task.pending_strategies, instr, abi, system);
     }
     return task.compile(arch, db, constraint);
 }
@@ -428,7 +428,68 @@ bool ROPCompiler::_x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr
     return true;
 }
 
-void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, ABI abi){
+bool ROPCompiler::_x86_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+    // Get syscall def for this syscall
+    SyscallDef* def = get_syscall_def(ArchType::X86, System::LINUX, instr.syscall_name);
+    if( def == nullptr ){
+        throw compiler_exception(QuickFmt() << "Syscall '" << instr.syscall_name << "' is not supported");
+    }
+
+    //  Similar to system_v but only 4 args passed in RDX,RCX,R8,R9 then on the stack pushed right to left
+    // (Code is almost identical to _x64_system_v_to_strategy, only number of stack regs changes, 
+    //  it could be factorized in the future if needed)
+    node_t n, syscall_node;
+    int arg_regs[6] = {X86_EBX, X86_ECX, X86_EDX, X86_ESI, X86_EDI, X86_EBP};
+
+    if( instr.args.size() > 6 )
+        throw compiler_exception("X86 syscalls can not take more than 6 arguments");
+    else if( instr.args.size() != def->nb_args ){
+        throw compiler_exception(QuickFmt() << "Syscall " << def->name << "() expects " << std::dec << 
+                def->nb_args << " arguments (got " << instr.args.size() << ")" >> QuickFmt::to_str );
+    }
+
+    // Add the syscall node (we put syscall since "sysenter" are added as "syscall" gadgets in 32 bits)
+    syscall_node = graph.new_node(GadgetType::SYSCALL);
+
+    // Add nodes to put the first 6 args in registers
+    for( int i = 0; i < 6 && (i < instr.args.size()-PARAM_SYSCALL_ARGS); i++){
+        // Set register that must hold the argument
+        if( instr.args_type[PARAM_SYSCALL_ARGS+i] == IL_FUNC_ARG_CST ){
+            n = graph.new_node(GadgetType::MOV_CST);
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].make_reg(arg_regs[i]);
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].is_data_link = true; // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_SYSCALL_ARGS+i], graph.new_name("syscall_arg"));
+        }else{
+            n = graph.new_node(GadgetType::MOV_REG);
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].make_reg(arg_regs[i]);
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].is_data_link = true; // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVREG_SRC_REG].make_reg(instr.args[PARAM_SYSCALL_ARGS+i]);
+            graph.nodes[n].params[PARAM_MOVREG_SRC_REG].is_data_link = true; // src_reg not be clobbered before being passed as argument
+        }
+        graph.nodes[n].branch_type = BranchType::RET;
+        graph.add_strategy_edge(n, syscall_node);
+    }
+
+    // Add node to put syscall number in eax
+    n = graph.new_node(GadgetType::MOV_CST);
+    graph.nodes[n].branch_type = BranchType::RET;
+    graph.add_strategy_edge(n, syscall_node);
+    graph.nodes[n].params[PARAM_MOVCST_DST_REG].make_reg(X86_EAX);
+    graph.nodes[n].params[PARAM_MOVCST_DST_REG].is_data_link = true; // Must not be clobbred until call
+    graph.nodes[n].params[PARAM_MOVCST_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+    graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(def->num, graph.new_name("syscall_num"));
+
+    return true;
+}
+
+bool ROPCompiler::_x64_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+    return false;
+}
+
+
+void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, ABI abi, System system){
     StrategyGraph* graph;
     if( instr.type == ILInstructionType::MOV_CST ){
         // MOV_CST
@@ -786,7 +847,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::FUNCTION ){
         graph = new StrategyGraph();
-        bool success = true;
+        bool success = false;
         switch( abi ){
             case ABI::X86_CDECL: success = _x86_cdecl_to_strategy(*graph, instr); break;
             case ABI::X86_STDCALL: success = _x86_stdcall_to_strategy(*graph, instr); break;
@@ -795,6 +856,26 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
             case ABI::NONE: throw compiler_exception("You have to specify which ABI to use to call functions");
             default:
                 throw compiler_exception("Unsupported ABI when calling function");
+        }
+        if( !success ){
+            throw compiler_exception("Couldn't translate function call into a chaining strategy");
+        }
+        graphs.push_back(graph);
+    }else if( instr.type == ILInstructionType::SYSCALL ){
+        graph = new StrategyGraph();
+        bool success = false;
+        if( arch->type == ArchType::X86 ){
+            switch( system ){
+                case System::LINUX: success = _x86_linux_syscall_to_strategy(*graph, instr); break;
+                default: throw compiler_exception("Syscalls are not supported for this system on X86");
+            }
+        }else if( arch->type == ArchType::X64 ){
+            switch( system ){
+                case System::LINUX: success = _x64_linux_syscall_to_strategy(*graph, instr); break;
+                default: throw compiler_exception("Syscalls are not supported for this system on X86");
+            }
+        }else{
+            throw compiler_exception("Syscalls are not supported for this architecture");
         }
         if( !success ){
             throw compiler_exception("Couldn't translate function call into a chaining strategy");

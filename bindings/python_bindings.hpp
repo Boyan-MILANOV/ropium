@@ -7,6 +7,7 @@
 #include "arch.hpp"
 #include "database.hpp"
 #include "compiler.hpp"
+#include "systems.hpp"
 
 /* -------------------------------------------------
  *                     Utils
@@ -31,6 +32,7 @@ typedef struct{
     ROPCompiler* compiler;
     Constraint* constraint;
     ABI abi;
+    System system;
 } ROPium_Object;
 PyObject* get_ROPium_Type();
 PyObject* ropium_ROPium(PyObject* self, PyObject* args);

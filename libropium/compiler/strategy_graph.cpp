@@ -56,6 +56,9 @@ int Node::nb_params(){
         case GadgetType::ALOAD: return NB_PARAM_ALOAD;
         case GadgetType::STORE: return NB_PARAM_STORE;
         case GadgetType::ASTORE: return NB_PARAM_ASTORE;
+        case GadgetType::SYSCALL: return NB_PARAM_SYSCALL;
+        case GadgetType::INT80: return NB_PARAM_INT80;
+        
         default: throw runtime_exception("Unsupported gadget type in Node::nb_params()");
     }
 }
@@ -111,6 +114,9 @@ bool Node::is_src_param(param_t param){
             return param == PARAM_STORE_SRC_REG;
         case GadgetType::ASTORE:
             return param == PARAM_ASTORE_SRC_REG;
+        case GadgetType::SYSCALL:
+        case GadgetType::INT80:
+            return false;
         default:
             throw runtime_exception(QuickFmt() << "Node::is_src_param(): got unsupported node type " << (int)type >> QuickFmt::to_str);
     }
@@ -173,6 +179,8 @@ int Node::get_param_num_data_link(){
         case GadgetType::ALOAD: return PARAM_ALOAD_DATA_LINK;
         case GadgetType::STORE: return PARAM_STORE_DATA_LINK;
         case GadgetType::ASTORE: return PARAM_ASTORE_DATA_LINK;
+        case GadgetType::SYSCALL: return PARAM_SYSCALL_DATA_LINK;
+        case GadgetType::INT80: return PARAM_INT80_DATA_LINK;
         default:
             throw runtime_exception("Node::get_param_num_data_link(): got unsupported gadget type");
     }
@@ -188,6 +196,8 @@ int Node::get_param_num_gadget_sp_inc(){
         case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_SP_INC;
         case GadgetType::STORE: return PARAM_STORE_GADGET_SP_INC;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_SP_INC;
+        case GadgetType::SYSCALL: return PARAM_SYSCALL_GADGET_SP_INC;
+        case GadgetType::INT80: return PARAM_INT80_GADGET_SP_INC;
         default:
             throw runtime_exception("Node::get_param_num_gadget_sp_inc(): got unsupported gadget type");
     }
@@ -203,6 +213,8 @@ int Node::get_param_num_gadget_sp_delta(){
         case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_SP_DELTA;
         case GadgetType::STORE: return PARAM_STORE_GADGET_SP_DELTA;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_SP_DELTA;
+        case GadgetType::SYSCALL: return PARAM_SYSCALL_GADGET_SP_DELTA;
+        case GadgetType::INT80: return PARAM_INT80_GADGET_SP_DELTA;
         default:
             throw runtime_exception("Node::get_param_num_gadget_sp_inc(): got unsupported gadget type");
     }
@@ -218,6 +230,8 @@ int Node::get_param_num_gadget_addr(){
         case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_ADDR;
         case GadgetType::STORE: return PARAM_STORE_GADGET_ADDR;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_ADDR;
+        case GadgetType::SYSCALL: return PARAM_SYSCALL_GADGET_ADDR;
+        case GadgetType::INT80: return PARAM_INT80_GADGET_ADDR;
         default:
             throw runtime_exception("Node::get_param_num_gadget_addr(): got unsupported gadget type");
     }
@@ -233,6 +247,8 @@ int Node::get_param_num_gadget_jmp_reg(){
         case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_JMP_REG;
         case GadgetType::STORE: return PARAM_STORE_GADGET_JMP_REG;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_JMP_REG;
+        case GadgetType::SYSCALL: return PARAM_SYSCALL_GADGET_JMP_REG;
+        case GadgetType::INT80: return PARAM_INT80_GADGET_JMP_REG;
         default:
             throw runtime_exception("Node::get_param_num_gadget_jmp_reg(): got unsupported gadget type");
     }

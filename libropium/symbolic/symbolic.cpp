@@ -307,6 +307,11 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
                 }
             
             }else if(instr->op == IROperation::INT){
+                cst_t num = cst_sign_trunc(instr->dst.size, _get_operand(instr->dst, regs, tmp_vars)->concretize());
+                if( num != 0x80 ){
+                    DELETE_ALL_OBJECTS()
+                    throw runtime_exception("SymbolicEngine::execute_block() interruption: got unsupported INT number");
+                }
                 block->ends_with_int80 = true;
                 /* Quit this block */
                 stop = true; // Go out of this block
