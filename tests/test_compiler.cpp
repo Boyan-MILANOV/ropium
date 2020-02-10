@@ -301,7 +301,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x59\xC3", 2), 4)); // pop ecx; ret
             raw.push_back(RawGadget(string("\x59\x5A\xC3", 3), 5)); // pop ecx; pop edx; ret
             raw.push_back(RawGadget(string("\x58\x89\xC6\xC3", 4), 6)); // pop eax; mov esi, eax; ret
-            raw.push_back(RawGadget(string("\xc3", 1), 7)); // mov edx, ebx; ret TODO
+            raw.push_back(RawGadget(string("\x89\xDA\xC3", 3), 7)); // mov edx, ebx; ret
             db.analyse_raw_gadgets(raw, &arch);
 
             // X86 Linux
@@ -310,6 +310,14 @@ namespace test{
 
             ropchain = comp.compile(" sys_execve( 3, 2, 1)", nullptr, ABI::NONE, System::LINUX);
             nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            ropchain = comp.compile(" sys_execve( 3, 2, ebx)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            ropchain = comp.compile(" sys_ptrace( 3, 2, 1, 2)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            
 
             return nb;
         }
