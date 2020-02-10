@@ -287,6 +287,30 @@ namespace test{
             nb += _assert(instr.args[PARAM_FUNCTION_ARGS+2] == X86_EBX, "Failed to parse IL Instruction");
             nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+2] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
             
+            // syscall
+            str = " sys_read()";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SYSCALL, "Failed to parse IL Instruction");
+            nb += _assert(instr.syscall_name == "read", "Failed to parse IL Instruction");
+
+            str = " sys_truc(42)";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SYSCALL, "Failed to parse IL Instruction");
+            nb += _assert(instr.syscall_name == "truc", "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_SYSCALL_ARGS+0] == 42, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+0] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+
+            str = " sys_truc(42, esp, 1)";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SYSCALL, "Failed to parse IL Instruction");
+            nb += _assert(instr.syscall_name == "truc", "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_SYSCALL_ARGS+0] == 42, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+0] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_SYSCALL_ARGS+1] == X86_ESP, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+1] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_SYSCALL_ARGS+2] == 1, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+2] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+
             return nb;
         }
     }

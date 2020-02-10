@@ -38,7 +38,8 @@ enum class ILInstructionType{
     // jump
     JMP,         // PC <- reg
     // Call functions
-    FUNCTION
+    FUNCTION,
+    SYSCALL
 };
 
 /* IL - Instruction
@@ -57,8 +58,8 @@ enum class ILInstructionType{
     "eax += ebx"
     "ecx = 678"
     "esi = ebx ^ 0xdead"
-    "mem(edx+8) *= 2"
-    "edx = mem(ecx)"
+    "[edx+8] *= 2"
+    "edx = [ecx]"
 */
 
 #define IL_FUNC_ARG_REG 0
@@ -67,6 +68,7 @@ enum class ILInstructionType{
 class ILInstruction{
 public:
     ILInstructionType type;
+    string syscall_name; // Used for SYSCALL
     vector<cst_t> args;
     vector<int> args_type; // Used for FUNCTION
     ILInstruction(Arch& arch, string instr_str); // raises il_exception if instr_str is invalid

@@ -304,6 +304,8 @@ public:
 #define PARAM_FUNCTION_ADDR 0
 #define PARAM_FUNCTION_ARGS 1
 
+#define PARAM_SYSCALL_ARGS 0
+
 typedef struct {
     Param offset;
     Param value;
