@@ -453,7 +453,8 @@ using std::min;
 
 IRBlock::IRBlock(string n, addr_t start, addr_t end): name(n), ir_size(0), 
             raw_size(0), start_addr(start), end_addr(end), _nb_tmp_vars(0),
-            _nb_instr(0), _nb_instr_ir(0), known_max_sp_inc(false){
+            _nb_instr(0), _nb_instr_ir(0), known_max_sp_inc(false), ends_with_int80(false),
+            ends_with_syscall(false){
     branch_target[0] = 0;
     branch_target[1] = 0;
     memset(dereferenced_regs, false, sizeof(dereferenced_regs)); 

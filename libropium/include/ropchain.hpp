@@ -14,7 +14,9 @@ using std::string;
 enum class BranchType{
     RET,
     JMP,
-    ANY,
+    ANY, // Any of RET or JMP, not SYSCALL or INT80
+    SYSCALL,
+    INT80,
     NONE,
 };
 

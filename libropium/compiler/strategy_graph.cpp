@@ -730,6 +730,10 @@ const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t
             op = (Op)node.params[PARAM_ASTORE_OP].value;
             src_reg = node.params[PARAM_ASTORE_SRC_REG].value;
             return db.get_astore(dst_addr_reg, dst_addr_cst, op, src_reg);
+        case GadgetType::SYSCALL:
+            return db.get_syscall();
+        case GadgetType::INT80:
+            return db.get_int80();
         default:
             throw runtime_exception(QuickFmt() << "_get_matching_gadgets(): got unsupported node type " << (int)node.type >> QuickFmt::to_str);
     }
@@ -862,7 +866,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
 
     node_t n = dfs_params[dfs_idx];
     Node& node = nodes[n];
-    
+
     // If the node is a disabled node, juste resolve the parameters
     // and continue the selection 
     if( node.is_disabled){

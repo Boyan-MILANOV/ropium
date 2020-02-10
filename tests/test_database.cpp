@@ -70,6 +70,7 @@ namespace test{
             raw.push_back(RawGadget(string("\x89\x0f\x89\x5e\xfd\xc3", 6), 11)); // mov [edi], ecx; mov [esi-3], ebx; ret
             raw.push_back(RawGadget(string("\x01\x21\xc3", 3), 12)); // add [ecx], esp; ret
             raw.push_back(RawGadget(string("\x21\x49\xf7\xc3", 4), 13)); // and [ecx-9], ecx; ret
+            raw.push_back(RawGadget(string("\x83\xC0\x03\xCD\x80", 5), 14)); // add eax, 3; int 0x80
 
             db.analyse_raw_gadgets(raw, arch);
 
@@ -94,6 +95,7 @@ namespace test{
             nb += _assert_db(11, db.get_store(X86_ESI, -3, X86_EBX));
             nb += _assert_db(12, db.get_astore(X86_ECX, 0, Op::ADD, X86_ESP));
             nb += _assert_db(13, db.get_astore(X86_ECX, -9, Op::AND, X86_ECX));
+            nb += _assert_db(14, db.get_int80());
 
             delete arch;
             return nb;

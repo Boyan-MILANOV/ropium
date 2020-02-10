@@ -36,6 +36,9 @@ enum class GadgetType{
     ASTORE,     // mem(reg + offset) OP<- reg
     // jump
     JMP,     // PC <- reg
+    // Syscalls
+    SYSCALL,
+    INT80
 };
 
 /* PossibleGadgets
@@ -65,7 +68,7 @@ template<class K>
 class BaseDB{
 public:
     unordered_map<K, vector<Gadget*>> db;
-    
+
     // Template methods
     void add(K key, Gadget* gadget){
         vector<Gadget*>::iterator it;
@@ -136,6 +139,8 @@ public:
     BaseDB<tuple<reg_t, addr_t, reg_t>> store;
     BaseDB<tuple<reg_t, addr_t, op_t, reg_t>> astore;
     BaseDB<reg_t> jmp;
+    BaseDB<int> syscall; // <int> key is always 0
+    BaseDB<int> int80; // <int> key is always 0
 
     // Add and classify a gadget in the database
     gadget_t add(Gadget* gadget, Arch* arch);
@@ -155,6 +160,8 @@ public:
     const vector<Gadget*>& get_jmp(reg_t jmp_reg);
     const vector<Gadget*>& get_store(reg_t addr_reg, cst_t offset, reg_t src_reg);
     const vector<Gadget*>& get_astore(reg_t addr_reg, cst_t offset, Op op, reg_t src_reg);
+    const vector<Gadget*>& get_syscall();
+    const vector<Gadget*>& get_int80();
 
     // Get gadgets with optional parameters
     PossibleGadgets* get_possible_mov_cst(reg_t reg, cst_t cst, bool* param_is_free);
