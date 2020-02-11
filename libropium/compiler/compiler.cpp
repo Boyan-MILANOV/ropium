@@ -182,7 +182,7 @@ bool ROPCompiler::_x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& in
     node.assigned_gadget_constraints.push_back(
         // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
         // jumping to the function
-        [](Node* n, StrategyGraph* g)->bool{
+        [](Node* n, StrategyGraph* g, Arch* arch)->bool{
             return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
         }
     );
@@ -240,7 +240,7 @@ bool ROPCompiler::_x86_stdcall_to_strategy(StrategyGraph& graph, ILInstruction& 
     node.assigned_gadget_constraints.push_back(
         // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
         // jumping to the function
-        [](Node* n, StrategyGraph* g)->bool{
+        [](Node* n, StrategyGraph* g, Arch* arch)->bool{
             return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
         }
     );
@@ -287,7 +287,7 @@ bool ROPCompiler::_x64_system_v_to_strategy(StrategyGraph& graph, ILInstruction&
     graph.nodes[call_node].assigned_gadget_constraints.push_back(
         // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
         // jumping to the function
-        [](Node* n, StrategyGraph* g)->bool{
+        [](Node* n, StrategyGraph* g, Arch* arch)->bool{
             return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
         }
     );
@@ -371,7 +371,7 @@ bool ROPCompiler::_x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr
     graph.nodes[call_node].assigned_gadget_constraints.push_back(
         // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
         // jumping to the function
-        [](Node* n, StrategyGraph* g)->bool{
+        [](Node* n, StrategyGraph* g, Arch* arch)->bool{
             return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
         }
     );
@@ -649,7 +649,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node1.strategy_constraints.push_back(
             // Can not adjust the addr_reg if it is the same as the reg that must be written
             // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
-            [](Node* n, StrategyGraph* g)->bool{
+            [](Node* n, StrategyGraph* g, Arch* arch)->bool{
                 return n->params[PARAM_STORE_DST_ADDR_REG].value != n->params[PARAM_STORE_SRC_REG].value;
             }
         );
@@ -699,7 +699,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node1.strategy_constraints.push_back(
             // Can not adjust the addr_reg if it is the same as the reg that must be written
             // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
-            [](Node* n, StrategyGraph* g)->bool{
+            [](Node* n, StrategyGraph* g, Arch * arch)->bool{
                 return n->params[PARAM_ASTORE_DST_ADDR_REG].value != n->params[PARAM_ASTORE_SRC_REG].value;
             }
         );
@@ -756,7 +756,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node1.strategy_constraints.push_back(
             // Can not adjust the addr_reg if it is the same as the reg that must be written
             // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
-            [](Node* n, StrategyGraph* g)->bool{
+            [](Node* n, StrategyGraph* g, Arch* arch)->bool{
                 return n->params[PARAM_STORE_DST_ADDR_REG].value != n->params[PARAM_STORE_SRC_REG].value;
             }
         );
@@ -823,7 +823,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node1.strategy_constraints.push_back(
             // Can not adjust the addr_reg if it is the same as the reg that must be written
             // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
-            [](Node* n, StrategyGraph* g)->bool{
+            [](Node* n, StrategyGraph* g, Arch* arch)->bool{
                 return n->params[PARAM_ASTORE_DST_ADDR_REG].value != n->params[PARAM_ASTORE_SRC_REG].value;
             }
         );

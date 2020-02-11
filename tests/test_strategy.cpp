@@ -133,7 +133,7 @@ namespace test{
             node1c.params[PARAM_MOVCST_DST_REG].make_reg(X86_ESI);
             // Apply strat
             graph4.rule_mov_cst_pop(n1, arch);
-            graph4.select_gadgets(db);
+            graph4.select_gadgets(db, nullptr, arch);
             ropchain = graph4.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
@@ -146,7 +146,7 @@ namespace test{
             node1d.branch_type = BranchType::RET; // So the rule applies
             // Apply strat
             graph5.rule_generic_adjust_jmp(n1, arch);
-            graph5.select_gadgets(db);
+            graph5.select_gadgets(db, nullptr, arch);
             ropchain = graph5.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
             
@@ -159,7 +159,7 @@ namespace test{
             node1e.branch_type = BranchType::RET; // So the rule applies
             // Apply strat
             graph6.rule_generic_adjust_jmp(n1, arch);
-            graph6.select_gadgets(db);
+            graph6.select_gadgets(db, nullptr, arch);
             ropchain = graph6.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
@@ -192,7 +192,7 @@ namespace test{
             sgraph.rule_generic_adjust_jmp(1, arch);
             sgraph.rule_generic_transitivity(3);
             sgraph.rule_mov_cst_pop(5, arch);
-            sgraph.select_gadgets(db);
+            sgraph.select_gadgets(db, nullptr, arch);
             ropchain = sgraph.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
@@ -224,7 +224,7 @@ namespace test{
             node1.params[PARAM_LOAD_SRC_ADDR_OFFSET].make_cst(0x10, "cst_0");
             // Apply strat
             sgraph.rule_adjust_load(n1, arch);
-            sgraph.select_gadgets(db);
+            sgraph.select_gadgets(db, nullptr, arch);
             ropchain = sgraph.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
@@ -238,7 +238,7 @@ namespace test{
             node2.params[PARAM_ALOAD_SRC_ADDR_OFFSET].make_cst(8, "cst_0");
             // Apply strat
             sgraph2.rule_adjust_load(n2, arch);
-            sgraph2.select_gadgets(db);
+            sgraph2.select_gadgets(db, nullptr, arch);
             ropchain = sgraph2.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
             delete arch;
@@ -266,7 +266,7 @@ namespace test{
             node1.params[PARAM_STORE_SRC_REG].make_reg(X86_EAX);
             // Apply strat
             sgraph.rule_generic_src_transitivity(n1);
-            sgraph.select_gadgets(db);
+            sgraph.select_gadgets(db, nullptr, arch);
             ropchain = sgraph.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
             
@@ -280,7 +280,7 @@ namespace test{
             node2.params[PARAM_ASTORE_OP].make_op(Op::XOR);
             // Apply strat
             sgraph2.rule_generic_src_transitivity(n2);
-            sgraph2.select_gadgets(db);
+            sgraph2.select_gadgets(db, nullptr, arch);
             ropchain = sgraph2.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
@@ -310,7 +310,7 @@ namespace test{
             node1.params[PARAM_STORE_SRC_REG].make_reg(X86_EAX);
             // Apply strat
             sgraph.rule_adjust_store(n1, arch);
-            sgraph.select_gadgets(db);
+            sgraph.select_gadgets(db, nullptr, arch);
             ropchain = sgraph.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
@@ -324,7 +324,7 @@ namespace test{
             node2.params[PARAM_ASTORE_OP].make_op(Op::AND);
             // Apply strat
             sgraph2.rule_adjust_store(n2, arch);
-            sgraph2.select_gadgets(db);
+            sgraph2.select_gadgets(db, nullptr, arch);
             ropchain = sgraph2.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 

@@ -108,18 +108,26 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     node1.special_paddings.back().value = node.params[PARAM_MOVCST_SRC_CST];
     node1.special_paddings.back().value.name = new_name("padding_value"); // Get a new name for the value parameter
 
-    // Add a constraint: the offset of the pop must not be too big (max 160)
+    // Add a constraint: the offset of the pop must not be too big (max 240)
     node1.strategy_constraints.push_back(
-        [](Node* node, StrategyGraph* graph){
-            return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < 160 &&
+        [](Node* node, StrategyGraph* graph, Arch* arch){
+            return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < 240 &&
                    node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value >= 0;
         }
     );
 
     // Add a constraint: the offset of the pop must not be bigger than the sp inc
+    // and if the gadget is RET then the pop must not correspond to the return address ! 
     node1.assigned_gadget_constraints.push_back(
-        [](Node* node, StrategyGraph* graph){
-            return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < node->affected_gadget->sp_inc;
+        [](Node* node, StrategyGraph* graph, Arch* arch){
+            int adjust=0;
+            // Padding can't overlap return address unless the register we want
+            // to set is PC ;)
+            if( node->affected_gadget->branch_type == BranchType::RET && 
+                node->params[PARAM_LOAD_DST_REG].value != arch->pc()){
+                adjust = arch->octets; //
+            }
+            return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < node->affected_gadget->sp_inc - adjust;
         }
     );
 
@@ -195,7 +203,7 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
     // the semantics are corrupted because ebx's value will be overwritten with 
     // the address of the 'adjust-gadget'
     node.assigned_gadget_constraints.push_back(
-        [](Node* node, StrategyGraph* graph){
+        [](Node* node, StrategyGraph* graph, Arch* arch){
             switch( node->type ){
                 case GadgetType::MOV_CST:
                     return node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_MOVCST_DST_REG].value;

@@ -30,7 +30,7 @@ void NodeAssertion::to_assertion(Node& node, Assertion * a){
 
 /* ===============  Nodes ============== */
 
-bool constraint_branch_type(Node* node, StrategyGraph* graph){
+bool constraint_branch_type(Node* node, StrategyGraph* graph, Arch* arch){
     return (node->affected_gadget->branch_type == node->branch_type) ||
            (node->branch_type == BranchType::ANY);
 }
@@ -826,9 +826,9 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
 }
 
 // Must be checked after parameter resolution
-bool StrategyGraph::_check_strategy_constraints(Node& node){
+bool StrategyGraph::_check_strategy_constraints(Node& node, Arch* arch){
     for( constraint_callback_t constr : node.strategy_constraints ){
-        if( ! constr(&node, this))
+        if( ! constr(&node, this, arch))
             return false;
     }
     return true;
@@ -846,9 +846,9 @@ bool StrategyGraph::_check_special_padding_constraints(Node& node, Arch* arch, C
 }
 
 // Must be checked after gadget assignment
-bool StrategyGraph::_check_assigned_gadget_constraints(Node& node){
+bool StrategyGraph::_check_assigned_gadget_constraints(Node& node, Arch* arch){
     for( constraint_callback_t constr : node.assigned_gadget_constraints ){
-        if( ! constr(&node, this))
+        if( ! constr(&node, this, arch))
             return false;
     }
     return true;
@@ -912,7 +912,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
             _resolve_all_params(node.id);
 
             // Check strategy constraints 
-            if( !_check_strategy_constraints(node) || !_check_special_padding_constraints(node, arch, constraint)){
+            if( !_check_strategy_constraints(node, arch) || !_check_special_padding_constraints(node, arch, constraint)){
                 continue;
             }
 
@@ -929,7 +929,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
                 _resolve_all_params(node.id);
 
                 // Check assigned gadget constraints and global constraint
-                if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
+                if( !_check_assigned_gadget_constraints(node, arch) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
                     continue;
                 }
                 // 3. Recursive call on next node 
@@ -943,7 +943,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
     }else{
 
         // Check strategy constraints 
-        if( _check_strategy_constraints(node)){
+        if( _check_strategy_constraints(node, arch)){
             
             // Get matching gadgets
             const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
@@ -965,7 +965,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
                 node.apply_assertion();
                 
                 // Check assigned gadget constraints and global constraint
-                if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
+                if( !_check_assigned_gadget_constraints(node, arch) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
                     continue;
                 }
                 // 3. Recursive call on next node

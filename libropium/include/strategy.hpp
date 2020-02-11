@@ -347,10 +347,10 @@ public:
 // Callback for custom constraints called to filter gadgets on each node
 class Node;
 class StrategyGraph;
-typedef bool (*constraint_callback_t)(Node* node, StrategyGraph* graph);
+typedef bool (*constraint_callback_t)(Node* node, StrategyGraph* graph, Arch* arch);
 
 // Commonly used node constraints
-bool constraint_branch_type(Node* node, StrategyGraph* graph);
+bool constraint_branch_type(Node* node, StrategyGraph* graph, Arch* arch);
 
 class Node{
 public:
@@ -438,8 +438,8 @@ private:
     void _resolve_all_params(node_t n);
     const vector<Gadget*>& _get_matching_gadgets(GadgetDB& db, node_t node);
     PossibleGadgets* _get_possible_gadgets(GadgetDB& db, node_t n);
-    bool _check_strategy_constraints(Node& node);
-    bool _check_assigned_gadget_constraints(Node& node);
+    bool _check_strategy_constraints(Node& node, Arch* arch);
+    bool _check_assigned_gadget_constraints(Node& node, Arch* arch);
     bool _check_special_padding_constraints(Node& node, Arch* arch, Constraint* constraint=nullptr);
     bool _do_scheduling(int interference_idx=0);
     
