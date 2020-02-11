@@ -102,6 +102,24 @@ namespace test{
             delete arch;
             return nb;
         }
+        
+        unsigned int classification_x64(){
+            unsigned int nb = 0;
+            Arch* arch = new ArchX64();
+            GadgetDB db;
+
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x83\xC5\x20\x0F\x05", 5), 1)); // add ebp, 32; syscall
+
+            db.analyse_raw_gadgets(raw, arch);
+
+            // Test gadget classification
+            nb += _assert_db(1, db.get_syscall());
+
+            delete arch;
+            return nb;
+        }
+
     }
 }
 
@@ -117,6 +135,7 @@ void test_database(){
     cout << bold << "[" << green << "+" << def << bold << "]" << def << std::left << std::setw(34) << " Testing gadget database... " << std::flush;  
     total += base_db();
     total += classification();
+    total += classification_x64();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;
 }

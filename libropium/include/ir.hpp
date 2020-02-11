@@ -66,6 +66,7 @@ ostream& operator<<(ostream& os, IROperation& op);
 /* Values for syscalls */
 #define SYSCALL_X86_INT80 1
 #define SYSCALL_X86_SYSENTER 2
+#define SYSCALL_X64_SYSCALL 3
 
 
 /* IR Operations 

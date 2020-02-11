@@ -321,6 +321,38 @@ namespace test{
 
             return nb;
         }
+        
+        unsigned int syscall_x64(){
+            unsigned int nb = 0;
+            ArchX64 arch;
+            GadgetDB db;
+            ROPCompiler comp = ROPCompiler(&arch, &db);
+            ROPChain* ropchain;
+            Constraint constr;
+            constr.bad_bytes.add_bad_byte(0xff);
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x58\xC3", 2), 1)); // pop rax; ret
+            raw.push_back(RawGadget(string("\x5F\xC3", 2), 2)); // pop rdi; ret
+            raw.push_back(RawGadget(string("\x83\xC5\x20\x0F\x05", 5), 3)); // add ebp, 32; syscall
+            raw.push_back(RawGadget(string("\x5E\xC3", 2), 4)); // pop rsi; ret
+            raw.push_back(RawGadget(string("\x59\x5A\xC3", 3), 5)); // pop rcx; pop rdx; ret
+            raw.push_back(RawGadget(string("\x58\x48\x89\xC6\xC3", 5), 6)); // pop rax; mov rsi, rax; ret
+            raw.push_back(RawGadget(string("\x48\x89\xF2\xC3", 4), 7)); // mov rdx, rsi; ret
+            db.analyse_raw_gadgets(raw, &arch);
+
+            // X64 Linux
+            ropchain = comp.compile(" sys_exit(1)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+            
+            ropchain = comp.compile(" sys_execve(1, 2, 3)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+            
+            ropchain = comp.compile(" sys_execve(1, 2, rsi)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            return nb;
+        }
+        
     }
 }
 
@@ -339,6 +371,7 @@ void test_compiler(){
     total += function_call_x86();
     total += function_call_x64();
     total += syscall_x86();
+    total += syscall_x64();
     total += incorrect_match();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;
