@@ -311,6 +311,20 @@ namespace test{
             nb += _assert(instr.args[PARAM_SYSCALL_ARGS+2] == 1, "Failed to parse IL Instruction");
             nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+2] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
 
+            str = " sys_11()";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SYSCALL, "Failed to parse IL Instruction");
+            nb += _assert(instr.syscall_num == 11, "Failed to parse IL Instruction");
+
+            str = " sys_0x42(eax)";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SYSCALL, "Failed to parse IL Instruction");
+            nb += _assert(instr.syscall_num == 0x42, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_SYSCALL_ARGS+0] == X86_EAX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+0] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
+
+
+
             return nb;
         }
     }

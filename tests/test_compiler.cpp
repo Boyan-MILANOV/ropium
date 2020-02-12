@@ -317,7 +317,8 @@ namespace test{
             ropchain = comp.compile(" sys_ptrace( 3, 2, 1, 2)", nullptr, ABI::NONE, System::LINUX);
             nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
 
-            
+            ropchain = comp.compile("  sys_123(1, 2, 3) ", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
 
             return nb;
         }
@@ -348,6 +349,9 @@ namespace test{
             nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
             
             ropchain = comp.compile(" sys_execve(1, 2, rsi)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            ropchain = comp.compile(" sys_0x42(1, 2, rsi)", nullptr, ABI::NONE, System::LINUX);
             nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
 
             return nb;

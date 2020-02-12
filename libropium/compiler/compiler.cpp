@@ -430,9 +430,21 @@ bool ROPCompiler::_x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr
 
 bool ROPCompiler::_x86_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruction& instr){
     // Get syscall def for this syscall
-    SyscallDef* def = get_syscall_def(ArchType::X86, System::LINUX, instr.syscall_name);
-    if( def == nullptr ){
-        throw compiler_exception(QuickFmt() << "Syscall '" << instr.syscall_name << "' is not supported");
+    SyscallDef* def;
+    int syscall_num;
+    bool def_by_name; // True if syscall is defined by its name, false if just syscall_num is given
+    
+    def_by_name = !instr.syscall_name.empty();
+    
+    // Get syscall num if syscall defined by name
+    if( def_by_name ){
+        def = get_syscall_def(ArchType::X86, System::LINUX, instr.syscall_name);
+        if( def == nullptr ){
+            throw compiler_exception(QuickFmt() << "Syscall '" << instr.syscall_name << "' is not supported");
+        }
+        syscall_num = def->num;
+    }else{
+        syscall_num = instr.syscall_num;
     }
 
     node_t n, syscall_node;
@@ -440,7 +452,7 @@ bool ROPCompiler::_x86_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruc
 
     if( instr.args.size() > 6 )
         throw compiler_exception("X86 syscalls can not take more than 6 arguments");
-    else if( instr.args.size() != def->nb_args ){
+    else if( def_by_name && instr.args.size() != def->nb_args ){
         throw compiler_exception(QuickFmt() << "Syscall " << def->name << "() expects " << std::dec << 
                 def->nb_args << " arguments (got " << instr.args.size() << ")" >> QuickFmt::to_str );
     }
@@ -476,16 +488,27 @@ bool ROPCompiler::_x86_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruc
     graph.nodes[n].params[PARAM_MOVCST_DST_REG].make_reg(X86_EAX);
     graph.nodes[n].params[PARAM_MOVCST_DST_REG].is_data_link = true; // Must not be clobbred until call
     graph.nodes[n].params[PARAM_MOVCST_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
-    graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(def->num, graph.new_name("syscall_num"));
+    graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(syscall_num, graph.new_name("syscall_num"));
 
     return true;
 }
 
 bool ROPCompiler::_x64_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruction& instr){
     // Get syscall def for this syscall
-    SyscallDef* def = get_syscall_def(ArchType::X64, System::LINUX, instr.syscall_name);
-    if( def == nullptr ){
-        throw compiler_exception(QuickFmt() << "Syscall '" << instr.syscall_name << "' is not supported");
+    SyscallDef* def;
+    bool def_by_name;
+    int syscall_num;
+    
+    def_by_name = !instr.syscall_name.empty();
+    
+    if( def_by_name ){
+        def = get_syscall_def(ArchType::X64, System::LINUX, instr.syscall_name);
+        if( def == nullptr ){
+            throw compiler_exception(QuickFmt() << "Syscall '" << instr.syscall_name << "' is not supported");
+        }
+        syscall_num = def->num;
+    }else{
+        syscall_num = instr.syscall_num;
     }
 
     node_t n, syscall_node;
@@ -493,7 +516,7 @@ bool ROPCompiler::_x64_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruc
 
     if( instr.args.size() > 6 )
         throw compiler_exception("X64 syscalls can not take more than 6 arguments");
-    else if( instr.args.size() != def->nb_args ){
+    else if( def_by_name && instr.args.size() != def->nb_args ){
         throw compiler_exception(QuickFmt() << "Syscall " << def->name << "() expects " << std::dec << 
                 def->nb_args << " arguments (got " << instr.args.size() << ")" >> QuickFmt::to_str );
     }
@@ -529,7 +552,7 @@ bool ROPCompiler::_x64_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruc
     graph.nodes[n].params[PARAM_MOVCST_DST_REG].make_reg(X64_RAX);
     graph.nodes[n].params[PARAM_MOVCST_DST_REG].is_data_link = true; // Must not be clobbred until call
     graph.nodes[n].params[PARAM_MOVCST_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
-    graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(def->num, graph.new_name("syscall_num"));
+    graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(syscall_num, graph.new_name("syscall_num"));
 
     return true;
 }
