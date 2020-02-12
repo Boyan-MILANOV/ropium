@@ -74,6 +74,8 @@ public:
     string str; // Use for STORE_STRING
     vector<cst_t> args;
     vector<int> args_type; // Used for FUNCTION
+    ILInstruction(ILInstructionType type, vector<cst_t>* args, vector<int>* args_type = nullptr, string syscall_name="",
+            int syscall_num = -1, string str="");
     ILInstruction(Arch& arch, string instr_str); // raises il_exception if instr_str is invalid
 };
 

@@ -893,7 +893,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
         else
                 return false;
     }
-    
+
     // 1. Try all possibilities for parameters
     if( node.has_free_param() ){
         // Get possible gadgets
@@ -947,7 +947,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
             
             // Get matching gadgets
             const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
-            
+
             // 2. Try all possible gadgets (or a subset)
             for( Gadget* gadget : gadgets ){
                 if( ! node.assign_gadget(gadget, arch, constraint))
@@ -1062,6 +1062,8 @@ bool StrategyGraph::_do_scheduling(int interference_idx){
 
 bool StrategyGraph::schedule_gadgets(){
     bool success = false;
+    
+    std::cout << "DEBUG, doing scheduling ! " << std::endl;
     // Compute inteference points
     compute_interference_points();
     // Go through all interference points and try both possibilities

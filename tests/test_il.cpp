@@ -348,12 +348,6 @@ namespace test{
             nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
             nb += _assert(instr.str == "lalABa", "Failed to parse IL Instruction");
 
-            str = " [6789] = \"\"";
-            instr = ILInstruction(arch, str);
-            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
-            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
-            nb += _assert(instr.str == "", "Failed to parse IL Instruction");
-
             return nb;
         }
     }

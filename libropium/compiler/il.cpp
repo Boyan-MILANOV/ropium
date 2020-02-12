@@ -153,7 +153,9 @@ bool _parse_il_string( string& res, string& str, int& idx){
     // Check and return
     if( i == str.size() )
         return false; // No end delimiter found
-    else{
+    else if( s.empty() ){
+        return false; // Empty string not allowed (use "\x00" instead
+    }else{
         res = s;
         idx = ++i; // Increment i to make it point after the last delimiter
         return true;
@@ -749,4 +751,15 @@ ILInstruction::ILInstruction(Arch& arch, string str){
     if( !_parse_il_instruction(arch, this, str)){
         throw il_exception("Invald instruction string");
     }
+}
+
+ILInstruction::ILInstruction(ILInstructionType t, vector<cst_t>* a, vector<int>* at , string sname, int snum, string s){
+    type = t;
+    syscall_name = sname;
+    syscall_num = snum;
+    str = s;
+    if( a )
+        args = *a;
+    if( at )
+        args_type = *at;
 }

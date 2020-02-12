@@ -118,7 +118,7 @@ ROPChain* ROPCompiler::compile(string program, Constraint* constraint, ABI abi, 
 ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions, Constraint* constraint, ABI abi, System system){
     CompilerTask task = CompilerTask(arch);
     for( ILInstruction& instr : instructions ){
-        il_to_strategy(task.pending_strategies, instr, abi, system);
+        il_to_strategy(task.pending_strategies, instr, constraint, abi, system);
     }
     return task.compile(arch, db, constraint);
 }
@@ -570,8 +570,100 @@ bool ROPCompiler::_x64_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruc
     return true;
 }
 
+bool _string_to_integers(vector<cst_t>& integers, string& str, int arch_octets, Constraint* constraint){
+    // Assuming little endian
+    int i = 0, j; 
+    cst_t val;
+    unsigned char padding_byte = 0xff; // Default
+    
+    if( constraint != nullptr ){
+        try{
+            padding_byte = constraint->bad_bytes.get_valid_byte();
+        }catch(runtime_exception& e){
+            return false;
+        }
+    }
 
-void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, ABI abi, System system){
+    while( i < str.size() ){
+        val = 0;
+        for( j = 0; j < arch_octets && i < str.size(); j++){
+            val += ((int)str[i++]) << (j*8);
+        }
+        // Check if full value
+        if( j != arch_octets ){
+            // Adjust value
+            for( ; j < arch_octets; j++){
+                val += padding_byte << (j*8);
+            }
+        }
+        integers.push_back(val);
+    }
+    return true;
+}
+
+bool _cst_store_cst_to_strategy(StrategyGraph& graph, ILInstruction& instr, Arch* arch){
+    node_t n1 = graph.new_node(GadgetType::STORE);
+    node_t n2 = graph.new_node(GadgetType::MOV_CST);
+    node_t n3 = graph.new_node(GadgetType::MOV_CST);
+    Node& node1 = graph.nodes[n1];
+    Node& node2 = graph.nodes[n2];
+    Node& node3 = graph.nodes[n3];
+    node1.branch_type = BranchType::RET;
+    node2.branch_type = BranchType::RET;
+    node3.branch_type = BranchType::RET;
+    // First node is mem(X + C) <- reg
+    // Second is X <- src_cst - C 
+    node1.params[PARAM_STORE_SRC_REG].make_reg(-1, false); // Free reg
+    node1.params[PARAM_STORE_DST_ADDR_REG].make_reg(-1, false); // Free
+    node1.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(-1, graph.new_name("offset"), false);
+    node1.strategy_constraints.push_back(
+        // Can not adjust the addr_reg if it is the same as the reg that must be written
+        // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
+        [](Node* n, StrategyGraph* g, Arch* arch)->bool{
+            return n->params[PARAM_STORE_DST_ADDR_REG].value != n->params[PARAM_STORE_SRC_REG].value;
+        }
+    );
+    node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_STORE_DST_ADDR_REG);
+    
+    node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
+    node2.params[PARAM_MOVCST_DST_REG].is_data_link = true;
+    node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_STORE_DST_ADDR_OFFSET, 
+        instr.args[PARAM_CSTSTORECST_DST_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_STORE_DST_ADDR_OFFSET].name)
+        , graph.new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
+    
+    node3.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_SRC_REG);
+    node3.params[PARAM_MOVCST_DST_REG].is_data_link = true;
+    node3.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_CSTSTORECST_SRC_CST], graph.new_name("cst"));
+
+    graph.add_param_edge(n2, n1);
+    graph.add_strategy_edge(n2, n1);
+    graph.add_param_edge(n3, n1);
+    graph.add_strategy_edge(n3, n1);
+    
+    return true;
+}
+
+bool _cst_store_string_to_strategy(StrategyGraph& graph, ILInstruction& instr, Arch* arch, Constraint* constraint){
+    vector<cst_t> integers;
+
+    if( !_string_to_integers(integers, instr.str, arch->octets, constraint)){
+        return false;
+    }
+    // For each integer, add node to store it to the correct address :)
+    for( int i = 0; i < integers.size(); i++ ){
+        cst_t addr_offset = instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] + (i*arch->octets);
+        cst_t src_cst = integers[i];
+        vector<cst_t> store_cst_args = {addr_offset, src_cst};
+        ILInstruction il_instr = ILInstruction(ILInstructionType::CST_STORE_CST, &store_cst_args);
+        if( ! _cst_store_cst_to_strategy(graph, il_instr, arch)){
+            return false;
+        }
+    }
+    return true;
+}
+
+
+void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, Constraint* constraint, ABI abi, System system){
     StrategyGraph* graph;
     if( instr.type == ILInstructionType::MOV_CST ){
         // MOV_CST
@@ -821,45 +913,9 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
     }else if( instr.type == ILInstructionType::CST_STORE_CST ){
         // CST_STORE_CST
         graph = new StrategyGraph();
-        node_t n1 = graph->new_node(GadgetType::STORE);
-        node_t n2 = graph->new_node(GadgetType::MOV_CST);
-        node_t n3 = graph->new_node(GadgetType::MOV_CST);
-        Node& node1 = graph->nodes[n1];
-        Node& node2 = graph->nodes[n2];
-        Node& node3 = graph->nodes[n3];
-        node1.branch_type = BranchType::RET;
-        node2.branch_type = BranchType::RET;
-        node3.branch_type = BranchType::RET;
-        // First node is mem(X + C) <- reg
-        // Second is X <- src_cst - C 
-        node1.params[PARAM_STORE_SRC_REG].make_reg(-1, false); // Free reg
-        node1.params[PARAM_STORE_DST_ADDR_REG].make_reg(-1, false); // Free
-        node1.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
-        node1.strategy_constraints.push_back(
-            // Can not adjust the addr_reg if it is the same as the reg that must be written
-            // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
-            [](Node* n, StrategyGraph* g, Arch* arch)->bool{
-                return n->params[PARAM_STORE_DST_ADDR_REG].value != n->params[PARAM_STORE_SRC_REG].value;
-            }
-        );
-        node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_STORE_DST_ADDR_REG);
-        
-        node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
-        node2.params[PARAM_MOVCST_DST_REG].is_data_link = true;
-        node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_STORE_DST_ADDR_OFFSET, 
-            instr.args[PARAM_CSTSTORECST_DST_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_STORE_DST_ADDR_OFFSET].name)
-            , graph->new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
-        
-        node3.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_SRC_REG);
-        node3.params[PARAM_MOVCST_DST_REG].is_data_link = true;
-        node3.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_CSTSTORECST_SRC_CST], graph->new_name("cst"));
-
-        graph->add_param_edge(n2, n1);
-        graph->add_strategy_edge(n2, n1);
-        graph->add_param_edge(n3, n1);
-        graph->add_strategy_edge(n3, n1);
-
-        graphs.push_back(graph);
+        if( _cst_store_cst_to_strategy(*graph, instr, arch)){
+            graphs.push_back(graph);
+        }
     }else if( instr.type == ILInstructionType::ASTORE_CST ){
         // ASTORE_CST
         graph = new StrategyGraph();
@@ -965,6 +1021,13 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         if( !success ){
             throw compiler_exception("Couldn't translate function call into a chaining strategy");
         }
+        graphs.push_back(graph);
+    }else if( instr.type == ILInstructionType::CST_STORE_STRING ){
+        graph = new StrategyGraph();
+        if( ! _cst_store_string_to_strategy(*graph, instr, arch, constraint)){
+            throw compiler_exception("Couldn't translate string storage into a chaining strategy");
+        }
+        std::cout << "DEBUG compiler store string: " << *graph;
         graphs.push_back(graph);
     }else{
         throw runtime_exception("il_instruction_to_strategy(): unsupported ILInstructionType");

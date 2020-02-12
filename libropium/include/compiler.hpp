@@ -46,7 +46,7 @@ public:
     CompilerTask(Arch* arch);
     vector<StrategyGraph*> pending_strategies;
     void add_strategy(StrategyGraph* graph, int max_tries);
-    ROPChain* compile(Arch* arch, GadgetDB* db, Constraint* constraint=nullptr, int nb_tries=3000); 
+    ROPChain* compile(Arch* arch, GadgetDB* db, Constraint* constraint=nullptr, int nb_tries=3000);
     ~CompilerTask();
 };
 
@@ -75,7 +75,7 @@ public:
     // Main API
     ROPChain* process(vector<ILInstruction>& instructions, Constraint* constraint=nullptr, ABI abi = ABI::NONE, System sys=System::NONE);
     vector<ILInstruction> parse(string program);
-    void il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, ABI abi = ABI::NONE, System sys=System::NONE);
+    void il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, Constraint* constraint = nullptr, ABI abi = ABI::NONE, System sys=System::NONE);
 
     ROPCompiler( Arch* arch, GadgetDB* db);
     ROPChain* compile(string program, Constraint* constraint=nullptr, ABI abi=ABI::NONE, System sys=System::NONE);

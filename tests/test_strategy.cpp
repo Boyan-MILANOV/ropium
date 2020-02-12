@@ -299,6 +299,11 @@ namespace test{
 
             raw.push_back(RawGadget(string("\x21\x56\xF8\xC3", 4), 3)); // and [esi - 8], edx; ret
             raw.push_back(RawGadget(string("\x8D\x77\x10\xC3", 4), 4)); // lea esi, [edi + 16]; ret
+            
+            raw.push_back(RawGadget(string("\x89\xC8\xC3", 3), 5)); // mov eax, ecx; ret
+            raw.push_back(RawGadget(string("\x89\xC3\xC3", 3), 6)); // mov ebx, eax; ret
+            raw.push_back(RawGadget(string("\x89\x43\x08\xC3", 4), 7)); // mov [ebx + 8], eax; ret
+
             db.analyse_raw_gadgets(raw, arch);
 
             // Test adjust store on STORE type
@@ -327,6 +332,21 @@ namespace test{
             sgraph2.select_gadgets(db, nullptr, arch);
             ropchain = sgraph2.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+
+            // ANother adjust store on STORE mixed with src_transitivity
+            StrategyGraph sgraph3;
+            node_t n3 = sgraph3.new_node(GadgetType::STORE);
+            Node& node3 = sgraph3.nodes[n3];
+            node3.params[PARAM_STORE_DST_ADDR_REG].make_reg(X86_EAX);
+            node3.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(8, "cst_0");
+            node3.params[PARAM_STORE_SRC_REG].make_reg(X86_ECX);
+            // Apply strat
+            sgraph3.rule_adjust_store(n3, arch);
+            sgraph3.rule_generic_src_transitivity(2);
+
+            sgraph3.select_gadgets(db, nullptr, arch);
+            ropchain = sgraph3.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rules failed");
 
             delete arch;
             return nb;
