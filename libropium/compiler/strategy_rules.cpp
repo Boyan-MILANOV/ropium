@@ -108,18 +108,26 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     node1.special_paddings.back().value = node.params[PARAM_MOVCST_SRC_CST];
     node1.special_paddings.back().value.name = new_name("padding_value"); // Get a new name for the value parameter
 
-    // Add a constraint: the offset of the pop must not be too big (max 160)
+    // Add a constraint: the offset of the pop must not be too big (max 240)
     node1.strategy_constraints.push_back(
-        [](Node* node, StrategyGraph* graph){
-            return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < 160 &&
+        [](Node* node, StrategyGraph* graph, Arch* arch){
+            return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < 240 &&
                    node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value >= 0;
         }
     );
 
     // Add a constraint: the offset of the pop must not be bigger than the sp inc
+    // and if the gadget is RET then the pop must not correspond to the return address ! 
     node1.assigned_gadget_constraints.push_back(
-        [](Node* node, StrategyGraph* graph){
-            return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < node->affected_gadget->sp_inc;
+        [](Node* node, StrategyGraph* graph, Arch* arch){
+            int adjust=0;
+            // Padding can't overlap return address unless the register we want
+            // to set is PC ;)
+            if( node->affected_gadget->branch_type == BranchType::RET && 
+                node->params[PARAM_LOAD_DST_REG].value != arch->pc()){
+                adjust = arch->octets; //
+            }
+            return node->params[PARAM_LOAD_SRC_ADDR_OFFSET].value < node->affected_gadget->sp_inc - adjust;
         }
     );
 
@@ -195,7 +203,7 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
     // the semantics are corrupted because ebx's value will be overwritten with 
     // the address of the 'adjust-gadget'
     node.assigned_gadget_constraints.push_back(
-        [](Node* node, StrategyGraph* graph){
+        [](Node* node, StrategyGraph* graph, Arch* arch){
             switch( node->type ){
                 case GadgetType::MOV_CST:
                     return node->params[node->get_param_num_gadget_jmp_reg()].value != node->params[PARAM_MOVCST_DST_REG].value;
@@ -322,7 +330,6 @@ bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
  * (n1) <AnyType> dst, R1
  * ======================= */
 bool StrategyGraph::rule_generic_src_transitivity(node_t n){
-    int i = 0;
 
     if( nodes[n].type != GadgetType::STORE &&
         nodes[n].type != GadgetType::ASTORE ){
@@ -336,48 +343,30 @@ bool StrategyGraph::rule_generic_src_transitivity(node_t n){
     }
 
     // Get/Create nodes
-    node_t n1 = new_node(nodes[n].type);
     node_t n2 = new_node(GadgetType::MOV_REG);
     Node& node = nodes[n];
-    Node& node1 = nodes[n1];
     Node& node2 = nodes[n2];
-    
-    
-    node1 = node; // Copy node to node1
-    node1.id = n1; // But keep id
-    // Modify src_reg to make it free
-    node1.params[node1.get_param_num_src_reg()].make_reg(-1, false); // Free
-    
+
+    // Redirect parameter to src_reg
+    redirect_param_edges(node.id, node.get_param_num_src_reg(), node2.id, node2.get_param_num_src_reg());
+
     // Set node2 with the reg transitivity gadget
-    node2.params[PARAM_MOVREG_DST_REG].make_reg(node1.id, node1.get_param_num_src_reg()); // Depends on node1 src reg
+    node2.params[PARAM_MOVREG_DST_REG].make_reg(node.id, node.get_param_num_src_reg()); // Depends on node src reg
     node2.params[PARAM_MOVREG_SRC_REG] = node.params[node.get_param_num_src_reg()]; // Same src reg as initial query in node
     // Add data link between node 1 and 2 for the transitive reg
     node2.params[PARAM_MOVREG_DST_REG].is_data_link = true;
-
-    // Node1 must end with same as node
-    node1.branch_type = node.branch_type;
     // Node2 must end in ret
     node2.branch_type = BranchType::RET;
 
-    // Redirect input params arcs from node to node1
-    for( i = 0; i < MAX_PARAMS; i++){
-        redirect_param_edges(node.id, i, node1.id, i);
-    } // TODO DEBUG Virer ça ? ??
-
-    // Redirect data link to node1 (node1 gets after node2)
-    redirect_param_edges(node.id, node.get_param_num_data_link(), node1.id, node1.get_param_num_data_link());
+    // Modify src_reg to make it free
+    node.params[node.get_param_num_src_reg()].make_reg(-1, false); // Free
 
     // Update param edges
     update_param_edges();
 
     // Redirect/add strategy edges
-    add_strategy_edge(node2.id, node1.id);
-    redirect_incoming_strategy_edges(node.id, node2.id);
-    redirect_outgoing_strategy_edges(node.id, node1.id);
+    add_strategy_edge(node2.id, node.id);
 
-    // Disable previous node
-    disable_node(node.id);
-    
     // Update size in the end
     update_size();
     

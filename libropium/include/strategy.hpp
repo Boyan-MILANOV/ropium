@@ -304,6 +304,24 @@ public:
 #define PARAM_FUNCTION_ADDR 0
 #define PARAM_FUNCTION_ARGS 1
 
+#define PARAM_SYSCALL_ARGS 0 // For IL
+#define PARAM_SYSCALL_GADGET_ADDR 0 // For gadget
+#define PARAM_SYSCALL_GADGET_SP_INC 1
+#define PARAM_SYSCALL_GADGET_JMP_REG 2
+#define PARAM_SYSCALL_GADGET_SP_DELTA 3
+#define PARAM_SYSCALL_DATA_LINK 4
+#define NB_PARAM_SYSCALL 5
+
+#define PARAM_INT80_ARGS 0 // For IL
+#define PARAM_INT80_GADGET_ADDR 0 // For gadget
+#define PARAM_INT80_GADGET_SP_INC 1
+#define PARAM_INT80_GADGET_JMP_REG 2
+#define PARAM_INT80_GADGET_SP_DELTA 3
+#define PARAM_INT80_DATA_LINK 4
+#define NB_PARAM_INT80 5
+
+#define PARAM_CSTSTORE_STRING_ADDR_OFFSET 0
+
 typedef struct {
     Param offset;
     Param value;
@@ -330,10 +348,10 @@ public:
 // Callback for custom constraints called to filter gadgets on each node
 class Node;
 class StrategyGraph;
-typedef bool (*constraint_callback_t)(Node* node, StrategyGraph* graph);
+typedef bool (*constraint_callback_t)(Node* node, StrategyGraph* graph, Arch* arch);
 
 // Commonly used node constraints
-bool constraint_branch_type(Node* node, StrategyGraph* graph);
+bool constraint_branch_type(Node* node, StrategyGraph* graph, Arch* arch);
 
 class Node{
 public:
@@ -421,8 +439,8 @@ private:
     void _resolve_all_params(node_t n);
     const vector<Gadget*>& _get_matching_gadgets(GadgetDB& db, node_t node);
     PossibleGadgets* _get_possible_gadgets(GadgetDB& db, node_t n);
-    bool _check_strategy_constraints(Node& node);
-    bool _check_assigned_gadget_constraints(Node& node);
+    bool _check_strategy_constraints(Node& node, Arch* arch);
+    bool _check_assigned_gadget_constraints(Node& node, Arch* arch);
     bool _check_special_padding_constraints(Node& node, Arch* arch, Constraint* constraint=nullptr);
     bool _do_scheduling(int interference_idx=0);
     

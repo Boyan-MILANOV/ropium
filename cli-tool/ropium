@@ -45,6 +45,7 @@ bad_bytes = []
 keep_regs = []
 safe_mem = True
 abi = ABI.NONE
+system = OS.NONE
 start_msg = "\n" + str_bold("ROPium") + " - v3.0\n"
 
 # Commands
@@ -54,6 +55,7 @@ CMD_FIND = "find"
 CMD_BADBYTES = "badbytes"
 CMD_KEEPREGS = "keepregs"
 CMD_ABI = "abi"
+CMD_OS = "os"
 CMD_SAFEMEM = "safemem"
 CMD_EXIT = "exit"
 
@@ -125,6 +127,11 @@ def main():
             elif( command == CMD_ABI ):
                 try:
                     cmd_abi(args[1:])
+                except ContextException as e:
+                    error(str(e), skip=True)
+            elif( command == CMD_OS ):
+                try:
+                    cmd_os(args[1:])
                 except ContextException as e:
                     error(str(e), skip=True)
             else:
@@ -206,6 +213,7 @@ def find(args):
     global keep_regs
     global safemem
     global abi
+    global system
 
     if not compiler:
         raise FindException("You must load a binary before finding ropchains")
@@ -215,6 +223,7 @@ def find(args):
     compiler.keep_regs = keep_regs
     compiler.safe_mem = safe_mem
     compiler.abi = abi
+    compiler.os = system
     try:
         ropchain = compiler.compile(query)
     except ValueError as e:
@@ -242,7 +251,7 @@ def badbytes(args):
     if subcommand == "set":
         set_badbytes(args[1:])
     elif subcommand == "reset":
-        reset_bad_bytes(args[1:])
+        reset_badbytes(args[1:])
     else:
         raise ContextException(f"Unsupported action '{subcommand}'")
 
@@ -254,6 +263,8 @@ def str_to_byte(s):
             return int(s, 16)
         except:
             return None
+
+
 
 def set_badbytes(args):
     global bad_bytes
@@ -393,7 +404,41 @@ def set_abi(args):
     if len(args) > 1:
         extra_args = ' '.join(args[1:])
         warning(f"Extra arguments ignored: '{extra_args}'", skip=True)
+        
+# OS Command
+str_to_os = {
+    "LINUX":OS.LINUX,
+    "WINDOWS":OS.WINDOWS
+}
+
+def cmd_os(args):
+    global compiler
+
+    if not args:
+        print(os_help)
+        return
     
+    subcommand = args[0]
+    if subcommand == "set":
+        set_os(args[1:])
+    else:
+        raise ContextException(f"Unsupported action '{subcommand}'")
+
+def set_os(args):
+    global system
+    
+    if not args:
+        raise ContextException(f"Missing OS argument")
+    
+    if args[0] not in str_to_os:
+        raise ContextException(f"Unsupported Operating System: '{args[0]}'")
+    else:
+        system = str_to_os[args[0]]
+        
+    if len(args) > 1:
+        extra_args = ' '.join(args[1:])
+        warning(f"Extra arguments ignored: '{extra_args}'", skip=True)
+
 # Help strings
 main_help = str_main(str_bold('\n\tMain Commands'))
 main_help += str_special("\n\t(For more info about a command type 'help <cmd>')")
@@ -403,6 +448,7 @@ main_help += '\n\n\t' + str_bold(CMD_BADBYTES) + ': \tSet bad bytes to be avoide
 main_help += '\n\t' + str_bold(CMD_KEEPREGS) + ': \tSet registers that must not be clobbered'
 main_help += '\n\t' + str_bold(CMD_SAFEMEM) + ': \tEnable/Disable the use of unsafe gadgets'
 main_help += '\n\t' + str_bold(CMD_ABI) + ': \t\tSpecify the ABI to use when calling functions'
+main_help += '\n\t' + str_bold(CMD_OS) + ': \t\tSpecify the OS to target when doing syscalls'
 main_help += '\n\n\t' + str_bold(CMD_HELP) + ': \t\tshow this help'
 main_help += '\n\t' + str_bold(CMD_EXIT) + ': \t\texit ROPium'
 
@@ -457,6 +503,10 @@ abi_help += str_special("\n\t(Set ABI to use when calling functions)")
 abi_help += "\n\n\t"+str_bold("Usage")+":\tabi set <ABI>"
 abi_help += "\n\n\t"+str_bold("Supported ABIs")+": "+', '.join([str_special(s) for s in str_to_abi])
 
+os_help = str_main(str_bold("\n\t'os' Command"))
+os_help += str_special("\n\t(Set OS to target when doing syscalls)")
+os_help += "\n\n\t"+str_bold("Usage")+":\tos set <operating system>"
+os_help += "\n\n\t"+str_bold("Supported systems")+": "+', '.join([str_special(s) for s in str_to_os])
 
 if __name__ == "__main__":
     main()

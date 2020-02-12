@@ -287,6 +287,72 @@ namespace test{
             nb += _assert(instr.args[PARAM_FUNCTION_ARGS+2] == X86_EBX, "Failed to parse IL Instruction");
             nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+2] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
             
+            // syscall
+            str = " sys_read()";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SYSCALL, "Failed to parse IL Instruction");
+            nb += _assert(instr.syscall_name == "read", "Failed to parse IL Instruction");
+
+            str = " sys_truc(42)";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SYSCALL, "Failed to parse IL Instruction");
+            nb += _assert(instr.syscall_name == "truc", "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_SYSCALL_ARGS+0] == 42, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+0] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+
+            str = " sys_truc(42, esp, 1)";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SYSCALL, "Failed to parse IL Instruction");
+            nb += _assert(instr.syscall_name == "truc", "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_SYSCALL_ARGS+0] == 42, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+0] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_SYSCALL_ARGS+1] == X86_ESP, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+1] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_SYSCALL_ARGS+2] == 1, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+2] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+
+            str = " sys_11()";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SYSCALL, "Failed to parse IL Instruction");
+            nb += _assert(instr.syscall_num == 11, "Failed to parse IL Instruction");
+
+            str = " sys_0x42(eax)";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SYSCALL, "Failed to parse IL Instruction");
+            nb += _assert(instr.syscall_num == 0x42, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_SYSCALL_ARGS+0] == X86_EAX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+0] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
+
+            // cst_store_string
+            str = " [6789] = 'lala'";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
+            nb += _assert(instr.str == "lala", "Failed to parse IL Instruction");
+
+            str = " [6789] = 'lal\\\\a'";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
+            nb += _assert(instr.str == "lal\\a", "Failed to parse IL Instruction");
+            
+            str = " [6789] = 'lal\\'a'";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
+            nb += _assert(instr.str == "lal'a", "Failed to parse IL Instruction");
+                
+            str = " [6789] = 'lal\\x41\\x42a'";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
+            nb += _assert(instr.str == "lalABa", "Failed to parse IL Instruction");
+
+            str = " [0x1234] =  'lalatotokikoo\\x00'";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 0x1234, "Failed to parse IL Instruction");
+            nb += _assert(instr.str == string("lalatotokikoo\x00", 14), "Failed to parse IL Instruction");
             return nb;
         }
     }

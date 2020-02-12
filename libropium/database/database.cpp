@@ -45,6 +45,13 @@ gadget_t GadgetDB::add(Gadget* gadget, Arch* arch){
     all.push_back(gadget);
 
     // Check semantics and classify gadget
+    // 0. First check is special branch gadget such as syscall/int80
+    if( gadget->branch_type == BranchType::SYSCALL ){
+        syscall.add(0, gadget);
+    }else if( gadget->branch_type == BranchType::INT80 ){
+        int80.add(0, gadget);
+    }
+
     // 1. Register semantics
     for( int reg = 0; reg < gadget->semantics->regs->nb_vars(); reg++){
         e = gadget->semantics->regs->get(reg);
@@ -60,6 +67,7 @@ gadget_t GadgetDB::add(Gadget* gadget, Arch* arch){
         // MOV_REG
         else if( e->is_var() && !e->is_reg(reg) ){
             mov_reg.add(make_tuple(reg, e->reg()), gadget);
+            amov_cst.add(make_tuple(reg, e->reg(), (op_t)Op::ADD, 0), gadget);
         }
         // AMOV_CST
         else if( e->is_binop() && e->args[0]->is_cst() && e->args[1]->is_var() && 
@@ -93,7 +101,7 @@ gadget_t GadgetDB::add(Gadget* gadget, Arch* arch){
                                               e->args[0]->args[0]->args[0]->cst()), gadget);
         }
     }
-    
+
     // 2. Memory semantics
     for( auto write : gadget->semantics->mem->writes ){
         addr = write.first;
@@ -194,26 +202,33 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
             }
 
             // Get branch type
-            e = semantics->regs->get(arch->pc());
-            if( e->is_var() ){
-                // Jmp
-                gadget->branch_type = BranchType::JMP;
-                gadget->jmp_reg = arch->reg_num(e->name());
-            }else if( e->is_mem()){
-                // Ret (sp)
-                if( e->args[0]->is_var() && arch->reg_num(e->args[0]->name()) == arch->sp() && gadget->sp_inc == arch->octets ){
-                    gadget->branch_type = BranchType::RET;
-                }else if( e->args[0]->is_binop(Op::ADD) && e->args[0]->args[0]->is_cst() &&
-                          e->args[0]->args[1]->is_var() && (e->args[0]->args[0]->cst() + arch->octets == gadget->sp_inc) && 
-                          arch->reg_num(e->args[0]->args[1]->name()) == arch->sp()){
-                    gadget->branch_type = BranchType::RET;
+            if( irblock->ends_with_syscall ){
+                gadget->branch_type = BranchType::SYSCALL;
+            }else if( irblock->ends_with_int80 ){
+                gadget->branch_type = BranchType::INT80;
+            }else{
+                // Check last PC value
+                e = semantics->regs->get(arch->pc());
+                if( e->is_var() ){
+                    // Jmp
+                    gadget->branch_type = BranchType::JMP;
+                    gadget->jmp_reg = arch->reg_num(e->name());
+                }else if( e->is_mem()){
+                    // Ret (sp)
+                    if( e->args[0]->is_var() && arch->reg_num(e->args[0]->name()) == arch->sp() && gadget->sp_inc == arch->octets ){
+                        gadget->branch_type = BranchType::RET;
+                    }else if( e->args[0]->is_binop(Op::ADD) && e->args[0]->args[0]->is_cst() &&
+                              e->args[0]->args[1]->is_var() && (e->args[0]->args[0]->cst() + arch->octets == gadget->sp_inc) && 
+                              arch->reg_num(e->args[0]->args[1]->name()) == arch->sp()){
+                        gadget->branch_type = BranchType::RET;
+                    }else{
+                        // std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE: " << irblock->name << std::endl;
+                        delete gadget; continue;
+                    }
                 }else{
                     // std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE: " << irblock->name << std::endl;
                     delete gadget; continue;
                 }
-            }else{
-                // std::cout << "DEBUG ERROR, NO VALID BRANCH TYPE: " << irblock->name << std::endl;
-                delete gadget; continue;
             }
 
             // Set name
@@ -280,6 +295,14 @@ const vector<Gadget*>& GadgetDB::get_store(reg_t addr_reg, cst_t offset, reg_t s
 
 const vector<Gadget*>& GadgetDB::get_astore(reg_t addr_reg, cst_t offset, Op op, reg_t src_reg){
     return astore.get(make_tuple(addr_reg, offset, (op_t)op, src_reg));
+}
+
+const vector<Gadget*>& GadgetDB::get_int80(){
+    return int80.get(0); // Use dummy key 0
+}
+
+const vector<Gadget*>& GadgetDB::get_syscall(){
+    return syscall.get(0); // Use dummy key 0
 }
 
 /* ============== Get possible gadgets ===================== */

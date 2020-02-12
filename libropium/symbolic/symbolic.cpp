@@ -307,12 +307,19 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
                 }
             
             }else if(instr->op == IROperation::INT){
-                DELETE_ALL_OBJECTS()
-                throw symbolic_exception("INT operation not supported in gadgets");
+                cst_t num = cst_sign_trunc(instr->dst.size, _get_operand(instr->dst, regs, tmp_vars)->concretize());
+                if( num != 0x80 ){
+                    DELETE_ALL_OBJECTS()
+                    throw symbolic_exception("SymbolicEngine::execute_block() interruption: got unsupported INT number");
+                }
+                block->ends_with_int80 = true;
+                /* Quit this block */
+                stop = true; // Go out of this block
                 break; // Stop executing instructions in the basic block
             }else if(instr->op == IROperation::SYSCALL){
-                DELETE_ALL_OBJECTS()
-                throw symbolic_exception("SYSCALL operation not supported in gadgets");
+                block->ends_with_syscall = true;
+                /* Quit this block */
+                stop = true; // Go out of this block
                 break; // Stop executing instructions in the basic block
             }else{
                 DELETE_ALL_OBJECTS()

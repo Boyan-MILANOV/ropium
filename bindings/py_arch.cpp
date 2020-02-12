@@ -11,7 +11,15 @@ void init_arch(PyObject* module){
     PyDict_SetItemString(arch_enum, "ARM64", PyLong_FromLong((int)ArchType::ARM64));
     PyObject* arch_class = create_class(PyUnicode_FromString("ARCH"), PyTuple_New(0), arch_enum);
     PyModule_AddObject(module, "ARCH", arch_class);
-    
+
+    /* OS enum */
+    PyObject* os_enum = PyDict_New();
+    PyDict_SetItemString(os_enum, "LINUX", PyLong_FromLong((int)System::LINUX));
+    PyDict_SetItemString(os_enum, "WINDOWS", PyLong_FromLong((int)System::WINDOWS));
+    PyDict_SetItemString(os_enum, "NONE", PyLong_FromLong((int)System::NONE));
+    PyObject* os_class = create_class(PyUnicode_FromString("OS"), PyTuple_New(0), os_enum);
+    PyModule_AddObject(module, "OS", os_class);
+
     /* ABI enum */
     PyObject* abi_enum = PyDict_New();
     PyDict_SetItemString(abi_enum, "X86_CDECL", PyLong_FromLong((int)ABI::X86_CDECL));

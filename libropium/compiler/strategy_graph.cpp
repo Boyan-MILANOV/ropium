@@ -30,7 +30,7 @@ void NodeAssertion::to_assertion(Node& node, Assertion * a){
 
 /* ===============  Nodes ============== */
 
-bool constraint_branch_type(Node* node, StrategyGraph* graph){
+bool constraint_branch_type(Node* node, StrategyGraph* graph, Arch* arch){
     return (node->affected_gadget->branch_type == node->branch_type) ||
            (node->branch_type == BranchType::ANY);
 }
@@ -56,6 +56,9 @@ int Node::nb_params(){
         case GadgetType::ALOAD: return NB_PARAM_ALOAD;
         case GadgetType::STORE: return NB_PARAM_STORE;
         case GadgetType::ASTORE: return NB_PARAM_ASTORE;
+        case GadgetType::SYSCALL: return NB_PARAM_SYSCALL;
+        case GadgetType::INT80: return NB_PARAM_INT80;
+        
         default: throw runtime_exception("Unsupported gadget type in Node::nb_params()");
     }
 }
@@ -111,6 +114,9 @@ bool Node::is_src_param(param_t param){
             return param == PARAM_STORE_SRC_REG;
         case GadgetType::ASTORE:
             return param == PARAM_ASTORE_SRC_REG;
+        case GadgetType::SYSCALL:
+        case GadgetType::INT80:
+            return false;
         default:
             throw runtime_exception(QuickFmt() << "Node::is_src_param(): got unsupported node type " << (int)type >> QuickFmt::to_str);
     }
@@ -173,6 +179,8 @@ int Node::get_param_num_data_link(){
         case GadgetType::ALOAD: return PARAM_ALOAD_DATA_LINK;
         case GadgetType::STORE: return PARAM_STORE_DATA_LINK;
         case GadgetType::ASTORE: return PARAM_ASTORE_DATA_LINK;
+        case GadgetType::SYSCALL: return PARAM_SYSCALL_DATA_LINK;
+        case GadgetType::INT80: return PARAM_INT80_DATA_LINK;
         default:
             throw runtime_exception("Node::get_param_num_data_link(): got unsupported gadget type");
     }
@@ -188,6 +196,8 @@ int Node::get_param_num_gadget_sp_inc(){
         case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_SP_INC;
         case GadgetType::STORE: return PARAM_STORE_GADGET_SP_INC;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_SP_INC;
+        case GadgetType::SYSCALL: return PARAM_SYSCALL_GADGET_SP_INC;
+        case GadgetType::INT80: return PARAM_INT80_GADGET_SP_INC;
         default:
             throw runtime_exception("Node::get_param_num_gadget_sp_inc(): got unsupported gadget type");
     }
@@ -203,6 +213,8 @@ int Node::get_param_num_gadget_sp_delta(){
         case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_SP_DELTA;
         case GadgetType::STORE: return PARAM_STORE_GADGET_SP_DELTA;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_SP_DELTA;
+        case GadgetType::SYSCALL: return PARAM_SYSCALL_GADGET_SP_DELTA;
+        case GadgetType::INT80: return PARAM_INT80_GADGET_SP_DELTA;
         default:
             throw runtime_exception("Node::get_param_num_gadget_sp_inc(): got unsupported gadget type");
     }
@@ -218,6 +230,8 @@ int Node::get_param_num_gadget_addr(){
         case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_ADDR;
         case GadgetType::STORE: return PARAM_STORE_GADGET_ADDR;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_ADDR;
+        case GadgetType::SYSCALL: return PARAM_SYSCALL_GADGET_ADDR;
+        case GadgetType::INT80: return PARAM_INT80_GADGET_ADDR;
         default:
             throw runtime_exception("Node::get_param_num_gadget_addr(): got unsupported gadget type");
     }
@@ -233,6 +247,8 @@ int Node::get_param_num_gadget_jmp_reg(){
         case GadgetType::ALOAD: return PARAM_ALOAD_GADGET_JMP_REG;
         case GadgetType::STORE: return PARAM_STORE_GADGET_JMP_REG;
         case GadgetType::ASTORE: return PARAM_ASTORE_GADGET_JMP_REG;
+        case GadgetType::SYSCALL: return PARAM_SYSCALL_GADGET_JMP_REG;
+        case GadgetType::INT80: return PARAM_INT80_GADGET_JMP_REG;
         default:
             throw runtime_exception("Node::get_param_num_gadget_jmp_reg(): got unsupported gadget type");
     }
@@ -730,6 +746,10 @@ const vector<Gadget*>& StrategyGraph::_get_matching_gadgets(GadgetDB& db, node_t
             op = (Op)node.params[PARAM_ASTORE_OP].value;
             src_reg = node.params[PARAM_ASTORE_SRC_REG].value;
             return db.get_astore(dst_addr_reg, dst_addr_cst, op, src_reg);
+        case GadgetType::SYSCALL:
+            return db.get_syscall();
+        case GadgetType::INT80:
+            return db.get_int80();
         default:
             throw runtime_exception(QuickFmt() << "_get_matching_gadgets(): got unsupported node type " << (int)node.type >> QuickFmt::to_str);
     }
@@ -806,9 +826,9 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
 }
 
 // Must be checked after parameter resolution
-bool StrategyGraph::_check_strategy_constraints(Node& node){
+bool StrategyGraph::_check_strategy_constraints(Node& node, Arch* arch){
     for( constraint_callback_t constr : node.strategy_constraints ){
-        if( ! constr(&node, this))
+        if( ! constr(&node, this, arch))
             return false;
     }
     return true;
@@ -826,9 +846,9 @@ bool StrategyGraph::_check_special_padding_constraints(Node& node, Arch* arch, C
 }
 
 // Must be checked after gadget assignment
-bool StrategyGraph::_check_assigned_gadget_constraints(Node& node){
+bool StrategyGraph::_check_assigned_gadget_constraints(Node& node, Arch* arch){
     for( constraint_callback_t constr : node.assigned_gadget_constraints ){
-        if( ! constr(&node, this))
+        if( ! constr(&node, this, arch))
             return false;
     }
     return true;
@@ -862,7 +882,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
 
     node_t n = dfs_params[dfs_idx];
     Node& node = nodes[n];
-    
+
     // If the node is a disabled node, juste resolve the parameters
     // and continue the selection 
     if( node.is_disabled){
@@ -873,7 +893,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
         else
                 return false;
     }
-    
+
     // 1. Try all possibilities for parameters
     if( node.has_free_param() ){
         // Get possible gadgets
@@ -892,7 +912,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
             _resolve_all_params(node.id);
 
             // Check strategy constraints 
-            if( !_check_strategy_constraints(node) || !_check_special_padding_constraints(node, arch, constraint)){
+            if( !_check_strategy_constraints(node, arch) || !_check_special_padding_constraints(node, arch, constraint)){
                 continue;
             }
 
@@ -909,7 +929,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
                 _resolve_all_params(node.id);
 
                 // Check assigned gadget constraints and global constraint
-                if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
+                if( !_check_assigned_gadget_constraints(node, arch) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
                     continue;
                 }
                 // 3. Recursive call on next node 
@@ -923,11 +943,11 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
     }else{
 
         // Check strategy constraints 
-        if( _check_strategy_constraints(node)){
+        if( _check_strategy_constraints(node, arch)){
             
             // Get matching gadgets
             const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
-            
+
             // 2. Try all possible gadgets (or a subset)
             for( Gadget* gadget : gadgets ){
                 if( ! node.assign_gadget(gadget, arch, constraint))
@@ -945,7 +965,7 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
                 node.apply_assertion();
                 
                 // Check assigned gadget constraints and global constraint
-                if( !_check_assigned_gadget_constraints(node) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
+                if( !_check_assigned_gadget_constraints(node, arch) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
                     continue;
                 }
                 // 3. Recursive call on next node
@@ -1042,6 +1062,7 @@ bool StrategyGraph::_do_scheduling(int interference_idx){
 
 bool StrategyGraph::schedule_gadgets(){
     bool success = false;
+
     // Compute inteference points
     compute_interference_points();
     // Go through all interference points and try both possibilities

@@ -6,8 +6,13 @@
 /* ============= Compiler Task ============ */
 CompilerTask::CompilerTask(Arch* a):arch(a){}
 
-void CompilerTask::add_strategy(StrategyGraph* graph){
+void CompilerTask::add_strategy(StrategyGraph* graph, int max_tries){
     vector<StrategyGraph*>::iterator g;
+    if( pending_strategies.size() >= max_tries && pending_strategies.front()->size < graph->size ){
+        // If strategy list is already full with smaller strategies, ignore this one
+        delete graph;
+        return;
+    }
     for( g = pending_strategies.begin();
          g != pending_strategies.end() && (*g)->size >= graph->size;
          g++ ){}
@@ -25,7 +30,7 @@ ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, Constraint* constraint
             res = graph->get_ropchain(arch, constraint);
         }else{
             // Apply strategy rules to the graph to get new candidate strategies
-            apply_rules_to_graph(graph);
+            apply_rules_to_graph(graph, nb_tries);
         }
         delete graph; graph = nullptr;
     }
@@ -33,9 +38,17 @@ ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, Constraint* constraint
 }
 
 
-void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
+void CompilerTask::apply_rules_to_graph(StrategyGraph* graph, int max_tries){
     StrategyGraph* new_graph;
     vector<StrategyGraph*> new_list;
+
+    if( pending_strategies.size() >= max_tries &&
+            graph->size >= pending_strategies.front()->size -1){
+        // If strategy list already full and the graph to which applying
+        // rules is smaller than the max node by one node, then the generated
+        // graphs won't be added to the list. So we can skip generating graphs.
+        return;
+    }
 
     // Iterate through all nodes of the graph
     for( Node& node : graph->nodes ){
@@ -45,32 +58,32 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
         // Generic transitivity
         new_graph = graph->copy();
         if( new_graph->rule_generic_transitivity(node.id)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             new_graph = graph->copy();
         }
         // MovCst pop
         if( new_graph->rule_mov_cst_pop(node.id, arch)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             new_graph = graph->copy();
         }
         // Generic adjust_jmp
         if( new_graph->rule_generic_adjust_jmp(node.id, arch)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             new_graph = graph->copy();
         }
         // Adjust load
         if( new_graph->rule_adjust_load(node.id, arch)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             new_graph = graph->copy();
         }
         // Generic src reg transitivity
         if( new_graph->rule_generic_src_transitivity(node.id)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             new_graph = graph->copy();
         }
         // Adjust store
         if( new_graph->rule_adjust_store(node.id, arch)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             // Put new_graph = graph->copy() when adding more strategies
         }else{
             delete new_graph; new_graph = nullptr;
@@ -78,11 +91,15 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
     }
 }
 
-CompilerTask::~CompilerTask(){
+void CompilerTask::clear(){
     for( StrategyGraph* g : pending_strategies ){
         delete g; g = nullptr;
     }
     pending_strategies.clear();
+}
+
+CompilerTask::~CompilerTask(){
+    clear();
 }
 
 
@@ -90,24 +107,39 @@ CompilerTask::~CompilerTask(){
 /* ============= ROPCompiler ============= */
 ROPCompiler::ROPCompiler(Arch* a, GadgetDB *d):arch(a), db(d){}
 
-ROPChain* ROPCompiler::compile(string program, Constraint* constraint, ABI abi){
-    
+ROPChain* ROPCompiler::compile(string program, Constraint* constraint, ABI abi, System system){
+
+    vector<ILInstruction> final_instr;
     vector<ILInstruction> instr = parse(program); // This raises il_exception if malformed program
+    preprocess(final_instr, instr, constraint);
 
     // Add some general assertions
     if( constraint ){
         constraint->mem_safety.add_safe_reg(arch->sp()); // Stack pointer is always safe for RW
     }
-    
-    return process(instr, constraint, abi);
+
+    return process(final_instr, constraint, abi, system);
 }
 
-ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions, Constraint* constraint, ABI abi){
+ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions, Constraint* constraint, ABI abi, System system){
     CompilerTask task = CompilerTask(arch);
+    ROPChain * res = nullptr, *tmp = nullptr;
     for( ILInstruction& instr : instructions ){
-        il_to_strategy(task.pending_strategies, instr, abi);
+        task.clear();
+        il_to_strategy(task.pending_strategies, instr, constraint, abi, system);
+        if( (tmp = task.compile(arch, db, constraint)) != nullptr){
+            if( !res )
+                res = tmp;
+            else{
+                res->add_chain(*tmp);
+                delete tmp; tmp = nullptr;
+            }
+        }else{
+            delete res;
+            return nullptr;
+        }
     }
-    return task.compile(arch, db, constraint);
+    return res;
 }
 
 bool _is_empty_line(string& s){
@@ -118,7 +150,7 @@ bool _is_empty_line(string& s){
     return true;
 }
 
-vector<ILInstruction> ROPCompiler::parse(string program){
+vector<ILInstruction> ROPCompiler::parse(string& program){
     size_t pos;
     string instr;
     vector<ILInstruction> res;
@@ -182,7 +214,7 @@ bool ROPCompiler::_x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& in
     node.assigned_gadget_constraints.push_back(
         // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
         // jumping to the function
-        [](Node* n, StrategyGraph* g)->bool{
+        [](Node* n, StrategyGraph* g, Arch* arch)->bool{
             return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
         }
     );
@@ -240,7 +272,7 @@ bool ROPCompiler::_x86_stdcall_to_strategy(StrategyGraph& graph, ILInstruction& 
     node.assigned_gadget_constraints.push_back(
         // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
         // jumping to the function
-        [](Node* n, StrategyGraph* g)->bool{
+        [](Node* n, StrategyGraph* g, Arch* arch)->bool{
             return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
         }
     );
@@ -287,7 +319,7 @@ bool ROPCompiler::_x64_system_v_to_strategy(StrategyGraph& graph, ILInstruction&
     graph.nodes[call_node].assigned_gadget_constraints.push_back(
         // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
         // jumping to the function
-        [](Node* n, StrategyGraph* g)->bool{
+        [](Node* n, StrategyGraph* g, Arch* arch)->bool{
             return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
         }
     );
@@ -371,7 +403,7 @@ bool ROPCompiler::_x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr
     graph.nodes[call_node].assigned_gadget_constraints.push_back(
         // The gadget should have a sp_delta == 0 (otherwise the arguments won't be in the right place when
         // jumping to the function
-        [](Node* n, StrategyGraph* g)->bool{
+        [](Node* n, StrategyGraph* g, Arch* arch)->bool{
             return n->affected_gadget->max_sp_inc == n->affected_gadget->sp_inc;
         }
     );
@@ -428,7 +460,242 @@ bool ROPCompiler::_x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr
     return true;
 }
 
-void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, ABI abi){
+bool ROPCompiler::_x86_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+    // Get syscall def for this syscall
+    SyscallDef* def;
+    int syscall_num;
+    bool def_by_name; // True if syscall is defined by its name, false if just syscall_num is given
+    
+    def_by_name = !instr.syscall_name.empty();
+    
+    // Get syscall num if syscall defined by name
+    if( def_by_name ){
+        def = get_syscall_def(ArchType::X86, System::LINUX, instr.syscall_name);
+        if( def == nullptr ){
+            throw compiler_exception(QuickFmt() << "Syscall '" << instr.syscall_name << "' is not supported");
+        }
+        syscall_num = def->num;
+    }else{
+        syscall_num = instr.syscall_num;
+    }
+
+    node_t n, syscall_node;
+    int arg_regs[6] = {X86_EBX, X86_ECX, X86_EDX, X86_ESI, X86_EDI, X86_EBP};
+
+    if( instr.args.size() > 6 )
+        throw compiler_exception("X86 syscalls can not take more than 6 arguments");
+    else if( def_by_name && instr.args.size() != def->nb_args ){
+        throw compiler_exception(QuickFmt() << "Syscall " << def->name << "() expects " << std::dec << 
+                def->nb_args << " arguments (got " << instr.args.size() << ")" >> QuickFmt::to_str );
+    }
+
+    // Add the syscall node (we put syscall since "sysenter" are added as "syscall" gadgets in 32 bits)
+    syscall_node = graph.new_node(GadgetType::SYSCALL);
+
+    // Add nodes to put the first 6 args in registers
+    for( int i = 0; i < 6 && (i < instr.args.size()-PARAM_SYSCALL_ARGS); i++){
+        // Set register that must hold the argument
+        if( instr.args_type[PARAM_SYSCALL_ARGS+i] == IL_FUNC_ARG_CST ){
+            n = graph.new_node(GadgetType::MOV_CST);
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].make_reg(arg_regs[i]);
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].is_data_link = true; // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_SYSCALL_ARGS+i], graph.new_name("syscall_arg"));
+        }else{
+            n = graph.new_node(GadgetType::MOV_REG);
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].make_reg(arg_regs[i]);
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].is_data_link = true; // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVREG_SRC_REG].make_reg(instr.args[PARAM_SYSCALL_ARGS+i]);
+            graph.nodes[n].params[PARAM_MOVREG_SRC_REG].is_data_link = true; // src_reg not be clobbered before being passed as argument
+        }
+        graph.nodes[n].branch_type = BranchType::RET;
+        graph.add_strategy_edge(n, syscall_node);
+    }
+
+    // Add node to put syscall number in eax
+    n = graph.new_node(GadgetType::MOV_CST);
+    graph.nodes[n].branch_type = BranchType::RET;
+    graph.add_strategy_edge(n, syscall_node);
+    graph.nodes[n].params[PARAM_MOVCST_DST_REG].make_reg(X86_EAX);
+    graph.nodes[n].params[PARAM_MOVCST_DST_REG].is_data_link = true; // Must not be clobbred until call
+    graph.nodes[n].params[PARAM_MOVCST_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+    graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(syscall_num, graph.new_name("syscall_num"));
+
+    return true;
+}
+
+bool ROPCompiler::_x64_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruction& instr){
+    // Get syscall def for this syscall
+    SyscallDef* def;
+    bool def_by_name;
+    int syscall_num;
+    
+    def_by_name = !instr.syscall_name.empty();
+    
+    if( def_by_name ){
+        def = get_syscall_def(ArchType::X64, System::LINUX, instr.syscall_name);
+        if( def == nullptr ){
+            throw compiler_exception(QuickFmt() << "Syscall '" << instr.syscall_name << "' is not supported");
+        }
+        syscall_num = def->num;
+    }else{
+        syscall_num = instr.syscall_num;
+    }
+
+    node_t n, syscall_node;
+    int arg_regs[6] = {X64_RDI, X64_RSI, X64_RDX, X64_R10, X64_R8, X64_R9};
+
+    if( instr.args.size() > 6 )
+        throw compiler_exception("X64 syscalls can not take more than 6 arguments");
+    else if( def_by_name && instr.args.size() != def->nb_args ){
+        throw compiler_exception(QuickFmt() << "Syscall " << def->name << "() expects " << std::dec << 
+                def->nb_args << " arguments (got " << instr.args.size() << ")" >> QuickFmt::to_str );
+    }
+
+    // Add the syscall node (we put syscall since "sysenter" are added as "syscall" gadgets in 32 bits)
+    syscall_node = graph.new_node(GadgetType::SYSCALL);
+
+    // Add nodes to put the first 6 args in registers
+    for( int i = 0; i < 6 && (i < instr.args.size()-PARAM_SYSCALL_ARGS); i++){
+        // Set register that must hold the argument
+        if( instr.args_type[PARAM_SYSCALL_ARGS+i] == IL_FUNC_ARG_CST ){
+            n = graph.new_node(GadgetType::MOV_CST);
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].make_reg(arg_regs[i]);
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].is_data_link = true; // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVCST_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_SYSCALL_ARGS+i], graph.new_name("syscall_arg"));
+        }else{
+            n = graph.new_node(GadgetType::MOV_REG);
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].make_reg(arg_regs[i]);
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].is_data_link = true; // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVREG_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+            graph.nodes[n].params[PARAM_MOVREG_SRC_REG].make_reg(instr.args[PARAM_SYSCALL_ARGS+i]);
+            graph.nodes[n].params[PARAM_MOVREG_SRC_REG].is_data_link = true; // src_reg not be clobbered before being passed as argument
+        }
+        graph.nodes[n].branch_type = BranchType::RET;
+        graph.add_strategy_edge(n, syscall_node);
+    }
+
+    // Add node to put syscall number in eax
+    n = graph.new_node(GadgetType::MOV_CST);
+    graph.nodes[n].branch_type = BranchType::RET;
+    graph.add_strategy_edge(n, syscall_node);
+    graph.nodes[n].params[PARAM_MOVCST_DST_REG].make_reg(X64_RAX);
+    graph.nodes[n].params[PARAM_MOVCST_DST_REG].is_data_link = true; // Must not be clobbred until call
+    graph.nodes[n].params[PARAM_MOVCST_DST_REG].add_dep(syscall_node, PARAM_MOVCST_DATA_LINK); // Must not be clobbred until call
+    graph.nodes[n].params[PARAM_MOVCST_SRC_CST].make_cst(syscall_num, graph.new_name("syscall_num"));
+
+    return true;
+}
+
+bool _string_to_integers(vector<cst_t>& integers, string& str, int arch_octets, Constraint* constraint){
+    // Assuming little endian
+    int i = 0, j; 
+    cst_t val;
+    unsigned char padding_byte = 0xff; // Default
+    
+    if( constraint != nullptr ){
+        try{
+            padding_byte = constraint->bad_bytes.get_valid_byte();
+        }catch(runtime_exception& e){
+            return false;
+        }
+    }
+
+    while( i < str.size() ){
+        val = 0;
+        for( j = 0; j < arch_octets && i < str.size(); j++){
+            val += ((cst_t)str[i++]) << (j*8);
+        }
+        // Check if full value
+        if( j != arch_octets ){
+            // Adjust value
+            for( ; j < arch_octets; j++){
+                val += ((cst_t)padding_byte) << (j*8);
+            }
+        }
+        integers.push_back(val);
+    }
+    return true;
+}
+
+bool _cst_store_cst_to_strategy(StrategyGraph& graph, ILInstruction& instr, Arch* arch){
+    node_t n1 = graph.new_node(GadgetType::STORE);
+    node_t n2 = graph.new_node(GadgetType::MOV_CST);
+    node_t n3 = graph.new_node(GadgetType::MOV_CST);
+    Node& node1 = graph.nodes[n1];
+    Node& node2 = graph.nodes[n2];
+    Node& node3 = graph.nodes[n3];
+    node1.branch_type = BranchType::RET;
+    node2.branch_type = BranchType::RET;
+    node3.branch_type = BranchType::RET;
+    // First node is mem(X + C) <- reg
+    // Second is X <- src_cst - C 
+    node1.params[PARAM_STORE_SRC_REG].make_reg(-1, false); // Free reg
+    node1.params[PARAM_STORE_DST_ADDR_REG].make_reg(-1, false); // Free
+    node1.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(-1, graph.new_name("offset"), false);
+    node1.strategy_constraints.push_back(
+        // Can not adjust the addr_reg if it is the same as the reg that must be written
+        // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
+        [](Node* n, StrategyGraph* g, Arch* arch)->bool{
+            return n->params[PARAM_STORE_DST_ADDR_REG].value != n->params[PARAM_STORE_SRC_REG].value;
+        }
+    );
+    node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_STORE_DST_ADDR_REG);
+    
+    node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
+    node2.params[PARAM_MOVCST_DST_REG].is_data_link = true;
+    node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_STORE_DST_ADDR_OFFSET, 
+        instr.args[PARAM_CSTSTORECST_DST_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_STORE_DST_ADDR_OFFSET].name)
+        , graph.new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
+    
+    node3.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_SRC_REG);
+    node3.params[PARAM_MOVCST_DST_REG].is_data_link = true;
+    node3.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_CSTSTORECST_SRC_CST], graph.new_name("cst"));
+
+    graph.add_param_edge(n2, n1);
+    graph.add_strategy_edge(n2, n1);
+    graph.add_param_edge(n3, n1);
+    graph.add_strategy_edge(n3, n1);
+    
+    return true;
+}
+
+
+bool _preprocess_cst_store_string(vector<ILInstruction>& dst, ILInstruction& instr, Arch* arch, Constraint* constraint){
+    vector<cst_t> integers;
+
+    if( !_string_to_integers(integers, instr.str, arch->octets, constraint)){
+        return false;
+    }
+    // For each integer, add node to store it to the correct address :)
+    for( int i = 0; i < integers.size(); i++ ){
+        cst_t addr_offset = instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] + (i*arch->octets);
+        cst_t src_cst = integers[i];
+        vector<cst_t> store_cst_args = {addr_offset, src_cst};
+        ILInstruction il_instr = ILInstruction(ILInstructionType::CST_STORE_CST, &store_cst_args);
+        dst.push_back(il_instr);
+    }
+    return true;
+}
+
+bool ROPCompiler::preprocess(vector<ILInstruction>& dst, vector<ILInstruction>& src, Constraint* constraint){
+    for( ILInstruction& instr : src ){
+        if( instr.type == ILInstructionType::CST_STORE_STRING ){
+            // Splite a store string into several smaller ones
+            if( ! _preprocess_cst_store_string(dst, instr, arch, constraint))
+                return false;
+        }else{
+            // Just copy it
+            dst.push_back(instr);
+        }
+    }
+    return true;
+}
+
+
+void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& instr, Constraint* constraint, ABI abi, System system){
     StrategyGraph* graph;
     if( instr.type == ILInstructionType::MOV_CST ){
         // MOV_CST
@@ -588,7 +855,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node1.strategy_constraints.push_back(
             // Can not adjust the addr_reg if it is the same as the reg that must be written
             // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
-            [](Node* n, StrategyGraph* g)->bool{
+            [](Node* n, StrategyGraph* g, Arch* arch)->bool{
                 return n->params[PARAM_STORE_DST_ADDR_REG].value != n->params[PARAM_STORE_SRC_REG].value;
             }
         );
@@ -638,7 +905,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node1.strategy_constraints.push_back(
             // Can not adjust the addr_reg if it is the same as the reg that must be written
             // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
-            [](Node* n, StrategyGraph* g)->bool{
+            [](Node* n, StrategyGraph* g, Arch * arch)->bool{
                 return n->params[PARAM_ASTORE_DST_ADDR_REG].value != n->params[PARAM_ASTORE_SRC_REG].value;
             }
         );
@@ -678,45 +945,9 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
     }else if( instr.type == ILInstructionType::CST_STORE_CST ){
         // CST_STORE_CST
         graph = new StrategyGraph();
-        node_t n1 = graph->new_node(GadgetType::STORE);
-        node_t n2 = graph->new_node(GadgetType::MOV_CST);
-        node_t n3 = graph->new_node(GadgetType::MOV_CST);
-        Node& node1 = graph->nodes[n1];
-        Node& node2 = graph->nodes[n2];
-        Node& node3 = graph->nodes[n3];
-        node1.branch_type = BranchType::RET;
-        node2.branch_type = BranchType::RET;
-        node3.branch_type = BranchType::RET;
-        // First node is mem(X + C) <- reg
-        // Second is X <- src_cst - C 
-        node1.params[PARAM_STORE_SRC_REG].make_reg(-1, false); // Free reg
-        node1.params[PARAM_STORE_DST_ADDR_REG].make_reg(-1, false); // Free
-        node1.params[PARAM_STORE_DST_ADDR_OFFSET].make_cst(-1, graph->new_name("offset"), false);
-        node1.strategy_constraints.push_back(
-            // Can not adjust the addr_reg if it is the same as the reg that must be written
-            // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
-            [](Node* n, StrategyGraph* g)->bool{
-                return n->params[PARAM_STORE_DST_ADDR_REG].value != n->params[PARAM_STORE_SRC_REG].value;
-            }
-        );
-        node1.node_assertion.valid_pointers.add_valid_pointer(PARAM_STORE_DST_ADDR_REG);
-        
-        node2.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_DST_ADDR_REG); // node2 X is same as addr reg in node1
-        node2.params[PARAM_MOVCST_DST_REG].is_data_link = true;
-        node2.params[PARAM_MOVCST_SRC_CST].make_cst(n1, PARAM_STORE_DST_ADDR_OFFSET, 
-            instr.args[PARAM_CSTSTORECST_DST_ADDR_OFFSET] - exprvar(arch->bits, node1.params[PARAM_STORE_DST_ADDR_OFFSET].name)
-            , graph->new_name("cst")); // node2 cst is the target const C minus the offset in the node1 load
-        
-        node3.params[PARAM_MOVCST_DST_REG].make_reg(n1, PARAM_STORE_SRC_REG);
-        node3.params[PARAM_MOVCST_DST_REG].is_data_link = true;
-        node3.params[PARAM_MOVCST_SRC_CST].make_cst(instr.args[PARAM_CSTSTORECST_SRC_CST], graph->new_name("cst"));
-
-        graph->add_param_edge(n2, n1);
-        graph->add_strategy_edge(n2, n1);
-        graph->add_param_edge(n3, n1);
-        graph->add_strategy_edge(n3, n1);
-
-        graphs.push_back(graph);
+        if( _cst_store_cst_to_strategy(*graph, instr, arch)){
+            graphs.push_back(graph);
+        }
     }else if( instr.type == ILInstructionType::ASTORE_CST ){
         // ASTORE_CST
         graph = new StrategyGraph();
@@ -762,7 +993,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         node1.strategy_constraints.push_back(
             // Can not adjust the addr_reg if it is the same as the reg that must be written
             // (i.e mov [ecx+8], ecx can't become mov [0x12345678], ecx
-            [](Node* n, StrategyGraph* g)->bool{
+            [](Node* n, StrategyGraph* g, Arch* arch)->bool{
                 return n->params[PARAM_ASTORE_DST_ADDR_REG].value != n->params[PARAM_ASTORE_SRC_REG].value;
             }
         );
@@ -786,7 +1017,7 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         graphs.push_back(graph);
     }else if( instr.type == ILInstructionType::FUNCTION ){
         graph = new StrategyGraph();
-        bool success = true;
+        bool success = false;
         switch( abi ){
             case ABI::X86_CDECL: success = _x86_cdecl_to_strategy(*graph, instr); break;
             case ABI::X86_STDCALL: success = _x86_stdcall_to_strategy(*graph, instr); break;
@@ -795,6 +1026,29 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
             case ABI::NONE: throw compiler_exception("You have to specify which ABI to use to call functions");
             default:
                 throw compiler_exception("Unsupported ABI when calling function");
+        }
+        if( !success ){
+            throw compiler_exception("Couldn't translate function call into a chaining strategy");
+        }
+        graphs.push_back(graph);
+    }else if( instr.type == ILInstructionType::SYSCALL ){
+        graph = new StrategyGraph();
+        bool success = false;
+        if( system == System::NONE ){
+            throw compiler_exception("Target OS must be specified to compile syscalls");
+        }
+        if( arch->type == ArchType::X86 ){
+            switch( system ){
+                case System::LINUX: success = _x86_linux_syscall_to_strategy(*graph, instr); break;
+                default: throw compiler_exception("Syscalls are not supported for this system on X86");
+            }
+        }else if( arch->type == ArchType::X64 ){
+            switch( system ){
+                case System::LINUX: success = _x64_linux_syscall_to_strategy(*graph, instr); break;
+                default: throw compiler_exception("Syscalls are not supported for this system on X64");
+            }
+        }else{
+            throw runtime_exception("Syscalls are not supported for this architecture");
         }
         if( !success ){
             throw compiler_exception("Couldn't translate function call into a chaining strategy");

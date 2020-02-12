@@ -5557,6 +5557,24 @@ inline void x86_sub_d(CPUMode mode, cs_insn* instr, addr_t addr, IRBlock* block,
     return;
 }
 
+inline void x86_syscall_d(CPUMode mode, cs_insn* instr, addr_t addr, IRBlock* block, IRBasicBlockId& bblkid , int& tmp_var_count){
+    IROperand pc, type, next_pc;
+    
+    if( mode == CPUMode::X86 ){
+        throw unsupported_instruction_exception("SYSCALL: not supported in X86 mode");
+    }
+
+    /* Get operands */
+    pc = x86_get_pc(mode);
+    next_pc = ir_tmp(tmp_var_count++, pc.size-1, 0); 
+    block->add_instr(bblkid, ir_add(next_pc, pc, ir_cst(instr->size, pc.size-1, 0), addr));
+    type = ir_cst(SYSCALL_X64_SYSCALL, 63, 0);
+    
+    /* Create interrupt */
+    block->add_instr(bblkid, ir_syscall(type, next_pc, addr));
+    return;
+}
+
 inline void x86_sysenter_d(CPUMode mode, cs_insn* instr, addr_t addr, IRBlock* block, IRBasicBlockId& bblkid , int& tmp_var_count){
     IROperand pc, type, next_pc;
     
@@ -5875,6 +5893,7 @@ IRBlock* DisassemblerX86::disasm_block(addr_t addr, code_t code, size_t code_siz
             case X86_INS_STOSW:     x86_stosw_d(_mode, _insn, curr_addr, block, bblkid, tmp_var_count); break;
             case X86_INS_SUB:       x86_sub_d(_mode, _insn, curr_addr, block, bblkid, tmp_var_count); break;
             case X86_INS_SYSENTER:  x86_sysenter_d(_mode, _insn, curr_addr, block, bblkid, tmp_var_count); break;
+            case X86_INS_SYSCALL:   x86_syscall_d(_mode, _insn, curr_addr, block, bblkid, tmp_var_count); break;
             case X86_INS_TEST:      x86_test_d(_mode, _insn, curr_addr, block, bblkid, tmp_var_count); break;
             case X86_INS_XADD:      x86_xadd_d(_mode, _insn, curr_addr, block, bblkid, tmp_var_count); break;
             case X86_INS_XCHG:      x86_xchg_d(_mode, _insn, curr_addr, block, bblkid, tmp_var_count); break;

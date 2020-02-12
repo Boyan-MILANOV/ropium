@@ -66,6 +66,7 @@ ostream& operator<<(ostream& os, IROperation& op);
 /* Values for syscalls */
 #define SYSCALL_X86_INT80 1
 #define SYSCALL_X86_SYSENTER 2
+#define SYSCALL_X64_SYSCALL 3
 
 
 /* IR Operations 
@@ -228,6 +229,8 @@ public:
     cst_t max_sp_inc;
     bool known_max_sp_inc;
     bool dereferenced_regs[128];
+    bool ends_with_syscall;
+    bool ends_with_int80;
 
     addr_t branch_target[2]; // [0]: target when condition expression is 0
                              // [1]: target when condition expression is != 0

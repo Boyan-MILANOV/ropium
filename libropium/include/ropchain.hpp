@@ -14,7 +14,9 @@ using std::string;
 enum class BranchType{
     RET,
     JMP,
-    ANY,
+    ANY, // Any of RET or JMP, not SYSCALL or INT80
+    SYSCALL,
+    INT80,
     NONE,
 };
 
@@ -75,6 +77,7 @@ public:
     void add_gadget(addr_t addr, Gadget* gadget);
     void add_padding(cst_t val, string m="");
     void add_gadget_address(cst_t addr, string m = "");
+    void add_chain(ROPChain& other);
     int len();
     void print_pretty(ostream& os, string tab="");
     void print_python(ostream& os, string tab="");

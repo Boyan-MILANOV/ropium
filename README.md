@@ -14,7 +14,9 @@ Key features:
    - **Effortless**: ROPium works out-of-the-box with a smooth Command Line Interface
    - **Python API**: It is easy to integrate ROPium in script thanks to its python API
    - **Automatic chaining**: ROPium automatically combines gadgets to create complex ROP-chains
-   - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``[rdi+0x20]=rax``, ``rsi=[rbx+16]``, ``0x08040212(1, 2, rax)``, ``...``
+   - **Advanced features**: ROPium supports function calls for various ABIs, syscalls, ...
+   - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``[rdi+0x20]=rax``, ``rsi=[rbx+16]``, ``0x08040212(1, 2, rax)``, ``sys_execve(0xdeadbeef, 0, 0)``, ``sys_0x1(0)``, ``...``
+
 
 # Content
 - [About](#about)
@@ -104,6 +106,12 @@ rop.keep_regs = ['rsi', 'rdx']
 # Enable/Forbid ropchain to dereference registers that might hold invalid addresses
 # Safe mode is 'True' by default
 rop.safe_mem = False
+
+# Specify which ABI you want to use when calling functions
+rop.abi = ABI.X86_CDECL
+
+# Specify which system to target when doing syscalls
+rop.os = OS.LINUX
 ```
 
 # Docker

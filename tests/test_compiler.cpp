@@ -153,6 +153,48 @@ namespace test{
             // Test src transitivity
             ropchain = comp.compile(" [ebx+8] =  ebp");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            
+            // Test adjust store
+            ropchain = comp.compile(" [eax+8] =  ecx");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+
+            return nb;
+        }
+        
+        unsigned int store_string(){
+            unsigned int nb = 0;
+            
+            ArchX86 arch;
+            GadgetDB db;
+            ROPCompiler comp = ROPCompiler(&arch, &db);
+            ROPChain* ropchain;
+            Constraint constr;
+            constr.bad_bytes.add_bad_byte(0xff);
+
+            // Available gadgets
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x89\xf9\xbb\x01\x00\x00\x00\xc3", 8), 1)); // mov ecx, edi; mov ebx, 1; ret
+            raw.push_back(RawGadget(string("\x89\xC8\xC3", 3), 2)); // mov eax, ecx; ret
+            raw.push_back(RawGadget(string("\x89\xC3\xC3", 3), 3)); // mov ebx, eax; ret
+            raw.push_back(RawGadget(string("\xb9\xad\xde\x00\x00\xc3", 6), 4)); // mov ecx, 0xdead; ret
+            raw.push_back(RawGadget(string("\x5f\x5e\x59\xc3", 4), 5)); // pop edi; pop esi; pop ecx; ret
+            raw.push_back(RawGadget(string("\x89\xE8\xFF\xE6", 4), 6)); // mov eax, ebp; jmp esi
+            raw.push_back(RawGadget(string("\x89\xF1\xFF\xE0", 4), 7)); // mov ecx, esi; jmp eax
+            raw.push_back(RawGadget(string("\x5A\x59\xC3", 3), 8)); // pop edx; pop ecx; ret
+            raw.push_back(RawGadget(string("\x8B\x40\x08\xC3", 4), 9)); // mov eax, [eax + 8]; ret
+            raw.push_back(RawGadget(string("\x8D\x4B\x08\xC3", 4), 10)); // lea ecx, [ebx + 8]; ret
+            raw.push_back(RawGadget(string("\x8D\x40\x20\xFF\xE1", 5), 11)); // lea eax, [eax + 32]; jmp ecx;
+            raw.push_back(RawGadget(string("\x89\x43\x08\xC3", 4), 12)); // mov [ebx + 8], eax; ret
+
+            db.analyse_raw_gadgets(raw, &arch);
+
+            // Test adjust store
+            ropchain = comp.compile(" [0x1234] =  'lala'");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+            
+            ropchain = comp.compile(" [0x1234] =  'lalatotoo\\x00'");
+            nb += _assert_ropchain(ropchain, "Failed to find ropchain");
+
             return nb;
         }
         
@@ -285,6 +327,78 @@ namespace test{
 
             return nb;
         }
+
+        unsigned int syscall_x86(){
+            unsigned int nb = 0;
+            ArchX86 arch;
+            GadgetDB db;
+            ROPCompiler comp = ROPCompiler(&arch, &db);
+            ROPChain* ropchain;
+            Constraint constr;
+            constr.bad_bytes.add_bad_byte(0xff);
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x58\xC3", 2), 1)); // pop eax; ret
+            raw.push_back(RawGadget(string("\x5B\xC3", 2), 2)); // pop ebx; ret
+            raw.push_back(RawGadget(string("\x83\xC5\x20\x0F\x34", 5), 3)); // add ebp, 32; sysenter
+            raw.push_back(RawGadget(string("\x59\xC3", 2), 4)); // pop ecx; ret
+            raw.push_back(RawGadget(string("\x59\x5A\xC3", 3), 5)); // pop ecx; pop edx; ret
+            raw.push_back(RawGadget(string("\x58\x89\xC6\xC3", 4), 6)); // pop eax; mov esi, eax; ret
+            raw.push_back(RawGadget(string("\x89\xDA\xC3", 3), 7)); // mov edx, ebx; ret
+            db.analyse_raw_gadgets(raw, &arch);
+
+            // X86 Linux
+            ropchain = comp.compile(" sys_exit(1)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            ropchain = comp.compile(" sys_execve( 3, 2, 1)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            ropchain = comp.compile(" sys_execve( 3, 2, ebx)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            ropchain = comp.compile(" sys_ptrace( 3, 2, 1, 2)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            ropchain = comp.compile("  sys_123(1, 2, 3) ", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            return nb;
+        }
+        
+        unsigned int syscall_x64(){
+            unsigned int nb = 0;
+            ArchX64 arch;
+            GadgetDB db;
+            ROPCompiler comp = ROPCompiler(&arch, &db);
+            ROPChain* ropchain;
+            Constraint constr;
+            constr.bad_bytes.add_bad_byte(0xff);
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x58\xC3", 2), 1)); // pop rax; ret
+            raw.push_back(RawGadget(string("\x5F\xC3", 2), 2)); // pop rdi; ret
+            raw.push_back(RawGadget(string("\x83\xC5\x20\x0F\x05", 5), 3)); // add ebp, 32; syscall
+            raw.push_back(RawGadget(string("\x5E\xC3", 2), 4)); // pop rsi; ret
+            raw.push_back(RawGadget(string("\x59\x5A\xC3", 3), 5)); // pop rcx; pop rdx; ret
+            raw.push_back(RawGadget(string("\x58\x48\x89\xC6\xC3", 5), 6)); // pop rax; mov rsi, rax; ret
+            raw.push_back(RawGadget(string("\x48\x89\xF2\xC3", 4), 7)); // mov rdx, rsi; ret
+            db.analyse_raw_gadgets(raw, &arch);
+
+            // X64 Linux
+            ropchain = comp.compile(" sys_exit(1)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+            
+            ropchain = comp.compile(" sys_execve(1, 2, 3)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+            
+            ropchain = comp.compile(" sys_execve(1, 2, rsi)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            ropchain = comp.compile(" sys_0x42(1, 2, rsi)", nullptr, ABI::NONE, System::LINUX);
+            nb += _assert_ropchain(ropchain, "Couldn't build ropchain to make syscall");
+
+            return nb;
+        }
+        
     }
 }
 
@@ -302,6 +416,9 @@ void test_compiler(){
     total += indirect_match();
     total += function_call_x86();
     total += function_call_x64();
+    total += syscall_x86();
+    total += syscall_x64();
+    total += store_string();
     total += incorrect_match();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;
