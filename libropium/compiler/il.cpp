@@ -101,6 +101,65 @@ bool _parse_il_reg(Arch& arch, vector<cst_t>& args, string& str, int& idx){
         return false;
 }
 
+bool _parse_il_string( string& res, string& str, int& idx){
+    int i = idx;
+    string s = "";
+    char delimiter;
+
+    _skip_whitespace(str, i);
+    
+    // Check if starts with strin delimiter " or '
+    if( str.size() - i < 2 )
+        return false;
+    if( str[i] == '\'' ){
+        delimiter = '\'';
+    }else if( str[i] == '"'){
+        delimiter = '"';
+    }else{
+        return false;
+    }
+    // Get string
+    i++;
+    while( i < str.size() && str[i] != delimiter){
+        if( str[i] == '\\' ){
+            // Escape sequence
+            // Escapes '\' ? 
+            if( i+1 >= str.size() ){
+                return false;
+            }else if( str[i+1] == '\\' ){
+                s += '\\';
+                i += 2;
+            }
+            // Escapes delimiter ?
+            else if( str[i+1] == delimiter ){
+                s += delimiter;
+                i += 2;
+            }
+            // Escapes a hex byte ? '\x...'
+            else if( i+3 >= str.size() ){
+                return false;
+            }else if( str[i+1] == 'x' && isxdigit(str[i+2]) && isxdigit(str[i+3])){
+                unsigned int byte = std::stoul(str.substr(i+2, 2), nullptr, 16);
+                s += (char)byte;
+                i += 4;
+            }else{
+                return false;
+            }
+        }else{
+            // Normal char
+            s += str[i++];
+        }
+    }
+    // Check and return
+    if( i == str.size() )
+        return false; // No end delimiter found
+    else{
+        res = s;
+        idx = ++i; // Increment i to make it point after the last delimiter
+        return true;
+    }
+}
+
 bool _parse_il_affect(string& str, int& idx){
     _skip_whitespace(str, idx);
     if( idx >= str.size())
@@ -153,7 +212,6 @@ bool _parse_il_function_args_list(Arch& arch, vector<cst_t>& args, vector<int>& 
         return true;
     }
 }
-
 
 // (arg1, arg2, arg3, ... )
 // or just ()
@@ -583,6 +641,25 @@ bool _parse_il_cst_astore_cst(Arch& arch, ILInstruction* instr, string& str){
 }
 
 
+bool _parse_il_cst_store_string(Arch& arch, ILInstruction* instr, string& str){
+    int idx = 0;
+    vector<cst_t> args;
+    string s;
+    if  (_parse_il_mem_start(str, idx) &&
+         _parse_il_cst(arch, args, str, idx) &&
+        _parse_il_mem_end(str, idx) &&
+        _parse_il_affect(str, idx) &&
+        _parse_il_string(s, str, idx) &&
+        _parse_end(str, idx))
+    {
+        instr->args = args;
+        instr->str = s;
+        instr->type = ILInstructionType::CST_STORE_STRING;
+        return true;
+    }
+    return false;
+}
+
 bool _parse_il_function(Arch& arch, ILInstruction* instr, string& str){
     int idx = 0;
     vector<cst_t> args;
@@ -662,6 +739,7 @@ bool _parse_il_instruction(Arch& arch, ILInstruction* instr, string& str){
             _parse_il_cst_store_cst(arch, instr, str) ||
             _parse_il_astore_cst(arch, instr, str) ||
             _parse_il_cst_astore_cst(arch, instr, str) ||
+            _parse_il_cst_store_string(arch, instr, str) ||
             _parse_il_function(arch, instr, str) ||
             _parse_il_syscall(arch, instr, str);
 }

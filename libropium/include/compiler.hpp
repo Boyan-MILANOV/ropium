@@ -46,7 +46,7 @@ public:
     CompilerTask(Arch* arch);
     vector<StrategyGraph*> pending_strategies;
     void add_strategy(StrategyGraph* graph, int max_tries);
-    ROPChain* compile(Arch* arch, GadgetDB* db, Constraint* constraint=nullptr, int nb_tries=3000); // DEBUG 
+    ROPChain* compile(Arch* arch, GadgetDB* db, Constraint* constraint=nullptr, int nb_tries=3000); 
     ~CompilerTask();
 };
 

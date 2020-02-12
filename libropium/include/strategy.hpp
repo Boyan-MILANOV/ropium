@@ -320,6 +320,7 @@ public:
 #define PARAM_INT80_DATA_LINK 4
 #define NB_PARAM_INT80 5
 
+#define PARAM_CSTSTORE_STRING_ADDR_OFFSET 0
 
 typedef struct {
     Param offset;

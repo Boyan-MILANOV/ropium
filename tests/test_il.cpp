@@ -323,7 +323,36 @@ namespace test{
             nb += _assert(instr.args[PARAM_SYSCALL_ARGS+0] == X86_EAX, "Failed to parse IL Instruction");
             nb += _assert(instr.args_type[PARAM_SYSCALL_ARGS+0] == IL_FUNC_ARG_REG, "Failed to parse IL Instruction");
 
+            // cst_store_string
+            str = " [6789] = 'lala'";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
+            nb += _assert(instr.str == "lala", "Failed to parse IL Instruction");
 
+            str = " [6789] = 'lal\\\\a'";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
+            nb += _assert(instr.str == "lal\\a", "Failed to parse IL Instruction");
+            
+            str = " [6789] = 'lal\\'a'";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
+            nb += _assert(instr.str == "lal'a", "Failed to parse IL Instruction");
+                
+            str = " [6789] = 'lal\\x41\\x42a'";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
+            nb += _assert(instr.str == "lalABa", "Failed to parse IL Instruction");
+
+            str = " [6789] = \"\"";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 6789, "Failed to parse IL Instruction");
+            nb += _assert(instr.str == "", "Failed to parse IL Instruction");
 
             return nb;
         }
