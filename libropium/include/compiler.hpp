@@ -5,8 +5,9 @@
 #include "il.hpp"
 #include "database.hpp"
 #include "systems.hpp"
+#include <list>
 
-using std::vector;
+using std::list;
 
 
 enum class ABI{
@@ -39,13 +40,13 @@ enum class ABI{
 */
 
 class CompilerTask{
-    void apply_rules_to_graph(StrategyGraph* graph);
+    void apply_rules_to_graph(StrategyGraph* graph, int max_tries);
     Arch * arch;
 public:
     CompilerTask(Arch* arch);
     vector<StrategyGraph*> pending_strategies;
-    void add_strategy(StrategyGraph* graph);
-    ROPChain* compile(Arch* arch, GadgetDB* db, Constraint* constraint=nullptr, int nb_tries=1000);
+    void add_strategy(StrategyGraph* graph, int max_tries);
+    ROPChain* compile(Arch* arch, GadgetDB* db, Constraint* constraint=nullptr, int nb_tries=3000); // DEBUG 
     ~CompilerTask();
 };
 

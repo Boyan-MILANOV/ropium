@@ -6,8 +6,13 @@
 /* ============= Compiler Task ============ */
 CompilerTask::CompilerTask(Arch* a):arch(a){}
 
-void CompilerTask::add_strategy(StrategyGraph* graph){
+void CompilerTask::add_strategy(StrategyGraph* graph, int max_tries){
     vector<StrategyGraph*>::iterator g;
+    if( pending_strategies.size() >= max_tries && pending_strategies.front()->size < graph->size ){
+        // If strategy list is already full with smaller strategies, ignore this one
+        delete graph;
+        return;
+    }
     for( g = pending_strategies.begin();
          g != pending_strategies.end() && (*g)->size >= graph->size;
          g++ ){}
@@ -25,7 +30,7 @@ ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, Constraint* constraint
             res = graph->get_ropchain(arch, constraint);
         }else{
             // Apply strategy rules to the graph to get new candidate strategies
-            apply_rules_to_graph(graph);
+            apply_rules_to_graph(graph, nb_tries);
         }
         delete graph; graph = nullptr;
     }
@@ -33,9 +38,17 @@ ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, Constraint* constraint
 }
 
 
-void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
+void CompilerTask::apply_rules_to_graph(StrategyGraph* graph, int max_tries){
     StrategyGraph* new_graph;
     vector<StrategyGraph*> new_list;
+
+    if( pending_strategies.size() >= max_tries &&
+            graph->size >= pending_strategies.front()->size -1){
+        // If strategy list already full and the graph to which applying
+        // rules is smaller than the max node by one node, then the generated
+        // graphs won't be added to the list. So we can skip generating graphs.
+        return;
+    }
 
     // Iterate through all nodes of the graph
     for( Node& node : graph->nodes ){
@@ -45,32 +58,32 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph){
         // Generic transitivity
         new_graph = graph->copy();
         if( new_graph->rule_generic_transitivity(node.id)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             new_graph = graph->copy();
         }
         // MovCst pop
         if( new_graph->rule_mov_cst_pop(node.id, arch)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             new_graph = graph->copy();
         }
         // Generic adjust_jmp
         if( new_graph->rule_generic_adjust_jmp(node.id, arch)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             new_graph = graph->copy();
         }
         // Adjust load
         if( new_graph->rule_adjust_load(node.id, arch)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             new_graph = graph->copy();
         }
         // Generic src reg transitivity
         if( new_graph->rule_generic_src_transitivity(node.id)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             new_graph = graph->copy();
         }
         // Adjust store
         if( new_graph->rule_adjust_store(node.id, arch)){
-            add_strategy(new_graph);
+            add_strategy(new_graph, max_tries);
             // Put new_graph = graph->copy() when adding more strategies
         }else{
             delete new_graph; new_graph = nullptr;
