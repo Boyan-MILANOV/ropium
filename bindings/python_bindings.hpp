@@ -42,6 +42,8 @@ PyObject* ropium_ROPium(PyObject* self, PyObject* args);
  *                   ROPChain
  *  -------------------------------------------------- */
 
+void init_ropchain(PyObject* module);
+
 typedef struct{
     PyObject_HEAD
     ROPChain* ropchain;

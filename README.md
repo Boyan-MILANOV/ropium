@@ -15,7 +15,7 @@ Key features:
    - **Python API**: It is easy to integrate ROPium in script thanks to its python API
    - **Automatic chaining**: ROPium automatically combines gadgets to create complex ROP-chains
    - **Advanced features**: ROPium supports function calls for various ABIs, syscalls, ...
-   - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``[rdi+0x20]=rax``, ``rsi=[rbx+16]``, ``0x08040212(1, 2, rax)``, ``sys_execve(0xdeadbeef, 0, 0)``, ``sys_0x1(0)``, ``...``
+   - **Semantic queries**: ROPium queries are quick and convenient to write : ``rax=rbx+8``, ``[rdi+0x20]=rax``, ``rsi=[rbx+16]``, ``0x08040212(1, 2, rax)``, ``[0xdeadbeaf] = "/bin/sh\x00"``, ``sys_execve(0xdeadbeef, 0, 0)``, ``sys_0x1(0)``, ``...``
 
 
 # Content

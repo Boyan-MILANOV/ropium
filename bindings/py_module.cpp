@@ -25,5 +25,6 @@ PyMODINIT_FUNC PyInit_ropium(){
     PyObject* module = PyModule_Create(&ropium_module_def);
     
     init_arch(module);
+    init_ropchain(module);
     return module;
 }

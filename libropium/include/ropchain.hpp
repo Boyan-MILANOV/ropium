@@ -69,10 +69,10 @@ public:
 };
 
 class ROPChain{
-private:
+public:
     Arch *arch; // Not owned
     vector<ROPItem> items;
-public:
+
     ROPChain(Arch* arch);
     void add_gadget(addr_t addr, Gadget* gadget);
     void add_padding(cst_t val, string m="");

@@ -77,7 +77,7 @@ static PyMemberDef ropchain_members[] = {
     {NULL}
 };
 
-
+static PyNumberMethods ropchain_operators; // Empty PyNumberMethods, will be filled in the init function
 
 /* Type description for python Expr objects */
 PyTypeObject ropchain_Type = {
@@ -90,8 +90,8 @@ PyTypeObject ropchain_Type = {
     0,                                        /* tp_getattr */
     0,                                        /* tp_setattr */
     0,                                        /* tp_reserved */
-    ropchain_repr,                                        /* tp_repr */
-    0,                                        /* tp_as_number */
+    ropchain_repr,                            /* tp_repr */
+    &ropchain_operators,                      /* tp_as_number */
     0,                                        /* tp_as_sequence */
     0,                                        /* tp_as_mapping */
     0,                                        /* tp_hash  */
@@ -136,4 +136,24 @@ PyObject* Pyropchain_FromROPChain(ROPChain* chain){
         object->ropchain = chain;
     }
     return (PyObject*)object;
+}
+
+// Adding two ropchains
+/* Number methods & Various Constructors */
+static PyObject* ropchain_nb_add(PyObject* self, PyObject *other){
+    if( ! PyObject_IsInstance(other, (PyObject*)&(ropchain_Type))){
+        return PyErr_Format(PyExc_TypeError, "Mismatching types for operator '+'");
+    }
+    ROPChain * rop = new ROPChain(as_ropchain_object(self).ropchain->arch);
+    rop->add_chain(*(as_ropchain_object(self).ropchain));
+    rop->add_chain(*(as_ropchain_object(other).ropchain));
+    return Pyropchain_FromROPChain(rop);
+}
+
+/* -------------------------------------
+ *          Init function
+ * ------------------------------------ */
+void init_ropchain(PyObject* module){
+    /* Add number operators to ropchain */
+    ropchain_operators.nb_add = ropchain_nb_add;
 }

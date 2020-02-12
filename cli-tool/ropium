@@ -480,8 +480,12 @@ find_help += "\n\t [0x12345678] = ebx"
 find_help += "\n\t [0x12345678] = 0x42"
 find_help += "\n\t [0x12345678] &= ebx"
 find_help += "\n\t [0x12345678] &= 0x42"
+find_help += "\n\t [0x12345678] = '/bin/sh\x00'"
 find_help += "\n\t 0x08040120()"
 find_help += "\n\t 0x08040120(1, 2, 3, 4)"
+find_help += "\n\t sys_execve(0x1234, 0, 0) [syscall by name]"
+find_help += "\n\t sys_0xb(0x1234, 0, 0)    [syscall by num]"
+
 
 badbytes_help = str_main(str_bold("\n\t'badbytes' Command"))
 badbytes_help += str_special("\n\t(Set bad bytes to avoid in ropchains)")
