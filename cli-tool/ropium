@@ -251,7 +251,7 @@ def badbytes(args):
     if subcommand == "set":
         set_badbytes(args[1:])
     elif subcommand == "reset":
-        reset_bad_bytes(args[1:])
+        reset_badbytes(args[1:])
     else:
         raise ContextException(f"Unsupported action '{subcommand}'")
 
@@ -263,6 +263,8 @@ def str_to_byte(s):
             return int(s, 16)
         except:
             return None
+
+
 
 def set_badbytes(args):
     global bad_bytes

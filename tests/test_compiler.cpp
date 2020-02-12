@@ -192,10 +192,9 @@ namespace test{
             ropchain = comp.compile(" [0x1234] =  'lala'");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
             
-            ropchain = comp.compile(" [0x1234] =  'lalatoto'");
-            std::cout << "DEBUG " << *ropchain;
+            ropchain = comp.compile(" [0x1234] =  'lalatotoo\\x00'");
             nb += _assert_ropchain(ropchain, "Failed to find ropchain");
-            
+
             return nb;
         }
         

@@ -77,6 +77,7 @@ public:
     void add_gadget(addr_t addr, Gadget* gadget);
     void add_padding(cst_t val, string m="");
     void add_gadget_address(cst_t addr, string m = "");
+    void add_chain(ROPChain& other);
     int len();
     void print_pretty(ostream& os, string tab="");
     void print_python(ostream& os, string tab="");

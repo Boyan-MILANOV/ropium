@@ -18,6 +18,12 @@ void ROPChain::add_gadget_address(cst_t value, string msg){
     items.push_back(ROPItem(ROPItemType::GADGET_ADDRESS, value, msg));
 }
 
+void ROPChain::add_chain(ROPChain& other){
+    for( ROPItem& item : other.items ){
+        items.push_back(item);
+    }
+}
+
 int ROPChain::len(){
     return items.size();
 }

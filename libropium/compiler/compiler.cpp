@@ -91,11 +91,15 @@ void CompilerTask::apply_rules_to_graph(StrategyGraph* graph, int max_tries){
     }
 }
 
-CompilerTask::~CompilerTask(){
+void CompilerTask::clear(){
     for( StrategyGraph* g : pending_strategies ){
         delete g; g = nullptr;
     }
     pending_strategies.clear();
+}
+
+CompilerTask::~CompilerTask(){
+    clear();
 }
 
 
@@ -104,23 +108,38 @@ CompilerTask::~CompilerTask(){
 ROPCompiler::ROPCompiler(Arch* a, GadgetDB *d):arch(a), db(d){}
 
 ROPChain* ROPCompiler::compile(string program, Constraint* constraint, ABI abi, System system){
-    
+
+    vector<ILInstruction> final_instr;
     vector<ILInstruction> instr = parse(program); // This raises il_exception if malformed program
+    preprocess(final_instr, instr, constraint);
 
     // Add some general assertions
     if( constraint ){
         constraint->mem_safety.add_safe_reg(arch->sp()); // Stack pointer is always safe for RW
     }
-    
-    return process(instr, constraint, abi, system);
+
+    return process(final_instr, constraint, abi, system);
 }
 
 ROPChain* ROPCompiler::process(vector<ILInstruction>& instructions, Constraint* constraint, ABI abi, System system){
     CompilerTask task = CompilerTask(arch);
+    ROPChain * res = nullptr, *tmp = nullptr;
     for( ILInstruction& instr : instructions ){
+        task.clear();
         il_to_strategy(task.pending_strategies, instr, constraint, abi, system);
+        if( (tmp = task.compile(arch, db, constraint)) != nullptr){
+            if( !res )
+                res = tmp;
+            else{
+                res->add_chain(*tmp);
+                delete tmp; tmp = nullptr;
+            }
+        }else{
+            delete res;
+            return nullptr;
+        }
     }
-    return task.compile(arch, db, constraint);
+    return res;
 }
 
 bool _is_empty_line(string& s){
@@ -131,7 +150,7 @@ bool _is_empty_line(string& s){
     return true;
 }
 
-vector<ILInstruction> ROPCompiler::parse(string program){
+vector<ILInstruction> ROPCompiler::parse(string& program){
     size_t pos;
     string instr;
     vector<ILInstruction> res;
@@ -587,13 +606,13 @@ bool _string_to_integers(vector<cst_t>& integers, string& str, int arch_octets, 
     while( i < str.size() ){
         val = 0;
         for( j = 0; j < arch_octets && i < str.size(); j++){
-            val += ((int)str[i++]) << (j*8);
+            val += ((cst_t)str[i++]) << (j*8);
         }
         // Check if full value
         if( j != arch_octets ){
             // Adjust value
             for( ; j < arch_octets; j++){
-                val += padding_byte << (j*8);
+                val += ((cst_t)padding_byte) << (j*8);
             }
         }
         integers.push_back(val);
@@ -643,7 +662,8 @@ bool _cst_store_cst_to_strategy(StrategyGraph& graph, ILInstruction& instr, Arch
     return true;
 }
 
-bool _cst_store_string_to_strategy(StrategyGraph& graph, ILInstruction& instr, Arch* arch, Constraint* constraint){
+
+bool _preprocess_cst_store_string(vector<ILInstruction>& dst, ILInstruction& instr, Arch* arch, Constraint* constraint){
     vector<cst_t> integers;
 
     if( !_string_to_integers(integers, instr.str, arch->octets, constraint)){
@@ -655,8 +675,20 @@ bool _cst_store_string_to_strategy(StrategyGraph& graph, ILInstruction& instr, A
         cst_t src_cst = integers[i];
         vector<cst_t> store_cst_args = {addr_offset, src_cst};
         ILInstruction il_instr = ILInstruction(ILInstructionType::CST_STORE_CST, &store_cst_args);
-        if( ! _cst_store_cst_to_strategy(graph, il_instr, arch)){
-            return false;
+        dst.push_back(il_instr);
+    }
+    return true;
+}
+
+bool ROPCompiler::preprocess(vector<ILInstruction>& dst, vector<ILInstruction>& src, Constraint* constraint){
+    for( ILInstruction& instr : src ){
+        if( instr.type == ILInstructionType::CST_STORE_STRING ){
+            // Splite a store string into several smaller ones
+            if( ! _preprocess_cst_store_string(dst, instr, arch, constraint))
+                return false;
+        }else{
+            // Just copy it
+            dst.push_back(instr);
         }
     }
     return true;
@@ -1021,13 +1053,6 @@ void ROPCompiler::il_to_strategy(vector<StrategyGraph*>& graphs, ILInstruction& 
         if( !success ){
             throw compiler_exception("Couldn't translate function call into a chaining strategy");
         }
-        graphs.push_back(graph);
-    }else if( instr.type == ILInstructionType::CST_STORE_STRING ){
-        graph = new StrategyGraph();
-        if( ! _cst_store_string_to_strategy(*graph, instr, arch, constraint)){
-            throw compiler_exception("Couldn't translate string storage into a chaining strategy");
-        }
-        std::cout << "DEBUG compiler store string: " << *graph;
         graphs.push_back(graph);
     }else{
         throw runtime_exception("il_instruction_to_strategy(): unsupported ILInstructionType");

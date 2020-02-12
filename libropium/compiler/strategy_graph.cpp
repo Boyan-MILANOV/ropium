@@ -1062,8 +1062,7 @@ bool StrategyGraph::_do_scheduling(int interference_idx){
 
 bool StrategyGraph::schedule_gadgets(){
     bool success = false;
-    
-    std::cout << "DEBUG, doing scheduling ! " << std::endl;
+
     // Compute inteference points
     compute_interference_points();
     // Go through all interference points and try both possibilities
