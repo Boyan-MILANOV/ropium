@@ -1,5 +1,6 @@
 #include "python_bindings.hpp"
 #include <cstdio>
+#include <fstream>
 
 /* -------------------------------------
  *          ROPium object
@@ -16,11 +17,33 @@ static void ROPium_dealloc(PyObject* self){
 static PyObject* ROPium_load(PyObject* self, PyObject* args){
     const char* filename;
     int filename_len;
-    string gadget_file = string(".raw_gadgets.ropium");
+    int filenum = 0;
+    stringstream ss;
+    string gadget_file; 
+    int max_filenum = 0x7fffffff; 
+
     vector<RawGadget>* raw = nullptr;
 
     if( ! PyArg_ParseTuple(args, "s#", &filename, &filename_len) ){
         return NULL;
+    }
+
+    // Get available file to dump gadgets
+    for( filenum = 0; filenum < max_filenum; filenum++){
+        ss.str("");
+        ss << ".ropium_raw_gadgets." << filenum;
+        gadget_file = ss.str();
+        // Test if file exists
+        std::ifstream fin(gadget_file);
+        if( !fin ){
+            break; // File doesn't exist
+        }else{
+            fin.close(); // Try next filenum
+        }
+    }
+
+    if( filenum == max_filenum ){
+        return PyErr_Format(PyExc_RuntimeError, "Couldn't create new file where to dump gadgets");
     }
 
     try{
