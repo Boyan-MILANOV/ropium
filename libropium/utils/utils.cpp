@@ -88,7 +88,7 @@ bool ropgadget_to_file(string out, string bin){
     
     cmd << "ROPgadget --binary " << bin << " --dump --all --depth 5 " << std::endl; 
     try{
-        std::array<char, 128> buffer;
+        std::array<char, 256> buffer;
         string result;
         std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.str().c_str(), "r"), pclose);
         string addr_str, raw_str;

@@ -121,6 +121,7 @@ install_bindings:
 	install -D $(OUTDIR)/$(BINDINGS_FILE) $(PYTHONDIR)
 
 install_cli_tool:
+	install -d $(DESTDIR)$(PREFIX)/bin/
 	install -D cli-tool/ropium $(DESTDIR)$(PREFIX)/bin/
 
 print_install_message:
