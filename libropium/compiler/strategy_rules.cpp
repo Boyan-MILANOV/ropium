@@ -48,13 +48,17 @@ bool StrategyGraph::rule_generic_transitivity(node_t n){
     // Node2 same as node
     node2.branch_type = node.branch_type;
 
-    // Redirect input params arcs from node to node1
+    // Redirect dst reg (to node2) (and datalink of course)
+    redirect_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node2.get_param_num_dst_reg());
+    redirect_param_edges(node.id, node.get_param_num_data_link(), node2.id, node2.get_param_num_data_link());
+    redirect_param_edges(node.id, node.get_param_num_gadget_jmp_reg(), node2.id, node2.get_param_num_gadget_jmp_reg()); // If JMP
+    redirect_param_edges(node.id, node.get_param_num_gadget_sp_inc(), node2.id, node2.get_param_num_gadget_sp_inc()); // If JMP
+    redirect_param_edges(node.id, node.get_param_num_gadget_sp_delta(), node2.id, node2.get_param_num_gadget_sp_delta()); // If JMP
+
+    // Redirect other input params arcs from node to node1
     for( i = 0; i < MAX_PARAMS; i++){
         redirect_param_edges(node.id, i, node1.id, i);
     }
-    // Except dst reg (to node2) (and datalink of course)
-    redirect_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node2.get_param_num_dst_reg());
-    redirect_param_edges(node.id, node.get_param_num_data_link(), node2.id, node2.get_param_num_data_link());
 
     // Update param edges
     update_param_edges();
@@ -70,6 +74,11 @@ bool StrategyGraph::rule_generic_transitivity(node_t n){
     // Update size in the end
     update_size();
     
+    // Update graph history
+    stringstream ss;
+    ss << _history << "generic_transitivity(" << std::dec << n << ")" << std::endl;
+    _history = ss.str();
+
     return true;
 }
 
@@ -83,15 +92,19 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     if( nodes[n].type != GadgetType::MOV_CST ){
         return false;
     }
-    
+
+    if( nodes[n].branch_type == BranchType::JMP ){
+        return false;
+    }
+
     // Get/Create nodes
     node_t n1 = new_node(GadgetType::LOAD);
     Node& node = nodes[n];
     Node& node1 = nodes[n1];
-    
+
     // Node1 must have same return type than node
     node1.branch_type = node.branch_type;
-    
+
     // Node1 must have same special paddings than node
     node1.special_paddings = node.special_paddings;
 
@@ -148,6 +161,11 @@ bool StrategyGraph::rule_mov_cst_pop(node_t n, Arch* arch){
     
     // Update size in the end
     update_size();
+    
+    // Update graph history
+    stringstream ss;
+    ss << _history << "mov_cst_pop(" << std::dec << n << ")" << std::endl;
+    _history = ss.str();
     
     return true;
 }
@@ -241,6 +259,11 @@ bool StrategyGraph::rule_generic_adjust_jmp(node_t n, Arch* arch){
     // Update size in the end
     update_size();
 
+    // Update graph history
+    stringstream ss;
+    ss << _history << "generic_adjust_jmp(" << std::dec << n << ")" << std::endl;
+    _history = ss.str();
+
     return true;
 }
 
@@ -321,6 +344,11 @@ bool StrategyGraph::rule_adjust_load(node_t n, Arch* arch){
     // Update size in the end
     update_size();
 
+    // Update graph history
+    stringstream ss;
+    ss << _history << "adjust_load(" << std::dec << n << ")" << std::endl;
+    _history = ss.str();
+
     return true;
 }
 
@@ -369,6 +397,11 @@ bool StrategyGraph::rule_generic_src_transitivity(node_t n){
 
     // Update size in the end
     update_size();
+    
+    // Update graph history
+    stringstream ss;
+    ss << _history << "generic_src_transitivity(" << std::dec << n << ")" << std::endl;
+    _history = ss.str();
     
     return true;
 }
@@ -455,6 +488,11 @@ bool StrategyGraph::rule_adjust_store(node_t n, Arch* arch){
 
     // Update size in the end
     update_size();
+
+    // Update graph history
+    stringstream ss;
+    ss << _history << "adjust_store(" << std::dec << n << ")" << std::endl;
+    _history = ss.str();
 
     return true;
 }

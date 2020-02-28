@@ -23,8 +23,13 @@ ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, Constraint* constraint
     int n = 0;
     StrategyGraph* graph;
     ROPChain* res = nullptr;
+    // DEBUG
+    nb_tries = 6000;
+
     while( n++ < nb_tries && !pending_strategies.empty() && !res){
         graph = pending_strategies.back();
+        std::cout << "DEBUG testing graph " << n << " size " << graph->size << std::endl;
+        std::cout << "DEBUG history " << graph->_history << std::endl << std::endl;
         pending_strategies.pop_back();
         if( graph->select_gadgets(*db, constraint, arch) ){
             res = graph->get_ropchain(arch, constraint);
