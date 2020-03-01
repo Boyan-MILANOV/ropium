@@ -62,22 +62,28 @@ public:
 */
 
 class ROPCompiler{
+    ROPChain* _set_registers_permutation( vector<ILInstruction>& instr, vector<int>& permutation, Constraint* constraint, list<vector<int>>& failed_perms);
+    bool is_complex_instr(ILInstruction& instr, ABI abi);
 public:
     Arch* arch;
     GadgetDB* db;
     // Translate function calls into strategy graphs
     bool _x86_cdecl_to_strategy(StrategyGraph& graph, ILInstruction& instr);
     bool _x86_stdcall_to_strategy(StrategyGraph& graph, ILInstruction& instr);
-    bool _x64_system_v_to_strategy(StrategyGraph& graph, ILInstruction& instr);
-    bool _x64_ms_to_strategy(StrategyGraph& graph, ILInstruction& instr);
-    bool _x86_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruction& instr);
-    bool _x64_linux_syscall_to_strategy(StrategyGraph& graph, ILInstruction& instr);
+
+    // Compile wrappers for functions and syscalls that set multiple registers
+    ROPChain* _set_multiple_registers(vector<ILInstruction>& instr, Constraint* constraint);
+    ROPChain* _compile_x86_linux_syscall(ILInstruction& instr, Constraint* constraint);
+    ROPChain* _compile_x64_linux_syscall(ILInstruction& instr, Constraint* constraint);
+    ROPChain* _compile_x64_system_v_call(ILInstruction& instr, Constraint* constraint);
+    ROPChain* _compile_x64_ms_call(ILInstruction& instr, Constraint* constraint);
 
     ROPCompiler( Arch* arch, GadgetDB* db);
 
     // Main API
     // Take a list of instructions and compile all of them sequentially into a ropchain
-    ROPChain* process(vector<ILInstruction>& instructions, Constraint* constraint=nullptr, ABI abi = ABI::NONE, System sys=System::NONE);
+    ROPChain* process_simple(vector<ILInstruction>& instructions, Constraint* constraint=nullptr, ABI abi = ABI::NONE, System sys=System::NONE);
+    ROPChain* process_complex(vector<ILInstruction>& instructions, Constraint* constraint=nullptr, ABI abi = ABI::NONE, System sys=System::NONE);
     // Transform complex instructions into simpler instructions that can be handled by "process()"
     bool preprocess(vector<ILInstruction>& dst, vector<ILInstruction>& src, Constraint* constraint=nullptr);
     // Parse a program into a vector of instructions

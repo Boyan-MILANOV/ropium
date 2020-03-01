@@ -203,7 +203,6 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
 
             // Get branch type
             if( irblock->ends_with_syscall ){
-                std::cout << "DEBUG SYSCALL GADGET !!!! " << irblock->name << std::endl;
                 gadget->branch_type = BranchType::SYSCALL;
             }else if( irblock->ends_with_int80 ){
                 gadget->branch_type = BranchType::INT80;

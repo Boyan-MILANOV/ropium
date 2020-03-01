@@ -353,6 +353,11 @@ namespace test{
             nb += _assert(instr.type == ILInstructionType::CST_STORE_STRING, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_CSTSTORE_STRING_ADDR_OFFSET] == 0x1234, "Failed to parse IL Instruction");
             nb += _assert(instr.str == string("lalatotokikoo\x00", 14), "Failed to parse IL Instruction");
+            
+            str = " syscall ";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::SINGLE_SYSCALL, "Failed to parse IL Instruction");
+
             return nb;
         }
     }

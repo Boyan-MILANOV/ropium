@@ -57,7 +57,6 @@ static PyObject* ROPium_load(PyObject* self, PyObject* args){
             return PyErr_Format(PyExc_RuntimeError, "Couldn't analyse binary with ROPgadget");
         }
         raw = raw_gadgets_from_file(gadget_file);
-        std::cout << "DEBUG got raw gagets " << raw->size() << std::endl;
         as_ropium_object(self).gadget_db->analyse_raw_gadgets(*raw, as_ropium_object(self).arch);
         delete raw; raw = nullptr;
         remove(gadget_file.c_str());
