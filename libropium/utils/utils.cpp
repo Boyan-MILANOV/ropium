@@ -98,7 +98,7 @@ bool ropgadget_to_file(string out, string ropgadget_out, string bin){
         if (!pipe) {
             throw std::runtime_error("popen() failed!");
         }
-        
+
         pclose(pipe);
         ropgadget_file.open(ropgadget_out, ios::in);
         
