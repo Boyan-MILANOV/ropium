@@ -154,6 +154,9 @@ Semantics* SymbolicEngine::execute_block(IRBlock* block){
     block->known_max_sp_inc = true;
     block->max_sp_inc = 0;
 
+    // FOR DEBUG 
+    // std::cout << "DEBUG EXECUTING " << block->name << std::endl;
+
     while( !stop ){
         /* ====================== Execute an IR basic block ======================== */ 
         /* Execute the basic block as long as there is no reason to stop */

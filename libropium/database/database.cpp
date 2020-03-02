@@ -160,7 +160,11 @@ int GadgetDB::analyse_raw_gadgets(vector<RawGadget>& raw_gadgets, Arch* arch){
                     throw symbolic_exception("symbolic engine returned null semantics");
                 }
             }catch(symbolic_exception& e){
-                //std::cout << "DEBUG ERROR WHILE EXECUTING GADGET: " << irblock->name << " --> " << e.what() << std::endl;
+                //std::cout << "DEBUG SYMBOLIC ERROR WHILE EXECUTING GADGET: " << irblock->name << " --> " << e.what() << std::endl;
+                    delete gadget; continue;
+                    delete irblock; irblock = nullptr;
+            }catch(expression_exception& e){
+                //std::cout << "DEBUG EXPRESSION ERROR WHILE EXECUTING GADGET: " << irblock->name << " --> " << e.what() << std::endl;
                     delete gadget; continue;
                     delete irblock; irblock = nullptr;
             }

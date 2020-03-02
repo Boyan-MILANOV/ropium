@@ -527,7 +527,7 @@ inline IROperand x86_arg_translate(CPUMode mode, addr_t addr, cs_x86_op* arg, IR
                     segment = ir_none();
                 }
                 
-                // === Build the operand now ===  
+                // === Build the operand now ===
                 // Add base and index if any 
                 if( !index.is_none() ){
                     if( !base.is_none() ){
@@ -536,7 +536,7 @@ inline IROperand x86_arg_translate(CPUMode mode, addr_t addr, cs_x86_op* arg, IR
                     }else{
                         res = index;
                     }
-                }else if (!base.is_none()){
+                }else if(!base.is_none()){
                     res = base;
                 }else{
                     res = ir_none();
@@ -559,6 +559,12 @@ inline IROperand x86_arg_translate(CPUMode mode, addr_t addr, cs_x86_op* arg, IR
                         res = segment;
                     }
                 }
+
+                // Check res
+                if( res.is_none() ){
+                    throw symbolic_exception("Got IR_NONE memory operand");
+                }
+                
                 // Do load memory if requested
                 if( load_mem ){
                     block->add_instr(bblkid, IRInstruction(IROperation::LDM,
