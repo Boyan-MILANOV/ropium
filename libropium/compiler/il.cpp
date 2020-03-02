@@ -266,6 +266,25 @@ bool _parse_il_syscall_name( string& name, string& str, int& idx){
     }
 }
 
+bool _parse_il_single_syscall(Arch& arch, ILInstruction* instr, string& str){
+    int i = 0;
+    _skip_whitespace(str, i);
+    // Check if starts with sys_
+    if( str.size() - i < 7 )
+        return false;
+    if( str.substr(i, 7) != "syscall" ){
+        return false;
+    }else{
+        i += 7;
+    }
+    if( _parse_end(str, i)){
+        instr->type = ILInstructionType::SINGLE_SYSCALL;
+        return true;
+    }else{
+        return false;
+    }
+}
+
 bool _parse_il_syscall_num( Arch& arch, int& num, string& str, int& idx){
     int i = idx;
     vector<cst_t> args;
@@ -743,7 +762,8 @@ bool _parse_il_instruction(Arch& arch, ILInstruction* instr, string& str){
             _parse_il_cst_astore_cst(arch, instr, str) ||
             _parse_il_cst_store_string(arch, instr, str) ||
             _parse_il_function(arch, instr, str) ||
-            _parse_il_syscall(arch, instr, str);
+            _parse_il_syscall(arch, instr, str) ||
+            _parse_il_single_syscall(arch, instr, str);
 }
 
 

@@ -79,30 +79,31 @@ void split(const std::string& str, vector<string>& cont, char delim = ' ')
     cont.push_back(str.substr(previous, current - previous));
 }
 
-bool ropgadget_to_file(string out, string bin){
+bool ropgadget_to_file(string out, string ropgadget_out, string bin){
     stringstream cmd;
     ofstream out_file;
-    string output;
-    
+    ifstream ropgadget_file;
+    string line;
+
     out_file.open(out, ios::out);
-    
-    cmd << "ROPgadget --binary " << bin << " --dump --all --depth 5 " << std::endl; 
+
+    cmd << "ROPgadget --binary " << bin << " --dump --all --depth 15 > " << ropgadget_out << std::endl; 
     try{
-        std::array<char, 256> buffer;
-        string result;
-        std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.str().c_str(), "r"), pclose);
         string addr_str, raw_str;
         stringstream ss;
         vector<string> splited;
-        
+
         if (!pipe) {
             throw std::runtime_error("popen() failed!");
         }
-        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
-            ss.str(""); ss << buffer.data();
+
+        pclose(pipe);
+        ropgadget_file.open(ropgadget_out, ios::in);
+        
+        while( std::getline(ropgadget_file, line)){
             splited.clear();
-            split(ss.str(), splited);
-            
+            split(line, splited);
+
             // Get address string
             if( splited.size() > 3 ){
                 addr_str = splited[0];
@@ -120,12 +121,13 @@ bool ropgadget_to_file(string out, string bin){
             // Write them to file
             out_file << addr_str << "$" << raw_str;
         }
-        
+
     }catch(std::runtime_error& e){
         return false;
     }
-    
+
     out_file.close();
+    ropgadget_file.close();
     return true;
 }
 

@@ -20,6 +20,7 @@ static PyObject* ROPium_load(PyObject* self, PyObject* args){
     int filenum = 0;
     stringstream ss;
     string gadget_file; 
+    string ropgadget_tmp_file;
     int max_filenum = 0x7fffffff; 
 
     vector<RawGadget>* raw = nullptr;
@@ -46,15 +47,20 @@ static PyObject* ROPium_load(PyObject* self, PyObject* args){
         return PyErr_Format(PyExc_RuntimeError, "Couldn't create new file where to dump gadgets");
     }
 
+    ss.str("");
+        ss << ".ropgadget_output." << filenum,
+        ropgadget_tmp_file = ss.str();
+
     try{
         // Try to load binary and get gadgets using ROPgadget for now
-        if( ! ropgadget_to_file(gadget_file, filename)){
+        if( ! ropgadget_to_file(gadget_file, ropgadget_tmp_file, filename)){
             return PyErr_Format(PyExc_RuntimeError, "Couldn't analyse binary with ROPgadget");
         }
         raw = raw_gadgets_from_file(gadget_file);
         as_ropium_object(self).gadget_db->analyse_raw_gadgets(*raw, as_ropium_object(self).arch);
         delete raw; raw = nullptr;
         remove(gadget_file.c_str());
+        remove(ropgadget_tmp_file.c_str());
     }catch(runtime_exception& e){
         return PyErr_Format(PyExc_RuntimeError, "%s", e.what());
     }

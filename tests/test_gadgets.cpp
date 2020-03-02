@@ -24,7 +24,7 @@ namespace test{
             unsigned int nb = 0;
             Arch* arch = new ArchX86();
 
-            ropgadget_to_file("/tmp/gadgets.ropg", "/usr/bin/nmap");
+            ropgadget_to_file("/tmp/gadgets.ropium", "/tmp/ropgagdet_tmp.ropium", "/usr/bin/nmap");
 
             vector<RawGadget>* raw = raw_gadgets_from_file("/tmp/gadgets.ropg");
 

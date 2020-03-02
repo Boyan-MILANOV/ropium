@@ -448,7 +448,10 @@ private:
     VarContext params_ctx;
     int _depth;
     vector<InterferencePoint> interference_points;
+
 public:
+    string _history;
+
     int size;
     vector<Node> nodes;
     vector<node_t> dfs_strategy;
