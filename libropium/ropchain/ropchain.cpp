@@ -98,6 +98,8 @@ void ROPChain::dump_raw(vector<uint8_t>& bytes){
             append_value_to_bytes(bytes, item.addr, arch->octets);
         }else if( item.type == ROPItemType::PADDING ){
             append_value_to_bytes(bytes, item.value, arch->octets);
+        }else if( item.type == ROPItemType::GADGET_ADDRESS ){
+            append_value_to_bytes(bytes, item.value, arch->octets);
         }else{
             throw runtime_exception("ROPChain::print_raw() got unsupported item type");
         }

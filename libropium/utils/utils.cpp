@@ -89,8 +89,6 @@ bool ropgadget_to_file(string out, string ropgadget_out, string bin){
 
     cmd << "ROPgadget --binary " << bin << " --dump --all --depth 15 > " << ropgadget_out << std::endl; 
     try{
-        
-        FILE* pipe = popen(cmd.str().c_str(), "w");
         string addr_str, raw_str;
         stringstream ss;
         vector<string> splited;
