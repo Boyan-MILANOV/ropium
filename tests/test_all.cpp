@@ -23,8 +23,8 @@ int main(int argc, char ** argv){
     string red = "\033[1;31m";
     string green = "\033[1;32m";
     
-    cout << bold << "\nRunnning ROPGenerator unit-tests" << def << endl
-                 <<   "================================" << endl << endl;
+    cout << bold << "\nRunnning ROPium unit-tests" << def << endl
+                 <<   "==========================" << endl << endl;
      for(int i = 0; i < 1; i++){
         try{
             if( argc == 1 ){
