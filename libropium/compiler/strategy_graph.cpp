@@ -866,6 +866,11 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
         throw runtime_exception("StrategyGraph::select_gadget(): should NEVER be called with a non-NULL constraint and a NULL arch");
     }
 
+    // Check if SIGINT
+    if( is_pending_sigint()){
+        return false;
+    }
+
     // Otherwise do proper gadget selection : 
 
     // If root call

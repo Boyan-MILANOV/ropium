@@ -147,4 +147,12 @@ string value_to_hex_str(int octets, addr_t addr);
 
 void disable_colors();
 void enable_colors();
+
+/* ========= Catching ctrl+C ============= */
+void set_sigint_handler();
+void unset_signint_handler();
+bool is_pending_sigint();
+void notify_sigint_handled();
+
+
 #endif

@@ -9,6 +9,7 @@
 #include <array>
 #include <vector>
 #include <exception>
+#include <signal.h>
 
 using std::ifstream;
 using std::ofstream;
@@ -179,4 +180,35 @@ void enable_colors(){
     g_PAYLOAD_COLOR_ANSI = DEFAULT_PAYLOAD_COLOR_ANSI;
     g_EXPLOIT_DESCRIPTION_ANSI = DEFAULT_EXPLOIT_DESCRIPTION_ANSI;
     g_END_COLOR_ANSI = DEFAULT_END_COLOR_ANSI ;    
+}
+
+
+
+/* ========= Catching ctrl+C ============= */
+struct sigaction g_ropium_sigint_handler;
+struct sigaction g_ropium_prev_sigint_handler;
+bool g_ropium_sigint_flag = false;
+
+void ropium_sigint_handler(int s){
+    g_ropium_sigint_flag = true;
+}
+
+void set_sigint_handler(){
+    g_ropium_sigint_handler.sa_handler = ropium_sigint_handler;
+    sigemptyset(&g_ropium_sigint_handler.sa_mask);
+    g_ropium_sigint_handler.sa_flags = 0;
+
+    sigaction(SIGINT, &g_ropium_sigint_handler, &g_ropium_prev_sigint_handler);
+}
+
+void unset_signint_handler(){
+    sigaction(SIGINT, &g_ropium_prev_sigint_handler, nullptr);
+}
+
+bool is_pending_sigint(){
+    return g_ropium_sigint_flag;
+}
+
+void notify_sigint_handled(){
+    g_ropium_sigint_flag = false;
 }

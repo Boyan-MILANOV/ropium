@@ -26,7 +26,17 @@ ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, Constraint* constraint
     ROPChain* res = nullptr;
     nb_tries = 3000;
 
+    // Set sigint handler to catch Ctrl+C
+    set_sigint_handler();
+
     while( nb_tries-- > 0 && !pending_strategies.empty() && !res){
+        // Check if user entered Ctrl+C
+        if( is_pending_sigint() ){
+            notify_sigint_handled();
+            unset_signint_handler();
+            return nullptr;
+        }
+
         graph = pending_strategies.back();
         pending_strategies.pop_back();
         if( graph->select_gadgets(*db, constraint, arch) ){
@@ -37,6 +47,10 @@ ROPChain* CompilerTask::compile(Arch* arch, GadgetDB* db, Constraint* constraint
         }
         delete graph; graph = nullptr;
     }
+    
+    // Restore original sigint handler
+    unset_signint_handler();
+
     return res;
 }
 

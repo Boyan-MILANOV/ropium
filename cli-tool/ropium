@@ -156,6 +156,7 @@ def load(args):
     seen_filename = False
     arch = None
     filenames = []
+    compiler_was_none = False
 
     # Parse arguments
     if not args:
@@ -187,6 +188,13 @@ def load(args):
     if arch and (arch not in str_to_arch):
         raise LoadException(f"Unsupported architecture: {arch}")
 
+    # Instanciate compiler if not already
+    if compiler is None:
+        compiler = ROPium(str_to_arch[arch])
+        compiler_was_none = True
+    elif compiler and arch and (str_to_arch[arch] != compiler.arch):
+        raise LoadException(f"Already working on a different architecture than '{arch}'")
+
     loaded_at_least_one = False
     print('') # So it's moar pretty
     for f in filenames:
@@ -198,11 +206,9 @@ def load(args):
             info(f"Loaded: {f}")
             loaded_at_least_one = True
 
-    # Instanciate compiler if not already
-    if compiler is None and loaded_at_least_one:
-        compiler = ROPium(str_to_arch[arch])
-    elif compiler and arch and (str_to_arch[arch] != compiler.arch):
-        raise LoadException(f"Already working on a different architecture than '{arch}'")
+    
+    if compiler_was_none and not loaded_at_least_one:
+        compiler = None
 
 
 # Find command
