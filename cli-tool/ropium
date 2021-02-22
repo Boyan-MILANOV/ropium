@@ -46,7 +46,7 @@ keep_regs = []
 safe_mem = True
 abi = ABI.NONE
 system = OS.NONE
-start_msg = "\n" + str_bold("ROPium") + " - v3.1\n"
+start_msg = "\n" + str_bold("ROPium") + " - v3.2\n"
 
 # Commands
 CMD_HELP = "help"
