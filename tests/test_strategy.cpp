@@ -439,6 +439,53 @@ namespace test{
             return nb;
         }
 
+        unsigned int test_mba_set_cst(){
+            unsigned int nb = 0;
+            Arch* arch = new ArchX86();
+            GadgetDB db;
+            ROPChain* ropchain;
+
+            vector<RawGadget> raw;
+            raw.push_back(RawGadget(string("\x83\xc0\x07\xc3", 4), 1)); // add eax, 7; ret
+            raw.push_back(RawGadget(string("\xb8\x2a\x00\x00\x00\xc3", 6), 2)); // mov eax, 42; ret
+            db.analyse_raw_gadgets(raw, arch);
+
+            // With add
+            StrategyGraph sgraph;
+            node_t n1 = sgraph.new_node(GadgetType::MOV_CST);
+            Node& node1 = sgraph.nodes[n1];
+            node1.params[PARAM_MOVCST_DST_REG].make_reg(X86_EAX);
+            node1.params[PARAM_MOVCST_SRC_CST].make_cst(49, "cst_0");
+            node1.branch_type = BranchType::RET;
+            // Apply strat
+            sgraph.rule_mba_set_cst(n1, arch);
+            sgraph.select_gadgets(db, nullptr, arch);
+            ropchain = sgraph.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+
+            // With xor
+            raw.clear();
+            db.clear();
+            raw.push_back(RawGadget(string("\x35\x34\x12\x00\x00\xc3", 6), 1)); // xor eax, 0x1234; ret
+            raw.push_back(RawGadget(string("\xb8\x78\x56\x00\x00\xc3", 6), 2)); // mov eax, 0x5678; ret
+            db.analyse_raw_gadgets(raw, arch);
+            StrategyGraph sgraph2;
+            node_t n2 = sgraph2.new_node(GadgetType::MOV_CST);
+            Node& node2 = sgraph2.nodes[n2];
+            node2.params[PARAM_MOVCST_DST_REG].make_reg(X86_EAX);
+            node2.params[PARAM_MOVCST_SRC_CST].make_cst(0x444c, "cst_0");
+            node2.branch_type = BranchType::RET;
+            // Apply strat
+            sgraph2.rule_mba_set_cst(n2, arch);
+            sgraph2.select_gadgets(db, nullptr, arch);
+            ropchain = sgraph2.get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+
+            delete arch;
+            return nb;
+        }
+
+
     }
 }
 
@@ -461,6 +508,7 @@ void test_strategy(){
         total += test_adjust_store();
         total += test_cst_pop();
         total += test_x64_syscall();
+        total += test_mba_set_cst();
     }
 
     // Return res

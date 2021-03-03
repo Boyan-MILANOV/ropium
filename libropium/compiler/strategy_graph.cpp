@@ -654,6 +654,31 @@ bool StrategyGraph::compute_dfs_scheduling(){
 }
 
 /* =============== Gadget Selection ============== */
+cst_t StrategyGraph::_resolve_mba_dep(Param& param){
+    cst_t target_cst = nodes[param.deps[0].node].params[param.deps[0].param_type].value;
+    Op op = (Op) nodes[param.deps[1].node].params[param.deps[1].param_type].value;
+    cst_t cst2 = nodes[param.deps[2].node].params[param.deps[2].param_type].value;
+    // Compute C so that 
+    // C op cst2 == target_cst
+    switch(op){
+        case Op::ADD: 
+            return target_cst - cst2;
+        case Op::MUL: 
+            if( target_cst % cst2 == 0 )
+                return target_cst / cst2;
+            break;
+        case Op::XOR:
+            return target_cst ^ cst2;
+
+        // TODO: NEG, NOT, SHL, SAR, Dumbed down versions of AND/OR ??
+        default:
+            break;
+    }
+    // Couldn't invert operation, raise exception
+    throw strategy_exception("_resolve_mba_dep: couldn't invert MBA operation");
+}
+
+
 // Get the concrete value for parameters depending on other 
 // gadgets. This functions expects all the parameters in nodes that
 // are used by the 'param' argument to have been resolved already
@@ -662,7 +687,15 @@ void StrategyGraph::_resolve_param(Param& param){
         if( param.type == ParamType::REG ){
             param.value = nodes[param.deps[0].node].params[param.deps[0].param_type].value;
         }else if( param.type == ParamType::CST){
-            if( param.expr == nullptr ){
+            if( param.is_mba_dependent()){
+                // MBA dependent, we need to invert the operation to find
+                // out what constant we want
+                try{
+                    param.value = _resolve_mba_dep(param);
+                }catch(strategy_exception& e){
+                    throw strategy_exception(e);
+                }
+            }else if( param.expr == nullptr ){
                 // If not expr, just take the value of the other param
                 param.value = nodes[param.deps[0].node].params[param.deps[0].param_type].value;
             }else{
@@ -777,6 +810,7 @@ PossibleGadgets* StrategyGraph::_get_possible_gadgets(GadgetDB& db, node_t n){
     for( p = 0; p < node.nb_params(); p++){
         params_status[p] = node.params[p].is_free();
     }
+
     // Make the query to the db
     switch( node.type ){
         case GadgetType::MOV_REG:
@@ -861,6 +895,8 @@ bool StrategyGraph::_check_assigned_gadget_constraints(Node& node, Arch* arch){
  strategy graph.  
 */
 bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* arch, int dfs_idx){
+    PossibleGadgets*  possible = nullptr;
+
     // Check if constraint is specified with an architecture
     if( constraint && !arch){
         throw runtime_exception("StrategyGraph::select_gadget(): should NEVER be called with a non-NULL constraint and a NULL arch");
@@ -873,112 +909,119 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
 
     // Otherwise do proper gadget selection : 
 
+    try{
+
     // If root call
-    if( dfs_idx == -1 ){
-        compute_dfs_params();
-        compute_dfs_strategy();
-        params_ctx = VarContext(); // New context for params
-        has_gadget_selection = select_gadgets(db, constraint, arch, 0);
-        return has_gadget_selection;
-    }
-
-    if( dfs_idx >= dfs_params.size()){
-        return schedule_gadgets();
-    }
-
-    node_t n = dfs_params[dfs_idx];
-    Node& node = nodes[n];
-
-    // If the node is a disabled node, juste resolve the parameters
-    // and continue the selection 
-    if( node.is_disabled){
-        _resolve_all_params(n);
-        // Continue to select from next node
-        if( select_gadgets(db, constraint, arch, dfs_idx+1) )
-                return true;
-        else
-                return false;
-    }
-
-    // 1. Try all possibilities for parameters
-    if( node.has_free_param() ){
-        // Get possible gadgets
-        PossibleGadgets* possible = _get_possible_gadgets(db, node.id);
-        // 2.a. Try all possible params
-        for( auto pos: possible->gadgets ){
-            // Update free params
-            for( int p = 0; p < node.nb_params(); p++){
-                if( node.params[p].is_free())
-                    node.params[p].value = pos.first[p];
-                if( node.params[p].is_cst())
-                    params_ctx.set(node.params[p].name, node.params[p].value);
-            }
-            // Resolve params again (useful for special paddings that depend
-            // on regular parameters such as offsets, etc)
-            _resolve_all_params(node.id);
-
-            // Check strategy constraints 
-            if( !_check_strategy_constraints(node, arch) || !_check_special_padding_constraints(node, arch, constraint)){
-                continue;
-            }
-
-            // Prepare assertion for current parameter choice
-            node.apply_assertion();
-
-            // 2.b Try all possible gadgets
-            for( Gadget* gadget : *(pos.second) ){
-                if( ! node.assign_gadget(gadget, arch, constraint))
-                    continue;
-
-                // Resolve params once again (useful for special paddings that depend
-                // on gadget specific parameters such as gadget_addr, gadget_sp_inc, etc)
-                _resolve_all_params(node.id);
-
-                // Check assigned gadget constraints and global constraint
-                if( !_check_assigned_gadget_constraints(node, arch) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
-                    continue;
-                }
-                // 3. Recursive call on next node 
-                if( select_gadgets(db, constraint, arch, dfs_idx+1)){
-                    delete possible; possible = nullptr;
-                    return true;
-                }
-            }
+        if( dfs_idx == -1 ){
+            compute_dfs_params();
+            compute_dfs_strategy();
+            params_ctx = VarContext(); // New context for params
+            has_gadget_selection = select_gadgets(db, constraint, arch, 0);
+            return has_gadget_selection;
         }
-        delete possible; possible = nullptr;
-    }else{
 
-        // Check strategy constraints 
-        if( _check_strategy_constraints(node, arch)){
+        if( dfs_idx >= dfs_params.size()){
+            return schedule_gadgets();
+        }
 
-            // Get matching gadgets
-            const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
+        node_t n = dfs_params[dfs_idx];
+        Node& node = nodes[n];
 
-            // 2. Try all possible gadgets (or a subset)
-            for( Gadget* gadget : gadgets ){
-                if( ! node.assign_gadget(gadget, arch, constraint))
-                    continue;
+        // If the node is a disabled node, juste resolve the parameters
+        // and continue the selection 
+        if( node.is_disabled){
+            _resolve_all_params(n);
+            // Continue to select from next node
+            if( select_gadgets(db, constraint, arch, dfs_idx+1) )
+                    return true;
+            else
+                    return false;
+        }
 
+        // 1. Try all possibilities for parameters
+        if( node.has_free_param() ){
+            // Get possible gadgets
+            possible = _get_possible_gadgets(db, node.id);
+            // 2.a. Try all possible params
+            for( auto pos: possible->gadgets ){
+                // Update free params
+                for( int p = 0; p < node.nb_params(); p++){
+                    if( node.params[p].is_free())
+                        node.params[p].value = pos.first[p];
+                    if( node.params[p].is_cst())
+                        params_ctx.set(node.params[p].name, node.params[p].value);
+                }
                 // Resolve params again (useful for special paddings that depend
                 // on regular parameters such as offsets, etc)
                 _resolve_all_params(node.id);
-                
-                // Check if paddings have valid values (no bad bytes)
-                if( !_check_special_padding_constraints(node, arch, constraint))
+
+                // Check strategy constraints 
+                if( !_check_strategy_constraints(node, arch) || !_check_special_padding_constraints(node, arch, constraint)){
                     continue;
+                }
 
                 // Prepare assertion for current parameter choice
                 node.apply_assertion();
 
-                // Check assigned gadget constraints and global constraint
-                if( !_check_assigned_gadget_constraints(node, arch) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
-                    continue;
-                }
-                // 3. Recursive call on next node
-                if( select_gadgets(db, constraint, arch, dfs_idx+1) ){
-                    return true;
+                // 2.b Try all possible gadgets
+                for( Gadget* gadget : *(pos.second) ){
+                    if( ! node.assign_gadget(gadget, arch, constraint))
+                        continue;
+
+                    // Resolve params once again (useful for special paddings that depend
+                    // on gadget specific parameters such as gadget_addr, gadget_sp_inc, etc)
+                    _resolve_all_params(node.id);
+
+                    // Check assigned gadget constraints and global constraint
+                    if( !_check_assigned_gadget_constraints(node, arch) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
+                        continue;
+                    }
+                    // 3. Recursive call on next node 
+                    if( select_gadgets(db, constraint, arch, dfs_idx+1)){
+                        delete possible; possible = nullptr;
+                        return true;
+                    }
                 }
             }
+            delete possible; possible = nullptr;
+        }else{
+
+            // Check strategy constraints 
+            if( _check_strategy_constraints(node, arch)){
+
+                // Get matching gadgets
+                const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
+
+                // 2. Try all possible gadgets (or a subset)
+                for( Gadget* gadget : gadgets ){
+                    if( ! node.assign_gadget(gadget, arch, constraint))
+                        continue;
+
+                    // Resolve params again (useful for special paddings that depend
+                    // on regular parameters such as offsets, etc)
+                    _resolve_all_params(node.id);
+                    
+                    // Check if paddings have valid values (no bad bytes)
+                    if( !_check_special_padding_constraints(node, arch, constraint))
+                        continue;
+
+                    // Prepare assertion for current parameter choice
+                    node.apply_assertion();
+
+                    // Check assigned gadget constraints and global constraint
+                    if( !_check_assigned_gadget_constraints(node, arch) || (constraint && !constraint->check(gadget, arch, &node.assertion))){
+                        continue;
+                    }
+                    // 3. Recursive call on next node
+                    if( select_gadgets(db, constraint, arch, dfs_idx+1) ){
+                        return true;
+                    }
+                }
+            }
+        }
+    }catch(strategy_exception& e){
+        if( possible != nullptr ){
+            delete possible;
         }
     }
     return false;

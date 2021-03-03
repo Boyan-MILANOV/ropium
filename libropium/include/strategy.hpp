@@ -38,10 +38,12 @@ public:
     // Dependencies
     vector<ParamDep> deps;
     Expr expr; // For constants only
+    bool is_mba_dep; // For constants only
+
     bool is_fixed;
     bool is_data_link; 
 
-    Param():type(ParamType::NONE), name(""), value(-1), expr(nullptr), is_fixed(true), is_data_link(false){};
+    Param():type(ParamType::NONE), name(""), value(-1), expr(nullptr), is_fixed(true), is_mba_dep(false), is_data_link(false){};
 
     void add_dep(node_t n, param_t p){
         // Check if already present
@@ -65,6 +67,7 @@ public:
         type = ParamType::REG;
         value = reg;
         is_fixed = fixed;
+        is_mba_dep = false;
         deps.clear();
         expr = nullptr;
         is_data_link = false;
@@ -75,6 +78,7 @@ public:
         type = ParamType::REG;
         value = -1;
         is_fixed = false;
+        is_mba_dep = false;
         deps.clear();
         add_dep(dn, dpt);
         expr = nullptr;
@@ -87,34 +91,56 @@ public:
         name = n;
         value = val;
         is_fixed = fixed;
+        is_mba_dep = false;
         deps.clear();
         expr = nullptr;
         is_data_link = false;
     };
-    
+
     // Dependent constant
     void make_cst(node_t dn, int dpt, Expr e, string n){
         type = ParamType::CST;
         name = n;
         value = 0;
         is_fixed = false;
+        is_mba_dep = false;
         deps.clear();
         add_dep(dn, dpt);
         expr = e;
         is_data_link = false;
     };
 
+    // Dependent constant MBA
+    // Constant C must be the value so that:
+    // C (dpt_op) dpt_cst2 == dpt_cst1
+    void make_cst(node_t dn1, int dpt_cst1, node_t dn, int dpt_op, node_t dn2, int dpt_cst2, string n){
+        type = ParamType::CST;
+        name = n;
+        value = 0;
+        is_fixed = false;
+        is_mba_dep = true;
+        deps.clear();
+        add_dep(dn1, dpt_cst1);
+        add_dep(dn, dpt_op);
+        add_dep(dn2, dpt_cst2);
+        expr = nullptr;
+        is_data_link = false;
+    }
+
     // Operator
     void make_op(Op op){
         type = ParamType::OP;
         value = (int)op;
-        is_fixed = true;
+        is_fixed = ((Op)value != Op::NONE); // If NONE, free op param
+        is_mba_dep = false;
         deps.clear();
         expr = nullptr;
         is_data_link = false;
     };
-
-    bool is_dependent(){return !is_fixed && !deps.empty();};
+    
+    bool is_mba_dependent(){return is_mba_dep;}; // For constants only
+    bool is_dependent(){return is_mba_dep ||
+                              (!is_fixed && !deps.empty());};
     bool is_free(){return !is_dependent() && !is_fixed;};
     bool is_cst(){return type == ParamType::CST;};
     bool is_reg(){return type == ParamType::REG;};
@@ -436,6 +462,7 @@ private:
     void _dfs_params_explore(vector<node_t>& marked, node_t n);
     bool _dfs_scheduling_explore(vector<node_t>& marked, node_t n);
     void _resolve_param(Param& param);
+    cst_t _resolve_mba_dep(Param& param);
     void _resolve_all_params(node_t n);
     const vector<Gadget*>& _get_matching_gadgets(GadgetDB& db, node_t node);
     PossibleGadgets* _get_possible_gadgets(GadgetDB& db, node_t n);
@@ -481,6 +508,7 @@ public:
     bool rule_generic_adjust_jmp(node_t n, Arch* arch);
     bool rule_adjust_load(node_t n, Arch* arch);
     bool rule_adjust_store(node_t n, Arch* arch);
+    bool rule_mba_set_cst(node_t n, Arch* arch);
     // Ordering
     void compute_dfs_strategy();
     void compute_dfs_params();

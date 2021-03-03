@@ -496,3 +496,70 @@ bool StrategyGraph::rule_adjust_store(node_t n, Arch* arch){
 
     return true;
 }
+
+
+
+/* dst_reg <-- src_cst
+ * ===================
+ * (n1) MovReg R1, C1
+ * (n2) dst_reg <-- R1 OP (C1 OP{-1} src_cst)
+ * ======================= */
+bool StrategyGraph::rule_mba_set_cst(node_t n, Arch* arch){
+
+    if( nodes[n].type != GadgetType::MOV_CST){
+        return false;
+    }
+
+    // Get/Create nodes
+    node_t n1 = new_node(GadgetType::MOV_CST);
+    node_t n2 = new_node(GadgetType::AMOV_CST);
+    Node& node = nodes[n];
+    Node& node1 = nodes[n1];
+    Node& node2 = nodes[n2];
+
+    // Make cst and operation free in node 2
+    node2.params[PARAM_AMOVCST_SRC_CST].make_cst(-1, new_name("cst"), false);
+    node2.params[PARAM_AMOVCST_SRC_OP].make_op(Op::NONE);
+    node2.params[PARAM_AMOVCST_SRC_REG].make_reg(-1, false);
+    // Dst reg in node2 is same as in node
+    node2.params[PARAM_AMOVCST_DST_REG] = node.params[PARAM_MOVCST_DST_REG];
+
+    // Set node1 with the reg <- cst gadget
+    node1.params[PARAM_MOVCST_DST_REG].make_reg(-1, false); // free reg
+    node1.params[PARAM_MOVCST_DST_REG].add_dep(n2, PARAM_AMOVCST_SRC_REG);
+    // Make the cst a MBA dependency
+    node1.params[PARAM_MOVCST_SRC_CST].make_cst(n, PARAM_MOVCST_SRC_CST, n2, PARAM_AMOVCST_SRC_OP, n2, PARAM_AMOVCST_SRC_CST, new_name("cst"));
+
+    // Add data link between node 1 and 2 for the transitive reg
+    node1.params[node1.get_param_num_dst_reg()].is_data_link = true;
+
+    // Node1 must end with a ret
+    node1.branch_type = BranchType::RET;
+    // Node2 same as node
+    node2.branch_type = node.branch_type;
+
+    // Redirect dst reg (to node2) (and datalink of course)
+    redirect_param_edges(node.id, node.get_param_num_dst_reg(), node2.id, node2.get_param_num_dst_reg());
+    redirect_param_edges(node.id, node.get_param_num_data_link(), node2.id, node2.get_param_num_data_link());
+
+    // Redirect/add strategy edges
+    add_strategy_edge(node1.id, node2.id);
+    redirect_incoming_strategy_edges(node.id, node1.id);
+    redirect_outgoing_strategy_edges(node.id, node2.id);
+
+    // Update param edges
+    update_param_edges();
+    
+    // Disable previous node
+    disable_node(node.id);
+    
+    // Update size in the end
+    update_size();
+    
+    // Update graph history
+    stringstream ss;
+    ss << _history << "mba_set_cst(" << std::dec << n << ")" << std::endl;
+    _history = ss.str();
+
+    return true;
+}

@@ -43,7 +43,7 @@ void ROPChain::print_pretty(ostream& os, string tab){
                 os << " (" << str_bold(item.msg) << ")";
             os << std::endl;
         }else{
-            os << tab << "Unsupported " << std::endl;
+            os << tab << "Unsupported: " << std::endl;
         }
     }
 }
