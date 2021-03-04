@@ -248,12 +248,14 @@ vector<ILInstruction> ROPCompiler::parse(string& program){
     pos = 0;
     while( !program.empty() && pos != string::npos){
         pos = program.find('\n');
-        instr = program.substr(0, pos); 
+        instr = program.substr(0, pos);
         if( !_is_empty_line(instr)){
             try{
                 ILInstruction ins = ILInstruction(*arch, instr);
                 res.push_back(ins);
+                instr.clear();
             }catch(il_exception const& e) {
+                std::cout << string(e.what()) << std::endl;
                 throw il_exception(QuickFmt() << "Invalid query: " << instr >> QuickFmt::to_str);
             }
         }

@@ -481,6 +481,44 @@ namespace test{
             ropchain = sgraph2.get_ropchain(arch);
             nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
 
+            
+            // Test MBA set cst combined with store
+            /*
+            [0x1234] = "/bin/sh\x00"
+            pop rsi; ret
+            (pop rdi; ret)
+            (lea rdx, qword ptr [rdi + rdi*8]; lea rax, qword ptr [rax + rdx*8]; add rsp, 0x10; pop rbx; ret)
+            (lea rax, qword ptr [rdx + 0xe]; ret)
+            mov [rsi], rax; ret
+            */
+            
+            vector<StrategyGraph*> graphs;
+            raw.clear();
+            db.clear();
+            raw.push_back(RawGadget(string("\x5e\xc3", 2), 1)); // pop esi; ret
+            raw.push_back(RawGadget(string("\x8d\x14\xff\xc3", 4), 2)); // lea edx, dword ptr [edi + edi*8]; ret
+            raw.push_back(RawGadget(string("\x8d\x42\x05\xc3", 4), 3)); // lea eax, dword ptr [edx + 5]; ret
+            raw.push_back(RawGadget(string("\x89\x06\xc3", 3), 4)); // mov [esi], eax; ret
+            raw.push_back(RawGadget(string("\x5f\xc3", 2), 5)); // pop edi; ret
+            db.analyse_raw_gadgets(raw, arch);
+            ROPCompiler* comp = new ROPCompiler(arch, &db);
+            string query("[0x1234]=50\n");
+            vector<ILInstruction> instrs = comp->parse(query);
+            comp->il_to_strategy(graphs, instrs[0], nullptr, ABI::NONE, System::LINUX);
+            // Apply mba to node 2
+            graphs[0]->rule_mba_set_cst(2, arch);
+            // Apply cst pop to node 1
+            graphs[0]->rule_mov_cst_pop(1, arch);
+            // Apply mba to node 3
+            graphs[0]->rule_mba_set_cst(3, arch);
+            // Apply cst pop to node 6
+            graphs[0]->rule_mov_cst_pop(6, arch);
+
+            graphs[0]->select_gadgets(db, nullptr, arch);
+            ropchain = graphs[0]->get_ropchain(arch);
+            nb += _assert_ropchain(ropchain, "Basic application of strategy rule failed");
+
+            delete comp;
             delete arch;
             return nb;
         }

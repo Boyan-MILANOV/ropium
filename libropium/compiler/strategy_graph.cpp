@@ -896,6 +896,8 @@ bool StrategyGraph::_check_assigned_gadget_constraints(Node& node, Arch* arch){
 */
 bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* arch, int dfs_idx){
     PossibleGadgets*  possible = nullptr;
+    int gadget_cnt = 0;
+    int MAX_POSSIBLE_GADGETS_PER_KEY = 10;
 
     // Check if constraint is specified with an architecture
     if( constraint && !arch){
@@ -964,7 +966,15 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
                 node.apply_assertion();
 
                 // 2.b Try all possible gadgets
+                gadget_cnt = 0;
                 for( Gadget* gadget : *(pos.second) ){
+                    // Update gadget cnt for this possibily
+                    if( gadget_cnt >= MAX_POSSIBLE_GADGETS_PER_KEY ){
+                        break;
+                    }else{
+                        gadget_cnt++;
+                    }
+                    
                     if( ! node.assign_gadget(gadget, arch, constraint))
                         continue;
 
@@ -993,7 +1003,15 @@ bool StrategyGraph::select_gadgets(GadgetDB& db, Constraint* constraint, Arch* a
                 const vector<Gadget*>& gadgets = _get_matching_gadgets(db, node.id);
 
                 // 2. Try all possible gadgets (or a subset)
+                gadget_cnt = 0;
                 for( Gadget* gadget : gadgets ){
+                    // Update gadget cnt for this match
+                    if( gadget_cnt >= MAX_POSSIBLE_GADGETS_PER_KEY ){
+                        break;
+                    }else{
+                        gadget_cnt++;
+                    }
+
                     if( ! node.assign_gadget(gadget, arch, constraint))
                         continue;
 
