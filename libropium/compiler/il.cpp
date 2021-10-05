@@ -769,7 +769,7 @@ bool _parse_il_instruction(Arch& arch, ILInstruction* instr, string& str){
 
 ILInstruction::ILInstruction(Arch& arch, string str){
     if( !_parse_il_instruction(arch, this, str)){
-        throw il_exception("Invald instruction string");
+        throw il_exception("Invalid instruction string");
     }
 }
 
