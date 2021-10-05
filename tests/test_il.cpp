@@ -148,7 +148,7 @@ namespace test{
             nb += _assert(instr.type == ILInstructionType::LOAD_CST, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_LOADCST_DST_REG] == X86_EAX, "Failed to parse IL Instruction");
             nb += _assert(instr.args[PARAM_LOADCST_SRC_ADDR_OFFSET] == 0xffffffff, "Failed to parse IL Instruction");
-            
+
             // aload_cst
             str = " edi ^= [0]";
             instr = ILInstruction(arch, str);
@@ -360,6 +360,43 @@ namespace test{
 
             return nb;
         }
+
+        unsigned int il_parser64(){
+            unsigned int nb = 0;
+            ArchX64 arch;
+            
+            // parse_il_cst should work with both unsigned and signed constants
+            string str = " 1000( 0xffffffffffffffff, -1 )";
+            ILInstruction instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::FUNCTION, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ADDR] == 1000, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ARGS+0] == (cst_t)0xffffffffffffffff, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+0] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_FUNCTION_ARGS+1] == -1, "Failed to parse IL Instruction");
+            nb += _assert(instr.args_type[PARAM_FUNCTION_ARGS+1] == IL_FUNC_ARG_CST, "Failed to parse IL Instruction");
+            
+            str = "rax=   [0x7000000000000000]";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::LOAD_CST, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_LOADCST_DST_REG] == X64_RAX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_LOADCST_SRC_ADDR_OFFSET] == (cst_t)0x7000000000000000, "Failed to parse IL Instruction");
+            
+            // 0xffffffffffffffff == -1
+            str = "rdx=   0xffffffffffffffff";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::MOV_CST, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_MOVCST_DST_REG] == X64_RDX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_MOVCST_SRC_CST] == -1, "Failed to parse IL Instruction");
+            
+            // Edge case: -0xffffffffffffffff == -(0xffffffffffffffff) == -(-1) == 1
+            str = "rcx=   -0xffffffffffffffff";
+            instr = ILInstruction(arch, str);
+            nb += _assert(instr.type == ILInstructionType::MOV_CST, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_MOVCST_DST_REG] == X64_RCX, "Failed to parse IL Instruction");
+            nb += _assert(instr.args[PARAM_MOVCST_SRC_CST] == 1, "Failed to parse IL Instruction");
+            
+            return nb;
+        }
     }
 }
 
@@ -374,6 +411,7 @@ void test_il(){
     // Start testing 
     cout << bold << "[" << green << "+" << def << bold << "]" << def << std::left << std::setw(34) << " Testing il module... " << std::flush;  
     total += il_parser();
+    total += il_parser64();
     // Return res
     cout << "\t" << total << "/" << total << green << "\t\tOK" << def << endl;
 }
