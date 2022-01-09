@@ -58,7 +58,7 @@ bool _parse_il_cst(Arch& arch, vector<cst_t>& args, string& str, int& idx){
     }
     
     try{
-        cst = std::stoll(s, 0, base);
+        cst = std::stoull(s, 0, base);
         // Check if cst is not too big
         if( arch.octets < 8 && (cst >= (ucst_t)((ucst_t)1<<(arch.bits)))){
             return false;
@@ -769,7 +769,7 @@ bool _parse_il_instruction(Arch& arch, ILInstruction* instr, string& str){
 
 ILInstruction::ILInstruction(Arch& arch, string str){
     if( !_parse_il_instruction(arch, this, str)){
-        throw il_exception("Invald instruction string");
+        throw il_exception("Invalid instruction string");
     }
 }
 
