@@ -16,7 +16,7 @@ static void ROPium_dealloc(PyObject* self){
 
 static PyObject* ROPium_load(PyObject* self, PyObject* args){
     const char* filename;
-    int filename_len;
+    Py_ssize_t filename_len;
     int filenum = 0;
     stringstream ss;
     string gadget_file; 
@@ -70,7 +70,7 @@ static PyObject* ROPium_load(PyObject* self, PyObject* args){
 
 static PyObject* ROPium_compile(PyObject* self, PyObject* args){
     const char* query;
-    int query_len;
+    Py_ssize_t query_len;
     ROPChain* ropchain;
 
     if( ! PyArg_ParseTuple(args, "s#", &query, &query_len) ){

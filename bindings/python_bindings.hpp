@@ -1,5 +1,6 @@
 #ifndef PYTHON_BINDINGS_INCLUDE_H
 #define PYTHON_BINDINGS_INCLUDE_H
+#define PY_SSIZE_T_CLEAN
 
 #include "Python.h"
 #include "structmember.h"
