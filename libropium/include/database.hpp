@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <tuple>
+#include <array>
 #include <unordered_map>
 #include "utils.hpp"
 #include "expression.hpp"
